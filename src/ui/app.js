@@ -242,6 +242,12 @@ export function startApp() {
       return `<button class="tb tech ${t}${on ? ' on' : ''}" data-tray="${t}" ${locked || S.gold < cost ? 'aria-disabled="true"' : ''} title="${BUILDINGS[t].desc[0]}"><i></i><span class="tn">${SHORT[t]}</span>${locked ? '<span class="tc">Keep 2</span>' : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
     }).join('');
   }
+  // compact layout (phones): a Build button opens the building drawer; a ⋯ button holds the rarely used controls
+  const setCompact = () => document.body.classList.toggle('compact', innerWidth < 700 || (matchMedia('(pointer: coarse)').matches && innerWidth < 1000));
+  setCompact(); addEventListener('resize', setCompact);
+  function setDrawer(open) { $('#tray').classList.toggle('open', open); $('#buildBtn').setAttribute('aria-expanded', open); if (open) { closePanel(); renderTray(); } dockH(); }
+  $('#buildBtn').onclick = () => setDrawer(!$('#tray').classList.contains('open'));
+  $('#menuBtn').onclick = () => { const side = $('.side'), open = !side.classList.contains('open'); side.classList.toggle('open', open); $('#menuBtn').setAttribute('aria-expanded', open); };
   $('#tray').addEventListener('click', e => {
     const f = e.target.closest('[data-focus]'); if (f && game) { game.setBuilders(f.dataset.focus); trayKey = ''; renderTray(); toast(f.dataset.focus === 'off' ? 'Builders stand down. You build by hand.' : `Builders focus on ${f.dataset.focus}.`); return; }
     const b = e.target.closest('[data-tray]'); if (!b || !game || paused) return;
@@ -284,6 +290,7 @@ export function startApp() {
   }
   function refreshZone() { if (placing) { placing.zone = computeZone(placing.type); placing.zoneMask = placing.zone.mask; } }
   function startPlacing(type) {
+    setDrawer(false);
     closePanel();
     const h = game.state.hero;
     placing = { type, x: h.x, y: h.y - 3, start: null };
@@ -367,8 +374,8 @@ export function startApp() {
     const S = game.state, b = selB();
     return [S.gold, S.food, S.phase, S.purge, S.halfUpgrade, S.trade && S.trade.done, selected && selected.type, selected && selected.id, scavSig(), selected && selected.type === 'landmark' ? game.landmarkReach(selected.id) : '', b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}` : ''].join('|');
   }
-  function openSel(sel) { selected = sel; renderPanel(); lastSig = panelSig(); $('#panel').hidden = false; }
-  function closePanel() { selected = null; $('#panel').hidden = true; }
+  function openSel(sel) { if ($('#tray').classList.contains('open')) { $('#tray').classList.remove('open'); $('#buildBtn').setAttribute('aria-expanded', false); } selected = sel; renderPanel(); lastSig = panelSig(); $('#panel').hidden = false; dockH(); }
+  function closePanel() { selected = null; $('#panel').hidden = true; dockH(); }
   const opt = (id, data, name, cost, ds, disabled) => `<button class="opt" id="${id}" ${data} ${disabled ? 'disabled' : ''}><span class="nm">${name}${cost !== null ? `<span class="cost"><span class="dot gold"></span>${cost}</span>` : ''}</span><span class="ds">${ds}</span></button>`;
   // ---------- scavenging ----------
   const SITE_KINDS = ['Pharmacy', 'Hardware store', 'Supermarket', 'Bus depot', 'Police post', 'Clinic', 'Pawn shop', 'Diner', 'School', 'Garage', 'Post office', 'Bakery'];
@@ -548,7 +555,9 @@ export function startApp() {
   }
 
   // ---------- HUD ----------
+  function dockH() { const db = $('#dock').getBoundingClientRect(); document.body.style.setProperty('--dockH', `${Math.max(60, innerHeight - db.top)}px`); }
   function updateHud() {
+    dockH();
     if (game) { const sc = game.state.scav, bit = sc.crew.some(c => c.bitten), out = sc.crew.filter(c => c.out !== null).length; const cb = $('#crewBtn'); cb.classList.toggle('alert', bit); cb.textContent = out ? `Crew ${sc.crew.length - out}/${sc.crew.length}` : `Crew ${sc.crew.length}`; }
     if (!game) return;
     const S = game.state, night = S.phase === 'night', bm = game.isBloodMoon(S.night);
@@ -572,7 +581,7 @@ export function startApp() {
       bell.textContent = (bm ? 'Face the blood moon' : 'Ring the bell') + (bonus > 0 ? ` · +${bonus}` : '');
       const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
       const loose = S.mobs.filter(m => !m.roam).length;
-      $('#info').innerHTML = `<span class="clock${dusk <= 15 ? ' soon' : ''}">Dusk ${Math.floor(dusk / 60)}:${String(dusk % 60).padStart(2, '0')}</span>${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · Tonight <em>~${dead}</em> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}${game.townDraw() > 1.005 ? ` · <span class="draw" title="Your town's noise draws more dead">noise +${Math.round((game.townDraw() - 1) * 100)}%</span>` : ''}`;
+      $('#info').innerHTML = `<span class="clock${dusk <= 15 ? ' soon' : ''}">Dusk ${Math.floor(dusk / 60)}:${String(dusk % 60).padStart(2, '0')}</span>${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · Tonight <em>~${dead}</em><span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}${game.townDraw() > 1.005 ? ` · <span class="draw" title="Your town's noise draws more dead">noise +${Math.round((game.townDraw() - 1) * 100)}%</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();

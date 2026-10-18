@@ -166,6 +166,32 @@ table.log{border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-n
 details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:var(--muted);font-size:13px;margin-bottom:8px}
 @media (max-width:560px){ .ability{width:64px;height:64px;bottom:calc(96px + env(safe-area-inset-bottom,0px))} .tb{padding:3px 9px 4px 5px;font-size:12px} .packs{grid-template-columns:1fr} }
 @media (max-width:560px){ .opts{grid-template-columns:repeat(2,1fr)} .pill{gap:8px;padding:3px 10px 4px} .meter{width:40px} }
+/* ---------- compact layout (phones): one action bar, a build drawer, a tucked-away menu ---------- */
+#menuBtn{display:none}
+#buildBtn{display:none;gap:6px;align-items:center;padding:6px 12px 7px 10px}
+body.compact #menuBtn{display:grid;place-items:center;font-size:20px}
+body.compact .side button:not(#menuBtn){display:none}
+body.compact .side.open button:not(#crewBtn){display:grid;place-items:center}
+body.compact .side{top:auto;bottom:calc(var(--dockH,140px) + 90px);transform:none}
+body.compact #buildBtn{display:inline-flex}
+body.compact #buildBtn[aria-expanded=true]{background:var(--amber);color:#1d1408;border-color:var(--amber)}
+body.compact .bar{width:100%;border-radius:16px;padding:6px;gap:8px;justify-content:space-between}
+body.compact #info{flex:1;min-width:0;font-size:12px;line-height:1.3;text-align:center}
+body.compact #info .long{display:none}
+body.compact #bell{padding:9px 12px;font-size:14px;white-space:normal;line-height:1.05;max-width:118px}
+body.compact .tray:not(.open){display:none}
+body.compact .tray{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px;backdrop-filter:blur(8px)}
+body.compact .tb{flex-direction:column;justify-content:center;border-radius:10px;padding:8px 4px;gap:3px;min-height:64px;font-size:13px}
+body.compact .tb i{width:22px;height:22px}
+body.compact .builders{grid-column:1/-1;margin:0 0 2px}
+body.compact .builders button{padding:6px 10px}
+body.compact #panel{max-height:44vh;overflow:auto;width:100%;border-radius:14px}
+body.compact .ability{bottom:calc(var(--dockH,140px) + 12px);width:66px;height:66px}
+body.compact #toasts{top:calc(env(safe-area-inset-top,0px) + 58px)}
+body.compact .toast{font-size:13px;max-width:92vw}
+body.compact .place{width:100%;justify-content:space-between}
+body.compact .place .btn{padding:10px 16px;font-size:15px}
+body.compact .pill{font-size:13px}
 @media (prefers-reduced-motion:reduce){ .toast{animation:none} }
 /* city theme: condensed signage type, dark glass, amber = yours, toxic green = theirs */
 .card h1,.card h2,.choice b,.perk b,.pack b,.phead b,.opt .nm,.endstats b{text-transform:uppercase;letter-spacing:.01em}
@@ -195,7 +221,7 @@ details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:v
       <span class="r" title="People · free to man towers"><span class="dot pop"></span><b id="pop">0</b><span class="tiny" id="popNote"></span></span>
     </div>
   </div>
-  <div class="side"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">&minus;</button><button id="logBtn" class="txt" aria-label="Open run log">Log</button><button id="crewBtn" class="txt" aria-label="Your crew of survivors" hidden>Crew</button><button id="spdBtn" class="txt" aria-label="Game speed">1×</button><button id="qBtn" class="txt" aria-label="Graphics quality">HQ</button><button id="sndBtn" aria-label="Sound on"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="w" d="M16.5 8.5a5 5 0 0 1 0 7"/><path class="x" d="M17 9l5 6M22 9l-5 6"/></svg></button></div>
+  <div class="side"><button id="menuBtn" class="txt" aria-label="More controls" aria-expanded="false">&#8943;</button><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">&minus;</button><button id="logBtn" class="txt" aria-label="Open run log">Log</button><button id="crewBtn" class="txt" aria-label="Your crew of survivors" hidden>Crew</button><button id="spdBtn" class="txt" aria-label="Game speed">1×</button><button id="qBtn" class="txt" aria-label="Graphics quality">HQ</button><button id="sndBtn" aria-label="Sound on"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="w" d="M16.5 8.5a5 5 0 0 1 0 7"/><path class="x" d="M17 9l5 6M22 9l-5 6"/></svg></button></div>
   <div id="dock">
     <div id="panel" hidden>
       <div class="phead"><span class="eyebrow" id="pEyebrow"></span><b id="pTitle"></b><button class="x" id="pClose" aria-label="Close panel">&times;</button></div>
@@ -203,7 +229,7 @@ details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:v
     </div>
     <div id="place" class="place" hidden><span id="placeInfo"></span><button class="btn ghost" id="pRot" aria-label="Rotate palisade">Rotate</button><button class="btn" id="pOk">Place</button><button class="x" id="pCancel" aria-label="Stop placing">&times;</button></div>
     <div id="tray" class="tray" hidden></div>
-    <div class="bar"><div id="info"></div><button class="btn" id="bell">Ring the bell</button></div>
+    <div class="bar"><button class="btn ghost" id="buildBtn" aria-expanded="false" aria-controls="tray"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/></svg><span>Build</span></button><div id="info"></div><button class="btn" id="bell">Ring the bell</button></div>
   </div>
 </div>
 <button id="ability" class="ability" hidden><span class="an"></span><span class="ac"></span></button>
