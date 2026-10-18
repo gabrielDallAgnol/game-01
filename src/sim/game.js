@@ -453,6 +453,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     b.ruined = true; b.fell = true; b.hp = 0; vacate(b); liveTick = -1; ev('ruin', { id: b.id });
     if (b.type === 'keep') { endRun(false); return; }
     S.cur.lost.push(b.type); S.stats.buildingsLost++;
+    if (S.phase === 'night' && !S.nightFlags.breach && b.type !== 'wall') { S.nightFlags.breach = true; ev('breach', { x: b.x, y: b.y }); toast(`[Warning: breach] The dead are inside the ${compass(b.x, b.y)} ring. Get there, or pull back to the hall.`, 'bad'); }
     if (has('salvage')) earn(combo('salvage', 'mortar') ? 4 : 2);
     if (b.type === 'house' && S.P.shelter) { S.stats.housesLost++; toast('A home fell. Its families hid in the safe room.', 'bad'); }
     else if (b.type === 'house') {

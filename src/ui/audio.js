@@ -100,7 +100,7 @@ export function createAudio(store) {
         case 'warcry': case 'volley': S.warcry(); break;
         case 'claim': case 'dropOpen': case 'landmark': S.claim(); break;
         case 'levelUp': case 'title': case 'evolve': S.claim(); break;
-        case 'eruptWarn': S.first(); break;
+        case 'eruptWarn': case 'breach': S.first(); break;
         case 'blackout': S.bad(); break;
         case 'drop': S.thunder(); break;
         case 'heroDie': S.bad(); break;
