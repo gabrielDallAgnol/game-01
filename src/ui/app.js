@@ -670,7 +670,7 @@ export function startApp() {
     for (const e of events) {
       if (toastFor.has(e.t)) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);
       if (e.t === 'claim' && selected && selected.type === 'region') closePanel();
-      if (e.t === 'dawn') { dawnT = DAWN_DELAY; traderSeen = false; endJoy(); }
+      if (e.t === 'dawn') { dawnT = DAWN_DELAY; traderSeen = false; endJoy(); if (S.night === 2 && !S.scav.trips) setTimeout(() => toast('See the glowing caches in the ruins? Tap one to send survivors scavenging.'), 2500); }
       if (e.t === 'over') { endT = now + 2600; paused = false; closePanel(); stopPlacing(); view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && selected && selected.type === 'building' && !S.byId.get(selected.id)) closePanel();
     }

@@ -26,6 +26,17 @@ export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, isB
       if (!byRegion.has(r)) byRegion.set(r, []);
       byRegion.get(r).push({ x, y, face: Math.atan2(rock[0], rock[1]) });
     }
+    // regions with no ruin doorway still get a cache: the open spot nearest their middle (a wrecked van, a kiosk)
+    for (const reg of map.regions) {
+      if (reg.id === 0 || byRegion.has(reg.id)) continue;
+      let best = null, bd = Infinity;
+      for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+        const i = idx(x, y); if (map.region[i] !== reg.id || !WALK.has(map.terrain[i])) continue;
+        if (reg.nest && Math.hypot(x + 0.5 - reg.nest.x, y + 0.5 - reg.nest.y) < 4) continue;
+        const d = Math.hypot(x + 0.5 - reg.x, y + 0.5 - reg.y); if (d < bd) { bd = d; best = { x, y, face: 0 }; }
+      }
+      if (best) byRegion.set(reg.id, [best]);
+    }
     for (const [r, cands] of [...byRegion.entries()].sort((a, b) => a[0] - b[0])) {
       const want = 1, picked = [];
       rng.shuffle(cands);
@@ -106,6 +117,7 @@ export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, isB
 
   /** nightfall: bites left untreated turn inside the town */
   function nightfall(keep) {
+    for (const r of runs) ev('scavGo', { site: r.site, n: r.ids.length });
     for (const c of [...crew]) if (c.bitten && !c.out) {
       crew.splice(crew.indexOf(c), 1); scav.lost++;
       spawnMob('runner', keep.x + (rng.next() - 0.5), keep.y + 3.5, { instant: true });
@@ -145,6 +157,7 @@ export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, isB
         }
         if (rng.next() < R.relic) { S.picks.push('chest'); extras.push('a sealed cache (a rare blessing)'); }
       }
+      if (alive > 0) ev('scavBack', { site: r.site, n: alive });
       s.used++; scav.trips++;
       earn(gold); S.food += food;
       report.push({ site: r.site, sent: team.length, dead: dead.map(c => c.name), bitten: bitten.map(c => c.name), gold, food, extras });

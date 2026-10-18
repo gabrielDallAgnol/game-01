@@ -1,6 +1,6 @@
 // three.js view of a game: the ruined city. It only reads game state and drains events.
 /* global THREE */
-import { N, idx } from '../sim/mapgen.js';
+import { N, idx, PASSABLE } from '../sim/mapgen.js';
 import { mulberry32 } from '../sim/rng.js';
 import { MOBS } from '../content/mobs.js';
 import { mat, chestMesh, purseMesh, flameMesh } from './meshes.js';
@@ -297,6 +297,45 @@ export function createView(canvas, game, opts = {}) {
     const top = TOPS[Math.floor(Math.random() * TOPS.length)], pack = Math.random() < 0.3;
     return bakedWalker(() => K.figure({ outfit: { top, legs: Math.random() < 0.5 ? 'cloth3' : 'dark', hair: Math.random() < 0.5 ? 'bark' : 'tyre', cap: Math.random() < 0.2 ? 'amber' : null, pack: pack ? 'canvas' : null }, pose: { sL: [0.15, 0, 0], sR: [-0.15, 0, 0], hL: [0.25], hR: [-0.25], kR: 0.2 } }), villagerMat);
   } });
+  // ---------- scavengers: crews walk out to their site at nightfall and home at dawn ----------
+  const crewWalkers = [];
+  const scavRig = () => bakedWalker(() => K.figure({ outfit: { top: 'cloth3', legs: 'dark', hair: 'tyre', cap: 'grey', pack: 'canvas', vest: 'amberDeep' }, pose: { sL: [0.15, 0, 0], sR: [-0.15, 0, 0], hL: [0.25], hR: [-0.25], kR: 0.2 } }), villagerMat);
+  function gridPath(ax, ay, bx, by) {
+    const ok = i => PASSABLE[map.terrain[i]];
+    const s0 = idx(Math.floor(ax), Math.floor(ay)), g0 = idx(Math.floor(bx), Math.floor(by));
+    const prev = new Int32Array(N * N).fill(-1), q = [s0]; prev[s0] = s0;
+    for (let h = 0; h < q.length; h++) {
+      const i = q[h]; if (i === g0) break; const x = i % N, y = (i / N) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue; const j = idx(xx, yy); if (prev[j] < 0 && (ok(j) || j === g0)) { prev[j] = i; q.push(j); } }
+    }
+    if (prev[g0] < 0) return [[ax, ay], [bx, by]];
+    const out = []; for (let i = g0; i !== s0; i = prev[i]) out.push([(i % N) + 0.5, ((i / N) | 0) + 0.5]); out.push([ax, ay]); out.reverse(); out[out.length - 1] = [bx, by];
+    return out;
+  }
+  function sendWalkers(site, n, home) {
+    const st = S.scav.sites[site]; if (!st) return;
+    const a = [C + 0.5, C + 3.5], b = [st.x, st.y], path = home ? gridPath(b[0], b[1], a[0], a[1]) : gridPath(a[0], a[1], b[0], b[1]);
+    for (let k = 0; k < Math.min(n, 4); k++) {
+      const w = scavRig(); world.add(w.g);
+      crewWalkers.push({ ...w, path, seg: 1, d: -k * 0.7, phase: k, ox: (k % 2 ? 0.25 : -0.25), oy: k > 1 ? 0.3 : 0 });
+    }
+  }
+  function stepWalkers(dt) {
+    for (let k = crewWalkers.length - 1; k >= 0; k--) {
+      const w = crewWalkers[k]; w.d += dt * 2.2; w.phase += dt;
+      if (w.d < 0) { w.g.visible = false; continue; }
+      w.g.visible = true;
+      let rem = dt * 2.2;
+      while (rem > 0 && w.seg < w.path.length) {
+        const [ax, ay] = w.pos || w.path[0], [bx, by] = w.path[w.seg], L = Math.hypot(bx - ax, by - ay);
+        if (L <= rem) { w.pos = [bx, by]; w.seg++; rem -= L; } else { w.pos = [ax + (bx - ax) / L * rem, ay + (by - ay) / L * rem]; rem = 0; w.face = Math.atan2(bx - ax, by - ay); }
+      }
+      if (!w.pos) w.pos = w.path[0];
+      if (w.seg >= w.path.length) { world.remove(w.g); crewWalkers.splice(k, 1); continue; }
+      w.g.position.copy(W(w.pos[0] + w.ox, w.pos[1] + w.oy)); w.g.rotation.y = w.face || 0;
+      const f = Math.floor(w.phase * 6) % 2; w.frames[0].visible = !f; w.frames[1].visible = !!f;
+    }
+  }
   let orbit = 0;
 
   // ---------- events ----------
@@ -304,6 +343,8 @@ export function createView(canvas, game, opts = {}) {
   function handleEvents(events) {
     for (const e of events) {
       if (e.t === 'claim') { city.setTerritory(); repaint = true; const h = hives.get(e.region); if (h) { const n = map.regions[e.region].nest; burst(n.x, n.y, 4, '#d9843a'); h.cleared = true; } }
+      if (e.t === 'scavGo') sendWalkers(e.site, e.n, false);
+      if (e.t === 'scavBack') sendWalkers(e.site, e.n, true);
       if (e.t === 'explode') burst(e.x, e.y, e.r, '#a3c65c');
       if (e.t === 'build' || e.t === 'remove' || e.t === 'ruin' || e.t === 'rebuild') repaint = true;
       if (e.t === 'volley') burst(e.x, e.y, e.r, '#d9843a');
@@ -340,7 +381,7 @@ export function createView(canvas, game, opts = {}) {
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
-    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time);
+    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt);
     if (repaint) { repaint = false; city.paint(); }
     const night = S.phase === 'night' || S.phase === 'over';
     dark += ((night ? 1 : 0) - dark) * Math.min(1, dt * 1.4);
