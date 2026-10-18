@@ -378,3 +378,25 @@ test('ringing the bell early pays gold', () => {
   const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
   const gold = S.gold; assert.ok(g.startNight()); assert.ok(S.gold > gold);
 });
+
+test('builders: fighters get a town that grows by itself; the Scavver builds by hand', () => {
+  for (const hero of ['warrior', 'merchant']) {
+    const g = createGame({ seed: 12, hero }); const S = g.state; readyDay(g); S.gold = 60;
+    for (let k = 0; k < 60 * 60 && S.phase === 'day'; k++) g.step();
+    if (hero === 'warrior') { assert.equal(S.builders, 'balanced'); assert.ok(S.buildings.length >= 3, `builders placed ${S.buildings.length}`); }
+    else { assert.equal(S.builders, null); assert.equal(S.buildings.length, 0); }
+  }
+  const g = createGame({ seed: 12, hero: 'archer' }); readyDay(g); g.setBuilders('off'); g.state.gold = 60;
+  for (let k = 0; k < 60 * 30; k++) g.step();
+  assert.equal(g.state.buildings.length, 0, 'builders worked while off');
+});
+
+test('blessings: each hero only sees their own family plus the shared ones', () => {
+  for (const [hero, own, others] of [['warrior', 'hero', ['ranger', 'scavver']], ['archer', 'ranger', ['hero', 'scavver']], ['merchant', 'scavver', ['hero', 'ranger']]]) {
+    const g = createGame({ seed: 3, hero }); const S = g.state, seen = new Set();
+    for (let k = 0; k < 40; k++) { S.picks = ['dawn']; S.reroll.free = 1; g.reroll(); for (const id of S.offer) seen.add(id); }
+    const fams = new Set([...seen].map(id => (PERKS.find(p => p.id === id) || {}).fam));
+    for (const f of others) assert.ok(!fams.has(f), `${hero} was offered ${f} blessings`);
+    assert.ok(fams.has(own), `${hero} never saw their own family`);
+  }
+});

@@ -2,8 +2,11 @@
 // common = stat bumps · rare = build-around · legendary = changes how you play (chests and nests).
 // Pacts are rares with a real downside. Taking 3 of a family offers a choice of 2 masteries.
 
+// Each hero has a family of their own; the town families (bow, stone, harvest) are shared.
 export const FAMILIES = {
-  hero:    { name: 'Hero',    color: '#e58a6a' },
+  hero:    { name: 'Brawler', color: '#e58a6a', hero: 'warrior' },
+  ranger:  { name: 'Ranger',  color: '#7fc4d8', hero: 'archer' },
+  scavver: { name: 'Scavver', color: '#d9b45a', hero: 'merchant' },
   bow:     { name: 'Bow',     color: '#eaa441' },
   stone:   { name: 'Stone',   color: '#a9bccd' },
   harvest: { name: 'Harvest', color: '#a3c65c' },
@@ -19,10 +22,11 @@ export const PERKS = [
   { id: 'rally',   fam: 'hero', rarity: R, name: 'Rallying Cry', desc: 'Towers within 5 of you shoot 30% faster.', max: 1, fx: P => { P.rally = true; } },
   { id: 'execute', fam: 'hero', rarity: R, name: 'Executioner', desc: 'Your hits kill zombies left below 25% health.', max: 1, fx: P => { P.execute = true; } },
   { id: 'wardance',fam: 'hero', rarity: R, name: 'War Dance', desc: 'Every 3rd attack hits every zombie in reach.', max: 1, fx: P => { P.wardance = true; } },
+  { id: 'shout',   fam: 'hero', rarity: C, name: 'Big Voice', desc: 'War Cry recharges 40% faster and reaches 2 further.', max: 1, fx: P => { P.abilityCd *= 0.6; P.abilityRadius += 2; } },
   { id: 'last',    fam: 'hero', rarity: L, name: 'Last Stand', desc: 'Once a night, below 30% health: double damage and you cannot fall for 4 seconds.', max: 1, fx: P => { P.lastStand = true; } },
   // Bow
-  { id: 'fletch',  fam: 'bow', rarity: C, name: 'Fletchers', desc: 'Towers deal 25% more damage.', max: 3, fx: P => { P.towerDmg += 0.25; } },
-  { id: 'draw',    fam: 'bow', rarity: C, name: 'Quick Draw', desc: 'Towers shoot 20% faster.', max: 3, fx: P => { P.towerRate *= 1.2; } },
+  { id: 'fletch',  fam: 'bow', rarity: C, name: 'Fletchers', desc: 'Towers deal 20% more damage.', max: 2, fx: P => { P.towerDmg += 0.2; } },
+  { id: 'draw',    fam: 'bow', rarity: C, name: 'Quick Draw', desc: 'Towers shoot 15% faster.', max: 2, fx: P => { P.towerRate *= 1.15; } },
   { id: 'eyes',    fam: 'bow', rarity: C, name: 'Keen Eyes', desc: 'Towers and the keep reach 1.5 further.', max: 2, fx: P => { P.towerRange += 1.5; } },
   { id: 'volley',  fam: 'bow', rarity: R, name: 'Volley Towers', desc: 'Level 3 towers fire a second arrow.', max: 1, fx: P => { P.volley = true; } },
   { id: 'watch',   fam: 'bow', rarity: R, name: 'Watch Fires', desc: 'Towers within 4 of another tower reach 2 further.', max: 1, fx: P => { P.watch = true; } },
@@ -47,6 +51,24 @@ export const PERKS = [
   { id: 'bounty',  fam: 'harvest', rarity: R, name: 'Bounty', desc: '+1 gold for every 3 zombies killed.', max: 1, fx: P => { P.bounty = true; } },
   { id: 'labour',  fam: 'harvest', rarity: R, name: 'Cheap Labour', desc: 'Houses and farms cost 1 less; tower upkeep 2 lower.', max: 1, fx: P => { P.ecoDiscount += 1; P.upkeepCut += 1; } },
   { id: 'guild',   fam: 'harvest', rarity: L, name: 'Merchant Guild', desc: 'Every dawn, one tower is upgraded free for each 4 houses you have.', max: 1, fx: P => { P.guild = true; } },
+  // Ranger
+  { id: 'tips',    fam: 'ranger', rarity: C, name: 'Hollow Points', desc: 'Your bolts deal +1 damage.', max: 3, fx: P => { P.heroDmg += 1; } },
+  { id: 'quiver',  fam: 'ranger', rarity: C, name: 'Quick Hands', desc: 'You shoot 20% faster.', max: 2, fx: P => { P.heroRate *= 1.2; } },
+  { id: 'longshot',fam: 'ranger', rarity: C, name: 'Long Shot', desc: 'You reach 1.5 further.', max: 2, fx: P => { P.heroRange += 1.5; } },
+  { id: 'pierce',  fam: 'ranger', rarity: R, name: 'Pierce', desc: 'Each bolt also hits one zombie just behind its target.', max: 1, fx: P => { P.pierce = true; } },
+  { id: 'mark',    fam: 'ranger', rarity: R, name: 'Marked', desc: 'Zombies you hit take 30% more damage from towers for 4 seconds.', max: 1, fx: P => { P.mark = true; } },
+  { id: 'storm',   fam: 'ranger', rarity: R, name: 'Bolt Storm', desc: 'Volley covers a wider area and hits 50% harder.', max: 1, fx: P => { P.abilityRadius += 1; P.abilityDmg *= 1.5; } },
+  { id: 'nimble',  fam: 'ranger', rarity: R, name: 'Light Feet', desc: 'You run 20% faster and heal 1 per second while running.', max: 1, fx: P => { P.heroSpeed *= 1.2; P.runHeal = 1; } },
+  { id: 'sentinel',fam: 'ranger', rarity: L, name: 'Sentinel', desc: 'Standing still, every 3rd bolt also hits two more zombies.', max: 1, fx: P => { P.sentinel = true; } },
+  // Scavver
+  { id: 'haggle',  fam: 'scavver', rarity: C, name: 'Haggler', desc: 'Sellswords cost 3 less.', max: 2, fx: P => { P.hireDiscount += 3; } },
+  { id: 'captains',fam: 'scavver', rarity: C, name: 'Captains', desc: 'Sellswords get +6 health and +1 damage.', max: 2, fx: P => { P.mercHp += 6; P.mercDmg += 1; } },
+  { id: 'pockets', fam: 'scavver', rarity: C, name: 'Deep Pockets', desc: 'Purses hold 1 more gold.', max: 2, fx: P => { P.purseBonus += 1; } },
+  { id: 'nose',    fam: 'scavver', rarity: R, name: 'Nose for Coin', desc: 'The dead drop purses twice as often.', max: 1, fx: P => { P.purseChance *= 2; } },
+  { id: 'band',    fam: 'scavver', rarity: R, name: 'A Bigger Band', desc: 'Each hire brings one more sellsword.', max: 1, fx: P => { P.hireExtra += 1; } },
+  { id: 'deals',   fam: 'scavver', rarity: R, name: 'Wholesale', desc: 'Towers and homes cost 1 less for you.', max: 1, fx: P => { P.defDiscount += 1; P.ecoDiscount += 1; } },
+  { id: 'loyal',   fam: 'scavver', rarity: R, name: 'Loyal Blades', desc: 'Sellswords stay through the day and fight the low tide.', max: 1, fx: P => { P.loyal = true; } },
+  { id: 'kingpin', fam: 'scavver', rarity: L, name: 'Kingpin', desc: 'Every dawn, +1 gold for each sellsword still standing, and they all heal fully.', max: 1, fx: P => { P.kingpin = true; } },
   // Pacts: rare, with a real downside
   { id: 'pactBlood', fam: 'bow', rarity: R, pact: true, name: 'Blood Arrows', desc: 'Towers deal 50% more damage.', cost: 'The keep has 30% less health.', max: 1, fx: P => { P.towerDmg += 0.5; P.keepHpMult *= 0.7; } },
   { id: 'pactGreed', fam: 'harvest', rarity: R, pact: true, name: 'Usury', desc: '+12 gold every dawn.', cost: 'Each claimed region adds 25% threat instead of 12%.', max: 1, fx: P => { P.tax += 12; P.greed = true; } },
@@ -67,6 +89,14 @@ export const MASTERIES = {
   hero: [
     { id: 'whirlwind', name: 'Whirlwind', desc: 'Your attacks hit everything in reach and deal +1 damage.' },
     { id: 'champion', name: 'Champion', desc: '+25 max health and you attack 30% faster.' },
+  ],
+  ranger: [
+    { id: 'sniper', name: 'Sniper', desc: 'Bolts deal double damage to zombies at full health.' },
+    { id: 'hail', name: 'Hail', desc: 'Volley recharges twice as fast.' },
+  ],
+  scavver: [
+    { id: 'warband', name: 'Warband', desc: 'Each hire brings two more sellswords, and you can field six more.' },
+    { id: 'tycoon', name: 'Tycoon', desc: 'Purses are worth double, and homes pay 1 more gold.' },
   ],
   bow: [
     { id: 'deadeye', name: 'Deadeye', desc: 'Towers and the keep deal 40% more damage.' },
@@ -91,7 +121,8 @@ export const REROLL = { free: 1, base: 5, step: 5 };
 
 export function freshPerkState() {
   return {
-    taken: {}, fam: { hero: 0, bow: 0, stone: 0, harvest: 0 }, mastery: {},
+    taken: {}, fam: { hero: 0, ranger: 0, scavver: 0, bow: 0, stone: 0, harvest: 0 }, mastery: {},
+    abilityCd: 1, abilityRadius: 0, abilityDmg: 1, heroSpeed: 1, runHeal: 0, hireDiscount: 0, hireExtra: 0, mercHp: 0, mercDmg: 0, purseBonus: 0, purseChance: 1,
     heroDmg: 0, heroDmgMult: 1, heroRate: 1, heroRange: 0, heroHp: 0, heroHpMult: 1, heroRegen: 0, lifesteal: 0,
     towerDmg: 0, towerRange: 0, towerRate: 1, keepDmg: 0, keepRate: 1, keepHpMult: 1,
     wallHp: 0, thorns: 0, allHp: 0, keepHp: 0, defDiscount: 0,

@@ -230,13 +230,16 @@ export function startApp() {
     const S = game.state, tray = $('#tray');
     tray.hidden = S.phase !== 'day' || !!card;
     if (tray.hidden) { trayKey = ''; return; }
-    const sig = [S.gold, JSON.stringify(S.stock), placing && placing.type].join('|'); if (sig === trayKey) return; trayKey = sig;
-    tray.innerHTML = BUILD_ORDER.map(t => {
+    const sig = [S.gold, JSON.stringify(S.stock), placing && placing.type, S.builders].join('|'); if (sig === trayKey) return; trayKey = sig;
+    const FOCUS = { defence: 'Defence', balanced: 'Balanced', growth: 'Growth', off: 'Off' };
+    const bRow = S.builders ? `<div class="builders" role="group" aria-label="What your builders focus on"><span>Builders</span>${Object.entries(FOCUS).map(([k, v]) => `<button data-focus="${k}" aria-pressed="${S.builders === k}">${v}</button>`).join('')}</div>` : '';
+    tray.innerHTML = bRow + BUILD_ORDER.map(t => {
       const n = S.stock[t] || 0, cost = n ? 0 : game.buyCost(t), on = placing && placing.type === t;
       return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${!n && S.gold < cost ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
     }).join('');
   }
   $('#tray').addEventListener('click', e => {
+    const f = e.target.closest('[data-focus]'); if (f && game) { game.setBuilders(f.dataset.focus); trayKey = ''; renderTray(); toast(f.dataset.focus === 'off' ? 'Builders stand down. You build by hand.' : `Builders focus on ${f.dataset.focus}.`); return; }
     const b = e.target.closest('[data-tray]'); if (!b || !game || paused) return;
     const t = b.dataset.tray;
     if (placing && placing.type === t) { stopPlacing(); return; }
