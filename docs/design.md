@@ -125,6 +125,22 @@ Late game, gold piles up either way; the real limit on defence is how much land 
 2. **A build cap per keep level**, Thronefall-style.
 3. **Waves scale with town size** (buildings or land), not just nights and regions.
 
+## The city reborn (Oct 18, late evening)
+| Area | Rule |
+|---|---|
+| Pressure | Days run on a clock (100 s at 1×; 1×/2×/3× speed). Ringing the bell early pays 1 gold per 10 s left. From day 2 the dead trickle in all day (60% of the night's budget); roamers wander the wild, tougher further out, and drift in now and then. Night 1 is a single slow, tough dead, with the camera on it. |
+| Heroes | Brawler and Ranger have builders (focus: Defence / Balanced / Growth / Off). The Scavver builds by hand and has **Bounty** (45 s cooldown: for 20 s kills within 9 pay gold). Each hero has their own blessing family; tower blessings are rarer. |
+| Map | 96×96, a 12-cell street grid with city blocks (buildings round courtyards, parks, lots), plateaus with ramps (towers up there reach 2 further), a black shroud lifted by your hero, buildings and land. |
+| Cities | Paris (river, Eiffel Tower), Rio de Janeiro (plateau town, Christ the Redeemer on a cliff top), Berlin (lake, Fernsehturm), The Cut. |
+| Build zone | Red Alert style: 10 around the keep, 4.5 around each home/farm/tower, 7 around a claimed landmark; nothing within 6 of a living hive. Hives join the attack once your base is within 14 of them. |
+| Landmarks | Walk up and pay: Police Station (+15% tower damage), Clinic (heal 2/s), Fuel Station (+4 gold), Eiffel Tower (reveal, +1.5 tower reach), Fernsehturm (reveals the city, +3 gold), Christ the Redeemer (a blessing every dawn). Each gives a forward build zone. |
+| Keep and tech | Nothing upgrades past the keep. Near hives need keep 2, far ones keep 3. Workshop (unlocks level 3 towers and barricades) and Market (level 3 homes and farms, +1 gold per home), keep 2, take 35–40 s to build. |
+| Crew and noise | Towers need 1/2/3 people from homes. Noise (people, homes, towers, posts) adds 1.2% dead per point past 12. |
+| Supply drops | After blood moons, cleared hives and some dawns: a guarded crate in the wild with red smoke. Stand by it 3 s: free buildings, gold, a rare blessing, or 3 survivors. Scavenging is retired. |
+| Blessings | A dawn blessing every other day (every day with Christ the Redeemer), at most 2 picks a dawn. |
+
+Not yet re-balanced since the bigger map and the build zone: the bots still need updating for the zone and the clock.
+
 ## Next drop: town stats (agreed direction)
 - **Main system: scavenge runs** (v1 shipped, see above) (Dying Light / State of Decay / Project Zomboid): ruins in unclaimed regions hold loot. Send survivors out by day; the further out, the better the loot and the risk. Survivors arrive with traits (Medic, Carpenter, Coward…).
 - **Infection and noise as natural events,** not tied to buildings. For example: a scavenger comes back bitten (treat, quarantine or exile), or a storm whose thunder draws a horde from one side.
