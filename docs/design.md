@@ -93,6 +93,18 @@ The first part of the agreed next drop: the ruins hold supplies, and survivors g
 | Traits | Scout (run half as deadly), Medic (no bites on their run), Mule (double food), Tinker (more free buildings), Marksman (at home at night: towers +6%), Cook (at home at night: +2 food at dawn), Coward (never dies, half loot). Sending a Marksman or Cook costs their home bonus that night. |
 | Sim | `src/sim/scavenge.js`, own random stream: a run without scavenging plays out exactly as before. Bots don't scavenge yet. |
 
+## Weather and sound (Oct 18, evening)
+| Weather | Odds | Effect |
+|---|---|---|
+| Clear | 70% | — |
+| Fog | 10% | Towers and keep reach 25% less; the dead walk 12% slower. Thicker grey air. |
+| Thunderstorm | 10% | 20% more dead; 40% more food next dawn. Lightning and thunder. |
+| Still night | 10% | 25% fewer dead. |
+
+Rolled at dawn for the coming night (from night 3, never on a blood moon), announced in a toast and shown in the forecast line, included in the rating. Own random stream.
+
+Sound is synthesised with WebAudio (no files): a cracked bell at nightfall, a dawn chime, tower shots and keep bolts, hits and deaths that fade with distance from the hero, groans of the nearest dead, gnawing, build thuds, crashes, coins, war cries, thunder, night wind. Starts on the first tap; a mute button sits under the quality button.
+
 Also this evening: auto graphics (steps HQ → MQ → LQ after ~6 s under 30 fps, unless you picked a level), calmer town ground, closer desktop camera, balance bots pack buildings on a 3-cell grid.
 
 ## Next drop: town stats (agreed direction)

@@ -361,6 +361,24 @@ export function createView(canvas, game, opts = {}) {
   look.init(canvas.clientWidth || innerWidth, canvas.clientHeight || innerHeight, opts.quality || (touch ? 'medium' : 'high'));
   function resize() { const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight; look.resize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   resize(); window.addEventListener('resize', resize);
+  // rain for thunderstorms: streaks falling in a box that follows the camera
+  const RAIN = 700, rainGeo = new THREE.BoxGeometry(0.012, 0.5, 0.012);
+  const rain = new THREE.InstancedMesh(rainGeo, new THREE.MeshBasicMaterial({ color: K.lin('#9fb3c8'), transparent: true, opacity: 0.35, depthWrite: false }), RAIN);
+  rain.frustumCulled = false; rain.visible = false; fx.add(rain);
+  const drops = Array.from({ length: RAIN }, () => ({ x: (Math.random() - 0.5) * 40, y: Math.random() * 14, z: (Math.random() - 0.5) * 30, v: 16 + Math.random() * 6 }));
+  const rd2 = new THREE.Object3D(); let rainK = 0;
+  function stepRain(dt) {
+    rainK += ((S.weather === 'storm' && S.phase === 'night' ? 1 : 0) - rainK) * Math.min(1, dt * 0.7);
+    rain.visible = rainK > 0.02; if (!rain.visible) return;
+    rain.material.opacity = 0.35 * rainK;
+    const n = Math.floor(RAIN * rainK);
+    for (let k = 0; k < n; k++) {
+      const d = drops[k]; d.y -= d.v * dt; d.x -= d.v * dt * 0.18;
+      if (d.y < 0) { d.y = 12 + Math.random() * 2; d.x = (Math.random() - 0.5) * 40; d.z = (Math.random() - 0.5) * 30; }
+      rd2.position.set(camTarget.x + d.x, d.y, camTarget.z + d.z); rd2.rotation.set(0, 0, 0.18); rd2.updateMatrix(); rain.setMatrixAt(k, rd2.matrix);
+    }
+    rain.count = n; rain.instanceMatrix.needsUpdate = true;
+  }
   let dark = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
 
   // which warm lights matter: the keep fire, lanterns on towers, lit homes; the nearest win the pool
@@ -381,7 +399,7 @@ export function createView(canvas, game, opts = {}) {
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
-    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt);
+    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt);
     if (repaint) { repaint = false; city.paint(); }
     const night = S.phase === 'night' || S.phase === 'over';
     dark += ((night ? 1 : 0) - dark) * Math.min(1, dt * 1.4);

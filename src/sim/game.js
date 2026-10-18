@@ -65,7 +65,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const toast = (msg, kind) => ev('toast', { msg, kind });
   const has = id => (S.P.taken[id] || 0) > 0;
   const combo = (a, b) => has(a) && has(b);
-  const mastery = id => Object.values(S.P.mastery).includes(id);
+  let mastSet = new Set();
+  const mastery = id => mastSet.has(id);
   const mastered = f => !!S.P.mastery[f];
   const isDef = t => t === 'tower' || t === 'wall';
   const earn = g => { S.gold += g; S.stats.goldEarned += Math.max(0, g); };
@@ -632,7 +633,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (!S.offer.includes(id)) return fail('That blessing is not on offer.');
     if (id.startsWith('m:')) {
       const mid = id.slice(2), fam = S.offerSource.split(':')[1];
-      S.P.mastery[fam] = mid; S.cur.perks.push(id);
+      S.P.mastery[fam] = mid; mastSet = new Set(Object.values(S.P.mastery)); S.cur.perks.push(id);
       if (mid === 'champion') S.P.heroRate *= 1;
       toast(`${MASTERIES[fam].find(m => m.id === mid).name}!`, 'good');
     } else {
