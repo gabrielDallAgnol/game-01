@@ -1,5 +1,5 @@
 // Balance runner: bots play many seeded runs in parallel and we summarise the numbers.
-//   node tools/balance.mjs [--runs 2] [--max 40] [--out reports/balance.json]
+//   node tools/balance.mjs [--runs 2] [--max 40] [--out reports/balance.json] [--scav 1]  (bots also scavenge)
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import os from 'node:os';
 import fs from 'node:fs';
@@ -26,7 +26,7 @@ if (!isMainThread) {
   const BIOMES = ['riverbend', 'highland', 'lakeshore'];
   const jobs = [];
   for (let s = 0; s < runs; s++) for (const hero of HEROES) for (const strat of STRATS) for (const expansion of EXP) for (const path of PATHS)
-    jobs.push({ seed: 100 + s * 7 + jobs.length, biome: BIOMES[jobs.length % 3], hero, strat, expansion, path, maxNights: max });
+    jobs.push({ seed: 100 + s * 7 + jobs.length, biome: BIOMES[jobs.length % 3], hero, strat, expansion, path, maxNights: max, scavenge: arg('--scav', '0') === '1' });
   const nW = Math.max(1, Math.min(os.cpus().length, 4));
   const results = []; const t0 = Date.now();
   await Promise.all(Array.from({ length: nW }, (_, w) => new Promise((res, rej) => {

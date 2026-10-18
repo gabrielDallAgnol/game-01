@@ -76,7 +76,8 @@ export function createView(canvas, game, opts = {}) {
 
   // ---------- scavenge sites: a cache of supplies at a doorway into the ruins ----------
   const diaGeo = new THREE.OctahedronGeometry(0.3, 0); diaGeo.scale(1, 1.5, 1);
-  const diaMat = new THREE.MeshBasicMaterial({ color: lc('#f0a24a').multiplyScalar(1.7) });
+  // marker colour by distance: pale = your land, amber = next door, red = deep in the city
+  const diaMats = ['#e8dcb0', '#f0a24a', '#e8553a'].map(c => new THREE.MeshBasicMaterial({ color: lc(c).multiplyScalar(1.7) })), diaMat = diaMats[1];
   const sites = S.scav.sites.map(st => {
     const g = new THREE.Group(); g.position.copy(W(st.x, st.y)); g.rotation.y = st.face;
     const b = new K.B();
@@ -96,7 +97,7 @@ export function createView(canvas, game, opts = {}) {
       siteT = 0.4; siteVis.clear();
       for (const m of sites) {
         const i = game.scavenge.siteInfo(m.st.id), out = !!i.run, show = out || (i.visible && S.phase === 'day');
-        m.g.visible = show; m.dia.visible = show && !out; m.lamp.visible = out;
+        m.g.visible = show; m.dia.visible = show && !out; m.lamp.visible = out; if (show && !out) m.dia.material = diaMats[Math.min(2, i.hops)];
         if (show && !out) siteVis.add(m.st.id);
       }
     }

@@ -54,6 +54,7 @@ export function startApp() {
     showCard('start', `<div class="eyebrow">Endless nights${best ? ` · your best: night ${best}` : ''}</div>
       <h1>Hold Hollowmere</h1>
       <p>Build by day. Hold the keep by night. Clear the hives around you to claim more of the city, and see how many nights you last.</p>
+      <p class="tiny">By day: tap a glowing cache to send survivors scavenging · tap rubble on your land to clear room · watch the forecast for fog and storms.</p>
       <h2>Your hero</h2>
       <div class="choices">${HERO_ORDER.map(h => `<button class="choice" data-hero="${h}" aria-pressed="${setup.hero === h}"><b>${HEROES[h].name}</b><span>${HEROES[h].blurb}</span><span class="tiny">Ability: ${HEROES[h].ability.name}</span></button>`).join('')}</div>
       <h2>How you build</h2>
@@ -395,7 +396,7 @@ export function startApp() {
       return `<div class="crewrow"><div><b>${c.name}</b> <span class="tag">${TRAITS[c.trait].name}</span><div class="tiny">${TRAITS[c.trait].desc}</div></div><div class="st">${status}</div><div class="acts">${acts}</div></div>`;
     };
     showCard('crew', `<div class="eyebrow">Survivors · ${sc.crew.length} · ${sc.trips} runs · ${sc.lost} lost</div><h1 class="sm">The crew</h1>
-      <p>Tap a glowing cache in the ruins by day to send survivors scavenging. The further from your land, the better the haul and the worse the odds.</p>
+      <p>Tap a glowing cache in the ruins by day to send survivors scavenging. Pale caches are on your land, amber ones next door, red ones deep in the city: the further out, the better the haul and the worse the odds.</p>
       <div class="crewlist">${sc.crew.map(row).join('') || '<div class="tiny">No one left. Runs sometimes find survivors, but you need someone to send.</div>'}</div>
       <div class="cardrow"><button class="btn ghost" id="crewClose">Back to town</button></div>`, true, false);
     $$('[data-treat]').forEach(b => b.onclick = () => { game.scavenge.treat(+b.dataset.treat, b.dataset.how); flushToasts(); hideCard(); paused = false; showCrew(); });

@@ -25,18 +25,32 @@ function pickPurge(g, n, ok) {
   if (!opts.length) return null;
   opts.sort((a, b) => a.ratio - b.ratio || b.slots - a.slots);
   // only expand when the town is mostly built
-  const free = g.map.slots.filter(s => S.claimed.has(s.region) && g.canPlace('house', s.x, s.y).ok).length;
+  const free = candidates(g).filter(s => S.claimed.has(s.region) && !s.gate && g.canPlace('house', s.x, s.y).ok).length;
   return free <= 3 ? opts[0].id : null;
 }
 
 function nestPoints(g) { return g.activeNests(g.state.night + 1).concat(g.activeNests()).map(r => g.map.regions[r].nest); }
 
-// candidate spots = the map's suggested lots (a tidy street grid); keep the ones that fit right now
+// candidate spots = the map's suggested lots (gates, a 4-cell street grid) plus a denser 3-cell grid,
+// which is how tightly a player can pack 2×2 homes with a one-cell street between them
+const denseCache = new WeakMap();
+function candidates(g) {
+  const S = g.state, map = g.map, key = S.claimed.size;
+  const c = denseCache.get(g); if (c && c.key === key) return c.list;
+  const list = map.slots.slice(), N = Math.sqrt(map.terrain.length), seen = new Set(list.map(s => Math.floor(s.x) + ',' + Math.floor(s.y)));
+  for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+    if ((x - Math.floor(map.town.x)) % 3 || (y - Math.floor(map.town.y)) % 3) continue;
+    const r = map.region[y * N + x]; if (r < 0 || !S.claimed.has(r) || seen.has(x + ',' + y)) continue;
+    list.push({ x: x + 0.5, y: y + 0.5, region: r, gate: false, nearWater: false });
+  }
+  denseCache.set(g, { key, list });
+  return list;
+}
 function spotFor(g, kind) {
   const S = g.state, map = g.map;
   const def = kind === 'tower' || kind === 'wall';
   const fits = s => { if (!S.claimed.has(s.region) || (s.gate && !def)) return null; for (const rot of kind === 'wall' ? [gateRot(g, s), 0, 1, 2, 3] : [0]) { const p = g.canPlace(kind, s.x, s.y, rot); if (p.ok) return { x: s.x, y: s.y, rot, gate: s.gate, nearWater: s.nearWater }; } return null; };
-  const free = map.slots.map(fits).filter(Boolean);
+  const free = candidates(g).map(fits).filter(Boolean);
   if (!free.length) return null;
   if (kind === 'wall') { const gate = free.find(s => s.gate); if (gate) return gate; }
   const nests = nestPoints(g);
@@ -144,6 +158,17 @@ export function heroTick(g, mode) {
   else g.heroTo(t.x, t.y + 3.5);
 }
 
+/** optional: send the crew to the safest worthwhile cache, treat bites first */
+export function scavengeTurn(g) {
+  const S = g.state, sc = S.scav;
+  for (const c of sc.crew) if (c.bitten) { if (!g.scavenge.treat(c.id, S.food >= 10 ? 'food' : 'gold')) g.scavenge.exile(c.id); }
+  const home = sc.crew.filter(c => !c.out && !c.bitten); if (!home.length) return;
+  const opts = sc.sites.map(s => g.scavenge.siteInfo(s.id)).filter(i => i.visible && !i.run && i.hops >= 1 && !i.awake && i.die < 0.15);
+  if (!opts.length) return;
+  opts.sort((a, b) => b.hops - a.hops || a.die - b.die);
+  const i = opts[0]; if (S.gold < i.R.kit * home.length + 8) return;
+  g.scavenge.send(i.site.id, home.map(c => c.id));
+}
 export function playRun(createGame, opts) {
   const { seed, biome, hero, strat, path, expansion, heroMode = 'active', maxNights = 40, mapSeed } = opts;
   const g = createGame({ seed, biome, hero, mapSeed });
@@ -155,6 +180,7 @@ export function playRun(createGame, opts) {
     if (target !== null) { g.planPurge(target); dayTurn(g, strat); }
     // walk over any chests lying around before the bell
     if (S.chests.length && heroMode === 'active') { for (let k = 0; k < 600 && S.chests.length; k++) { g.heroTo(S.chests[0].x, S.chests[0].y); g.step(); } choosePerks(g, path); }
+    if (opts.scavenge) scavengeTurn(g);
     g.startNight();
     let steps = 0;
     while (S.phase === 'night' && steps < 60 * 400) { if (steps % 15 === 0) heroTick(g, heroMode); g.step(); steps++; }
