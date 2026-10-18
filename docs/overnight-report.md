@@ -47,7 +47,12 @@
 - A separate reviewer agent hunted bugs in the new systems; it found 8 (a softlock after a failed AI rewrite, save gaps, quests sent to empty districts, evolution cards blocking the story, a "Not now" loop, double charges…). **All fixed**, its repro scripts re-run clean. I also found and fixed a softlock (blessings earned mid-day) and an unreachable Status button on phones.
 - Balance bot (`tools/clockbot.mjs`): a mediocre player on **Auto** from a Survivor that **answers every call and opens every district it is offered**. Nights reached:
 
-BALANCE_TABLE
+| Difficulty | Nights reached (seeds) | Median | Notes |
+|---|---|---|---|
+| Story | 18, 24+, 10, 10, 15, 17 | ~16 | one still alive at the cap |
+| Survivor | 14, 16, 19, 6, 14, 13, 8, 21 | 14 | the Vale map is the hardest start |
+| Veteran | 18, 19, 5, 5, 8, 6 | ~7 | bimodal: strong starts snowball, weak ones fall at the first blood moons |
+| Nightmare | 9, 7, 4, 4, 4, 6 | 5 | as intended: brutal |
 
 - Reading: Story is comfortable, Survivor is a real fight that usually ends in the teens for the bot, Veteran and Nightmare end early. The bot's early deaths come from over-expanding (every open district adds roamers and a hive stream). A human who is choosy about districts, builds barricades and manages heat should go further.
 
