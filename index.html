@@ -69,6 +69,16 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 .ar i{position:absolute;left:-9px;top:-7px;width:0;height:0;border-left:16px solid var(--rot);border-top:7px solid transparent;border-bottom:7px solid transparent;filter:drop-shadow(0 0 3px rgba(0,0,0,.6))}
 .ar span{position:absolute;left:-38px;top:-8px;width:24px;text-align:center;font-size:11px;font-weight:700;color:var(--rot);text-shadow:0 0 3px #000}
 .nestTag{position:absolute;left:0;top:0;background:rgba(18,26,27,.82);color:#f0b8a8;border:1px solid rgba(224,96,74,.6);border-radius:999px;padding:1px 8px 2px;font-size:12px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+#crewBtn{width:auto;min-width:36px;border-radius:999px;padding:0 9px;justify-self:end}#crewBtn.alert{background:var(--blood);color:#fff;border-color:var(--blood);animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(213,81,61,.25)}}
+.crew{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:5px;margin:2px 0 6px}
+.who{text-align:left;background:rgba(236,223,198,.05);border:1px solid var(--line);border-radius:7px;padding:4px 7px 5px;display:grid;gap:0;color:var(--bone)}
+.who b{font-family:var(--display);font-weight:700;font-size:14px;text-transform:uppercase}.who span{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.who.on{border-color:var(--amber);background:rgba(217,132,58,.18)}.who:disabled{opacity:.45}
+.crewlist{display:grid;gap:6px;margin:10px 0}
+.crewrow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;background:rgba(236,223,198,.04);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.crewrow b{font-family:var(--display);text-transform:uppercase;font-size:16px}.crewrow .tag{font-family:var(--mono);font-size:11px;color:var(--amber);margin-left:4px}
+.crewrow .st{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:right}.crewrow .acts{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}.crewrow .acts:empty{display:none}
+.btn.sm{padding:5px 10px;font-size:13px}.bad,.stat b.bad,.crewrow .bad{color:var(--blood)}
 .nestTag.siege{color:#1d1408;background:var(--amber);border-color:var(--amber)}
 .tiny.warn{color:var(--blood)}
 .ar.big i{border-left-color:var(--blood);border-left-width:20px;border-top-width:9px;border-bottom-width:9px;top:-9px}
@@ -181,7 +191,7 @@ details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:v
       <span class="r" title="Citizens"><span class="dot pop"></span><b id="pop">0</b></span>
     </div>
   </div>
-  <div class="side"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">&minus;</button><button id="logBtn" class="txt" aria-label="Open run log">Log</button><button id="qBtn" class="txt" aria-label="Graphics quality">HQ</button></div>
+  <div class="side"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">&minus;</button><button id="logBtn" class="txt" aria-label="Open run log">Log</button><button id="crewBtn" class="txt" aria-label="Your crew of survivors">Crew</button><button id="qBtn" class="txt" aria-label="Graphics quality">HQ</button></div>
   <div id="dock">
     <div id="panel" hidden>
       <div class="phead"><span class="eyebrow" id="pEyebrow"></span><b id="pTitle"></b><button class="x" id="pClose" aria-label="Close panel">&times;</button></div>

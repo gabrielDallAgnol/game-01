@@ -74,6 +74,35 @@ export function createView(canvas, game, opts = {}) {
     world.add(g); hives.set(r.id, { g, decal, haze, glow: 0 });
   }
 
+  // ---------- scavenge sites: a cache of supplies at a doorway into the ruins ----------
+  const diaGeo = new THREE.OctahedronGeometry(0.3, 0); diaGeo.scale(1, 1.5, 1);
+  const diaMat = new THREE.MeshBasicMaterial({ color: lc('#f0a24a').multiplyScalar(1.7) });
+  const sites = S.scav.sites.map(st => {
+    const g = new THREE.Group(); g.position.copy(W(st.x, st.y)); g.rotation.y = st.face;
+    const b = new K.B();
+    b.cbox('canvas', 0.42, 0.3, 0.32, -0.12, 0, 0.1, { r: 0.03 }); b.cbox('amberDeep', 0.3, 0.24, 0.3, 0.22, 0, -0.05, { r: 0.03, ry: 0.4 });
+    b.cbox('canvas', 0.3, 0.22, 0.24, -0.08, 0.3, 0.08, { r: 0.03, ry: -0.3 }); b.cyl('steel', 0.11, 0.11, 0.36, 0.3, 0, 0.32, { seg: 10 });
+    b.box('metal', 0.03, 1.1, 0.03, -0.4, 0, -0.25); b.cbox('amber', 0.32, 0.2, 0.02, -0.24, 0.86, -0.25, { r: 0.005 });
+    const cache = b.build(); cache.scale.setScalar(1.5); cache.traverse(o => { if (o.isMesh) o.castShadow = true; }); g.add(cache);
+    const dia = new THREE.Mesh(diaGeo, diaMat); dia.position.y = 1.5; g.add(dia);
+    const lamp = K.glowSprite('#ffb060', 1.4, 1.2); lamp.position.set(0, 0.5, 0); lamp.visible = false; g.add(lamp);
+    g.visible = false; world.add(g);
+    return { st, g, dia, lamp, cache };
+  });
+  const siteVis = new Set(); let siteT = 0;
+  function updateSites(dt, t) {
+    siteT -= dt;
+    if (siteT <= 0) {
+      siteT = 0.4; siteVis.clear();
+      for (const m of sites) {
+        const i = game.scavenge.siteInfo(m.st.id), out = !!i.run, show = out || (i.visible && S.phase === 'day');
+        m.g.visible = show; m.dia.visible = show && !out; m.lamp.visible = out;
+        if (show && !out) siteVis.add(m.st.id);
+      }
+    }
+    for (const m of sites) if (m.g.visible) { m.dia.position.y = 1.9 + Math.sin(t * 2.2 + m.st.id) * 0.12; m.dia.rotation.y = t * 1.2; m.lamp.material.opacity = 0.6 + Math.sin(t * 7 + m.st.id) * 0.15; }
+  }
+
   // ---------- markers ----------
   const ringGeo = (a, b) => new THREE.RingGeometry(a, b, 48);
   const selRing = new THREE.Mesh(ringGeo(1.45, 1.6), new THREE.MeshBasicMaterial({ color: lc('#ffffff').multiplyScalar(1.2), transparent: true, opacity: 0.9, depthWrite: false }));
@@ -311,7 +340,7 @@ export function createView(canvas, game, opts = {}) {
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
-    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses();
+    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time);
     if (repaint) { repaint = false; city.paint(); }
     const night = S.phase === 'night' || S.phase === 'over';
     dark += ((night ? 1 : 0) - dark) * Math.min(1, dt * 1.4);
@@ -433,6 +462,7 @@ export function createView(canvas, game, opts = {}) {
       if (sel.type === 'building') { const b = S.byId.get(sel.id); if (b) { x = b.x; y = b.y; s = b.type === 'tower' ? 0.6 : b.type === 'wall' ? 0.55 : 1.0; } else { x = C; y = C; } }
       else if (sel.type === 'keep') { x = C; y = C; s = 1.9; }
       else if (sel.type === 'region') { const n = map.regions[sel.id].nest; x = n.x; y = n.y; s = 1.8; }
+      else if (sel.type === 'site') { const st = S.scav.sites[sel.id]; x = st.x; y = st.y; s = 0.6; }
       selRing.position.copy(W(x, y, 0.1)); const k = s + Math.sin(time * 4) * 0.04; selRing.scale.set(k, k, k);
       if (sel.range) { rangeRing.visible = true; rangeRing.position.copy(W(x, y, 0.09)); rangeRing.scale.set(sel.range, sel.range, sel.range); }
     }
@@ -450,6 +480,7 @@ export function createView(canvas, game, opts = {}) {
   }
   function pick(cx, cy) {
     const p = groundAt(cx, cy); if (!p) return null;
+    for (const m of sites) if (m.g.visible && Math.hypot(m.st.x - p.x, m.st.y - p.y) < 1.1) return { type: 'site', id: m.st.id, ...p };
     const b = game.buildingAt(p.x, p.y);
     if (b && b.type === 'keep') return { type: 'keep', ...p };
     if (b) return { type: 'building', id: b.id, ...p };

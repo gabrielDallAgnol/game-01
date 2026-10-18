@@ -236,3 +236,52 @@ test('packs: a choice of 2 each dawn, pack buildings are free, extra ones cost d
   S.stock.house = 0; S.gold = 100; const [hx, hy] = spots.find(([a, b]) => g.canPlace('house', a, b).ok);
   assert.equal(g.build('house', hx, hy), true); assert.equal(S.gold, 100 - g.costOf('house') * 2);
 });
+
+// ---------- scavenging ----------
+const readyDay = g => { const S = g.state; while (S.pendingPicks) g.choosePerk(S.offer[0]); while (S.packs.length) g.choosePack(S.packs[0]); };
+const nextDawn = g => { const S = g.state; g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step(); };
+const firstSite = (g, hops) => g.state.scav.sites.map(s => g.scavenge.siteInfo(s.id)).find(i => i.visible && i.hops === hops);
+
+test('every map has scavenge sites next door and further out', () => {
+  for (const biome of ['riverbend', 'highland', 'lakeshore', 'vale']) {
+    const g = createGame({ seed: 4, biome });
+    assert.ok(firstSite(g, 1), `${biome}: no site next door`);
+    assert.ok(firstSite(g, 2), `${biome}: no deep site`);
+    assert.equal(g.state.scav.crew.length, 2);
+  }
+});
+
+test('a run costs supplies, can be called back, and comes home at dawn', () => {
+  const g = createGame({ seed: 21 }); readyDay(g); const S = g.state;
+  const i = firstSite(g, 1), ids = S.scav.crew.map(c => c.id), gold = S.gold;
+  assert.ok(g.scavenge.send(i.site.id, ids));
+  assert.equal(S.gold, gold - i.R.kit * 2);
+  assert.ok(S.scav.crew.every(c => c.out === i.site.id));
+  assert.ok(!g.scavenge.send(i.site.id, ids), 'two crews on one site');
+  assert.ok(g.scavenge.recall(i.site.id)); assert.equal(S.gold, gold);
+  assert.ok(g.scavenge.send(i.site.id, ids));
+  nextDawn(g);
+  assert.equal(S.phase, 'day'); assert.equal(S.scav.trips, 1); assert.equal(i.site.used, 1);
+  assert.ok(S.scav.crew.every(c => c.out === null));
+  assert.equal(S.scav.runs.length, 0);
+});
+
+test('no runs at night; a bite left untreated turns at nightfall', () => {
+  const g = createGame({ seed: 22 }); readyDay(g); const S = g.state;
+  const i = firstSite(g, 1), c = S.scav.crew[0];
+  g.startNight(); assert.ok(!g.scavenge.send(i.site.id, [c.id]));
+  for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step();
+  readyDay(g);
+  c.bitten = true; const before = S.scav.crew.length;
+  g.startNight();
+  assert.equal(S.scav.crew.length, before - 1);
+  assert.ok(S.mobs.some(m => m.kind === 'runner' && Math.hypot(m.x - g.map.town.x, m.y - g.map.town.y) < 5), 'no turned survivor in town');
+});
+
+test('scavenging is deterministic and never touches the main random stream', () => {
+  const play = send => { const g = createGame({ seed: 23 }); readyDay(g); if (send) g.scavenge.send(firstSite(g, 2).site.id, g.state.scav.crew.map(c => c.id)); nextDawn(g); return g.state; };
+  const a = play(true), b = play(true), c = play(false);
+  assert.deepEqual(a.scav.crew.map(x => x.name + x.trait), b.scav.crew.map(x => x.name + x.trait));
+  assert.equal(a.gold, b.gold);
+  assert.equal(a.kills, c.kills);
+});

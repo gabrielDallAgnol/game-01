@@ -8,6 +8,7 @@ import { MOBS, WAVES } from '../content/mobs.js';
 import { HEROES, MERC, PURSE, TRADES } from '../content/heroes.js';
 import { PERKS, FAMILIES, MASTERIES, SYNERGIES, ODDS, REROLL, freshPerkState } from '../content/perks.js';
 import { PACKS, PACK_RULES } from '../content/packs.js';
+import { createScavenge } from './scavenge.js';
 
 export const STEP = 1 / 60;
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
@@ -82,7 +83,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   let liveCache = null, liveTick = -1;
   const live = () => { if (liveTick !== S.time) { liveCache = S.buildings.filter(b => !b.ruined); liveTick = S.time; } return liveCache; };
   const heroMax = () => Math.round((HC.hp + S.P.heroHp + (mastery('champion') ? 25 : 0)) * S.P.heroHpMult);
-  const towerMult = () => (1 + S.P.towerDmg) * (mastery('deadeye') ? 1.4 : 1);
+  let sc = null;
+  const towerMult = () => (1 + S.P.towerDmg + (sc ? sc.towerBonus() : 0)) * (mastery('deadeye') ? 1.4 : 1);
   const keepMult = () => (1 + S.P.keepDmg) * (mastery('deadeye') ? 1.4 : 1);
   const upkeep = () => Math.max(0, S.buildings.reduce((a, b) => a + ((BUILDINGS[b.type].upkeep || [])[b.level - 1] || 0), 0) - S.P.upkeepCut * 2);
   const foodNeed = () => Math.ceil(pop() * START.foodPerCitizen);
@@ -486,6 +488,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       wave: S.queue.length, waveHp: Math.round(S.queue.reduce((a, q) => a + (MOBS[q.kind].fixedHp ? MOBS[q.kind].hp : Math.ceil(MOBS[q.kind].hp * WAVES.hpScale(S.night))), 0)),
       ratio: +threatRatio(S.night, purgeReg).toFixed(2), purge: purgeReg, nests: activeNests().length, claimed: claimedCount(), bloodMoon: isBloodMoon(S.night),
     });
+    sc.nightfall(keep);
     ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
     toast(isBloodMoon(S.night) ? `Blood moon. Night ${S.night} begins.` : `The bell rings. Night ${S.night} begins.`, isBloodMoon(S.night) ? 'bad' : undefined);
     return true;
@@ -493,7 +496,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
 
   function dawn() {
     S.phase = 'day'; S.dawns++;
-    let foodIn = 0, hg = 0;
+    let foodIn = sc.dawnFood(), hg = 0;
     for (const b of S.buildings) { if (b.fell) continue; if (b.type === 'farm') foodIn += farmFood(b); if (b.type === 'house') hg += houseGold(b); }
     foodIn = Math.round(foodIn * prosper());
     S.food += foodIn;
@@ -523,6 +526,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.hero.hp = S.hero.maxHp; S.hero.guardT = 0;
     if (S.allies.length) { for (const a of S.allies) ev('allyGone', { id: a.id }); S.allies = []; }
     S.purses = []; S.ability.cd = 0;
+    sc.dawn(isBloodMoon(S.night));
     S.night++; newLog();
     S.reroll.cost = REROLL.base;
     S.picks.push('dawn'); for (let k = 0; k < S.chestsHeld; k++) S.picks.push('chest'); S.chestsHeld = 0;
@@ -1003,7 +1007,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function buildingAt(x, y) { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return null; const o = S.occ[idx(cx, cy)]; return o >= 0 ? S.byId.get(o) : null; }
   S.picks.push('dawn'); rollOffer(); rollPacks();
 
+  // ---------- scavenging ----------
+  sc = createScavenge({ S, map, seed, ev, toast, earn, activeNests, isBloodMoon, spawnMob, fail });
+  S.scav = sc.scav;
+
   return {
+    scavenge: { siteInfo: sc.siteInfo, send: sc.send, recall: sc.recall, treat: sc.treat, exile: sc.exile, hopsMap: sc.hopsMap },
     state: S, map, heroDef: HC, step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, choosePerk, reroll, trade, planPurge, useAbility,
     setHeroInput: (x, y) => { S.hero.input.x = x; S.hero.input.y = y; },
     heroTo: (x, y) => {

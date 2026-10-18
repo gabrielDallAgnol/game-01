@@ -8,6 +8,7 @@ import { PERKS, FAMILIES, SYNERGIES, MASTERIES } from '../content/perks.js';
 import { PACKS } from '../content/packs.js';
 import { MOBS } from '../content/mobs.js';
 import { regionNames } from '../content/names.js';
+import { TRAITS, TREAT, RUN } from '../content/scavenge.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -75,7 +76,7 @@ export function startApp() {
     names = regionNames(mapSeed, game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
     if (!view) { view = createView($('#view'), game, { quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
-    window.__game = game;
+    window.__game = game; window.__openSel = sel => openSel(sel);
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = !game.heroDef.ability;
     toast(setup.mode === 'packs' ? `Day 1 in ${game.map.name}. Pick a pack, then place your buildings.` : `Day 1 in ${game.map.name}. You have ${game.state.gold} gold. A tower and a house is a good start.`);
@@ -350,11 +351,55 @@ export function startApp() {
   function selB() { const S = game.state; return selected && selected.type === 'building' ? S.byId.get(selected.id) : selected && selected.type === 'keep' ? S.keep : null; }
   function panelSig() {
     const S = game.state, b = selB();
-    return [S.gold, S.food, S.phase, S.purge, S.halfUpgrade, S.trade && S.trade.done, selected && selected.type, selected && selected.id, b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}` : ''].join('|');
+    return [S.gold, S.food, S.phase, S.purge, S.halfUpgrade, S.trade && S.trade.done, selected && selected.type, selected && selected.id, scavSig(), b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}` : ''].join('|');
   }
   function openSel(sel) { selected = sel; renderPanel(); lastSig = panelSig(); $('#panel').hidden = false; }
   function closePanel() { selected = null; $('#panel').hidden = true; }
   const opt = (id, data, name, cost, ds, disabled) => `<button class="opt" id="${id}" ${data} ${disabled ? 'disabled' : ''}><span class="nm">${name}${cost !== null ? `<span class="cost"><span class="dot gold"></span>${cost}</span>` : ''}</span><span class="ds">${ds}</span></button>`;
+  // ---------- scavenging ----------
+  const SITE_KINDS = ['Pharmacy', 'Hardware store', 'Supermarket', 'Bus depot', 'Police post', 'Clinic', 'Pawn shop', 'Diner', 'School', 'Garage', 'Post office', 'Bakery'];
+  const siteName = id => SITE_KINDS[(id * 7 + 3) % SITE_KINDS.length];
+  const pct = p => `${Math.round(p * 100)}%`;
+  function scavSig() { const sc = game.state.scav; return sc.crew.map(c => `${c.id}${c.out ?? '-'}${c.bitten ? 'b' : ''}`).join(',') + '/' + sc.runs.length + '/' + (selected && selected.pick ? [...selected.pick].join('.') : ''); }
+  function renderSite(body, day) {
+    const S = game.state, info = game.scavenge.siteInfo(selected.id), sc = S.scav, pk = selected.pick || (selected.pick = new Set());
+    for (const id of [...pk]) { const c = sc.crew.find(q => q.id === id); if (!c || c.out || c.bitten) pk.delete(id); }
+    const R = info.R;
+    $('#pEyebrow').textContent = `${info.label} · ${names[info.site.region]}`;
+    $('#pTitle').textContent = siteName(selected.id);
+    let html = `<div class="stat"><span>Searches left <b>${Math.max(0, info.left)}</b></span><span>Each survivor brings about <b>${R.gold[0]}–${R.gold[1]}</b> gold and <b>${R.food[0]}–${R.food[1]}</b> food. Maybe free buildings, a new survivor${R.relic ? ', a rare blessing' : ''}.</span></div>`;
+    html += `<div class="stat"><span>Risk each <b class="${info.die > 0.15 ? 'bad' : ''}">${pct(info.die)}</b> death · <b>${pct(info.bite)}</b> bite${info.awake ? ' · <b class="bad">hive awake</b>' : ''}</span><span>Gone tonight, back at dawn.</span></div>`;
+    if (info.run) {
+      const who = info.run.ids.map(id => (sc.crew.find(c => c.id === id) || {}).name).filter(Boolean).join(', ');
+      html += `<div class="opts one">${opt('opt-recall', 'data-recall="1"', 'Call the crew back', null, `${who} will stay home. Supplies refunded.`, !day)}</div>`;
+      body.innerHTML = html; return;
+    }
+    const homeCrew = sc.crew.filter(c => !c.out);
+    if (!homeCrew.length) { body.innerHTML = html + '<div class="tiny">Everyone is out. Find more survivors on runs.</div>'; return; }
+    html += `<div class="crew">${homeCrew.map(c => `<button class="who${pk.has(c.id) ? ' on' : ''}" data-who="${c.id}" ${c.bitten ? 'disabled' : ''} aria-pressed="${pk.has(c.id)}"><b>${c.name}</b><span>${c.bitten ? 'Bitten' : TRAITS[c.trait].name}</span></button>`).join('')}</div>`;
+    const kit = R.kit * pk.size;
+    html += `<div class="opts one">${opt('opt-send', 'data-send="1"', pk.size ? `Send ${pk.size} · supplies` : 'Pick who goes', pk.size ? kit : null, pk.size ? 'They leave now and come back at dawn, if they come back.' : 'Tap survivors above. Traits matter: a Scout keeps the run safer.', !pk.size || S.gold < kit || !day || info.left <= 0)}</div>`;
+    body.innerHTML = html;
+  }
+  function showCrew() {
+    if (!game || paused) return;
+    paused = true; closePanel(); stopPlacing();
+    const S = game.state, sc = S.scav;
+    const row = c => {
+      const site = c.out !== null ? siteName(c.out) : null;
+      const status = c.bitten ? '<span class="bad">Bitten · turns at nightfall</span>' : site ? `Out at the ${site.toLowerCase()}` : 'Home';
+      const acts = c.bitten ? `<button class="btn sm" data-treat="${c.id}" data-how="food" ${S.food < TREAT.food ? 'disabled' : ''}>Treat · ${TREAT.food} food</button><button class="btn sm" data-treat="${c.id}" data-how="gold" ${S.gold < TREAT.gold ? 'disabled' : ''}>Treat · ${TREAT.gold} gold</button><button class="btn sm ghost" data-exile="${c.id}">Turn out</button>` : '';
+      return `<div class="crewrow"><div><b>${c.name}</b> <span class="tag">${TRAITS[c.trait].name}</span><div class="tiny">${TRAITS[c.trait].desc}</div></div><div class="st">${status}</div><div class="acts">${acts}</div></div>`;
+    };
+    showCard('crew', `<div class="eyebrow">Survivors · ${sc.crew.length} · ${sc.trips} runs · ${sc.lost} lost</div><h1 class="sm">The crew</h1>
+      <p>Tap a glowing cache in the ruins by day to send survivors scavenging. The further from your land, the better the haul and the worse the odds.</p>
+      <div class="crewlist">${sc.crew.map(row).join('') || '<div class="tiny">No one left. Runs sometimes find survivors, but you need someone to send.</div>'}</div>
+      <div class="cardrow"><button class="btn ghost" id="crewClose">Back to town</button></div>`, true, false);
+    $$('[data-treat]').forEach(b => b.onclick = () => { game.scavenge.treat(+b.dataset.treat, b.dataset.how); flushToasts(); hideCard(); paused = false; showCrew(); });
+    $$('[data-exile]').forEach(b => b.onclick = () => { game.scavenge.exile(+b.dataset.exile); flushToasts(); hideCard(); paused = false; showCrew(); });
+    $('#crewClose').onclick = () => { hideCard(); paused = false; };
+  }
+  function flushToasts() { for (const e of game.drainEvents()) if (e.t === 'toast' || e.t === 'fail') toast(e.msg, e.t === 'fail' ? 'bad' : e.kind); }
   function renderPanel() {
     if (!selected || !game) return;
     const S = game.state, body = $('#pBody'), day = S.phase === 'day';
@@ -382,6 +427,7 @@ export function startApp() {
       body.innerHTML = html;
       return;
     }
+    if (selected.type === 'site') { renderSite(body, day); return; }
     const b = selB(); if (!b) { closePanel(); return; }
     const B = BUILDINGS[b.type];
     $('#pEyebrow').textContent = names[game.map.region[idx(Math.floor(b.x), Math.floor(b.y))]] || '';
@@ -400,6 +446,9 @@ export function startApp() {
   }
   $('#pBody').addEventListener('click', e => {
     const btn = e.target.closest('button'); if (!btn || btn.disabled || !selected) return;
+    if (btn.dataset.who) { const id = +btn.dataset.who, pk = selected.pick || (selected.pick = new Set()); if (pk.has(id)) pk.delete(id); else pk.add(id); renderPanel(); return; }
+    if (btn.dataset.send) { if (game.scavenge.send(selected.id, [...(selected.pick || [])])) { const n = selected.pick.size; selected.pick = new Set(); toast(`${n === 1 ? 'One survivor heads' : `${n} survivors head`} out. Back at dawn.`, 'good'); } }
+    if (btn.dataset.recall && game.scavenge.recall(selected.id)) toast('The crew stays home. Supplies returned.');
     if (btn.dataset.keep && game.upgradeKeep()) toast('The keep rises higher.');
     if (btn.dataset.trader) { traderSeen = true; closePanel(); paused = true; showTrader(); return; }
     if (btn.dataset.up && game.upgrade(selected.id)) toast('Upgraded.');
@@ -416,6 +465,7 @@ export function startApp() {
   const ringBell = () => { if (game && !paused && game.startNight()) { closePanel(); stopPlacing(); } };
   $('#bell').onclick = ringBell;
   $('#logBtn').onclick = showLog;
+  $('#crewBtn').onclick = showCrew;
   // graphics quality: High (shadows, ambient occlusion, glow), Medium (glow), Low (fastest)
   const QNAME = { high: 'HQ', medium: 'MQ', low: 'LQ' }, QNEXT = { high: 'medium', medium: 'low', low: 'high' };
   function showQuality() { if (view) { $('#qBtn').textContent = QNAME[view.quality()]; $('#qBtn').setAttribute('aria-label', `Graphics quality: ${view.quality()}`); } }
@@ -460,6 +510,7 @@ export function startApp() {
 
   // ---------- HUD ----------
   function updateHud() {
+    if (game) { const sc = game.state.scav, bit = sc.crew.some(c => c.bitten), out = sc.crew.filter(c => c.out !== null).length; const cb = $('#crewBtn'); cb.classList.toggle('alert', bit); cb.textContent = out ? `Crew ${sc.crew.length - out}/${sc.crew.length}` : `Crew ${sc.crew.length}`; }
     if (!game) return;
     const S = game.state, night = S.phase === 'night', bm = game.isBloodMoon(S.night);
     $('#phaseLbl').textContent = S.over ? 'Fell on' : night ? 'Night' : 'Day';
@@ -579,6 +630,7 @@ export function startApp() {
     }
     const p = view.pick(e.clientX, e.clientY); if (!p) return;
     const S = game.state;
+    if (S.phase === 'day' && p.type === 'site') { openSel({ type: 'site', id: p.id, pick: new Set() }); return; }
     if (S.phase === 'day' && (p.type === 'building' || p.type === 'keep')) { openSel(p.type === 'building' ? { type: 'building', id: p.id } : { type: 'keep' }); return; }
     if (S.phase === 'day' && p.type === 'region' && game.map.regions[p.id].nest && game.regionInfo(p.id).nest) {
       const n = game.map.regions[p.id].nest;
