@@ -12,6 +12,7 @@ import { createScavenge } from './scavenge.js';
 import { WEATHER } from '../content/weather.js';
 
 export const STEP = 1 / 60;
+export const TOWER_GAP = 3;   // tower centres at least this far apart (Chebyshev)
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
 export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
@@ -133,6 +134,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD || t === T.FOREST) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Barricades need ground, rubble or a ford.' : t === T.FOREST ? 'Rubble in the way. Tap it to clear it first.' : 'Needs open ground.'; return out; }
       if (S.occ[i] >= 0) { out.reason = 'Something is already built here.'; return out; }
     }
+    // towers need their own field of fire: two clear cells to the next tower (same density as the old 2×2 towers)
+    if (type === 'tower') for (const b of S.buildings) if (b.type === 'tower' && Math.max(Math.abs(b.x - cx), Math.abs(b.y - cy)) < TOWER_GAP) { out.reason = 'Towers need room to shoot: leave 2 cells to the next tower.'; return out; }
     for (const i of out.cells) {
       const x0 = i % N, y0 = (i / N) | 0;
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
