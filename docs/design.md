@@ -49,6 +49,19 @@
 
 Balance (96 bot runs, packs mode): median night warrior 24, archer 27, merchant 24. Vale bots 19–29. Rating calibration unchanged (Easy ends 1% of runs, 0.5+ ends half).
 
+## RTS-style placement (Oct 18, evening)
+Inspired by Red Alert 2 / OpenRA: you always see where things can go, and walls are drawn as lines.
+
+| Change | Rule |
+|---|---|
+| Build zone | While a building is in hand, every cell a valid footprint could cover is washed green. |
+| Snap | The building snaps to the best valid spot within ~2.5 cells of the pointer, preferring spots that leave exactly a one-cell street to their neighbours (tidy blocks). |
+| Palisade lines | Palisades are 1-cell posts (cost 1/2/3, 30/60/100 hp; packs give 8–20). Pick a start, then an end; the line is 4-connected so the dead can't slip through corners. Posts join visually to neighbouring posts and towers. Posts can stand in woods. |
+| Upgrading walls | "Upgrade this palisade" upgrades the whole joined line, nearest posts first, as far as your gold goes. |
+| Never boxed in | The hero (and sellswords) walk through your palisades; they are the town's gates. A house, farm or tower that would seal off reachable ground is refused. |
+| Tap to walk | The hero plans a path around buildings (A*) instead of stopping at the first wall. |
+| The dead | Can no longer squeeze diagonally between two building corners or posts. |
+
 ## Next drop: town stats (agreed direction)
 - **Main system: scavenge runs** (Dying Light / State of Decay / Project Zomboid): ruins in unclaimed regions hold loot. Send survivors out by day; the further out, the better the loot and the risk. Survivors arrive with traits (Medic, Carpenter, Coward…).
 - **Infection and noise as natural events,** not tied to buildings. For example: a scavenger comes back bitten (treat, quarantine or exile), or a storm whose thunder draws a horde from one side.

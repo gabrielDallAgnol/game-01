@@ -20,6 +20,7 @@ const ARM_MS = 700;          // cards ignore taps this long after they appear
 const DAWN_DELAY = 1.2;      // seconds between the last kill and the first card
 const JOY_PX = 14;           // a touch that moves further than this is a joystick drag, not a tap
 const SHORT = { house: 'House', farm: 'Farm', tower: 'Tower', wall: 'Palisade' };
+const PLURAL = { house: 'Houses', farm: 'Farms', tower: 'Towers', wall: 'palisade posts' };
 
 export function startApp() {
   let game = null, view = null, names = [], selected = null, placing = null, paused = true, acc = 0, last = performance.now(), hudT = 0;
@@ -132,13 +133,13 @@ export function startApp() {
     $$('[data-perk]').forEach(b => b.onclick = onArmed(() => { game.choosePerk(b.dataset.perk); dawnFlow(); }));
     const rr = $('#pReroll'); if (rr) rr.onclick = onArmed(() => { if (game.reroll()) showPerks(); });
   }
-  const itemsText = items => Object.entries(items).map(([t, n]) => `<span class="it ${t}"><i></i>${n} ${SHORT[t]}${n > 1 && t !== 'wall' ? 's' : n > 1 ? 's' : ''}</span>`).join('');
+  const itemsText = items => Object.entries(items).map(([t, n]) => `<span class="it ${t}"><i></i>${n} ${n > 1 ? PLURAL[t] : t === 'wall' ? 'palisade post' : SHORT[t]}</span>`).join('');
   function showPacks() {
     const S = game.state;
     const kindName = { eco: 'Town', def: 'Defence', mix: 'Mixed' };
     showCard('pack', `<div class="eyebrow">Night ${S.night} · new buildings</div><h1 class="sm">Choose a pack</h1>
       <div class="packs">${S.packs.map(id => { const p = PACKS.find(q => q.id === id); return `<button class="pack ${p.kind}" data-pack="${id}"><span class="pf">${kindName[p.kind]}</span><b>${p.name}</b><span class="items">${itemsText(p.items)}</span></button>`; }).join('')}</div>
-      <div class="cardrow spread"><span class="tiny">${stockTotal() ? `Still unplaced: ${Object.entries(S.stock).filter(([, n]) => n).map(([t, n]) => `${n} ${SHORT[t]}`).join(', ')}` : 'You place them for free. More cost double gold.'}</span>
+      <div class="cardrow spread"><span class="tiny">${stockTotal() ? `Still unplaced: ${Object.entries(S.stock).filter(([, n]) => n).map(([t, n]) => `${n} ${n > 1 ? PLURAL[t].toLowerCase() : SHORT[t].toLowerCase()}`).join(', ')}` : 'You place them for free. More cost double gold.'}</span>
       <button class="btn ghost" id="packReroll" ${S.gold < 5 ? 'disabled' : ''}>Other packs · <span class="dot gold"></span> 5</button></div>`);
     $$('[data-pack]').forEach(b => b.onclick = onArmed(() => { game.choosePack(b.dataset.pack); dawnFlow(); }));
     $('#packReroll').onclick = onArmed(() => { if (game.rerollPacks()) showPacks(); });
@@ -234,46 +235,114 @@ export function startApp() {
     if (!(game.state.stock[t] > 0) && game.state.gold < game.buyCost(t)) { toast(`A ${SHORT[t].toLowerCase()} costs ${game.buyCost(t)} gold.`, 'bad'); return; }
     startPlacing(t);
   });
+  // Placement works like a classic RTS: the land you can build on lights up, the building in hand
+  // snaps to the nearest spot that fits (preferring spots that line up with a street), and
+  // palisades are laid as lines: pick where the line starts, then where it ends.
+  const SIZE = { house: 3, farm: 3, tower: 2, wall: 1 };
+  const cellOf = (x, y) => [Math.floor(x), Math.floor(y)];
+  function computeZone(type) {
+    const S = game.state, n = SIZE[type], off = n % 2 ? 0.5 : 0, mask = new Uint8Array(N * N), spots = [];
+    for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+      const r = game.map.region[idx(x, y)]; if (r < 0 || !S.claimed.has(r)) continue;
+      const p = game.canPlace(type, x + off, y + off, 0); if (!p.ok) continue;
+      spots.push({ x: p.x, y: p.y, cells: p.cells }); for (const c of p.cells) mask[c] = 1;
+    }
+    return { mask, spots, ver: S.occVersion };
+  }
+  // a spot that leaves exactly one street to its neighbours reads as a tidy block
+  function tidy(sp) {
+    const S = game.state; let x0 = N, y0 = N, x1 = 0, y1 = 0;
+    for (const c of sp.cells) { const x = c % N, y = (c / N) | 0; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    let n = 0;
+    for (let y = y0 - 2; y <= y1 + 2; y++) for (let x = x0 - 2; x <= x1 + 2; x++) {
+      if (x > x0 - 2 && x < x1 + 2 && y > y0 - 2 && y < y1 + 2) continue;
+      if (x < 0 || y < 0 || x >= N || y >= N) continue;
+      const o = S.occ[idx(x, y)]; if (o >= 0 && game.state.byId.get(o) && game.state.byId.get(o).type !== 'wall') n++;
+    }
+    return Math.min(6, n);
+  }
+  function snap(x, y) {
+    const z = placing.zone; let best = null, bs = Infinity;
+    for (const sp of z.spots) { const d = Math.hypot(sp.x - x, sp.y - y); if (d > 2.6) continue; const sc = d - 0.18 * tidy(sp); if (sc < bs) { bs = sc; best = sp; } }
+    return best;
+  }
+  function refreshZone() { if (placing) { placing.zone = computeZone(placing.type); placing.zoneMask = placing.zone.mask; } }
   function startPlacing(type) {
     closePanel();
-    const h = game.state.hero, keepRot = placing && placing.type === type ? placing.rot : 0;
-    placing = { type, rot: keepRot, x: h.x, y: h.y - 3 };
-    // start the ghost at the nearest spot that fits, walking outward from just above the hero
-    const fit = nearestFit(type, h.x, h.y - 3, keepRot); if (fit) { placing.x = fit.x; placing.y = fit.y; }
+    const h = game.state.hero;
+    placing = { type, x: h.x, y: h.y - 3, start: null };
+    refreshZone();
+    // begin at the spot nearest to just above the hero
+    let best = null, bd = Infinity; for (const sp of placing.zone.spots) { const d = Math.hypot(sp.x - h.x, sp.y - (h.y - 3)); if (d < bd) { bd = d; best = sp; } }
+    if (best) { placing.x = best.x; placing.y = best.y; }
+    if (!placing.zone.spots.length) toast(type === 'wall' ? 'No open ground left for palisades.' : `No room left for a ${SHORT[type].toLowerCase()}. Claim more land or pull something down.`, 'bad');
     updateGhost(); $('#place').hidden = false; renderTray();
   }
-  function nearestFit(type, x, y, rot) {
-    for (let r = 0; r <= 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-      const p = game.canPlace(type, x + dx, y + dy, rot); if (p.ok) return p;
-    }
-    return null;
-  }
   function stopPlacing() { placing = null; $('#place').hidden = true; renderTray(); }
+  const wallAt = (x, y) => { const o = game.state.byId.get(game.state.occ[idx(x, y)]); return o && o.type === 'wall'; };
   function updateGhost() {
     if (!placing) return;
-    const p = game.canPlace(placing.type, placing.x, placing.y, placing.rot);
-    placing.ghost = { type: placing.type, x: p.x, y: p.y, rot: placing.rot, ok: p.ok, cells: p.cells };
+    const S = game.state, t = placing.type;
+    $('#pRot').hidden = true;
+    if (t === 'wall') return updateWallGhost();
+    const sp = snap(placing.x, placing.y);
+    const p = sp ? game.canPlace(t, sp.x, sp.y, 0, { deep: true }) : game.canPlace(t, placing.x, placing.y, 0, { deep: true });
+    placing.ghost = { type: t, x: p.x, y: p.y, rot: 0, ok: p.ok, cells: p.cells };
     placing.reason = p.reason;
-    const S = game.state, n = S.stock[placing.type] || 0;
-    $('#placeInfo').innerHTML = p.ok ? `${BUILDINGS[placing.type].name}${n ? ` · ${n} in hand` : ` · <span class="dot gold"></span> ${game.buyCost(placing.type)}`}` : `<span class="warn">${p.reason}</span>`;
-    $('#pRot').hidden = placing.type !== 'wall';
-    $('#pOk').disabled = !p.ok;
+    const n = S.stock[t] || 0;
+    $('#placeInfo').innerHTML = p.ok ? `${BUILDINGS[t].name}${n ? ` · ${n} in hand` : ` · <span class="dot gold"></span> ${game.buyCost(t)}`}` : `<span class="warn">${p.reason || 'No room here.'}</span>`;
+    $('#pOk').textContent = 'Place'; $('#pOk').disabled = !p.ok;
+  }
+  function updateWallGhost() {
+    const S = game.state, budget = game.wallBudget();
+    let [ex, ey] = cellOf(placing.x, placing.y);
+    if (!placing.start) {
+      // snap the first post to open ground nearby, preferring the end of a palisade you already have
+      let best = null, bs = Infinity;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const x = ex + dx, y = ey + dy; if (x < 1 || y < 1 || x >= N - 1 || y >= N - 1 || !placing.zoneMask[idx(x, y)]) continue;
+        const d = Math.hypot(x + 0.5 - placing.x, y + 0.5 - placing.y); if (d > 1.8) continue;
+        const joins = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => { const o = S.byId.get(S.occ[idx(x + a, y + b)]); return o && (o.type === 'wall' || o.type === 'tower'); });
+        const sc = d - (joins ? 0.9 : 0); if (sc < bs) { bs = sc; best = [x, y]; }
+      }
+      const c = best || [ex, ey], ok = !!best;
+      placing.cell = c;
+      placing.ghost = { type: 'wall', x: c[0] + 0.5, y: c[1] + 0.5, ok, cells: [idx(c[0], c[1])] };
+      $('#placeInfo').innerHTML = ok ? `Palisade · ${touchUI ? 'tap' : 'click'} where the line starts${budget ? ` · ${S.stock.wall || 0} posts in hand` : ''}` : `<span class="warn">${game.canPlace('wall', ex + 0.5, ey + 0.5).reason || 'No room here.'}</span>`;
+      $('#pOk').textContent = 'Start here'; $('#pOk').disabled = !ok;
+      return;
+    }
+    const [sx, sy] = placing.start, line = game.lineCells(sx, sy, ex, ey);
+    let n = 0; const okCells = [], cells = [];
+    for (const [x, y] of line) {
+      cells.push(idx(x, y));
+      if (wallAt(x, y)) { okCells.push('skip'); continue; }
+      const ok = game.canPlace('wall', x + 0.5, y + 0.5).ok && n < budget; okCells.push(ok); if (ok) n++;
+    }
+    placing.lineN = n; placing.end = [ex, ey];
+    placing.ghost = { type: 'wall', x: ex + 0.5, y: ey + 0.5, ok: n > 0, cells, okCells };
+    const inHand = Math.min(n, S.stock.wall || 0), paid = n - inHand;
+    $('#placeInfo').innerHTML = n ? `${n} ${n === 1 ? 'post' : 'posts'}${inHand ? ` · ${inHand} from your packs` : ''}${paid ? ` · <span class="dot gold"></span> ${paid * game.buyCost('wall')}` : ''}` : `<span class="warn">${budget ? 'Nothing fits along this line.' : `Out of posts. One costs ${game.buyCost('wall')} gold.`}</span>`;
+    $('#pOk').textContent = n ? `Lay ${n}` : 'Lay'; $('#pOk').disabled = !n;
   }
   function placeNow() {
     if (!placing) return;
-    const t = placing.type, g = placing.ghost;
+    const t = placing.type, g = placing.ghost, S = game.state;
+    if (t === 'wall') {
+      if (!placing.start) { if (g && g.ok) { placing.start = placing.cell; updateGhost(); } return; }
+      const [sx, sy] = placing.start, [ex, ey] = placing.end || placing.start;
+      const n = game.buildLine(sx + 0.5, sy + 0.5, ex + 0.5, ey + 0.5);
+      if (n) { toast(`${n} ${n === 1 ? 'post' : 'posts'} laid.`); placing.start = null; refreshZone(); if (!game.wallBudget()) stopPlacing(); else updateGhost(); }
+      renderTray(); return;
+    }
     if (!g || !g.ok) { toast(placing.reason || 'Cannot build there.', 'bad'); return; }
-    if (game.build(t, g.x, g.y, placing.rot)) {
-      const S = game.state;
-      if ((S.stock[t] || 0) > 0 || (S.mode === 'classic' && S.gold >= game.buyCost(t))) {
-        const next = nearestFit(t, g.x, g.y, placing.rot); if (next) { placing.x = next.x; placing.y = next.y; } updateGhost(); renderTray();
-      } else stopPlacing();
+    if (game.build(t, g.x, g.y, 0)) {
+      if ((S.stock[t] || 0) > 0 || (S.mode === 'classic' && S.gold >= game.buyCost(t))) { refreshZone(); updateGhost(); renderTray(); }
+      else stopPlacing();
     }
   }
   $('#pOk').onclick = placeNow;
-  $('#pRot').onclick = () => { if (placing) { placing.rot = (placing.rot + 1) % 4; updateGhost(); } };
-  $('#pCancel').onclick = stopPlacing;
+  $('#pCancel').onclick = () => { if (placing && placing.start) { placing.start = null; updateGhost(); } else stopPlacing(); };
 
   // ---------- panels ----------
   let lastSig = '';
@@ -317,6 +386,12 @@ export function startApp() {
     $('#pEyebrow').textContent = names[game.map.region[idx(Math.floor(b.x), Math.floor(b.y))]] || '';
     $('#pTitle').textContent = `${B.name} · level ${b.level}${b.ruined ? ' · ruined' : ''}`;
     let html = `<div class="stat"><span>Health <b>${Math.ceil(b.hp)} / ${b.maxHp}</b></span><span>${B.desc[b.level - 1]}</span></div><div class="opts two">`;
+    if (b.type === 'wall') {
+      const run = game.wallRun(b.id), total = run.reduce((a, w) => a + game.upCostOf(w), 0);
+      if (b.level < MAX_LEVEL) html += opt('opt-upw', 'data-upw="1"', `Upgrade this palisade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, total, `${B.desc[b.level]} each. Short of gold? The nearest posts go first.`, S.gold < game.upCostOf(b) || !day);
+      html += opt('opt-demo', 'data-demo="1"', 'Pull down this post', null, 'Opens a gap you can build a gate tower in.', !day);
+      body.innerHTML = html + '</div>'; selected.range = null; return;
+    }
     if (b.level < MAX_LEVEL) { const c = game.upCostOf(b); html += opt('opt-up', 'data-up="1"', `Upgrade to level ${b.level + 1}`, c, `${B.desc[b.level]} · ${game.maxHpOf(b.type, b.level + 1)} hp${S.halfUpgrade ? ' · half price' : ''}`, S.gold < c || !day); }
     html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} gold back and free the space.`, !day);
     body.innerHTML = html + '</div>' + (b.level >= MAX_LEVEL ? '<div class="tiny">Fully upgraded.</div>' : '');
@@ -327,6 +402,7 @@ export function startApp() {
     if (btn.dataset.keep && game.upgradeKeep()) toast('The keep rises higher.');
     if (btn.dataset.trader) { traderSeen = true; closePanel(); paused = true; showTrader(); return; }
     if (btn.dataset.up && game.upgrade(selected.id)) toast('Upgraded.');
+    if (btn.dataset.upw) { const n = game.upgradeWall(selected.id); if (n) toast(`${n} ${n === 1 ? 'post' : 'posts'} upgraded.`); }
     if (btn.dataset.demo) {
       if (btn.dataset.sure) { if (game.demolish(selected.id)) { toast('Pulled down.'); closePanel(); updateHud(); return; } }
       else { btn.dataset.sure = '1'; btn.querySelector('.nm').textContent = 'Tap again to pull down'; return; }
@@ -428,12 +504,17 @@ export function startApp() {
   // touch: drag anywhere = joystick (screen right/up), short tap = select or walk there.
   // mouse: click = select or walk; while placing, the ghost follows the pointer and a click places.
   const canvas = $('#view'), joy = $('#joy'); let down = null; const touches = new Map(); let pinch0 = 0, zoom0 = 1;
-  const joyIn = { x: 0, y: 0 };
+  const joyIn = { x: 0, y: 0 }; let touchUI = matchMedia('(pointer: coarse)').matches;
   canvas.addEventListener('wheel', e => { e.preventDefault(); if (view) view.setZoom(view.getZoom() * (1 + e.deltaY * 0.0012)); }, { passive: false });
   canvas.addEventListener('pointerdown', e => {
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touches.size === 2 && view) { const [a, b] = [...touches.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = view.getZoom(); endJoy(); down = null; return; }
     down = { x: e.clientX, y: e.clientY, id: e.pointerId, touch: e.pointerType !== 'mouse', joy: false, drag: false }; canvas.focus({ preventScroll: true });
+    touchUI = down.touch;
+    // mouse: press where a palisade starts, drag, release where it ends (or click twice)
+    if (placing && placing.type === 'wall' && !down.touch && !placing.start && view && !paused) {
+      const g = view.groundAt(e.clientX, e.clientY); if (g) { placing.x = g.x; placing.y = g.y; updateGhost(); if (placing.ghost.ok) { placing.start = placing.cell; down.wallStart = true; updateGhost(); } }
+    }
   });
   function endJoy() { joyIn.x = joyIn.y = 0; joy.hidden = true; }
   canvas.addEventListener('pointercancel', e => { touches.delete(e.pointerId); if (down && down.id === e.pointerId) { down = null; endJoy(); } });
@@ -464,8 +545,14 @@ export function startApp() {
     if (!d || wasPinch || paused || !game) return;
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > (d.touch ? JOY_PX : 8) && !placing) return;
     if (placing) {
-      // mouse click places; a touch tap or drag only moves the ghost (confirm with Place)
+      // mouse: a click places (palisades: release after a drag, or a second click).
+      // touch: a tap moves the ghost; the first tap of a palisade marks where it starts; Place confirms.
       const g = view.groundAt(e.clientX, e.clientY); if (g) { placing.x = g.x; placing.y = g.y; updateGhost(); }
+      if (placing.type === 'wall') {
+        if (d.touch) { if (!placing.start) placeNow(); return; }
+        if (d.wallStart) { const [ex, ey] = cellOf(placing.x, placing.y); if (ex !== placing.start[0] || ey !== placing.start[1]) placeNow(); return; }
+        placeNow(); return;
+      }
       if (!d.touch) placeNow();
       return;
     }
@@ -480,14 +567,13 @@ export function startApp() {
   });
   window.addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
-    if (k === 'escape') { if (placing) stopPlacing(); else closePanel(); }
+    if (k === 'escape') { if (placing && placing.start) { placing.start = null; updateGhost(); } else if (placing) stopPlacing(); else closePanel(); }
     if (e.target.closest && e.target.closest('button') && (k === ' ' || k === 'enter')) return;
     if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) { keys[k] = true; e.preventDefault(); }
     if (!game) return;
     if (k === 'n') ringBell();
     if (k === 'l') showLog();
     if (k === 'q' || k === ' ') { e.preventDefault(); useAbility(); }
-    if (k === 'r' && placing) { placing.rot = (placing.rot + 1) % 4; updateGhost(); }
     if (k === 'enter' && placing) placeNow();
     if (['1', '2', '3', '4'].includes(k) && !paused && game.state.phase === 'day') { const t = BUILD_ORDER[+k - 1]; if (placing && placing.type === t) stopPlacing(); else startPlacing(t); }
     if ((k === '=' || k === '+') && view) view.setZoom(view.getZoom() * 0.8);
@@ -519,7 +605,9 @@ export function startApp() {
     if (dawnT > 0) dawnT -= dt;
     if (!card && dawnT <= 0 && needsDawn()) dawnFlow();
     if (endT > 0 && now >= endT) { endT = -1; paused = true; showEnd(); }
-    view.frame(dt, { events, selected, ghost: placing && placing.ghost });
+    if (placing && placing.zone.ver !== S.occVersion && S.phase === 'day') { refreshZone(); updateGhost(); }
+    if (placing && S.phase !== 'day') stopPlacing();
+    view.frame(dt, { events, selected, ghost: placing && placing.ghost, zone: placing && placing.zoneMask });
     edgeMarks();
     hudT -= dt; if (hudT <= 0) { updateHud(); hudT = 0.2; if (selected && !paused) { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } } }
   }

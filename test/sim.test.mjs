@@ -113,7 +113,7 @@ test('towns use their space: enough lots, little dead land, a street around ever
   }
 });
 
-test('free placement: no overlaps, a street between buildings, palisades chain and rotate', () => {
+test('free placement: no overlaps, a street between buildings, palisades are laid in lines', () => {
   const g = createGame({ mode: 'classic', seed: 3, biome: 'highland' }); const S = g.state; S.gold = 999;
   const t = g.map.town, spots = [];
   for (let y = t.y - 10; y <= t.y + 10; y++) for (let x = t.x - 10; x <= t.x + 10; x++) spots.push([x + 0.5, y + 0.5]);
@@ -124,9 +124,15 @@ test('free placement: no overlaps, a street between buildings, palisades chain a
   const touching = [[3, 0], [-3, 0], [0, 3], [0, -3]].map(([dx, dy]) => g.canPlace('house', hx + dx, hy + dy));
   assert.ok(touching.every(p => !p.ok), 'a touching house was allowed');
   assert.ok(touching.some(p => /street/.test(p.reason)), 'the street rule never triggered');
-  for (const rot of [0, 1, 2, 3]) assert.ok(find('wall', rot), `no spot fits a palisade with rotation ${rot}`);
-  const [wx, wy] = find('wall', 0); assert.equal(g.build('wall', wx, wy, 0), true);
-  assert.doesNotMatch(g.canPlace('wall', wx + 5, wy, 0).reason, /street/, 'palisades should chain end to end');
+  // palisades are laid as lines of posts; a line chains into the next one
+  const [wx, wy] = spots.find(([x, y]) => g.lineCells(x, y, x + 4, y + 2).every(([cx, cy]) => g.canPlace('wall', cx + 0.5, cy + 0.5).ok));
+  const before = g.state.buildings.filter(b => b.type === 'wall').length;
+  g.state.gold = 50;
+  const laid = g.buildLine(wx, wy, wx + 4, wy + 2);
+  assert.ok(laid >= 5, `only ${laid} posts laid`);
+  assert.equal(g.state.buildings.filter(b => b.type === 'wall').length, before + laid);
+  const cells = g.lineCells(wx, wy, wx + 4, wy + 2);
+  for (let k = 1; k < cells.length; k++) assert.equal(Math.abs(cells[k][0] - cells[k - 1][0]) + Math.abs(cells[k][1] - cells[k - 1][1]), 1, 'lines must be 4-connected');
   const outside = g.map.slots.find(sl => sl.region !== 0);
   assert.equal(g.canPlace('house', outside.x, outside.y).ok, false, 'built outside your land');
 });
@@ -142,6 +148,35 @@ test('the hero can always walk between buildings', () => {
     const ok = b.cells.some(i => { const x = i % N, y = (i / N) | 0; return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen[idx(x + dx, y + dy)]); });
     assert.ok(ok, `${b.type} at ${b.x},${b.y} cannot be reached on foot`);
   }
+});
+
+test('you can never get boxed in: you walk through palisades, and nothing may seal off ground', () => {
+  const g = createGame({ mode: 'classic', seed: 5, biome: 'lakeshore' }); const S = g.state; S.gold = 999;
+  const h = S.hero, x0 = Math.floor(h.x), y0 = Math.floor(h.y);
+  // a ring of posts right around the hero
+  g.buildLine(x0 - 2, y0 - 2, x0 + 2, y0 - 2); g.buildLine(x0 + 2, y0 - 2, x0 + 2, y0 + 2);
+  g.buildLine(x0 + 2, y0 + 2, x0 - 2, y0 + 2); g.buildLine(x0 - 2, y0 + 2, x0 - 2, y0 - 2);
+  g.heroTo(x0 + 6.5, y0 + 0.5);
+  for (let k = 0; k < 400 && S.hero.target; k++) g.step(1 / 30);
+  assert.ok(Math.hypot(S.hero.x - (x0 + 6.5), S.hero.y - (y0 + 0.5)) < 1, 'the hero could not walk out through the palisade');
+  // a building that would close off a pocket of ground is refused
+  const spots = []; const t = g.map.town;
+  for (let y = t.y - 9; y <= t.y + 9; y++) for (let x = t.x - 9; x <= t.x + 9; x++) spots.push([x + 0.5, y + 0.5]);
+  let sealed = 0;
+  for (const [x, y] of spots) { const p = g.canPlace('house', x, y, 0, { deep: true }); if (/close off/.test(p.reason)) sealed++; }
+  for (const [x, y] of spots) g.build('house', x, y);   // fill the town as tightly as the rules allow
+  const N = 64, seen = new Uint8Array(N * N), q = [Math.floor(S.hero.y) * N + Math.floor(S.hero.x)]; seen[q[0]] = 1;
+  const ok = i => [true, true, false, false, false, true, true, false][g.map.terrain[i]] && (S.occ[i] < 0 || S.byId.get(S.occ[i]).type === 'wall');
+  while (q.length) { const i = q.pop(), x = i % N, y = (i / N) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const j = (y + dy) * N + x + dx; if (!seen[j] && ok(j)) { seen[j] = 1; q.push(j); } } }
+  for (let i = 0; i < N * N; i++) if (ok(i) && g.map.region[i] === 0) assert.ok(seen[i], `town cell ${i % N},${(i / N) | 0} was sealed off`);
+});
+
+test('tapping a spot walks around buildings instead of stopping at them', () => {
+  const g = createGame({ mode: 'classic', seed: 6, biome: 'riverbend' }); const S = g.state;
+  // the keep sits between the hero (below it) and a point above it
+  const t = g.map.town; g.heroTo(t.x + 0.5, t.y - 4.5);
+  for (let k = 0; k < 600 && S.hero.target; k++) g.step(1 / 30);
+  assert.ok(Math.hypot(S.hero.x - (t.x + 0.5), S.hero.y - (t.y - 4.5)) < 1, `stopped at ${S.hero.x.toFixed(1)},${S.hero.y.toFixed(1)}`);
 });
 
 test('blessings: rarity by source, pacts, masteries, reroll', () => {

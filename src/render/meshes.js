@@ -16,6 +16,28 @@ export function box(w, h, d, c, x = 0, y = 0, z = 0) { const m = shadow(new THRE
 export function cyl(rt, rb, h, seg, c, x = 0, y = 0, z = 0) { const m = shadow(new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), typeof c === 'number' ? mat(c) : c)); m.position.set(x, y, z); return m; }
 export function cone(r, h, seg, c, x = 0, y = 0, z = 0) { const m = shadow(new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), mat(c))); m.position.set(x, y, z); return m; }
 
+/** one palisade post, joined to its neighbours. links: which sides (e, w, s, n) hold another post or a tower */
+export function wallMesh(level, links) {
+  const g = new THREE.Group(), dirs = { e: [1, 0], w: [-1, 0], s: [0, 1], n: [0, -1] };
+  if (level === 1) {
+    const wood = 0x7a5636, dark = 0x5a4030;
+    g.add(cyl(0.16, 0.19, 1.35, 5, wood, 0, 0.67, 0)); g.add(cone(0.18, 0.3, 5, wood, 0, 1.49, 0));
+    for (const [k, [dx, dz]] of Object.entries(dirs)) {
+      if (!links[k]) continue;
+      const hh = 1.15 + (k.charCodeAt(0) % 3) * 0.08;
+      g.add(cyl(0.15, 0.17, hh, 5, wood, dx * 0.36, hh / 2, dz * 0.36)); g.add(cone(0.16, 0.28, 5, wood, dx * 0.36, hh + 0.14, dz * 0.36));
+      const rail = box(dx ? 0.5 : 0.1, 0.1, dz ? 0.5 : 0.1, dark, dx * 0.25, 0.72, dz * 0.25); g.add(rail);
+    }
+  } else {
+    const stone = 0x9a9586, cap = 0x8a8578;
+    g.add(box(0.78, 1.35, 0.78, stone, 0, 0.675, 0));
+    for (const [k, [dx, dz]] of Object.entries(dirs)) if (links[k]) g.add(box(dx ? 0.52 : 0.7, 1.3, dz ? 0.52 : 0.7, stone, dx * 0.26, 0.65, dz * 0.26));
+    g.add(box(0.5, 0.32, 0.5, cap, 0, 1.5, 0));
+    if (level >= 3) { g.add(cyl(0.04, 0.04, 1.0, 4, 0x3d3027, 0.2, 2.0, 0.2)); g.add(box(0.04, 0.3, 0.45, 0xeaa441, 0.2, 2.35, 0.42)); }
+  }
+  return g;
+}
+
 export function buildingMesh(type, level) {
   if (level >= 3) {
     const g = buildingMesh(type, 2), h = { house: 3.3, farm: 1.7, tower: 5.7, wall: 2.4 }[type];

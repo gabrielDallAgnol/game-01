@@ -13,7 +13,18 @@ export const STEP = 1 / 60;
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
 export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
-const SIZE = { house: 3, farm: 3, tower: 2, wall: 5 };
+class MinHeap {
+  constructor() { this.k = []; this.v = []; }
+  get size() { return this.k.length; }
+  push(key, val) { const k = this.k, v = this.v; let i = k.length; k.push(key); v.push(val); while (i > 0) { const p = (i - 1) >> 1; if (k[p] <= k[i]) break; [k[p], k[i]] = [k[i], k[p]]; [v[p], v[i]] = [v[i], v[p]]; i = p; } }
+  pop() {
+    const k = this.k, v = this.v, top = v[0]; this.lastKey = k[0]; const lk = k.pop(), lv = v.pop();
+    if (k.length) { k[0] = lk; v[0] = lv; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < k.length && k[l] < k[m]) m = l; if (r < k.length && k[r] < k[m]) m = r; if (m === i) break; [k[m], k[i]] = [k[i], k[m]]; [v[m], v[i]] = [v[i], v[m]]; i = m; } }
+    return top;
+  }
+}
+const DIRS8 = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
+const SIZE = { house: 3, farm: 3, tower: 2, wall: 1 };   // palisades are single posts, laid in lines
 const BIG = 1.6; // mobs at least this size count as "big game"
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'packs' } = {}) {
@@ -83,14 +94,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // to other palisades and to towers. Palisades have four orientations: 0 —, 1 |, 2 \, 3 /.
   function shape(type, x, y, rot = 0) {
     const n = SIZE[type], ax = Math.round(x - n / 2), ay = Math.round(y - n / 2), cells = [];
-    if (type === 'wall') {
-      for (let k = 0; k < n; k++) {
-        if (rot === 0) cells.push([ax + k, Math.floor(y)]);
-        else if (rot === 1) cells.push([Math.floor(x), ay + k]);
-        else if (rot === 2) cells.push([ax + k, ay + k]);
-        else cells.push([ax + k, ay + n - 1 - k]);
-      }
-    } else for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) cells.push([ax + dx, ay + dy]);
+    if (type === 'wall') cells.push([Math.floor(x), Math.floor(y)]);
+    else for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) cells.push([ax + dx, ay + dy]);
     const xs = cells.map(q => q[0]), ys = cells.map(q => q[1]);
     return { cells, cx: (Math.min(...xs) + Math.max(...xs) + 1) / 2, cy: (Math.min(...ys) + Math.max(...ys) + 1) / 2 };
   }
@@ -104,7 +109,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   const nestAlive = r => map.regions[r] && map.regions[r].nest && S.nestAlive[r];
   /** Can `type` go here? x, y: wanted centre (snapped to cells); rot for palisades. */
-  function canPlace(type, x, y, rot = 0) {
+  function canPlace(type, x, y, rot = 0, opts = {}) {
     if (!SIZE[type]) return { ok: false, reason: 'Unknown building.', cells: [] };
     const { cells, cx, cy } = shape(type, x, y, rot);
     const out = { ok: false, x: cx, y: cy, rot, cells: cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), reason: '' };
@@ -113,7 +118,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const i of out.cells) {
       const t = map.terrain[i], r = map.region[i];
       if (r < 0 || !S.claimed.has(r)) { out.reason = 'Claim this land first.'; return out; }
-      if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Palisades need open ground or a ford.' : 'Needs open ground.'; return out; }
+      if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD || t === T.FOREST) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Palisades need ground, woods or a ford.' : 'Needs open ground.'; return out; }
       if (S.occ[i] >= 0) { out.reason = 'Something is already built here.'; return out; }
     }
     for (const i of out.cells) {
@@ -128,7 +133,43 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       }
     }
     for (const reg of map.regions) if (nestAlive(reg.id) && Math.hypot(reg.nest.x - cx, reg.nest.y - cy) < 4) { out.reason = 'Too close to a nest.'; return out; }
+    if (opts.deep && type !== 'wall' && sealsOff(out.cells)) { out.reason = 'That would close off a space you could not walk out of.'; return out; }
     out.ok = true; return out;
+  }
+  // the hero walks through palisades (they are the town's gates), but not through other buildings
+  const heroOk = i => PASSABLE[map.terrain[i]] && (S.occ[i] < 0 || isWall(S.occ[i]));
+  let reachKey = '', reachSet = null;
+  function heroReach(extraBlocked) {
+    const seen = new Uint8Array(N * N), start = idx(Math.floor(c), Math.floor(c + 3.5)), q = [start]; seen[start] = 1;
+    for (let h = 0; h < q.length; h++) {
+      const i = q[h], x = i % N, y = (i / N) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const xx = x + dx, yy = y + dy; if (!inside(xx, yy)) continue;
+        const j = idx(xx, yy); if (seen[j] || !heroOk(j) || (extraBlocked && extraBlocked.has(j))) continue;
+        seen[j] = 1; q.push(j);
+      }
+    }
+    return seen;
+  }
+  /** would these cells cut off ground that is reachable now? (only claimed land and its border count) */
+  function sealsOff(cells) {
+    const key = `${S.occVersion}`;
+    if (key !== reachKey) { reachKey = key; reachSet = heroReach(null); }
+    const block = new Set(cells), after = heroReach(block);
+    for (let i = 0; i < N * N; i++) if (reachSet[i] && !after[i] && !block.has(i)) return true;
+    return false;
+  }
+  /** cells of a palisade line from one cell to another: 4-connected, so the dead can't slip through corners */
+  function lineCells(x0, y0, x1, y1) {
+    let x = Math.floor(x0), y = Math.floor(y0); const tx = Math.floor(x1), ty = Math.floor(y1);
+    const out = [[x, y]], dx = Math.abs(tx - x), dy = Math.abs(ty - y), sx = Math.sign(tx - x), sy = Math.sign(ty - y);
+    let ex = 0, ey = 0;
+    for (let k = 0; k < dx + dy && k < 40; k++) {
+      // step along whichever axis lags behind the straight line
+      if (dx && (ex + 1) / dx <= (ey + 1) / Math.max(1, dy) || !dy) { x += sx; ex++; } else { y += sy; ey++; }
+      out.push([x, y]);
+    }
+    return out;
   }
   function nearWaterAt(x, y) {
     for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
@@ -137,8 +178,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     }
     return false;
   }
-  function occupy(b) { b.cells = footprint(b.type, b.x, b.y, b.rot).filter(i => S.occ[i] < 0); for (const i of b.cells) S.occ[i] = b.id; S.flowDirty = true; }
-  function vacate(b) { for (const i of b.cells) if (S.occ[i] === b.id) S.occ[i] = -1; S.flowDirty = true; }
+  function occupy(b) { b.cells = footprint(b.type, b.x, b.y, b.rot).filter(i => S.occ[i] < 0); for (const i of b.cells) S.occ[i] = b.id; S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; }
+  function vacate(b) { for (const i of b.cells) if (S.occ[i] === b.id) S.occ[i] = -1; S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; }
 
   const mobById = new Map();
   const keep = { id: 0, type: 'keep', x: c, y: c, r: 2.3, level: 1, hp: KEEP.hp[0], maxHp: KEEP.hp[0], cd: 0, ruined: false, cells: [], boltT: 3 };
@@ -146,7 +187,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   occupy(keep);
 
   function placeBuilding(type, x, y, rot, level, id) {
-    const b = { id: id ?? S.nextId++, type, level, x, y, rot: type === 'wall' ? rot : 0, r: type === 'wall' ? 1 : type === 'tower' ? 0.9 : 1.3,
+    const b = { id: id ?? S.nextId++, type, level, x, y, rot: type === 'wall' ? rot : 0, r: type === 'wall' ? 0.6 : type === 'tower' ? 0.9 : 1.3,
       hp: maxHpOf(type, level), maxHp: maxHpOf(type, level), cd: 0, ruined: false, fell: false, nearWater: nearWaterAt(x, y), shotN: 0, rainT: 0 };
     S.buildings.push(b); S.byId.set(b.id, b); occupy(b); liveTick = -1;
     ev('build', { id: b.id });
@@ -158,8 +199,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const isWall = id => { const b = S.byId.get(id); return !!b && b.type === 'wall'; };
   function refreshFlow() {
     if (!S.flowDirty) return;
-    S.flow = computeFlow(map.terrain, S.occ, isWall, WALL_COST); S.flowNext = computeNext(map.terrain, S.flow);
-    S.climb = computeFlow(map.terrain, S.occ, isWall, 0.6); S.climbNext = computeNext(map.terrain, S.climb);
+    S.flow = computeFlow(map.terrain, S.occ, isWall, WALL_COST); S.flowNext = computeNext(map.terrain, S.flow, S.occ);
+    S.climb = computeFlow(map.terrain, S.occ, isWall, 0.6); S.climbNext = computeNext(map.terrain, S.climb, S.occ);
     S.flowDirty = false; S.flowVersion = (S.flowVersion || 0) + 1;
   }
 
@@ -352,16 +393,58 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (typeof a === 'number' && typeof b === 'string') { const lot = map.slots[a]; if (!lot) return fail('No such lot.'); type = b; x = lot.x; y = lot.y; rot = rot ?? lotRot(lot, type); }
     else { type = a; x = b; y = c2; }
     if (S.phase !== 'day' || S.over) return fail('Build during the day.');
-    const p = canPlace(type, x, y, rot || 0); if (!p.ok) return fail(p.reason);
-    if ((S.stock[type] || 0) > 0) S.stock[type]--;
-    else {
-      const cost = buyCost(type); if (S.gold < cost) return fail(S.mode === 'packs' ? `None left in your packs. Buying one costs ${cost} gold.` : 'Not enough gold.');
-      S.gold -= cost; S.cur.spent += cost; S.stats.goldSpent += cost;
-    }
+    const p = canPlace(type, x, y, rot || 0, { deep: true }); if (!p.ok) return fail(p.reason);
+    if (!pay(type)) return false;
     S.cur.built.push(type); S.stats.built++;
     placeBuilding(type, p.x, p.y, p.rot, 1);
     unstickHero();
     return true;
+  }
+  function pay(type) {
+    if ((S.stock[type] || 0) > 0) { S.stock[type]--; return true; }
+    const cost = buyCost(type); if (S.gold < cost) return fail(S.mode === 'packs' ? `None left in your packs. Buying one costs ${cost} gold.` : 'Not enough gold.');
+    S.gold -= cost; S.cur.spent += cost; S.stats.goldSpent += cost; return true;
+  }
+  /** how many palisade posts you can still lay: stock first, then gold */
+  function wallBudget() { return (S.stock.wall || 0) + Math.floor(S.gold / buyCost('wall')); }
+  /** lay a palisade line between two cells; skips cells that don't fit, stops when you run out. Returns posts laid. */
+  function buildLine(x0, y0, x1, y1, max = Infinity) {
+    if (S.phase !== 'day' || S.over) return fail('Build during the day.') && 0;
+    let n = 0;
+    for (const [x, y] of lineCells(x0, y0, x1, y1)) {
+      if (n >= max) break;
+      const p = canPlace('wall', x + 0.5, y + 0.5, 0); if (!p.ok) continue;
+      if ((S.stock.wall || 0) <= 0 && S.gold < buyCost('wall')) { if (!n) fail(`A palisade post costs ${buyCost('wall')} gold.`); break; }
+      pay('wall'); S.cur.built.push('wall'); S.stats.built++; placeBuilding('wall', p.x, p.y, 0, 1); n++;
+    }
+    if (n) unstickHero();
+    return n;
+  }
+  /** the palisade posts joined to this one (same level), nearest first */
+  function wallRun(id) {
+    const b0 = S.byId.get(id); if (!b0 || b0.type !== 'wall') return [];
+    const out = [b0], seen = new Set([b0.id]);
+    for (let h = 0; h < out.length; h++) {
+      const b = out[h], x = Math.floor(b.x), y = Math.floor(b.y);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        if (!inside(x + dx, y + dy)) continue;
+        const o = S.byId.get(S.occ[idx(x + dx, y + dy)]);
+        if (o && o.type === 'wall' && !seen.has(o.id) && o.level === b0.level && !o.ruined) { seen.add(o.id); out.push(o); }
+      }
+    }
+    return out;
+  }
+  /** upgrade a whole palisade line at once, as far as your gold goes. Returns posts upgraded. */
+  function upgradeWall(id) {
+    if (S.phase !== 'day' || S.over) return fail('Upgrade during the day.') && 0;
+    const run = wallRun(id); if (!run.length || run[0].level >= MAX_LEVEL) return fail('Cannot upgrade.') && 0;
+    let n = 0;
+    for (const b of run) {
+      const cost = upCostOf(b); if (S.gold < cost) break;
+      S.gold -= cost; S.cur.spent += cost; S.stats.goldSpent += cost; S.stats.upgraded++; S.halfUpgrade = false; raise(b); n++;
+    }
+    if (n) S.cur.upgraded.push(`wall${run[0].level + 1}×${n}`); else fail('Not enough gold.');
+    return n;
   }
   // a palisade on a suggested lot runs across the way to the keep
   function lotRot(lot, type) { if (type !== 'wall') return 0; const a = Math.atan2(lot.y - c, lot.x - c), q = ((Math.round(a / (Math.PI / 4)) % 4) + 4) % 4; return [1, 3, 0, 2][q]; }
@@ -596,7 +679,36 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   newLog();
 
   // ---------- simulation step ----------
-  const walkable = (x, y) => { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return false; const i = idx(cx, cy); return PASSABLE[map.terrain[i]] && S.occ[i] < 0; };
+  const walkable = (x, y) => { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return false; return heroOk(idx(cx, cy)); };
+  /** shortest walk to a point, around buildings (8 directions, no squeezing past corners) */
+  function heroPath(tx, ty) {
+    const h = S.hero, s = idx(Math.floor(h.x), Math.floor(h.y));
+    let goal = idx(Math.floor(tx), Math.floor(ty));
+    if (!inside(Math.floor(tx), Math.floor(ty))) return null;
+    // a clear straight walk needs no planning
+    const L = Math.hypot(tx - h.x, ty - h.y), steps = Math.ceil(L / 0.3);
+    let clear = true; for (let k = 1; k <= steps && clear; k++) if (!walkable(h.x + (tx - h.x) * k / steps, h.y + (ty - h.y) * k / steps)) clear = false;
+    if (clear) return [{ x: tx, y: ty }];
+    const dist = new Float32Array(N * N).fill(Infinity), prev = new Int32Array(N * N).fill(-1), open = new MinHeap(); open.push(0, s); dist[s] = 0;
+    // A* on the grid; the goal may be a building cell: stop at the closest reachable cell
+    let best = s, bestD = Math.hypot(tx - h.x, ty - h.y);
+    while (open.size) {
+      const i = open.pop(); if (open.lastKey > dist[i] + Math.hypot((i % N) + 0.5 - tx, ((i / N) | 0) + 0.5 - ty) + 1e-6) continue;
+      const x = i % N, y = (i / N) | 0, dg = Math.hypot(x + 0.5 - tx, y + 0.5 - ty);
+      if (dg < bestD) { bestD = dg; best = i; }
+      if (i === goal || dist[i] > 90) break;
+      for (const [dx, dy, len] of DIRS8) {
+        const xx = x + dx, yy = y + dy; if (!inside(xx, yy)) continue;
+        const j = idx(xx, yy); if (!heroOk(j)) continue;
+        if (dx && dy && (!heroOk(idx(x + dx, y)) || !heroOk(idx(x, y + dy)))) continue;
+        const nd = dist[i] + len; if (nd < dist[j]) { dist[j] = nd; prev[j] = i; open.push(nd + Math.hypot((j % N) + 0.5 - tx, ((j / N) | 0) + 0.5 - ty), j); }
+      }
+    }
+    const path = []; for (let i = best; i !== s && i >= 0; i = prev[i]) path.push({ x: (i % N) + 0.5, y: ((i / N) | 0) + 0.5 });
+    path.reverse();
+    if (best === goal && heroOk(goal)) path[path.length - 1] = { x: tx, y: ty };
+    return path;
+  }
   function unstickHero() {
     const h = S.hero; if (walkable(h.x, h.y)) return;
     for (let r = 1; r <= 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
@@ -610,11 +722,17 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.nightFlags.lastT > 0) S.nightFlags.lastT -= dt;
     let dx = h.input.x, dy = h.input.y, moving = false;
     if (dx || dy) { h.target = null; const l = Math.hypot(dx, dy); dx /= l; dy /= l; moving = true; }
-    else if (h.target) { dx = h.target.x - h.x; dy = h.target.y - h.y; const l = Math.hypot(dx, dy); if (l < 0.15) { h.target = null; dx = dy = 0; } else { dx /= l; dy /= l; moving = true; } }
+    else if (h.target) {
+      // follow the planned path; the next waypoint is skipped once we reach it
+      if (h.path && h.path.length) { const w = h.path[0]; if (Math.hypot(w.x - h.x, w.y - h.y) < 0.2) h.path.shift(); }
+      const w = h.path && h.path.length ? h.path[0] : (h.path ? null : h.target);
+      if (!w) { h.target = null; h.path = null; }
+      else { dx = w.x - h.x; dy = w.y - h.y; const l = Math.hypot(dx, dy); if (l < 0.15 && !(h.path && h.path.length > 1)) { h.target = null; h.path = null; dx = dy = 0; } else if (l > 1e-4) { dx /= l; dy /= l; moving = true; } }
+    }
     if (moving) {
       const sp = HC.speed * dt;
       const tryMove = (nx, ny) => { if (!walkable(nx, ny)) return false; h.x = nx; h.y = ny; return true; };
-      if (!tryMove(h.x + dx * sp, h.y + dy * sp)) { if (!tryMove(h.x + dx * sp, h.y)) if (!tryMove(h.x, h.y + dy * sp)) h.target = null; }
+      if (!tryMove(h.x + dx * sp, h.y + dy * sp)) { if (!tryMove(h.x + dx * sp, h.y)) if (!tryMove(h.x, h.y + dy * sp)) { h.target = null; h.path = null; } }
       h.face = Math.atan2(dx, dy); h.moving = true;
     } else h.moving = false;
     h.cd -= dt; h.swing = Math.max(0, h.swing - dt);
@@ -888,7 +1006,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   return {
     state: S, map, heroDef: HC, step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, choosePerk, reroll, trade, planPurge, useAbility,
     setHeroInput: (x, y) => { S.hero.input.x = x; S.hero.input.y = y; },
-    heroTo: (x, y) => { S.hero.target = { x, y }; },
+    heroTo: (x, y) => {
+      const h = S.hero, t = h.target;
+      if (t && h.path && Math.hypot(t.x - x, t.y - y) < 0.6) return;   // same place: keep the plan
+      h.target = { x, y }; h.path = heroPath(x, y);
+    },
+    buildLine, upgradeWall, wallRun, wallBudget, lineCells,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
     abilityCost, towerStats: b => towerStats(b), has,
     foodPerDawn: () => Math.round(S.buildings.reduce((a, b) => a + (b.type === 'farm' ? farmFood(b) : 0), 0) * prosper()),

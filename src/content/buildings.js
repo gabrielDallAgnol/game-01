@@ -14,8 +14,8 @@ export const BUILDINGS = {
     desc: ['Shoots · range 7', 'Faster · range 8.5 · upkeep 1', 'Heavy bolts · range 10 · upkeep 2'],
   },
   wall: {
-    name: 'Palisade', cost: [2, 4, 8], hp: [45, 90, 150], blocks: true,
-    desc: ['Blocks the path · 45 hp', 'Stone · 90 hp', 'Bastion · 150 hp'],
+    name: 'Palisade', cost: [1, 2, 3], hp: [30, 60, 100], blocks: true,
+    desc: ['One post of a wall · 30 hp · you walk through, the dead do not', 'Stone · 60 hp', 'Bastion · 100 hp'],
   },
 };
 export const BUILD_ORDER = ['house', 'farm', 'tower', 'wall'];

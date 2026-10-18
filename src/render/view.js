@@ -3,7 +3,7 @@
 import { N, T, idx } from '../sim/mapgen.js';
 import { mulberry32 } from '../sim/rng.js';
 import { MOBS } from '../content/mobs.js';
-import { mat, box, cyl, cone, buildingMesh, keepMesh, nestMesh, mobMesh, heroMesh, chestMesh, windowMat, torchMat, mercMesh, purseMesh, flameMesh } from './meshes.js';
+import { mat, box, cyl, cone, buildingMesh, keepMesh, nestMesh, mobMesh, heroMesh, chestMesh, windowMat, torchMat, mercMesh, purseMesh, flameMesh, wallMesh } from './meshes.js';
 import { createVillagers } from './villagers.js';
 
 // Few colours on purpose: your town is warm and bright, the wild is muted, the dead's routes are the only accent.
@@ -169,18 +169,29 @@ export function createView(canvas, game) {
   const arrowGeo = new THREE.BoxGeometry(0.06, 0.06, 0.7), spitGeo = new THREE.IcosahedronGeometry(0.16, 0);
 
   function rubble(r) { const g = new THREE.Group(); for (let k = 0; k < 6; k++) { const m = box(0.3 + vis() * 0.5, 0.15 + vis() * 0.3, 0.3 + vis() * 0.5, vis() < 0.5 ? 0x5e5a52 : 0x3a2f26, (vis() - 0.5) * r * 1.3, 0.12, (vis() - 0.5) * r * 1.3); m.rotation.set(vis(), vis() * 3, vis()); g.add(m); } return g; }
+  // a post joins the posts and towers on its four sides
+  function wallLinks(b) {
+    const x = Math.floor(b.x), y = Math.floor(b.y);
+    return [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => {
+      const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) return '0';
+      const o = S.byId.get(S.occ[idx(xx, yy)]); return o && (o.type === 'wall' || o.type === 'tower') && !o.ruined ? '1' : '0';
+    }).join('');
+  }
   function syncBuildings() {
     const seen = new Set();
     for (const b of S.buildings) {
       seen.add(b.id);
       let e = bMeshes.get(b.id);
-      if (!e || e.level !== b.level) {
+      const lk = b.type === 'wall' ? wallLinks(b) : '';
+      if (!e || e.level !== b.level || e.lk !== lk) {
+        const relink = e && e.level === b.level;   // only the joins changed: swap without the grow-in
         if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); }
-        const g = buildingMesh(b.type, b.level); g.position.copy(W(b.x, b.y));
-        if (b.type === 'wall') { g.rotation.y = [0, -Math.PI / 2, -Math.PI / 4, Math.PI / 4][b.rot || 0]; g.userData.stretch = b.rot >= 2 ? 1.414 : 1; }
-        else g.rotation.y = -Math.atan2(b.y - C, b.x - C) - Math.PI / 2;
-        g.userData.full = b.type === 'wall' ? 1 : b.type === 'tower' ? 0.72 : 0.82; g.scale.setScalar(0.05); world.add(g);
-        e = { g, bar: makeBar('b', 1.4), level: b.level, rubble: null }; bMeshes.set(b.id, e);
+        const g = b.type === 'wall' ? wallMesh(b.level, { e: lk[0] === '1', w: lk[1] === '1', s: lk[2] === '1', n: lk[3] === '1' }) : buildingMesh(b.type, b.level);
+        g.position.copy(W(b.x, b.y));
+        if (b.type !== 'wall') g.rotation.y = -Math.atan2(b.y - C, b.x - C) - Math.PI / 2;
+        g.userData.full = b.type === 'wall' ? 1 : b.type === 'tower' ? 0.72 : 0.82; g.scale.setScalar(relink ? g.userData.full : 0.05); world.add(g);
+        e = { g, bar: makeBar('b', b.type === 'wall' ? 0.7 : 1.4), level: b.level, lk, rubble: null }; bMeshes.set(b.id, e);
+        if (e.g && b.ruined) e.g.visible = false;
       }
       if (b.ruined && !e.rubble) { e.g.visible = false; e.rubble = rubble(b.r); e.rubble.position.copy(W(b.x, b.y)); world.add(e.rubble); }
       if (!b.ruined && e.rubble) { world.remove(e.rubble); e.rubble = null; e.g.visible = true; e.g.scale.setScalar(0.4); }
@@ -236,14 +247,30 @@ export function createView(canvas, game) {
   }
   const flames = []; const flameFor = new Map();
   // placement ghost: footprint cells (green = fits, red = not) and a see-through building
-  const ghostCells = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false }), 30);
+  const ghostCells = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }), 64);
   ghostCells.renderOrder = 6; ghostCells.visible = false; fx.add(ghostCells);
   let ghostMesh = null, ghostKey = '';
+  // where the building in hand can go: a soft wash over every cell a valid footprint would cover
+  const ZONE_MAX = 2500;
+  const zoneMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5fd06a, transparent: true, opacity: 0.38, depthWrite: false }), ZONE_MAX);
+  zoneMesh.renderOrder = 5; zoneMesh.visible = false; fx.add(zoneMesh); let zoneRef = null;
+  function setZone(z) {
+    if (z === zoneRef) return; zoneRef = z;
+    if (!z) { zoneMesh.visible = false; return; }
+    const d = new THREE.Object3D(); let k = 0;
+    for (let i = 0; i < N * N && k < ZONE_MAX; i++) if (z[i]) { d.position.copy(W((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.08)); d.scale.set(0.9, 1, 0.9); d.updateMatrix(); zoneMesh.setMatrixAt(k++, d.matrix); }
+    zoneMesh.count = k; zoneMesh.instanceMatrix.needsUpdate = true; zoneMesh.visible = true;
+  }
   function setGhost(gh) {
     if (!gh) { ghostCells.visible = false; if (ghostMesh) ghostMesh.visible = false; return; }
     const d = new THREE.Object3D();
-    gh.cells.slice(0, 30).forEach((i, k) => { d.position.copy(W((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.12)); d.updateMatrix(); ghostCells.setMatrixAt(k, d.matrix); ghostCells.setColorAt(k, tmpC.setHex(gh.ok ? 0x8ad06a : 0xe0604a)); });
-    ghostCells.count = Math.min(30, gh.cells.length); ghostCells.instanceMatrix.needsUpdate = true; if (ghostCells.instanceColor) ghostCells.instanceColor.needsUpdate = true; ghostCells.visible = true;
+    gh.cells.slice(0, 64).forEach((i, k) => {
+      const ok = gh.okCells ? gh.okCells[k] : gh.ok;
+      d.position.copy(W((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.12)); d.updateMatrix(); ghostCells.setMatrixAt(k, d.matrix);
+      ghostCells.setColorAt(k, tmpC.setHex(ok === 'skip' ? 0xb8b0a0 : ok ? 0xfff1b8 : 0xe0604a));
+    });
+    ghostCells.count = Math.min(64, gh.cells.length); ghostCells.instanceMatrix.needsUpdate = true; if (ghostCells.instanceColor) ghostCells.instanceColor.needsUpdate = true; ghostCells.visible = true;
+    if (gh.type === 'wall') { if (ghostMesh) ghostMesh.visible = false; return; }
     const key = gh.type;
     if (key !== ghostKey) {
       if (ghostMesh) fx.remove(ghostMesh);
@@ -354,7 +381,7 @@ export function createView(canvas, game) {
     for (const b of S.buildings) {
       const e = bMeshes.get(b.id); if (!e) continue;
       const full = e.g.userData.full || 1, sc = e.g.scale.y; if (sc < full) { const v = Math.min(full, sc + dt * 3.2); e.g.scale.set(v * (e.g.userData.stretch || 1), v, v); }
-      if (!b.ruined) setBar(e.bar, b.x, b.type === 'tower' ? 4.6 : 2.8, b.y, b.hp / b.maxHp); else e.bar.visible = false;
+      if (!b.ruined) setBar(e.bar, b.x, b.type === 'tower' ? 4.6 : b.type === 'wall' ? 2.1 : 2.8, b.y, b.hp / b.maxHp); else e.bar.visible = false;
     }
     keepG.visible = !S.keep.ruined;
     setBar(keepBar, C, 7.4, C, S.keep.hp / S.keep.maxHp);
@@ -390,7 +417,7 @@ export function createView(canvas, game) {
       if (sel.range) { rangeRing.visible = true; rangeRing.position.copy(W(x, y, 0.09)); rangeRing.scale.set(sel.range, sel.range, sel.range); }
     }
     if (moveMark.material.opacity > 0) { moveMark.material.opacity = Math.max(0, moveMark.material.opacity - dt * 1.5); moveMark.scale.multiplyScalar(1 + dt * 0.8); }
-    setGhost(ui.ghost || null);
+    setGhost(ui.ghost || null); setZone(ui.zone || null);
     renderer.render(scene, camera);
   }
 

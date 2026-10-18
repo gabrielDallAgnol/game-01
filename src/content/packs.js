@@ -1,4 +1,5 @@
 // Building packs (Islanders-style): every dawn you pick 1 of 2 packs and place them for free.
+// Palisades come as posts (one cell each) laid in lines.
 // Gold still buys upgrades, the keep, sellswords, rerolls and any extra building at a premium.
 
 export const PACKS = [
@@ -7,9 +8,9 @@ export const PACKS = [
   { id: 'village',   kind: 'eco', name: 'Village',   items: { house: 3 }, from: 3, weight: 2 },
   { id: 'township',  kind: 'eco', name: 'Township',  items: { house: 3, farm: 2 }, from: 7, weight: 2 },
   { id: 'watch',     kind: 'def', name: 'Watch post', items: { tower: 2 }, from: 1, weight: 3 },
-  { id: 'stockade',  kind: 'def', name: 'Stockade',  items: { wall: 3, tower: 1 }, from: 1, weight: 2 },
-  { id: 'bulwark',   kind: 'def', name: 'Bulwark',   items: { wall: 5 }, from: 3, weight: 1 },
-  { id: 'garrison',  kind: 'def', name: 'Garrison',  items: { tower: 3, wall: 2 }, from: 6, weight: 2 },
+  { id: 'stockade',  kind: 'def', name: 'Stockade',  items: { wall: 12, tower: 1 }, from: 1, weight: 2 },
+  { id: 'bulwark',   kind: 'def', name: 'Bulwark',   items: { wall: 20 }, from: 3, weight: 1 },
+  { id: 'garrison',  kind: 'def', name: 'Garrison',  items: { tower: 3, wall: 8 }, from: 6, weight: 2 },
   { id: 'crossroads',kind: 'mix', name: 'Crossroads', items: { house: 1, tower: 1, farm: 1 }, from: 2, weight: 2 },
 ];
 

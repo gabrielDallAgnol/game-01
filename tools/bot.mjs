@@ -50,13 +50,20 @@ function spotFor(g, kind) {
   return order[0];
 }
 function gateRot(g, s) { const a = Math.atan2(s.y - g.map.town.y, s.x - g.map.town.x), q = ((Math.round(a / (Math.PI / 4)) % 4) + 4) % 4; return [1, 3, 0, 2][q]; }
-const place = (g, kind) => { const s = spotFor(g, kind); return !!(s && g.build(kind, s.x, s.y, s.rot)); };
+// palisades: a short line of posts across the way to the keep, centred on the chosen spot
+const WALL_DIR = [[1, 0], [0, 1], [1, 1], [1, -1]];
+const place = (g, kind) => {
+  const s = spotFor(g, kind); if (!s) return false;
+  if (kind !== 'wall') return !!g.build(kind, s.x, s.y, s.rot);
+  const [dx, dy] = WALL_DIR[s.rot || 0], half = s.rot >= 2 ? 1 : 2;
+  return g.buildLine(s.x - dx * half, s.y - dy * half, s.x + dx * half, s.y + dy * half, 5) > 0;
+};
 
 export function dayTurn(g, strat) {
   choosePack(g, strat);
   // walk the shopping list round-robin, so every item gets its turn instead of the first one eating all the gold
   const S = g.state, list = STRATEGIES[strat](S.night);
-  for (const t of ['tower', 'wall', 'farm', 'house']) for (let k = 0; k < 6 && (S.stock[t] || 0) > 0; k++) if (!place(g, t)) break;
+  for (const t of ['tower', 'wall', 'farm', 'house']) for (let k = 0; k < (t === 'wall' ? 12 : 6) && (S.stock[t] || 0) > 0; k++) if (!place(g, t)) break;
   let k = 0, misses = 0;
   while (misses < list.length + 2) {
     const act = list[k % list.length]; k++;
@@ -75,6 +82,7 @@ function tryAct(g, act) {
   if (act.startsWith('up')) {
     const t = act.slice(2).toLowerCase();
     const b = S.buildings.filter(x => x.type === t && x.level < 3).sort((a, c) => a.level - c.level)[0];
+    if (b && t === 'wall') return g.upgradeWall(b.id) > 0;
     return !!(b && g.upgrade(b.id));
   }
   if (act === 'farm' && foodNet > 3) return false;
