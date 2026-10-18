@@ -317,7 +317,7 @@ export function startApp() {
     el.className = 'toast' + (sys || kind === 'sys' ? ' sys' : '') + (kind && kind !== 'sys' ? ' ' + kind : '');
     if (sys) { const h = document.createElement('span'); h.className = 'sh'; h.textContent = sys[0]; el.append(h, document.createTextNode(msg.slice(sys[0].length).trim())); }
     else el.textContent = msg;
-    const box = $('#toasts'); box.appendChild(el); while (box.children.length > 3) box.firstChild.remove();
+    const box = $('#toasts'); box.appendChild(el); while (box.children.length > (document.body.classList.contains('compact') ? 2 : 3)) box.firstChild.remove();
     setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, sys ? 6500 : 3800);
   }
 
@@ -681,7 +681,7 @@ export function startApp() {
     $('#foodNote').classList.toggle('warn', game.foodPerDawn() + S.food < game.foodNeed());
     const hf = game.handsFree(); $('#hands').textContent = `${hf}/${game.handsMax()}`; $('#hands').classList.toggle('none', hf < 1);
     const pin = game.powerIn(), pout = game.powerOut(); $('#pwrTxt').textContent = `${pin}/${pout}`; $('#pwr').classList.toggle('off', S.blackout);
-    $('#blackout').hidden = !S.blackout; if (S.blackout) $('#boTxt').textContent = `${pout} needed · ${pin} made`;
+    $('#blackout').hidden = !S.blackout; document.body.classList.toggle('bo', !!S.blackout); if (S.blackout) $('#boTxt').textContent = `${pout} needed · ${pin} made`;
     const ht = Math.round(S.heat); $('#heatFill').style.width = Math.min(100, S.heat) + '%'; $('#heatTxt').textContent = ht;
     const hel = $('.heat'); hel.classList.toggle('hot', S.heat >= HEAT.erupt || !!S.eruption); hel.classList.toggle('stir', S.heat >= HEAT.stir && S.heat < HEAT.erupt);
     const cw = game.crewing(); $('#pop').textContent = game.pop(); $('#popNote').textContent = cw.need ? `${cw.free} free` : ''; $('#popNote').classList.toggle('warn', cw.need > cw.people);
