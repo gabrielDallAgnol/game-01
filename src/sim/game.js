@@ -913,7 +913,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const need = foodNeed(), fed = need === 0 ? 1 : Math.min(1, S.food / need);
     S.food = Math.max(0, S.food - need);
     const upk = upkeep();
-    const salv = Math.min(10 + S.night, Math.floor(S.salvage || 0)); S.salvage = 0;   // what the town can haul in a morning
+    const salv = Math.min(15 + 2 * S.night, Math.floor(S.salvage || 0)); S.salvage = 0;   // what the town can haul in a morning
     let goldIn = Math.round((START.baseIncome * DIFF.eco + S.P.tax + hg * fed) * prosper()) - upk + salv;
     if (has('granary')) goldIn += Math.floor(S.food / 5);
     for (const l of S.landmarks) if (l.owned) { const L = LANDMARKS[l.kind]; goldIn += L.gold || 0; S.food += L.food || 0; if (L.reveal && S.night % 2 === 0) { S.survivors++; toast('A survivor followed the broadcast to your gates.', 'good'); } }

@@ -38,8 +38,8 @@ export const BUILD_ORDER = ['house', 'farm', 'tower', 'wall', 'generator'];
 export const POWER = { keep: [3, 4, 5], draw: { tower: [0, 1, 2], workshop: [2], market: [1] } };
 // each extra copy of a building costs more: the town has to choose, not spam
 export const RISE = { house: 0.2, farm: 0.15, tower: 0.25, wall: 0, generator: 0.5, workshop: 0, market: 0 };
-// hands: every build or upgrade needs a free pair of hands for the day: 1 + √people
-export const HANDS = { base: 1 };   // + the square root of your people (diminishing: a big town is not a fast town)
+// hands: every build or upgrade needs a free pair of hands for the day: 2 + √people
+export const HANDS = { base: 2 };   // + the square root of your people (diminishing: a big town is not a fast town)
 export const TECH_ORDER = ['workshop', 'market'];
 export const UNLOCKS = { tower: 'workshop', wall: 'workshop', house: 'market', farm: 'market' };   // what level 3 needs
 export const MAX_LEVEL = 3;
