@@ -52,7 +52,7 @@ const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, gen
 const LOT_PAD = { house: 1, farm: 1, tower: 1, workshop: 1, market: 1, wall: 0, generator: 1 };   // the path each lot includes   // compact footprints; palisades are single posts, laid in lines
 const BIG = 1.6; // mobs at least this size count as "big game"
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null } = {}) {
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';
   const map = generateMap(mapSeed ?? seed, biome);
   const rng = new Rng(hashSeed(seed, 'run'));
@@ -72,7 +72,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     reroll: { free: REROLL.free, cost: REROLL.base }, trade: null, halfUpgrade: false,
     ability: { cd: 0, hires: 0 }, weather: 'clear', clock, dayT: 0, dayQueue: [], drops: [], landmarks: map.landmarks.map(l => ({ ...l, owned: false })), seen: new Uint8Array(N * N), seenVersion: 0, builders: null, survivors: START.survivors,
     log: [], cur: null, over: false, won: false,
-    sealed: Uint8Array.from(map.regions, r => (r.ring > 0 ? 1 : 0)), kits: {}, sealVersion: 0,
+    sealed: Uint8Array.from(map.regions, r => (r.ring > 0 ? 1 : 0)), kits: {}, sealVersion: 0, legacy: { ...legacy },
     hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0, guardT: 0, attacks: 0 },
     flow: null, flowNext: null, climb: null, climbNext: null, flowDirty: true,
     stats: { goldEarned: 0, goldSpent: 0, built: 0, upgraded: 0, killsByKind: {}, killsBy: {}, peakPop: 0, buildingsLost: 0, housesLost: 0, risen: 0,
@@ -101,7 +101,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const newCost = type => Math.max(1, Math.round(costOf(type) * (1 + (RISE[type] || 0) * copies(type))));
   const buyCost = type => newCost(type) * (S.mode === 'packs' && !BUILDINGS[type].tech ? PACK_RULES.premium : 1);
   // hands: every build or upgrade takes a free pair of hands for the rest of the day
-  const handsMax = () => HANDS.base + Math.ceil(pop() / HANDS.perPeople) + S.handsExtra + (S.landmarks || []).reduce((a, l) => a + (l.owned && LANDMARKS[l.kind].hands || 0), 0) + (story ? story.bonus.hands() : 0);
+  const handsMax = () => HANDS.base + Math.ceil(pop() / HANDS.perPeople) + S.handsExtra + (S.legacy.hands || 0) + (S.landmarks || []).reduce((a, l) => a + (l.owned && LANDMARKS[l.kind].hands || 0), 0) + (story ? story.bonus.hands() : 0);
   const handsFree = () => Math.max(0, handsMax() - S.handsUsed);
   const useHand = () => { if (handsFree() < 1) return fail('No free hands today. More people (homes) means more hands; they rest at dawn.'); S.handsUsed++; return true; };
   const upCostOf = (b) => { const c0 = costOf(b.type, b.level + 1); return S.halfUpgrade ? Math.max(1, Math.ceil(c0 / 2)) : c0; };
@@ -1557,6 +1557,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) takeSite(l); }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
     risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the dead.', 'bad'); } });
   story.start();
+  // legacy edges from earlier runs
+  { const Lg = S.legacy; if (!restore) { S.gold += 10 * (Lg.scrap || 0); S.food += 6 * (Lg.food || 0); } S.P.heroDmgMult *= 1 + 0.08 * (Lg.dmg || 0); S.P.keepHp += 25 * (Lg.keep || 0); refreshMax(); keep.hp = keep.maxHp; }
 
   // ---------- saving: a dawn snapshot (what you built, chose and met; the dead are not saved) ----------
   const b64 = u8 => { let s2 = ''; for (let i = 0; i < u8.length; i += 8) { let v = 0; for (let k = 0; k < 8; k++) if (u8[i + k]) v |= 1 << k; s2 += String.fromCharCode(v); } return btoa(s2); };
@@ -1564,7 +1566,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function snapshot() {
     if (S.phase !== 'day' || S.over) return null;
     return { v: 1, seed, mapSeed: mapSeed ?? seed, biome, hero: S.heroClass, mode: S.mode, difficulty: S.difficulty, clock: S.clock, city: map.name, savedAt: Date.now(),
-      night: S.night, gold: S.gold, food: S.food, kills: S.kills, stock: S.stock, survivors: S.survivors, heat: S.heat, foreman: S.foreman, builders: S.builders, autopilot: !!S.autopilot,
+      legacy: S.legacy, night: S.night, gold: S.gold, food: S.food, kills: S.kills, stock: S.stock, survivors: S.survivors, heat: S.heat, foreman: S.foreman, builders: S.builders, autopilot: !!S.autopilot,
       sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, reroll: S.reroll, halfUpgrade: S.halfUpgrade,
       landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),

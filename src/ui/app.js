@@ -14,6 +14,7 @@ import { createChronicler } from './story-ai.js';
 import { createSaves } from './saves.js';
 import { TITLES, ROLES, BARKS } from '../content/story.js';
 import { RARITY } from '../content/districts.js';
+import { LEGACY, fameOf } from '../content/legacy.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -69,6 +70,7 @@ export function startApp() {
       <h2>Your land</h2>
       <div class="choices">${opts.map((o, k) => `<button class="choice" data-map="${k}" aria-pressed="${setup.pick === k}"><canvas id="mm${k}" aria-hidden="true"></canvas><b>${o.name}</b><span>${BIOMES[o.biome].blurb}</span><span class="tiny">Seed ${o.seed}</span></button>`).join('')}</div>
       <div class="seedrow"><button class="btn ghost" id="reroll">Show other lands</button></div>
+      ${legacyHtml()}
       <label class="tiny aitog" style="display:block;margin-top:12px"><input type="checkbox" id="aiStart" ${chronicler.enabled() ? 'checked' : ''}> ✦ Let the Chronicler (Claude) write your story and play your companions. Uses your Claude account; it asks first. Off = the scripted story.</label>
       <div id="contRow" hidden class="cont"></div>
       <div class="cardrow" style="margin-top:16px"><button class="btn big" id="begin">Raise the town</button><span class="tiny">WASD or drag to walk · scroll or pinch to zoom</span></div>`, true, false);
@@ -78,6 +80,7 @@ export function startApp() {
     $$('[data-diff]').forEach(b => b.onclick = () => { setup.difficulty = b.dataset.diff; store.set('difficulty', setup.difficulty); press('[data-diff]', b); });
     $$('[data-map]').forEach(b => b.onclick = () => { setup.pick = +b.dataset.map; press('[data-map]', b); });
     $('#aiStart').onchange = e => chronicler.setEnabled(e.target.checked);
+    $$('[data-legacy]').forEach(b => b.onclick = () => { const L = store.get('legacy', { fame: 0, owned: {} }), up = LEGACY.find(x => x.id === b.dataset.legacy), n = L.owned[up.id] || 0; if (n >= up.max || L.fame < up.cost) return; L.fame -= up.cost; L.owned[up.id] = n + 1; store.set('legacy', L); audio.play('claim'); showStart(); });
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); };
     $('#begin').onclick = () => { const o = opts[setup.pick]; begin(o.seed, o.biome); };
     saves.load().then(snap => {
@@ -88,9 +91,13 @@ export function startApp() {
     });
   }
 
+  function legacyHtml() {
+    const L = store.get('legacy', { fame: 0, owned: {} }); if (!L.fame && !Object.keys(L.owned).length) return '';
+    return `<h2>Legacy · ${L.fame} fame</h2><div class="opts two">${LEGACY.map(u => { const n = L.owned[u.id] || 0; return `<button class="opt" data-legacy="${u.id}" ${n >= u.max || L.fame < u.cost ? 'disabled' : ''}><span class="nm">${u.name} ${n ? `${n}/${u.max}` : ''}<span class="cost">${n >= u.max ? 'max' : `${u.cost} fame`}</span></span><span class="ds">${u.desc}</span></button>`; }).join('')}</div>`;
+  }
   function begin(mapSeed, biome, snap = null) {
-    game = snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap })
-      : createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty });
+    game = snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {} })
+      : createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty, legacy: store.get('legacy', { owned: {} }).owned });
     names = regionNames(mapSeed, game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
     if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
@@ -304,6 +311,7 @@ export function startApp() {
       <h1>Hollowmere is lost</h1>
       <p>${HEROES[S.heroClass].name} of ${game.map.name}. ${topKinds ? `Among the fallen: ${topKinds}.` : ''} ${heroShare ? `${heroShare}% of the kills were yours.` : ''}${masteries.length ? ` Mastered: ${masteries.join(', ')}.` : ''}</p>
       <div class="endstats">${stats.map(([k, v]) => `<div><b data-to="${typeof v === 'number' ? v : ''}">${typeof v === 'number' ? 0 : v}</b><span>${k}</span></div>`).join('')}</div>
+      <p class="tiny" style="white-space:normal">+${S.fameEarned || 0} fame. Spend it under Legacy on the start screen: small edges for the next run.</p>
       <h2>The chronicle of ${esc(game.map.name)}</h2><ol class="chron">${S.story.chronicle.filter(c => c.imp >= 3).slice(-12).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
       <details class="ledger"><summary>The night-by-night ledger</summary>${logTable()}</details>
       <div class="cardrow"><button class="btn big" id="again">New run</button><button class="btn ghost" id="logCopy">Copy log</button></div><textarea id="logJson" hidden readonly aria-label="Run log data"></textarea>`, true);
@@ -858,7 +866,7 @@ export function startApp() {
       if (toastFor.has(e.t)) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);
       if (e.t === 'claim' && selected && selected.type === 'region') closePanel();
       if (e.t === 'dawn') { dawnT = DAWN_DELAY; traderSeen = false; endJoy(); const snap = game.snapshot(); if (snap) saves.save(snap).then(w => { lastSave = { day: snap.night, where: w }; }); }
-      if (e.t === 'over') { saves.clear(); endT = now + 2600; paused = false; closePanel(); stopPlacing(); view.startOrbit(); }
+      if (e.t === 'over') { saves.clear(); { const L = store.get('legacy', { fame: 0, owned: {} }); S.fameEarned = fameOf(S); L.fame += S.fameEarned; store.set('legacy', L); } endT = now + 2600; paused = false; closePanel(); stopPlacing(); view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && selected && selected.type === 'building' && !S.byId.get(selected.id)) closePanel();
     }
     // the dawn cards wait a moment so a last tap at night can't land on them
