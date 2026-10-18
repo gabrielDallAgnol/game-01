@@ -178,7 +178,7 @@ export function startApp() {
     showCard('enc', `<div class="enc ${enc.kind}${sys ? ' sysw' : ''}"><div class="eyebrow sysline">${esc(enc.eyebrow || '')}${chronicler.available() ? `<span class="chr${enc.ai === 'pending' ? ' busy' : ''}" title="The Chronicler (Claude) writes this run's story">✦ ${enc.ai === 'pending' ? 'writing…' : 'Chronicler'}</span>` : ''}</div>
       <h1 class="sm" id="encTitle">${esc(title)}</h1>
       ${enc.speaker ? `<div class="speaker"><b>${esc(enc.speaker.name)}</b><span id="encLine">${esc(line || '')}</span></div>` : ''}
-      <p class="scene" id="encScene">${esc(scene).replace(/\n/g, '<br><br>')}</p>
+      <p class="scene" id="encScene">${esc(scene).replace(/\n+/g, '<br><br>')}</p>
       <div class="opts one encopts">${enc.choices.map(c => { const ok = !c.cost || game.story().can(c); const rar = c.rarity ? RARITY[c.rarity] : null;
         return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span data-lbl="${c.id}">${esc(P && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}<span class="cost">${costTxt(c)}</span></span><span class="ds">${esc(c.hint || '')}</span></button>`; }).join('')}</div></div>`, true);
     $$('[data-choice]').forEach(b => b.onclick = onArmed(() => { if (P && P.chronicle) enc.aiChron = P.chronicle; if (game.choose(b.dataset.choice)) { audio.play('claim'); afterEncounter(); } }));

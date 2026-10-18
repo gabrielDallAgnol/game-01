@@ -670,6 +670,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       ratio: +threatRatio(S.night, purgeReg).toFixed(2), purge: purgeReg, nests: activeNests().length, claimed: claimedCount(), bloodMoon: isBloodMoon(S.night),
     });
     sc.nightfall(keep);
+    { const rt = ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight is stronger than your defences. Expect the outer ring to break: keep the hero near the homes.`, 'bad'); }
     ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
     toast(isBloodMoon(S.night) ? `Blood moon. Night ${S.night} begins.` : `The bell rings. Night ${S.night} begins.`, isBloodMoon(S.night) ? 'bad' : undefined);
     return true;

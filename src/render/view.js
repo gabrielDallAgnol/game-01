@@ -9,6 +9,7 @@ import { K, CFG } from './kit.js';
 import { createLook } from './look.js';
 import { buildCity } from './city.js';
 import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE } from './figures.js';
+import { KITS, RARITY } from '../content/districts.js';
 
 const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
 const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
@@ -258,7 +259,21 @@ export function createView(canvas, game, opts = {}) {
   let fenceMesh = null, fenceV = -1;
   // a chain-link panel with a red-and-white barrier in front: reads as QUARANTINE from any zoom
   const fenceGeo = (() => { const b = new K.B(); b.box('metal', 0.06, 1.5, 0.06, -0.5, 0, -0.15); b.box('metal', 0.06, 1.5, 0.06, 0.5, 0, -0.15); b.box('steel', 1.0, 1.25, 0.02, 0, 0.2, -0.15); b.cbox('pale', 1.0, 0.5, 0.16, 0, 0.1, 0.12, { r: 0.04 }); b.cbox('danger', 0.3, 0.51, 0.17, -0.3, 0.1, 0.12, { r: 0.01 }); b.cbox('danger', 0.3, 0.51, 0.17, 0.3, 0.1, 0.12, { r: 0.01 }); return b.build(); })();
+  // scouted districts: a banner over each sealed district whose identity is known, in its rarity colour
+  const banners = new Map(); let bannerKey = '';
+  function syncBanners() {
+    const key = `${S.sealVersion}|${Object.keys(S.kits).length}`; if (key === bannerKey) return; bannerKey = key;
+    for (const [r, sp] of banners) if (!S.sealed[r] || !S.kits[r]) { fx.remove(sp); banners.delete(r); }
+    for (const [rs, kit] of Object.entries(S.kits)) {
+      const r = +rs; if (!S.sealed[r] || banners.has(r)) continue;
+      const l = S.landmarks.find(q => q.region === r), name = kit === 'signature' && l ? LANDMARKS[l.kind].name : (KITS[kit] || {}).name || kit;
+      const rar = kit === 'signature' ? RARITY.legendary : RARITY[(KITS[kit] || {}).rarity || 'common'];
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(`${rar.name.toUpperCase()} · ${name.toUpperCase()}`, { w: 512, h: 64, size: 30, bg: '#0d1418', fg: rar.color, spacing: '2px' }), transparent: true, opacity: 0.92, depthTest: false }));
+      const reg = map.regions[r]; sp.position.copy(W(reg.x, reg.y, 4)); sp.scale.set(5.6, 0.7, 1); sp.renderOrder = 8; fx.add(sp); banners.set(r, sp);
+    }
+  }
   function syncFences() {
+    syncBanners();
     if (S.sealVersion === fenceV) return; fenceV = S.sealVersion;
     if (fenceMesh) { world.remove(fenceMesh); fenceMesh = null; }
     const spots = [];
