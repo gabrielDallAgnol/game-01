@@ -305,3 +305,20 @@ test('weather: rolled at dawn from night 3, never on a blood moon, and it change
   S.weather = 'storm'; const storm = g.forecast().reduce((a, r) => a + r.count, 0);
   assert.ok(still < base && storm > base, `${still} ${base} ${storm}`);
 });
+
+test('clearing rubble on your land costs gold and makes buildable ground', () => {
+  let g, spot;
+  for (let seed = 1; seed < 40 && !spot; seed++) {
+    g = createGame({ seed }); const S = g.state, N = Math.sqrt(g.map.terrain.length);
+    for (let i = 0; i < g.map.terrain.length && !spot; i++) if (g.map.terrain[i] === 1 && S.claimed.has(g.map.region[i]) && S.occ[i] < 0) spot = { x: i % N + 0.5, y: Math.floor(i / N) + 0.5 };
+  }
+  assert.ok(spot, 'no rubble in any starting town');
+  readyDay(g); const S = g.state;
+  const r = g.rubbleAt(spot.x, spot.y), gold = S.gold = 20;
+  assert.ok(r.cells.length > 0 && r.cost === r.cells.length);
+  assert.equal(g.clearRubble(spot.x, spot.y), r.cells.length);
+  assert.equal(S.gold, gold - r.cost);
+  assert.ok(r.cells.every(i => g.map.terrain[i] === 0));
+  assert.equal(g.rubbleAt(spot.x, spot.y).cells.length, 0);
+  g.startNight(); assert.ok(!g.clearRubble(spot.x, spot.y));
+});

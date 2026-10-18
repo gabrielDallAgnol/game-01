@@ -130,7 +130,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const i of out.cells) {
       const t = map.terrain[i], r = map.region[i];
       if (r < 0 || !S.claimed.has(r)) { out.reason = 'Claim this land first.'; return out; }
-      if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD || t === T.FOREST) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Barricades need ground, woods or a ford.' : 'Needs open ground.'; return out; }
+      if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD || t === T.FOREST) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Barricades need ground, rubble or a ford.' : t === T.FOREST ? 'Rubble in the way. Tap it to clear it first.' : 'Needs open ground.'; return out; }
       if (S.occ[i] >= 0) { out.reason = 'Something is already built here.'; return out; }
     }
     for (const i of out.cells) {
@@ -472,6 +472,28 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.phase !== 'day' || S.over) return fail('Demolish during the day.');
     const b = S.byId.get(id); if (!b || b.type === 'keep') return fail('Cannot demolish that.');
     earn(Math.floor(costOf(b.type) / 2)); removeBuilding(b); return true;
+  }
+  // ---------- clearing rubble: more room to build, but the dead cross open ground faster ----------
+  const RUBBLE_COST = 1;
+  function rubbleAt(x, y) {
+    const cx = Math.floor(x), cy = Math.floor(y), cells = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const xx = cx + dx, yy = cy + dy; if (!inside(xx, yy)) continue;
+      const i = idx(xx, yy), r = map.region[i];
+      if (map.terrain[i] === T.FOREST && r >= 0 && S.claimed.has(r) && S.occ[i] < 0) cells.push(i);
+    }
+    return { cells, cost: cells.length * RUBBLE_COST };
+  }
+  function clearRubble(x, y) {
+    if (S.phase !== 'day' || S.over) return fail('Clear rubble during the day.');
+    const { cells, cost } = rubbleAt(x, y);
+    if (!cells.length) return fail('No rubble on your land here.');
+    if (S.gold < cost) return fail(`Clearing this costs ${cost} gold.`);
+    S.gold -= cost; S.cur.spent += cost; S.stats.goldSpent += cost;
+    for (const i of cells) map.terrain[i] = T.GRASS;
+    S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; S.cleared = (S.cleared || 0) + cells.length;
+    ev('clear', { cells });
+    return cells.length;
   }
   function upgradeKeep() {
     if (S.phase !== 'day' || keep.level >= 3) return fail('Cannot raise the keep.');
@@ -1033,6 +1055,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     },
     buildLine, upgradeWall, wallRun, wallBudget, lineCells,
     weather: () => ({ id: S.weather, ...W8() }),
+    rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
     abilityCost, towerStats: b => towerStats(b), has,
     foodPerDawn: () => Math.round(S.buildings.reduce((a, b) => a + (b.type === 'farm' ? farmFood(b) : 0), 0) * prosper()),

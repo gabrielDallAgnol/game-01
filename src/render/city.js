@@ -5,6 +5,7 @@
 //   water → canal with concrete banks · fords → footbridges · cliffs → retaining walls · the edge → a skyline of ruins
 /* global THREE */
 import { N, T, idx } from '../sim/mapgen.js';
+import { mulberry32 } from '../sim/rng.js';
 import { K } from './kit.js';
 import { bake, vcMat } from './figures.js';
 
@@ -125,21 +126,31 @@ export function buildCity({ map, S, world, W, C, rand }) {
 
   // ---------- rubble fields (forest cells): debris, scrub, dead trees, wrecks ----------
   const forest = []; for (let i = 0; i < N * N; i++) if (map.terrain[i] === T.FOREST) forest.push(i);
-  const rub = new K.B(), rubCols = ['slab', 'stone', 'dark', 'slab', 'grey'];
-  for (const i of forest) {
-    const x = (i % N) - C + 0.5, z = ((i / N) | 0) - C + 0.5;
-    for (let k = 0, n = rand() < 0.5 ? 1 : 2; k < n; k++) { const s = 0.1 + rand() * 0.2; rub.cbox(rubCols[Math.floor(rand() * 5)], s * 1.6, s * 0.7, s, x + (rand() - 0.5) * 0.85, s * 0.3, z + (rand() - 0.5) * 0.85, { r: 0.01, rx: rand() * 3, ry: rand() * 3, rz: rand() * 3 }); }
-    if (rand() < 0.35) for (let k = 0; k < 3; k++) rub.sph(leaf[k % 2], 0.16 + rand() * 0.16, x + (rand() - 0.5) * 0.7, 0.08, z + (rand() - 0.5) * 0.7, { detail: 0, sy: 0.6 });
-    if (rand() < 0.08) rub.cyl('rebar', 0.012, 0.012, 0.4, x + (rand() - 0.5) * 0.6, 0.05, z + (rand() - 0.5) * 0.6, { seg: 4, rx: rand(), rz: rand() });
+  // built in 8×8 chunks from a per-cell random stream, so a chunk can be rebuilt without a cleared cell
+  const rubCols = ['slab', 'stone', 'dark', 'slab', 'grey'], CH = 8, chunks = new Map();
+  function buildChunk(key) {
+    const old = chunks.get(key); if (old) { world.remove(old); old.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); chunks.delete(key); }
+    const cx0 = (key % 8) * CH, cy0 = Math.floor(key / 8) * CH, rub = new K.B(); let any = false;
+    for (let y = cy0; y < cy0 + CH; y++) for (let x0 = cx0; x0 < cx0 + CH; x0++) {
+      const i = idx(x0, y); if (map.terrain[i] !== T.FOREST) continue;
+      any = true; const r = mulberry32(i * 7919 + 13), x = x0 - C + 0.5, z = y - C + 0.5;
+      for (let k = 0, n = r() < 0.5 ? 1 : 2; k < n; k++) { const sz = 0.1 + r() * 0.2; rub.cbox(rubCols[Math.floor(r() * 5)], sz * 1.6, sz * 0.7, sz, x + (r() - 0.5) * 0.85, sz * 0.3, z + (r() - 0.5) * 0.85, { r: 0.01, rx: r() * 3, ry: r() * 3, rz: r() * 3 }); }
+      if (r() < 0.35) for (let k = 0; k < 3; k++) rub.sph(leaf[k % 2], 0.16 + r() * 0.16, x + (r() - 0.5) * 0.7, 0.08, z + (r() - 0.5) * 0.7, { detail: 0, sy: 0.6 });
+      if (r() < 0.08) rub.cyl('rebar', 0.012, 0.012, 0.4, x + (r() - 0.5) * 0.6, 0.05, z + (r() - 0.5) * 0.6, { seg: 4, rx: r(), rz: r() });
+    }
+    if (!any) return;
+    const m = rub.build(); world.add(m); chunks.set(key, m);
   }
-  world.add(rub.build());
+  const chunkOf = i => Math.floor(((i / N) | 0) / CH) * 8 + Math.floor((i % N) / CH);
+  new Set(forest.map(chunkOf)).forEach(buildChunk);
   // instanced props baked from the kit
+  const propMeshes = [];
   const props = (make, cells, place) => {
     if (!cells.length) return;
     const { geo: g } = bake(make()); if (!g) return;
     const m = new THREE.InstancedMesh(g, vcMat(), cells.length), d = new THREE.Object3D();
     cells.forEach((i, k) => { place(i, d); d.updateMatrix(); m.setMatrixAt(k, d.matrix); });
-    m.castShadow = true; m.receiveShadow = true; world.add(m); return m;
+    m.castShadow = true; m.receiveShadow = true; world.add(m); propMeshes.push({ m, cells }); return m;
   };
   const cellPos = (i, d, jitter = 0.3) => d.position.set((i % N) - C + 0.5 + (rand() - 0.5) * jitter, 0, ((i / N) | 0) - C + 0.5 + (rand() - 0.5) * jitter);
   const pickCells = (list, p) => list.filter(() => rand() < p);
@@ -187,5 +198,13 @@ export function buildCity({ map, S, world, W, C, rand }) {
   function setTerritory() { K.setMask((x, y) => { const r = map.region[idx(x, y)]; return r >= 0 && S.claimed.has(r); }); }
   setTerritory();
 
-  return { paint, setTerritory, ground };
+  /** rubble cleared: rebuild the touched chunks and hide props standing on those cells */
+  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+  function clear(cells) {
+    const set = new Set(cells);
+    new Set(cells.map(chunkOf)).forEach(buildChunk);
+    for (const { m, cells: pc } of propMeshes) { let hit = false; pc.forEach((i, k) => { if (set.has(i)) { m.setMatrixAt(k, zero); hit = true; } }); if (hit) m.instanceMatrix.needsUpdate = true; }
+    paint();
+  }
+  return { paint, setTerritory, ground, clear };
 }

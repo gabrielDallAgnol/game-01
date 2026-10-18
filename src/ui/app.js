@@ -431,6 +431,13 @@ export function startApp() {
       return;
     }
     if (selected.type === 'site') { renderSite(body, day); return; }
+    if (selected.type === 'rubble') {
+      const r = game.rubbleAt(selected.x, selected.y);
+      $('#pEyebrow').textContent = 'Your land'; $('#pTitle').textContent = 'Rubble';
+      body.innerHTML = `<div class="stat"><span>Blocks building. Slows the dead.</span><span>Clear it to make room. The dead cross open ground faster.</span></div>`
+        + (r.cells.length ? `<div class="opts one">${opt('opt-clear', 'data-clear="1"', `Clear ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of rubble`, r.cost, 'A 3×3 patch around this spot becomes paved ground.', S.gold < r.cost || !day)}</div>` : '<div class="tiny">Nothing left to clear here.</div>');
+      return;
+    }
     const b = selB(); if (!b) { closePanel(); return; }
     const B = BUILDINGS[b.type];
     $('#pEyebrow').textContent = names[game.map.region[idx(Math.floor(b.x), Math.floor(b.y))]] || '';
@@ -451,6 +458,7 @@ export function startApp() {
     const btn = e.target.closest('button'); if (!btn || btn.disabled || !selected) return;
     if (btn.dataset.who) { const id = +btn.dataset.who, pk = selected.pick || (selected.pick = new Set()); if (pk.has(id)) pk.delete(id); else pk.add(id); renderPanel(); return; }
     if (btn.dataset.send) { if (game.scavenge.send(selected.id, [...(selected.pick || [])])) { const n = selected.pick.size; selected.pick = new Set(); toast(`${n === 1 ? 'One survivor heads' : `${n} survivors head`} out. Back at dawn.`, 'good'); } }
+    if (btn.dataset.clear) { const n = game.clearRubble(selected.x, selected.y); if (n) { toast(`${n} ${n === 1 ? 'cell' : 'cells'} cleared.`); closePanel(); updateHud(); return; } }
     if (btn.dataset.recall && game.scavenge.recall(selected.id)) toast('The crew stays home. Supplies returned.');
     if (btn.dataset.keep && game.upgradeKeep()) toast('The keep rises higher.');
     if (btn.dataset.trader) { traderSeen = true; closePanel(); paused = true; showTrader(); return; }
@@ -635,6 +643,7 @@ export function startApp() {
     }
     const p = view.pick(e.clientX, e.clientY); if (!p) return;
     const S = game.state;
+    if (S.phase === 'day' && p.type === 'rubble') { game.heroTo(p.x, p.y); view.showMove(p.x, p.y); openSel({ type: 'rubble', x: p.x, y: p.y }); return; }
     if (S.phase === 'day' && p.type === 'site') { openSel({ type: 'site', id: p.id, pick: new Set() }); return; }
     if (S.phase === 'day' && (p.type === 'building' || p.type === 'keep')) { openSel(p.type === 'building' ? { type: 'building', id: p.id } : { type: 'keep' }); return; }
     if (S.phase === 'day' && p.type === 'region' && game.map.regions[p.id].nest && game.regionInfo(p.id).nest) {

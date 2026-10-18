@@ -93,6 +93,9 @@ The first part of the agreed next drop: the ruins hold supplies, and survivors g
 | Traits | Scout (run half as deadly), Medic (no bites on their run), Mule (double food), Tinker (more free buildings), Marksman (at home at night: towers +6%), Cook (at home at night: +2 food at dawn), Coward (never dies, half loot). Sending a Marksman or Cook costs their home bonus that night. |
 | Sim | `src/sim/scavenge.js`, own random stream: a run without scavenging plays out exactly as before. Bots don't scavenge yet. |
 
+## Clearing rubble (Oct 18, evening)
+Rubble (the old forest cells) on your land blocks homes, farms and towers but slows the dead (×1.4 slower). Tap it by day to clear a 3×3 patch for 1 gold per cell: it becomes paved, buildable ground, and the dead cross it at full speed. A trade between room to build and a natural slow zone. The placement hint says "Rubble in the way. Tap it to clear it first." Bots don't clear yet.
+
 ## Weather and sound (Oct 18, evening)
 | Weather | Odds | Effect |
 |---|---|---|

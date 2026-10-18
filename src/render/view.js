@@ -1,6 +1,6 @@
 // three.js view of a game: the ruined city. It only reads game state and drains events.
 /* global THREE */
-import { N, idx, PASSABLE } from '../sim/mapgen.js';
+import { N, T, idx, PASSABLE } from '../sim/mapgen.js';
 import { mulberry32 } from '../sim/rng.js';
 import { MOBS } from '../content/mobs.js';
 import { mat, chestMesh, purseMesh, flameMesh } from './meshes.js';
@@ -343,6 +343,7 @@ export function createView(canvas, game, opts = {}) {
   function handleEvents(events) {
     for (const e of events) {
       if (e.t === 'claim') { city.setTerritory(); repaint = true; const h = hives.get(e.region); if (h) { const n = map.regions[e.region].nest; burst(n.x, n.y, 4, '#d9843a'); h.cleared = true; } }
+      if (e.t === 'clear') { city.clear(e.cells); for (const i of e.cells) burst((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.5, '#b8ae9c'); }
       if (e.t === 'scavGo') sendWalkers(e.site, e.n, false);
       if (e.t === 'scavBack') sendWalkers(e.site, e.n, true);
       if (e.t === 'explode') burst(e.x, e.y, e.r, '#a3c65c');
@@ -526,6 +527,7 @@ export function createView(canvas, game, opts = {}) {
       if (sel.type === 'building') { const b = S.byId.get(sel.id); if (b) { x = b.x; y = b.y; s = b.type === 'tower' ? 0.6 : b.type === 'wall' ? 0.55 : 1.0; } else { x = C; y = C; } }
       else if (sel.type === 'keep') { x = C; y = C; s = 1.9; }
       else if (sel.type === 'region') { const n = map.regions[sel.id].nest; x = n.x; y = n.y; s = 1.8; }
+      else if (sel.type === 'rubble') { x = Math.floor(sel.x) + 0.5; y = Math.floor(sel.y) + 0.5; s = 1.0; }
       else if (sel.type === 'site') { const st = S.scav.sites[sel.id]; x = st.x; y = st.y; s = 0.6; }
       selRing.position.copy(W(x, y, 0.1)); const k = s + Math.sin(time * 4) * 0.04; selRing.scale.set(k, k, k);
       if (sel.range) { rangeRing.visible = true; rangeRing.position.copy(W(x, y, 0.09)); rangeRing.scale.set(sel.range, sel.range, sel.range); }
@@ -549,7 +551,7 @@ export function createView(canvas, game, opts = {}) {
     if (b && b.type === 'keep') return { type: 'keep', ...p };
     if (b) return { type: 'building', id: b.id, ...p };
     const cx2 = Math.floor(p.x), cy2 = Math.floor(p.y);
-    if (cx2 >= 0 && cy2 >= 0 && cx2 < N && cy2 < N) { const r = map.region[idx(cx2, cy2)]; if (r >= 0 && !S.claimed.has(r)) return { type: 'region', id: r, ...p }; }
+    if (cx2 >= 0 && cy2 >= 0 && cx2 < N && cy2 < N) { const i = idx(cx2, cy2), r = map.region[i]; if (r >= 0 && !S.claimed.has(r)) return { type: 'region', id: r, ...p }; if (r >= 0 && map.terrain[i] === T.FOREST && S.occ[i] < 0) return { type: 'rubble', ...p }; }
     return { type: 'ground', ...p };
   }
   function showMove(x, y) { moveMark.position.copy(W(x, y, 0.07)); moveMark.scale.set(1, 1, 1); moveMark.material.opacity = 0.9; }
