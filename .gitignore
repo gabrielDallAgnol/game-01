@@ -2,3 +2,4 @@ node_modules/
 dist/
 reports/*.json
 tools/dev/
+reports/*.txt
