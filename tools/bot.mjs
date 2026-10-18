@@ -77,7 +77,7 @@ export function dayTurn(g, strat) {
   choosePack(g, strat);
   // walk the shopping list round-robin, so every item gets its turn instead of the first one eating all the gold
   const S = g.state, list = STRATEGIES[strat](S.night);
-  for (const t of ['tower', 'wall', 'farm', 'house']) for (let k = 0; k < (t === 'wall' ? 12 : 6) && (S.stock[t] || 0) > 0; k++) if (!place(g, t)) break;
+  for (const t of ['house', 'farm', 'tower', 'wall']) for (let k = 0; k < (t === 'wall' ? 12 : 6) && (S.stock[t] || 0) > 0; k++) { if (t === 'tower' && g.crewing().free < 2) break; if (!place(g, t)) break; }
   let k = 0, misses = 0;
   while (misses < list.length + 2) {
     const act = list[k % list.length]; k++;
@@ -85,8 +85,8 @@ export function dayTurn(g, strat) {
   }
   // leftovers: upgrade towers and houses, then the keep
   for (let guard = 0; guard < 20; guard++) {
-    const b = S.buildings.filter(x => (x.type === 'tower' || x.type === 'house') && x.level < 3).sort((a, c) => a.level - c.level)[0];
-    if (!(b && g.upgrade(b.id)) && !(S.night >= 3 && g.upgradeKeep())) break;
+    const b = S.buildings.filter(x => (x.type === 'tower' ? g.crewing().free >= 1 : x.type === 'house') && x.level < Math.min(3, g.keepLevel())).sort((a, c) => a.level - c.level)[0];
+    if (!(b && g.upgrade(b.id)) && !(S.night >= 2 && g.upgradeKeep())) break;
   }
 }
 function tryAct(g, act) {
@@ -97,10 +97,12 @@ function tryAct(g, act) {
     const t = act.slice(2).toLowerCase();
     const b = S.buildings.filter(x => x.type === t && x.level < 3).sort((a, c) => a.level - c.level)[0];
     if (b && t === 'wall') return g.upgradeWall(b.id) > 0;
+    if (b && t === 'tower' && g.crewing().free < 1) return false;
     return !!(b && g.upgrade(b.id));
   }
   if (act === 'farm' && foodNet > 3) return false;
   if (act === 'house' && foodNet < 0) return false; // do not add mouths you cannot feed
+  if (act === 'tower' && g.crewing().free < 2) return foodNet >= 0 ? place(g, 'house') : place(g, 'farm');   // no one to man it: build homes first
   return place(g, act);
 }
 

@@ -193,6 +193,7 @@ export function createView(canvas, game, opts = {}) {
     const l = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) return false; const o = S.byId.get(S.occ[idx(xx, yy)]); return !!(o && (o.type === 'wall' || o.type === 'tower') && !o.ruined); });
     return { e: l[0], w: l[1], s: l[2], n: l[3], key: l.map(v => (v ? 1 : 0)).join('') };
   }
+  const noCrewMat = new THREE.SpriteMaterial({ map: K.textTex('NO CREW', { w: 256, h: 64, size: 40, bg: '#2a1512', fg: '#f0a090', spacing: '2px' }), transparent: true, depthTest: false });
   function syncBuildings() {
     const seen = new Set();
     for (const b of S.buildings) {
@@ -201,17 +202,21 @@ export function createView(canvas, game, opts = {}) {
       const links = b.type === 'wall' ? wallLinks(b) : null, lk = links ? links.key : '';
       if (!e || e.level !== b.level || e.lk !== lk) {
         const relink = e && e.level === b.level;
-        if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); }
+        if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); }
         const g = new THREE.Group(), m = model(b.type, b.level, { id: b.id, links }); g.add(m);
         g.position.copy(W(b.x, b.y)); if (b.type === 'house' || b.type === 'farm') g.rotation.y = faceKeep(b.x, b.y);
         g.scale.setScalar(relink ? 1 : 0.05); world.add(g);
         e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type }; bMeshes.set(b.id, e);
         if (b.ruined) e.g.visible = false;
       }
+      if (b.type === 'tower') {
+        if (!e.nc) { e.nc = new THREE.Sprite(noCrewMat); e.nc.scale.set(1.0, 0.25, 1); e.nc.renderOrder = 9; fx.add(e.nc); }
+        e.nc.visible = !b.ruined && !game.manned(b); if (e.nc.visible) e.nc.position.copy(W(b.x, b.y, 2.1 + Math.sin(time * 3) * 0.05));
+      }
       if (b.ruined && !e.rubble) { e.g.visible = false; e.rubble = rubbleModel(b.id); e.rubble.position.copy(W(b.x, b.y)); e.rubble.scale.multiplyScalar(b.type === 'wall' ? 0.4 : 0.8); world.add(e.rubble); }
       if (!b.ruined && e.rubble) { world.remove(e.rubble); e.rubble = null; e.g.visible = true; e.g.scale.setScalar(0.4); }
     }
-    for (const [id, e] of bMeshes) if (!seen.has(id)) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); bMeshes.delete(id); }
+    for (const [id, e] of bMeshes) if (!seen.has(id)) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); bMeshes.delete(id); }
   }
   function syncMobs() {
     const seen = new Set();

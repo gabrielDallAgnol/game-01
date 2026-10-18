@@ -1,5 +1,5 @@
 // Screens, HUD, panels and input. Talks to the game only through its public API.
-import { createGame, STEP } from '../sim/game.js';
+import { createGame, STEP, CREW_NEED } from '../sim/game.js';
 import { mapChoices, generateMap, N, T, idx, BIOMES } from '../sim/mapgen.js';
 import { createView } from '../render/view.js';
 import { BUILDINGS, BUILD_ORDER, KEEP, MAX_LEVEL } from '../content/buildings.js';
@@ -413,7 +413,7 @@ export function startApp() {
       const k = S.keep, l = k.level;
       $('#pEyebrow').textContent = 'Town centre'; $('#pTitle').textContent = `Keep · level ${l}`;
       let html = `<div class="stat"><span>Health <b>${Math.ceil(k.hp)} / ${k.maxHp}</b></span><span>${KEEP.desc[l - 1]}</span></div><div class="opts two">`;
-      html += l < 3 ? opt('opt-keep', 'data-keep="1"', 'Raise the keep', KEEP.cost[l], KEEP.desc[l], S.gold < KEEP.cost[l] || !day) : '';
+      html += l < 3 ? opt('opt-keep', 'data-keep="1"', 'Raise the keep', KEEP.cost[l], `${KEEP.desc[l]} · buildings up to level ${l + 1} · march on ${l + 1 >= 3 ? 'far' : 'near'} hives`, S.gold < KEEP.cost[l] || !day) : '';
       if (S.trade && !S.trade.done && day) html += opt('opt-trader', 'data-trader="1"', 'Visit the trader', null, 'One deal before nightfall.', false);
       body.innerHTML = html + '</div>' + (l >= 3 ? '<div class="tiny">The keep is at its full height.</div>' : '');
       selected.range = KEEP.range[l - 1] + S.P.towerRange;
@@ -429,7 +429,7 @@ export function startApp() {
       else if (info.canPurge) {
         html += `<div class="stat"><span>Siege tonight would be <span class="rating ${info.rating}">${info.rating}</span></span><span>Your defences against this hive's last stand</span></div>`;
         html += `<div class="opts one">${opt('opt-purge', 'data-purge="1"', 'Clear this hive tonight', null, 'Its dead come in force at the end of the night. Survive and the land is yours, with a legendary blessing.', false)}</div>`;
-      } else html += `<div class="tiny">${info.nest ? 'Claim the land between you and this hive first.' : 'No hive here.'}</div>`;
+      } else html += `<div class="tiny">${!info.nest ? 'No hive here.' : game.keepLevel() < info.needKeep ? `Raise the keep to level ${info.needKeep} to march on ${reg.ring >= 2 ? 'a far' : 'a near'} hive.` : 'Claim the land between you and this hive first.'}</div>`;
       body.innerHTML = html;
       return;
     }
@@ -448,11 +448,13 @@ export function startApp() {
     let html = `<div class="stat"><span>Health <b>${Math.ceil(b.hp)} / ${b.maxHp}</b></span><span>${B.desc[b.level - 1]}</span></div><div class="opts two">`;
     if (b.type === 'wall') {
       const run = game.wallRun(b.id), total = run.reduce((a, w) => a + game.upCostOf(w), 0);
-      if (b.level < MAX_LEVEL) html += opt('opt-upw', 'data-upw="1"', `Upgrade this barricade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, total, `${B.desc[b.level]} each. Short of gold? The nearest posts go first.`, S.gold < game.upCostOf(b) || !day);
+      if (b.level < MAX_LEVEL) { const capped = b.level >= game.keepLevel(); html += opt('opt-upw', 'data-upw="1"', capped ? 'Raise the keep first' : `Upgrade this barricade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, capped ? null : total, capped ? `Nothing grows past the keep (level ${game.keepLevel()}).` : `${B.desc[b.level]} each. Short of gold? The nearest posts go first.`, capped || S.gold < game.upCostOf(b) || !day); }
       html += opt('opt-demo', 'data-demo="1"', 'Pull down this post', null, 'Opens a gap you can build a gate tower in.', !day);
       body.innerHTML = html + '</div>'; selected.range = null; return;
     }
-    if (b.level < MAX_LEVEL) { const c = game.upCostOf(b); html += opt('opt-up', 'data-up="1"', `Upgrade to level ${b.level + 1}`, c, `${B.desc[b.level]} · ${game.maxHpOf(b.type, b.level + 1)} hp${S.halfUpgrade ? ' · half price' : ''}`, S.gold < c || !day); }
+    const capped = b.level >= game.keepLevel();
+    if (b.type === 'tower') { const on = game.manned(b), need = CREW_NEED[b.level - 1]; html = html.replace('</div><div class="opts two">', `<span>${on ? `Crew <b>${need}</b> on watch` : `<b class="bad">No crew</b>: needs ${need} people. Build or upgrade homes.`}</span></div><div class="opts two">`); }
+    if (b.level < MAX_LEVEL) { const c = game.upCostOf(b); html += opt('opt-up', 'data-up="1"', capped ? `Raise the keep first` : `Upgrade to level ${b.level + 1}`, capped ? null : c, capped ? `Nothing grows past the keep (level ${game.keepLevel()}).` : `${B.desc[b.level]} · ${game.maxHpOf(b.type, b.level + 1)} hp${b.type === 'tower' ? ` · needs ${CREW_NEED[b.level]} crew` : ''}${S.halfUpgrade ? ' · half price' : ''}`, capped || S.gold < c || !day); }
     html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} gold back and free the space.`, !day);
     body.innerHTML = html + '</div>' + (b.level >= MAX_LEVEL ? '<div class="tiny">Fully upgraded.</div>' : '');
     selected.range = b.type === 'tower' ? game.towerStats(b).range : null;
@@ -538,7 +540,7 @@ export function startApp() {
     $('#gold').textContent = S.gold; $('#goldNote').textContent = `+${game.goldPerDawn()}`;
     $('#food').textContent = S.food; $('#foodNote').textContent = `+${game.foodPerDawn()} −${game.foodNeed()}`;
     $('#foodNote').classList.toggle('warn', game.foodPerDawn() + S.food < game.foodNeed());
-    $('#pop').textContent = game.pop();
+    const cw = game.crewing(); $('#pop').textContent = game.pop(); $('#popNote').textContent = cw.need ? `${cw.free} free` : ''; $('#popNote').classList.toggle('warn', cw.need > cw.people);
     const bell = $('#bell');
     if (night || S.over) {
       bell.hidden = true;
@@ -547,7 +549,7 @@ export function startApp() {
     } else {
       bell.hidden = false; bell.textContent = bm ? 'Face the blood moon' : 'Ring the bell';
       const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
-      $('#info').innerHTML = `Tonight <em>~${dead}</em> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
+      $('#info').innerHTML = `Tonight <em>~${dead}</em> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}${game.townDraw() > 1.005 ? ` · <span class="draw">town +${Math.round((game.townDraw() - 1) * 100)}%</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();

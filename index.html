@@ -69,7 +69,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 .ar i{position:absolute;left:-9px;top:-7px;width:0;height:0;border-left:16px solid var(--rot);border-top:7px solid transparent;border-bottom:7px solid transparent;filter:drop-shadow(0 0 3px rgba(0,0,0,.6))}
 .ar span{position:absolute;left:-38px;top:-8px;width:24px;text-align:center;font-size:11px;font-weight:700;color:var(--rot);text-shadow:0 0 3px #000}
 .nestTag{position:absolute;left:0;top:0;background:rgba(18,26,27,.82);color:#f0b8a8;border:1px solid rgba(224,96,74,.6);border-radius:999px;padding:1px 8px 2px;font-size:12px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
-#info .wx{color:#a9c4e0;font-weight:700}#info .wx.still{color:#b4d88a}
+#info .wx{color:#a9c4e0;font-weight:700}#info .draw{color:#e3a07a}#info .wx.still{color:#b4d88a}
 #sndBtn{display:grid;place-items:center}#sndBtn .x{display:none}#sndBtn.off .x{display:inline}#sndBtn.off .w{display:none}#sndBtn.off{color:var(--muted)}
 #crewBtn{width:auto;min-width:36px;border-radius:999px;padding:0 9px;justify-self:end}#crewBtn.alert{background:var(--blood);color:#fff;border-color:var(--blood);animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(213,81,61,.25)}}
 .crew{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:5px;margin:2px 0 6px}
@@ -190,7 +190,7 @@ details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:v
     <div class="pill" id="resPill">
       <span class="r" title="Gold"><span class="dot gold"></span><b id="gold">12</b><span class="tiny" id="goldNote">+3</span></span>
       <span class="r" title="Food"><span class="dot food"></span><b id="food">4</b><span class="tiny" id="foodNote">+0</span></span>
-      <span class="r" title="Citizens"><span class="dot pop"></span><b id="pop">0</b></span>
+      <span class="r" title="People · free to man towers"><span class="dot pop"></span><b id="pop">0</b><span class="tiny" id="popNote"></span></span>
     </div>
   </div>
   <div class="side"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">&minus;</button><button id="logBtn" class="txt" aria-label="Open run log">Log</button><button id="crewBtn" class="txt" aria-label="Your crew of survivors">Crew</button><button id="qBtn" class="txt" aria-label="Graphics quality">HQ</button><button id="sndBtn" aria-label="Sound on"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="w" d="M16.5 8.5a5 5 0 0 1 0 7"/><path class="x" d="M17 9l5 6M22 9l-5 6"/></svg></button></div>

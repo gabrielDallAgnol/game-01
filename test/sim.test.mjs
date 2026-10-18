@@ -68,6 +68,8 @@ test('a survived siege claims the region and wakes the nests behind it', () => {
   const g = createGame({ mode: 'classic', seed: 9, biome: 'riverbend', hero: 'archer' });
   const S = g.state;
   while (S.pendingPicks) g.choosePerk(S.offer[0]);
+  assert.ok(!g.map.regions.some(r => g.canPurge(r.id)), 'a level 1 keep should not march on hives');
+  S.gold = 100; assert.ok(g.upgradeKeep());
   const target = g.map.regions.find(r => g.canPurge(r.id));
   assert.ok(target, 'no region can be marched on');
   S.keep.hp = S.keep.maxHp = 1e6; // make the keep unkillable for this test
@@ -321,4 +323,39 @@ test('clearing rubble on your land costs gold and makes buildable ground', () =>
   assert.ok(r.cells.every(i => g.map.terrain[i] === 0));
   assert.equal(g.rubbleAt(spot.x, spot.y).cells.length, 0);
   g.startNight(); assert.ok(!g.clearRubble(spot.x, spot.y));
+});
+
+test('nothing grows past the keep', () => {
+  const g = createGame({ mode: 'classic', seed: 3 }); readyDay(g); const S = g.state; S.gold = 200;
+  const s = g.map.slots.find(q => S.claimed.has(q.region) && g.canPlace('house', q.x, q.y).ok);
+  assert.ok(g.build('house', s.x, s.y)); const b = S.buildings.find(x => x.type === 'house');
+  assert.ok(!g.upgrade(b.id), 'L2 home with an L1 keep');
+  assert.ok(g.upgradeKeep()); assert.ok(g.upgrade(b.id));
+  assert.ok(!g.upgrade(b.id), 'L3 home with an L2 keep');
+});
+
+test('towers need crew from homes; a bigger town draws more dead', () => {
+  const g = createGame({ mode: 'classic', seed: 3 }); readyDay(g); const S = g.state; S.gold = 300;
+  const spot = t => g.map.slots.find(q => S.claimed.has(q.region) && !q.gate && g.canPlace(t, q.x, q.y).ok);
+  let s = spot('tower'); g.build('tower', s.x, s.y);
+  const t = S.buildings.find(x => x.type === 'tower');
+  assert.equal(g.manned(t), false, 'a tower with nobody in town fires');
+  assert.equal(g.defenceDps() > 0, true);   // the keep still shoots
+  const dps0 = g.defenceDps();
+  s = spot('house'); g.build('house', s.x, s.y);
+  assert.equal(g.manned(t), true, 'two people should man a level 1 tower');
+  assert.ok(g.defenceDps() > dps0);
+  const draw0 = g.townDraw();
+  for (let k = 0; k < 6; k++) { const h = spot('house'); if (h) g.build('house', h.x, h.y); }
+  assert.ok(g.townDraw() >= draw0);
+  for (const b of S.buildings.filter(x => x.type === 'house')) { g.upgradeKeep(); g.upgrade(b.id); }
+  assert.ok(g.townDraw() > 1, 'no extra dead for a big town');
+});
+
+test('blessings: a dawn pick every other day, never more than two picks a dawn', () => {
+  const g = createGame({ seed: 5, hero: 'archer' }); const S = g.state;
+  readyDay(g);
+  const counts = [];
+  for (let n = 0; n < 4 && !S.over; n++) { S.chestsHeld = 4; S.keep.hp = S.keep.maxHp = 1e6; nextDawn(g); counts.push(S.pendingPicks); readyDay(g); }
+  for (const c of counts) assert.ok(c <= 2, `${c} picks in one dawn`);
 });

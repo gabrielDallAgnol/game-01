@@ -12,6 +12,9 @@ import { createScavenge } from './scavenge.js';
 import { WEATHER } from '../content/weather.js';
 
 export const STEP = 1 / 60;
+export const PICKS_PER_DAWN = 2;
+export const TOWN_DRAW = { free: 10, per: 0.02 };
+export const CREW_NEED = [2, 3, 4];        // people a tower needs at level 1/2/3
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
 export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
@@ -230,9 +233,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function activeNests(n = S.night) {
     return map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && adjacentToClaimed(r.id) && S.wake[r.id] <= n).map(r => r.id);
   }
+  // pacing: near hives need a level 2 keep, far ones level 3
+  const keepForRing = ring => Math.min(MAX_LEVEL, 1 + Math.max(1, ring));
   function canPurge(r) {
     const reg = map.regions[r];
-    return S.phase === 'day' && reg && reg.nest && S.nestAlive[r] && !S.claimed.has(r) && adjacentToClaimed(r);
+    return S.phase === 'day' && reg && reg.nest && S.nestAlive[r] && !S.claimed.has(r) && adjacentToClaimed(r) && keep.level >= keepForRing(reg.ring);
   }
 
   // ---------- threat estimate (shared by the purge rating, the log and bots) ----------
@@ -245,7 +250,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // first blood moon brings a nest guardian; from night 10 the Gravelord walks, one more every 10 nights
   function bossesFor(n) { return n < 10 ? ['guardian'] : Array.from({ length: Math.floor(n / 10) }, () => 'gravelord'); }
   const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
-  function nightBudget(n) { return WAVES.budget(n) * territory() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * weatherFor(n).dead; }
+  // a bigger town draws more dead: +2% per citizen past the first 10
+  const townDraw = () => 1 + Math.max(0, pop() - TOWN_DRAW.free) * TOWN_DRAW.per;
+  function nightBudget(n) { return WAVES.budget(n) * territory() * townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * weatherFor(n).dead; }
   function purgeBudget(r, n) { return WAVES.budget(n) * WAVES.purgeShare(map.regions[r].ring); }
   function towerStats(b) {
     const B = BUILDINGS.tower, l = b.level - 1;
@@ -256,13 +263,25 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (has('rally') && !h.dead && (Math.hypot(h.x - b.x, h.y - b.y) < rallyR || (combo('rally', 'watch') && b.paired))) rate /= 1.3;
     return { range, dmg, rate, shots: has('volley') && b.level === 3 ? 2 : 1 };
   }
+  // towers are manned by people from your homes, oldest tower first; a tower without its full crew stays silent
+  let crewKey = -1, crewCache = null;
+  function crewing() {
+    const key = (S.occVersion || 0) * 1000 + (S.phase === 'night' ? 1 : 0);
+    if (S.phase === 'night' && crewCache && crewCache.night === S.night) return crewCache;   // posts are fixed for the night
+    if (key === crewKey && crewCache) return crewCache;
+    let free = pop(); const manned = new Set(); let need = 0;
+    for (const b of S.buildings.filter(x => x.type === 'tower').sort((a, c) => a.id - c.id)) { const n = CREW_NEED[b.level - 1]; need += n; if (free >= n) { manned.add(b.id); free -= n; } }
+    crewKey = key; crewCache = { manned, free, need, people: pop(), night: S.phase === 'night' ? S.night : null };
+    return crewCache;
+  }
+  const manned = b => crewing().manned.has(b.id);
   function cacheNeighbours() {
     for (const b of S.buildings) if (b.type === 'tower') { b.paired = near(b, 'tower', 4); b.walled = near(b, 'wall', 3); }
   }
   function defenceDps() {
     cacheNeighbours();
     let d = 0;
-    for (const b of live()) if (b.type === 'tower') { const t = towerStats(b); d += t.dmg * t.shots / t.rate; }
+    for (const b of live()) if (b.type === 'tower' && manned(b)) { const t = towerStats(b); d += t.dmg * t.shots / t.rate; }
     if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * KEEP.shots[keep.level - 1] + (has('ballista') ? 8 / 3 * 2 : 0);
     return d;
   }
@@ -450,6 +469,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function upgradeWall(id) {
     if (S.phase !== 'day' || S.over) return fail('Upgrade during the day.') && 0;
     const run = wallRun(id); if (!run.length || run[0].level >= MAX_LEVEL) return fail('Cannot upgrade.') && 0;
+    if (run[0].level >= keep.level) return fail(`Raise the keep first: nothing grows past the keep (level ${keep.level}).`) && 0;
     let n = 0;
     for (const b of run) {
       const cost = upCostOf(b); if (S.gold < cost) break;
@@ -463,6 +483,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function upgrade(id) {
     if (S.phase !== 'day' || S.over) return fail('Upgrade during the day.');
     const b = S.byId.get(id); if (!b || b.type === 'keep' || b.level >= MAX_LEVEL) return fail('Cannot upgrade.');
+    if (b.level >= keep.level) return fail(`Raise the keep first: nothing grows past the keep (level ${keep.level}).`);
     const cost = upCostOf(b); if (S.gold < cost) return fail('Not enough gold.');
     S.gold -= cost; S.halfUpgrade = false; S.cur.spent += cost; S.cur.upgraded.push(`${b.type}${b.level + 1}`); S.stats.upgraded++; S.stats.goldSpent += cost;
     raise(b); return true;
@@ -503,6 +524,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     ev('keepUp'); return true;
   }
   function planPurge(r) {
+    if (r !== null && map.regions[r] && keep.level < keepForRing(map.regions[r].ring)) return fail(`Raise the keep to level ${keepForRing(map.regions[r].ring)} first.`);
     if (r === null) { S.purge = null; return true; }
     if (!canPurge(r)) return fail('You can only march on a nest next to your land.');
     S.purge = r; return true;
@@ -512,7 +534,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function startNight() {
     if (S.phase !== 'day' || S.over || S.pendingPicks > 0 || S.packs.length) return false;
     refreshFlow(); cacheNeighbours();
-    S.phase = 'night'; S.queue = makeWave(S.night); S.qT = 0; S.nightFlags = {}; S.ability.hires = 0; S.trade = null;
+    S.phase = 'night'; crewCache = null; crewing(); S.queue = makeWave(S.night); S.qT = 0; S.nightFlags = {}; S.ability.hires = 0; S.trade = null;
     for (const b of S.buildings) b.fell = false;
     const purgeReg = S.purge;
     Object.assign(S.cur, {
@@ -562,8 +584,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.night++; newLog();
     S.weather = rollWeather(S.night); if (S.weather !== 'clear') toast(`Tonight: ${W8().name.toLowerCase()}. ${W8().desc}`, W8().kind);
     S.reroll.cost = REROLL.base;
-    S.picks.push('dawn'); for (let k = 0; k < S.chestsHeld; k++) S.picks.push('chest'); S.chestsHeld = 0;
-    if (nestPick) S.picks.push('nest');
+    const want = [];
+    if (S.night % 2 === 0) want.push('dawn');              // S.night is already the coming night: a dawn blessing every other day
+    if (nestPick) want.push('nest');
+    for (let k = 0; k < S.chestsHeld; k++) want.push('chest');
+    const keepPicks = Math.max(1, PICKS_PER_DAWN), extra = want.slice(keepPicks).filter(x => x === 'chest').length;
+    S.picks.push(...want.slice(0, keepPicks)); S.chestsHeld = 0;
+    if (extra) { earn(extra * 5); toast(`${extra} more ${extra === 1 ? 'chest' : 'chests'} sold for ${extra * 5} gold: two blessings a dawn is the most.`, 'good'); }
     syncPicks(); rollOffer();
     rollPacks();
     if (HC.trader) S.trade = { deals: rng.shuffle([...TRADES]).slice(0, 3).map(t => t.id), done: false };
@@ -928,7 +955,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   function stepTowers(dt) {
     for (const b of live()) {
-      if (b.type !== 'tower') continue;
+      if (b.type !== 'tower' || !manned(b)) continue;
       const t = towerStats(b);
       if (mastery('rain')) { b.rainT += dt; if (b.rainT >= 6) { b.rainT = 0; for (const m of nearestMobs(b.x, b.y, t.range, 3)) fire(3, b.x, b.y, m, t.dmg, 'tower'); } }
       b.cd -= dt; if (b.cd > 0) continue;
@@ -1032,7 +1059,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const ratio = canPurge(r) ? threatRatio(S.night, r) : null;
     return {
       id: r, ring: reg.ring, claimed: S.claimed.has(r), nest: !!reg.nest && S.nestAlive[r], awake: S.wake[r] <= S.night, active: activeNests().includes(r),
-      slots: reg.slots.length, forest: reg.forest, water: reg.water, canPurge: canPurge(r), ratio, rating: ratio === null ? null : ratingOf(ratio),
+      needKeep: keepForRing(reg.ring), slots: reg.slots.length, forest: reg.forest, water: reg.water, canPurge: canPurge(r), ratio, rating: ratio === null ? null : ratingOf(ratio),
       wakes: reg.neighbors.filter(n => map.regions[n].nest && !S.claimed.has(n) && S.wake[n] > S.night).length,
     };
   }
@@ -1055,6 +1082,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     },
     buildLine, upgradeWall, wallRun, wallBudget, lineCells,
     weather: () => ({ id: S.weather, ...W8() }),
+    crewing, manned, townDraw, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
     abilityCost, towerStats: b => towerStats(b), has,
