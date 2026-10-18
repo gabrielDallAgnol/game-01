@@ -708,10 +708,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.drops.push(d); reveal(d.x, d.y, 2.5);
     // its guards: tougher than the roamers around them
     const guards = Math.min(7, 3 + Math.floor(n / 4));
-    for (let k = 0; k < guards; k++) {
+    for (let k = 0, tries = 0; k < guards && tries < 60; tries++) {
       const kind = n >= 6 && k === 0 ? 'brute' : rng.pick(n >= 3 ? ['walker', 'runner', 'walker'] : ['walker']);
-      const a = rng.range(0, Math.PI * 2), x = d.x + Math.cos(a) * rng.range(0.8, 2.2), y = d.y + Math.sin(a) * rng.range(0.8, 2.2), cx = Math.floor(x), cy = Math.floor(y);
-      if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]]) continue;
+      const a = rng.range(0, Math.PI * 2), x = d.x + Math.cos(a) * rng.range(0.8, 2.6), y = d.y + Math.sin(a) * rng.range(0.8, 2.6), cx = Math.floor(x), cy = Math.floor(y);
+      if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue;
+      k++;
       const m = spawnMob(kind, x, y, { instant: true }); m.hp = m.maxHp = Math.ceil(m.maxHp * 1.5); m.roam = { x: d.x, y: d.y, region: -1 };
     }
     ev('drop', { id: d.id, x: d.x, y: d.y }); toast(`${why} A supply drop came down to the ${compass(d.x, d.y)}. It is guarded. Stand by it for 3 seconds to open it.`, 'good');

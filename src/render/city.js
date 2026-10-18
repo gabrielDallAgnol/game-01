@@ -11,7 +11,7 @@ import { bake, vcMat } from './figures.js';
 
 const GROUND = {
   open: '#3d3c39', paved: '#4c4a45', plaza: '#54514b', rubble: '#45433d', rock: '#2f2e2b', ford: '#8d887d', cliff: '#56534c', voidc: '#262522', bed: '#1c2527',
-  lot: '#5c5951', street: '#68645c', deck: '#6f6b63', deckOwn: '#7a7469', ramp: '#77736a',
+  lot: '#5c5951', street: '#68645c', road: '#323336', roadOwn: '#3b3b3d', walk: '#605d57', park: '#4a573c', deck: '#6f6b63', deckOwn: '#7a7469', ramp: '#77736a',
 };
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
 export const HIGH = 1.1;     // height of the plateaus (high ground)
@@ -55,7 +55,8 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
     cellOf.forEach((i, q) => {
       const t = map.terrain[i], x = i % N, y = (i / N) | 0;
       const own = game.zone()[i] === 1;
-      let key = map.lm[i] >= 0 ? 'plaza' : map.high[i] ? (own ? 'deckOwn' : 'deck') : map.ramp[i] ? 'ramp' : t === T.GRASS ? (own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
+      const isWalk = t === T.GRASS && !map.road[i] && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const xx = x + dx, yy = y + dy; return xx >= 0 && yy >= 0 && xx < N && yy < N && map.road[idx(xx, yy)]; });
+      let key = map.lm[i] >= 0 ? 'plaza' : map.road[i] ? (own ? 'roadOwn' : 'road') : isWalk ? 'walk' : t === T.FOREST ? 'park' : map.high[i] ? (own ? 'deckOwn' : 'deck') : map.ramp[i] ? 'ramp' : t === T.GRASS ? (own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
       if (t === T.GRASS || t === T.DIRT || t === T.FOREST) {
         if (S.occ[i] >= 0) key = 'lot';
         else { let st = false; for (let dy = -1; dy <= 1 && !st; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < N && yy < N && S.occ[idx(xx, yy)] >= 0) { st = true; break; } } if (st) key = 'street'; }
@@ -76,7 +77,20 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
     if (r < 0.07) statics.cbox('soot', 0.03, 0.006, 0.5 + rand() * 0.7, x + (rand() - 0.5) * 0.6, 0.004, z + (rand() - 0.5) * 0.6, { r: 0.001, ry: rand() * 3 });
     else if (r < 0.11) statics.cbox('asphalt2', 0.4 + rand() * 0.5, 0.005, 0.3 + rand() * 0.5, x, 0.003, z, { r: 0.001, ry: rand() * 3 });
     else if (r < 0.115) statics.cyl('dark', 0.16, 0.16, 0.01, x, 0, z, { seg: 12 });
-    else if (r < 0.135 && t === T.GRASS) statics.cbox('paint', 0.5, 0.006, 0.06, x, 0.004, z, { r: 0.001, ry: rand() < 0.5 ? 0 : Math.PI / 2 });
+  }
+  // road markings: a dashed centre line between the two lanes, zebra crossings before each junction
+  const isRoad = (x, y) => x >= 0 && y >= 0 && x < N && y < N && map.road[idx(x, y)] === 1;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    if (!isRoad(x, y) || map.high[idx(x, y)]) continue;
+    const X = x - C, Z = y - C;
+    const vert = isRoad(x + 1, y) && !isRoad(x - 1, y) && !isRoad(x + 2, y);   // left lane of a north-south road
+    const horiz = isRoad(x, y + 1) && !isRoad(x, y - 1) && !isRoad(x, y + 2);
+    const junction = (isRoad(x - 1, y) || isRoad(x + 2, y)) && (isRoad(x, y - 1) || isRoad(x, y + 2));
+    if (vert && !junction && y % 2 === 0) statics.cbox('paint', 0.07, 0.006, 0.55, X + 1, 0.005, Z + 0.5, { r: 0.001 });
+    if (horiz && !junction && x % 2 === 0) statics.cbox('paint', 0.55, 0.006, 0.07, X + 0.5, 0.005, Z + 1, { r: 0.001 });
+    // crossings: the road cell right before a junction
+    if (vert && !junction && (isRoad(x - 1, y + 1) || isRoad(x + 2, y + 1)) && !(isRoad(x - 1, y) || isRoad(x + 2, y))) for (let k = 0; k < 5; k++) statics.cbox('paint', 0.28, 0.006, 0.12, X + 0.2 + k * 0.4, 0.005, Z + 0.8, { r: 0.001 });
+    if (horiz && !junction && (isRoad(x + 1, y - 1) || isRoad(x + 1, y + 2)) && !(isRoad(x, y - 1) || isRoad(x, y + 2))) for (let k = 0; k < 5; k++) statics.cbox('paint', 0.12, 0.006, 0.28, X + 0.8, 0.005, Z + 0.2 + k * 0.4, { r: 0.001 });
   }
 
   // ---------- ruins: every rock cell is one bay of a ruined block ----------
@@ -89,13 +103,15 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   }
   const WALLS = ['bone', 'sand', 'stone', 'pale', 'grey', 'sand'];
   const floorsOf = new Int8Array(N * N);
+  const damaged = new Uint8Array(N * N);
   clusters.forEach((cells, id) => {
-    const base = Math.min(4, 1 + Math.floor(rand() * 2.6) + (cells.length > 14 ? 1 : 0));
+    const base = Math.min(5, 2 + Math.floor(rand() * 2.6) + (cells.length > 14 ? 1 : 0)), hit = rand() < 0.3;   // a recently fallen city: most blocks still stand
     const ruinCorner = cells[Math.floor(rand() * cells.length)];
     for (const i of cells) {
+      damaged[i] = hit ? 1 : 0;
       const d = Math.hypot((i % N) - (ruinCorner % N), ((i / N) | 0) - ((ruinCorner / N) | 0));
-      const drop = d < 2.5 ? Math.floor(base * (0.4 + rand() * 0.5)) : rand() < 0.15 ? 1 : 0;
-      floorsOf[i] = Math.max(1, base - drop + (rand() < 0.2 ? 1 : 0));
+      const drop = hit && d < 2.5 ? Math.floor(base * (0.4 + rand() * 0.5)) : 0;
+      floorsOf[i] = Math.max(1, base - drop);
     }
   });
   const hOfCell = f => GROUND_FLOOR + (f - 1) * FLOOR;
@@ -114,7 +130,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
         // windows on every floor that shows on this side
         for (let fl = Math.max(1, nf + 1); fl <= f; fl++) {
           const y0 = fl === 1 ? 0 : hOfCell(fl - 1), ww = fl === 1 ? 0.62 : 0.46, wh = fl === 1 ? 0.75 : 0.56, wy = y0 + (fl === 1 ? 0.18 : 0.26);
-          const burnt = rand() < 0.22;
+          const burnt = rand() < (damaged[i] ? 0.25 : 0.04);
           if (ax === 'x') { statics.box(burnt ? 'soot' : 'glass', 0.04, wh, ww, x + ox, wy, z, { r: 0.004 }); statics.box(trim, 0.07, 0.05, ww + 0.12, x + ox, wy - 0.05, z, { r: 0.005 }); }
           else { statics.box(burnt ? 'soot' : 'glass', ww, wh, 0.04, x, wy, z + oz, { r: 0.004 }); statics.box(trim, ww + 0.12, 0.05, 0.07, x, wy - 0.05, z + oz, { r: 0.005 }); }
           if (burnt && fl < f) { if (ax === 'x') statics.box('soot', 0.02, 0.35, ww * 0.9, x + dx * 0.505, wy + wh, z, { r: 0.002 }); else statics.box('soot', ww * 0.9, 0.35, 0.02, x, wy + wh, z + dy * 0.505, { r: 0.002 }); }
@@ -123,7 +139,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
         // parapet where the roof meets a lower neighbour
         if (nf < f) { if (ax === 'x') statics.box(trim, 0.08, 0.22, 1.0, x + dx * 0.46, h, z, { r: 0.01 }); else statics.box(trim, 1.0, 0.22, 0.08, x, h, z + dy * 0.46, { r: 0.01 }); }
         // creepers on the lower walls
-        if (nf === 0 && rand() < 0.08) for (let k2 = 0; k2 < 5; k2++) statics.sph(leaf[k2 % 2], 0.18 + rand() * 0.12, x + ox * 1.02 + (ax === 'z' ? (rand() - 0.5) * 0.8 : 0), rand() * Math.min(h, 2.6), z + oz * 1.02 + (ax === 'x' ? (rand() - 0.5) * 0.8 : 0), { detail: 0, sx: ax === 'x' ? 0.4 : 1, sz: ax === 'z' ? 0.4 : 1 });
+        if (nf === 0 && rand() < (damaged[i] ? 0.08 : 0.02)) for (let k2 = 0; k2 < 5; k2++) statics.sph(leaf[k2 % 2], 0.18 + rand() * 0.12, x + ox * 1.02 + (ax === 'z' ? (rand() - 0.5) * 0.8 : 0), rand() * Math.min(h, 2.6), z + oz * 1.02 + (ax === 'x' ? (rand() - 0.5) * 0.8 : 0), { detail: 0, sx: ax === 'x' ? 0.4 : 1, sz: ax === 'z' ? 0.4 : 1 });
       }
       // roof: a tar membrane with clutter, or a broken top with slabs and rebar
       statics.cbox('roof', 0.98, 0.04, 0.98, x, h + 0.02, z, { r: 0.004 });
@@ -132,7 +148,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
         if (r < 0.1) statics.box('steel', 0.36, 0.26, 0.28, x + (rand() - 0.5) * 0.4, h, z + (rand() - 0.5) * 0.4, { r: 0.03 });
         else if (r < 0.14) { statics.cyl('stone', 0.28, 0.28, 0.45, x, h + 0.35, z, { seg: 10 }); for (const [a, b] of [[-0.2, -0.2], [0.2, 0.2], [-0.2, 0.2], [0.2, -0.2]]) statics.box('metal', 0.03, 0.35, 0.03, x + a, h, z + b, { r: 0.005 }); }
       }
-      if (f < 3 && rand() < 0.5) {
+      if (damaged[i] && f < 3 && rand() < 0.5) {
         statics.cbox('slab', 0.8, 0.08, 0.6, x + (rand() - 0.5) * 0.3, h + 0.08, z + (rand() - 0.5) * 0.3, { r: 0.01, rx: (rand() - 0.5) * 0.5, rz: (rand() - 0.5) * 0.5 });
         for (let k2 = 0; k2 < 2; k2++) statics.cyl('rebar', 0.012, 0.012, 0.35 + rand() * 0.3, x + (rand() - 0.5) * 0.8, h, z + (rand() - 0.5) * 0.8, { seg: 4, rx: (rand() - 0.5) * 0.7, rz: (rand() - 0.5) * 0.7 });
       }
@@ -149,8 +165,8 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
     for (let y = cy0; y < cy0 + CH; y++) for (let x0 = cx0; x0 < cx0 + CH; x0++) {
       const i = idx(x0, y); if (map.terrain[i] !== T.FOREST) continue;
       any = true; const r = mulberry32(i * 7919 + 13), x = x0 - C + 0.5, z = y - C + 0.5;
-      for (let k = 0, n = r() < 0.5 ? 1 : 2; k < n; k++) { const sz = 0.1 + r() * 0.2; rub.cbox(rubCols[Math.floor(r() * 5)], sz * 1.6, sz * 0.7, sz, x + (r() - 0.5) * 0.85, sz * 0.3, z + (r() - 0.5) * 0.85, { r: 0.01, rx: r() * 3, ry: r() * 3, rz: r() * 3 }); }
-      if (r() < 0.35) for (let k = 0; k < 3; k++) rub.sph(leaf[k % 2], 0.16 + r() * 0.16, x + (r() - 0.5) * 0.7, 0.08, z + (r() - 0.5) * 0.7, { detail: 0, sy: 0.6 });
+      if (r() < 0.82) { r(); r(); r(); r(); r(); r(); r(); } else for (let k = 0, n = 1; k < n; k++) { const sz = 0.1 + r() * 0.2; rub.cbox(rubCols[Math.floor(r() * 5)], sz * 1.6, sz * 0.7, sz, x + (r() - 0.5) * 0.85, sz * 0.3, z + (r() - 0.5) * 0.85, { r: 0.01, rx: r() * 3, ry: r() * 3, rz: r() * 3 }); }
+      if (r() < 0.6) for (let k = 0; k < 3; k++) rub.sph(leaf[k % 2], 0.16 + r() * 0.16, x + (r() - 0.5) * 0.7, 0.08, z + (r() - 0.5) * 0.7, { detail: 0, sy: 0.6 });
       if (r() < 0.08) rub.cyl('rebar', 0.012, 0.012, 0.4, x + (r() - 0.5) * 0.6, 0.05, z + (r() - 0.5) * 0.6, { seg: 4, rx: r(), rz: r() });
     }
     if (!any) return;
@@ -169,9 +185,12 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   };
   const cellPos = (i, d, jitter = 0.3) => d.position.set((i % N) - C + 0.5 + (rand() - 0.5) * jitter, 0, ((i / N) | 0) - C + 0.5 + (rand() - 0.5) * jitter);
   const pickCells = (list, p) => list.filter(() => rand() < p);
-  props(() => K.tree({ dead: true, seed: 3 }), pickCells(forest, 0.1), (i, d) => { cellPos(i, d); d.scale.setScalar(0.3 + rand() * 0.1); d.rotation.set(0, rand() * 6, 0); });
-  props(() => K.tree({ seed: 7, h: 5 }), pickCells(forest, 0.015), (i, d) => { cellPos(i, d); d.scale.setScalar(0.24 + rand() * 0.05); d.rotation.set(0, rand() * 6, 0); });
-  props(() => K.bush({ seed: 5, n: 5 }), pickCells(forest, 0.1), (i, d) => { cellPos(i, d); d.scale.set(0.34 + rand() * 0.12, 0.22, 0.34 + rand() * 0.12); d.rotation.set(0, rand() * 6, 0); });
+  props(() => K.tree({ dead: true, seed: 3 }), pickCells(forest, 0.025), (i, d) => { cellPos(i, d); d.scale.setScalar(0.3 + rand() * 0.1); d.rotation.set(0, rand() * 6, 0); });
+  props(() => K.tree({ seed: 7, h: 5 }), pickCells(forest, 0.22), (i, d) => { cellPos(i, d); d.scale.setScalar(0.24 + rand() * 0.05); d.rotation.set(0, rand() * 6, 0); });
+  props(() => K.bush({ seed: 5, n: 5 }), pickCells(forest, 0.18), (i, d) => { cellPos(i, d); d.scale.set(0.34 + rand() * 0.12, 0.22, 0.34 + rand() * 0.12); d.rotation.set(0, rand() * 6, 0); });
+  // street trees along the sidewalks
+  const walks = []; for (let i = 0; i < N * N; i++) { const x = i % N, y = (i / N) | 0; if (map.terrain[i] === T.GRASS && !map.road[i] && !map.high[i] && map.lm[i] < 0 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isRoad(x + dx, y + dy)) && (x + y) % 3 === 0) walks.push(i); }
+  props(() => K.tree({ seed: 9, h: 4 }), pickCells(walks, 0.35), (i, d) => { cellPos(i, d, 0.1); d.scale.setScalar(0.2 + rand() * 0.04); d.rotation.set(0, rand() * 6, 0); });
   const wreckCells = pickCells(forest.concat(pickCells([...Array(N * N).keys()].filter(i => map.terrain[i] === T.GRASS && !map.high[i] && !map.ramp[i] && !(map.region[i] >= 0 && S.claimed.has(map.region[i]))), 0.01)), 0.04);
   ['rust', 'stone', 'grey', 'pale'].forEach((color, v) => props(() => K.car({ wreck: true, color, seed: 11 + v }), wreckCells.filter((_, k) => k % 4 === v), (i, d) => { cellPos(i, d, 0.2); d.scale.setScalar(0.3); d.rotation.set((rand() - 0.5) * 0.08, rand() * 6, (rand() - 0.5) * 0.08); }));
 

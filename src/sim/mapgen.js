@@ -46,17 +46,32 @@ export function generateMap(seed, biome) {
   const f1 = valueNoise(hashSeed(seed, 'forest'), 7), f2 = valueNoise(hashSeed(seed, 'forest2'), 3);
   const rk = valueNoise(hashSeed(seed, 'rock'), 4);
 
-  // 1. base terrain
+  // 1. base terrain: a street grid (Red Alert-clear roads) with city blocks between them.
+  //    A block is either buildings round a courtyard (with alleys), a park, or an open lot.
+  const BLOCK = 12, ROADW = 2, road = new Uint8Array(N * N);
+  const bx = x => Math.floor((x - c + 1000 * BLOCK) / BLOCK), inBlock = v => ((v - Math.floor(c) + 1000 * BLOCK) % BLOCK);
+  const blockKind = new Map();
+  const kindOf = (x, y) => { const k = bx(x) * 997 + bx(y); if (!blockKind.has(k)) { const r = rng.next(); blockKind.set(k, r < 0.5 ? 'buildings' : r < 0.78 ? 'park' : 'lot'); } return blockKind.get(k); };
+  function cityCell(x, y, d) {
+    const ux = inBlock(x), uy = inBlock(y);
+    if (ux < ROADW || uy < ROADW) { road[idx(x, y)] = 1; return T.GRASS; }
+    if (d < 8) return T.GRASS;
+    const ex = Math.min(ux - ROADW, BLOCK - 1 - ux), ey = Math.min(uy - ROADW, BLOCK - 1 - uy), e = Math.min(ex, ey);   // 0 = sidewalk
+    if (e === 0) return T.GRASS;
+    const kind = kindOf(x, y);
+    if (kind === 'buildings') {
+      if (e <= 2) { const alley = (ex === Math.floor((BLOCK - ROADW) / 2) || ey === Math.floor((BLOCK - ROADW) / 2)) && rk(x, y) > 0.45; return alley ? T.GRASS : T.ROCK; }
+      return f1(x, y) > 0.55 ? T.FOREST : T.GRASS;   // the courtyard
+    }
+    if (kind === 'park') return (0.65 * f1(x, y) + 0.35 * f2(x, y)) > 0.38 ? T.FOREST : T.GRASS;
+    return f2(x, y) > 0.8 ? T.FOREST : T.GRASS;
+  }
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const d = Math.hypot(x + 0.5 - c, y + 0.5 - c);
     let t = T.GRASS;
     const vale = biome === 'vale';
     if (vale ? !valeInside(x + 0.5 - c, y + 0.5 - c) : d > R) t = vale && valeInside(x + 0.5 - c, y + 0.5 - c, 1.6) ? T.CLIFF : T.VOID;
-    else {
-      const f = 0.65 * f1(x, y) + 0.35 * f2(x, y);
-      if (f > 0.6 && d > 8) t = T.FOREST;
-      if (rk(x, y) > 0.83 && d > 9.5) t = T.ROCK;
-    }
+    else t = cityCell(x, y, d);
     terrain[idx(x, y)] = t;
   }
 
@@ -281,7 +296,8 @@ export function generateMap(seed, biome) {
   cells.sort((a, b) => Math.hypot(a[0] - c, a[1] - c) - Math.hypot(b[0] - c, b[1] - c));
   for (const [x, y] of cells) tryLot(x, y);
   for (const reg of regions) reg.neighbors = [...reg.neighbors].sort((p, q) => p - q);
-  return { N, seed, biome, name: BIOMES[biome].name, terrain, region, regions, slots, reach, high, ramp, lm, landmarks, town: { x: c, y: c }, feature };
+  for (let i = 0; i < N * N; i++) if (terrain[i] !== T.GRASS && terrain[i] !== T.DIRT) road[i] = 0;
+  return { N, seed, biome, name: BIOMES[biome].name, terrain, region, regions, slots, reach, high, ramp, lm, landmarks, road, town: { x: c, y: c }, feature };
 }
 
 /** Quick checks used by tests and by the map picker to reject weak maps. */
