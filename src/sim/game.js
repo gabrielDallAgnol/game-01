@@ -13,8 +13,8 @@ import { WEATHER } from '../content/weather.js';
 
 export const STEP = 1 / 60;
 export const PICKS_PER_DAWN = 2;
-export const TOWN_DRAW = { free: 10, per: 0.02 };
-export const CREW_NEED = [2, 3, 4];        // people a tower needs at level 1/2/3
+export const TOWN_DRAW = { free: 15, per: 0.01 };
+export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/3
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
 export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
@@ -250,7 +250,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // first blood moon brings a nest guardian; from night 10 the Gravelord walks, one more every 10 nights
   function bossesFor(n) { return n < 10 ? ['guardian'] : Array.from({ length: Math.floor(n / 10) }, () => 'gravelord'); }
   const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
-  // a bigger town draws more dead: +2% per citizen past the first 10
+  // a bigger town draws more dead: +1% per citizen past the first 15
   const townDraw = () => 1 + Math.max(0, pop() - TOWN_DRAW.free) * TOWN_DRAW.per;
   function nightBudget(n) { return WAVES.budget(n) * territory() * townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * weatherFor(n).dead; }
   function purgeBudget(r, n) { return WAVES.budget(n) * WAVES.purgeShare(map.regions[r].ring); }

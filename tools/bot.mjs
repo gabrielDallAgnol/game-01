@@ -77,7 +77,7 @@ export function dayTurn(g, strat) {
   choosePack(g, strat);
   // walk the shopping list round-robin, so every item gets its turn instead of the first one eating all the gold
   const S = g.state, list = STRATEGIES[strat](S.night);
-  for (const t of ['house', 'farm', 'tower', 'wall']) for (let k = 0; k < (t === 'wall' ? 12 : 6) && (S.stock[t] || 0) > 0; k++) { if (t === 'tower' && g.crewing().free < 2) break; if (!place(g, t)) break; }
+  for (const t of ['house', 'farm', 'tower', 'wall']) for (let k = 0; k < (t === 'wall' ? 12 : 6) && (S.stock[t] || 0) > 0; k++) { if (t === 'tower' && g.crewing().free < 1) break; if (!place(g, t)) break; }
   let k = 0, misses = 0;
   while (misses < list.length + 2) {
     const act = list[k % list.length]; k++;
@@ -102,7 +102,7 @@ function tryAct(g, act) {
   }
   if (act === 'farm' && foodNet > 3) return false;
   if (act === 'house' && foodNet < 0) return false; // do not add mouths you cannot feed
-  if (act === 'tower' && g.crewing().free < 2) return foodNet >= 0 ? place(g, 'house') : place(g, 'farm');   // no one to man it: build homes first
+  if (act === 'tower' && g.crewing().free < 1) return foodNet >= 0 ? place(g, 'house') : place(g, 'farm');   // no one to man it: build homes first
   return place(g, act);
 }
 
