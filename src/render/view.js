@@ -1,6 +1,6 @@
 // three.js view of a game: the ruined city. It only reads game state and drains events.
 /* global THREE */
-import { N, T, idx, PASSABLE } from '../sim/mapgen.js';
+import { N, T, idx, PASSABLE, LANDMARKS } from '../sim/mapgen.js';
 import { mulberry32 } from '../sim/rng.js';
 import { MOBS } from '../content/mobs.js';
 import { mat, chestMesh, purseMesh, flameMesh } from './meshes.js';
@@ -18,6 +18,7 @@ const HIVES = ['metro', 'petrol', 'hospital'];
 
 export function createView(canvas, game, opts = {}) {
   const S = game.state, map = game.map, C = map.town.x;
+  const seenAt = (x, y) => { const cx = Math.floor(x), cy = Math.floor(y); return cx >= 0 && cy >= 0 && cx < N && cy < N && S.seen[idx(cx, cy)] === 1; };
   let elev = () => 0;   // ground height (plateaus), set once the city is built
   const W = (x, y, h = 0) => new THREE.Vector3(x - C, h + elev(x, y), y - C);
   const vis = mulberry32(map.seed * 7 + 3);
@@ -190,7 +191,7 @@ export function createView(canvas, game, opts = {}) {
     for (const [id, v] of dropViews) if (!seen.has(id)) { world.remove(v.g); dropViews.delete(id); burst(v.g.position.x + C, v.g.position.z + C, 1.5, '#f0c050'); }
   }
   function updateLandmarks(t) {
-    for (const v of lmViews) { v.pole.visible = v.l.owned; v.mark.visible = !v.l.owned && S.phase === 'day'; if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3; }
+    for (const v of lmViews) { v.g.visible = LANDMARKS[v.l.kind].signature || seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned; v.mark.visible = !v.l.owned && S.phase === 'day'; if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3; }
   }
 
   // ---------- markers ----------
@@ -596,6 +597,7 @@ export function createView(canvas, game, opts = {}) {
     for (const m of S.mobs) {
       const e = mobState.get(m.id); if (!e) continue;
       e.x = m.x; e.y = m.y;
+      if (!seenAt(m.x, m.y)) { e.bar.visible = false; continue; }   // the dead in unexplored streets stay hidden
       let d = (m.face || 0) - e.face; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; e.face += d * Math.min(1, dt * 6);
       e.phase += dt * (m.speed || 1.5) * 3.2;
       const fr = m.attacking ? 0 : (Math.sin(e.phase) > 0 ? 0 : 1);
@@ -629,7 +631,7 @@ export function createView(canvas, game, opts = {}) {
     if (nk !== nestKey) { nestKey = nk; nearNests = new Set(S.phase === 'day' ? [...hives.keys()].filter(r => game.canPurge(r)) : []); }
     for (const [r, hv] of hives) {
       const live = (active.has(r) || S.purge === r) && !hv.cleared;
-      hv.g.visible = !hv.cleared || true;
+      hv.g.visible = seenAt(map.regions[r].nest.x, map.regions[r].nest.y) || live;
       const want = hv.cleared ? 0 : live ? 1 : nearNests.has(r) ? 0.15 : 0;
       hv.glow += (want - hv.glow) * Math.min(1, dt * 2);
       const siege = S.purge === r, colr = siege ? lc('#e3a54a') : lc('#8fff3a');

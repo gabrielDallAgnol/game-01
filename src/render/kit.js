@@ -40,7 +40,9 @@ export const K = (() => {
   vec3 cool = mix(vec3(l), c, 0.45) * vec3(0.9, 0.97, 1.08) * tDark;
   gl_FragColor.rgb = mix(c, cool, wild);
   float seen = texture2D(tMask, (vTWorld.xz + tOff) / 128.0).g;
-  gl_FragColor.rgb *= 0.02 + 0.98 * smoothstep(0.15, 0.85, seen);`);
+  // unexplored: the land shows through, grey and dim, like a map not yet walked
+  float lit = smoothstep(0.15, 0.85, seen); float gl = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+  gl_FragColor.rgb = mix(vec3(gl) * vec3(0.78, 0.84, 0.95) * 0.5, gl_FragColor.rgb, lit);`);
     };
     m.customProgramCacheKey = () => 'territory';
     return m;
