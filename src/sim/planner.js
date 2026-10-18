@@ -17,7 +17,7 @@ export function createPlanner(g) {
     const out = [], ox = Math.floor(town.x), oy = Math.floor(town.y);
     for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
       if ((x - ox) % 3 || (y - oy) % 3) continue;
-      const i = idx(x, y), r = map.region[i]; if (r < 0 || !S.claimed.has(r)) continue;
+      const i = idx(x, y), r = map.region[i]; if (r < 0 || !g.zone()[i]) continue;
       const tt = map.terrain[i]; if (tt !== T.GRASS && tt !== T.DIRT) continue;
       out.push({ x: x + 0.5, y: y + 0.5 });
     }

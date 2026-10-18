@@ -30,7 +30,7 @@ export function createView(canvas, game, opts = {}) {
 
   // ---------- the city ----------
   CFG.lite = true;
-  const city = buildCity({ map, S, world, W: (x, y, h = 0) => new THREE.Vector3(x - C, h, y - C), C, rand: vis }); elev = city.heightAt;
+  const city = buildCity({ game, map, S, world, W: (x, y, h = 0) => new THREE.Vector3(x - C, h, y - C), C, rand: vis }); elev = city.heightAt;
 
   // ---------- night lights: a fixed pool, handed to the sources nearest the camera ----------
   const POOL = 6, pool = [];
@@ -77,6 +77,7 @@ export function createView(canvas, game, opts = {}) {
 
   // ---------- scavenge sites: a cache of supplies at a doorway into the ruins ----------
   const diaGeo = new THREE.OctahedronGeometry(0.3, 0); diaGeo.scale(1, 1.5, 1);
+  const diaGeoL = new THREE.OctahedronGeometry(0.4, 0); diaGeoL.scale(1, 1.5, 1); const diaWhite = new THREE.MeshBasicMaterial({ color: lc('#f4efe2').multiplyScalar(1.5) });
   // marker colour by distance: pale = your land, amber = next door, red = deep in the city
   const diaMats = ['#e8dcb0', '#f0a24a', '#e8553a'].map(c => new THREE.MeshBasicMaterial({ color: lc(c).multiplyScalar(1.7) })), diaMat = diaMats[1];
   const sites = S.scav.sites.map(st => {
@@ -103,6 +104,69 @@ export function createView(canvas, game, opts = {}) {
       }
     }
     for (const m of sites) if (m.g.visible) { m.dia.position.y = 1.9 + Math.sin(t * 2.2 + m.st.id) * 0.12; m.dia.rotation.y = t * 1.2; m.lamp.material.opacity = 0.6 + Math.sin(t * 7 + m.st.id) * 0.15; }
+  }
+
+  // ---------- landmarks: intact buildings to claim; the city's signature one rises above the shroud ----------
+  const LMAT = {
+    iron: new THREE.MeshStandardMaterial({ color: lc('#6b5a48'), roughness: 0.7, metalness: 0.3 }),
+    steel: new THREE.MeshStandardMaterial({ color: lc('#c9ccd0'), roughness: 0.35, metalness: 0.6 }),
+    stone: new THREE.MeshStandardMaterial({ color: lc('#e3ddd0'), roughness: 0.85 }),
+    red: new THREE.MeshStandardMaterial({ color: lc('#c4473a'), roughness: 0.6 }),
+    concrete: new THREE.MeshStandardMaterial({ color: lc('#b9b4aa'), roughness: 0.9 }),
+  };
+  const part = (geo, mat, x, y, z, o = {}) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (o.rx) m.rotation.x = o.rx; if (o.rz) m.rotation.z = o.rz; if (o.ry) m.rotation.y = o.ry; m.castShadow = true; m.receiveShadow = true; return m; };
+  function eiffel() {
+    const g = new THREE.Group(), H = 13;
+    for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {   // four curved legs as three tapering segments
+      let px = 2.1 * sx, pz = 2.1 * sz, py = 0;
+      for (const [len, k, w] of [[3.4, 0.62, 0.42], [3.2, 0.42, 0.3], [5.2, 0.12, 0.2]]) {
+        const nx = px * k, nz = pz * k, ny = py + len, mx = (px + nx) / 2, mz = (pz + nz) / 2, l = Math.hypot(nx - px, len, nz - pz);
+        const leg = part(new THREE.BoxGeometry(w, l, w), LMAT.iron, mx, py + len / 2, mz);
+        leg.lookAt(nx, ny, nz); leg.rotateX(Math.PI / 2); g.add(leg);
+        px = nx; pz = nz; py = ny;
+      }
+    }
+    g.add(part(new THREE.BoxGeometry(3.4, 0.25, 3.4), LMAT.iron, 0, 3.4, 0));
+    g.add(part(new THREE.BoxGeometry(1.9, 0.2, 1.9), LMAT.iron, 0, 6.6, 0));
+    g.add(part(new THREE.BoxGeometry(0.5, 0.5, 0.5), LMAT.iron, 0, 11.8, 0));
+    g.add(part(new THREE.CylinderGeometry(0.03, 0.08, 1.6, 6), LMAT.iron, 0, 12.8, 0));
+    for (const [sx] of [[1], [-1]]) g.add(part(new THREE.TorusGeometry(1.35, 0.09, 6, 16, Math.PI), LMAT.iron, 0, 0.05, 2.1 * sx, { ry: sx > 0 ? 0 : Math.PI }));
+    return g;
+  }
+  function tvtower() {
+    const g = new THREE.Group();
+    g.add(part(new THREE.CylinderGeometry(0.32, 0.55, 10, 16), LMAT.concrete, 0, 5, 0));
+    g.add(part(new THREE.SphereGeometry(1.15, 24, 16), LMAT.steel, 0, 10.4, 0));
+    g.add(part(new THREE.CylinderGeometry(0.5, 0.6, 0.35, 16), LMAT.concrete, 0, 9.1, 0));
+    g.add(part(new THREE.CylinderGeometry(0.12, 0.18, 2.4, 10), LMAT.concrete, 0, 12.6, 0));
+    for (let k = 0; k < 4; k++) g.add(part(new THREE.CylinderGeometry(0.05, 0.06, 0.45, 6), k % 2 ? LMAT.stone : LMAT.red, 0, 13.9 + k * 0.45, 0));
+    for (let k = 0; k < 3; k++) { const a = k * Math.PI * 2 / 3; g.add(part(new THREE.BoxGeometry(1.8, 0.7, 0.35), LMAT.concrete, Math.cos(a) * 1.0, 0.35, Math.sin(a) * 1.0, { ry: -a })); }
+    return g;
+  }
+  function christ() {
+    const g = new THREE.Group();
+    g.add(part(new THREE.BoxGeometry(1.4, 1.6, 1.4), LMAT.stone, 0, 0.8, 0));
+    g.add(part(new THREE.CylinderGeometry(0.42, 0.62, 2.6, 12), LMAT.stone, 0, 2.9, 0));
+    g.add(part(new THREE.BoxGeometry(3.6, 0.42, 0.38), LMAT.stone, 0, 3.95, 0));
+    g.add(part(new THREE.CylinderGeometry(0.3, 0.42, 0.7, 10), LMAT.stone, 0, 4.35, 0));
+    g.add(part(new THREE.SphereGeometry(0.27, 14, 10), LMAT.stone, 0, 4.85, 0));
+    return g;
+  }
+  const fitTo = (m, size) => { const b = new THREE.Box3().setFromObject(m), w = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) || 1; m.scale.multiplyScalar(size * 0.92 / w); return m; };
+  const flagGeo = new THREE.PlaneGeometry(0.7, 0.42), flagMat = new THREE.MeshBasicMaterial({ color: lc('#d9843a').multiplyScalar(1.3), side: THREE.DoubleSide });
+  const lmViews = S.landmarks.map(l => {
+    const g = new THREE.Group(); g.position.copy(W(l.x, l.y)); g.rotation.y = Math.atan2(C - l.x, C - l.y);
+    let m;
+    if (l.kind === 'eiffel') m = eiffel(); else if (l.kind === 'tvtower') m = tvtower(); else if (l.kind === 'christ') m = christ();
+    else { CFG.hiveGlow = 0; m = l.kind === 'police' ? K.police({}) : l.kind === 'clinic' ? K.hospital({}) : K.petrol({}); CFG.hiveGlow = 1; fitTo(m, l.size); }
+    g.add(m);
+    const pole = new THREE.Group(); pole.add(part(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), LMAT.iron, 0, 0.8, 0)); const flag = new THREE.Mesh(flagGeo, flagMat); flag.position.set(0.36, 1.35, 0); pole.add(flag);
+    pole.position.set(l.size / 2 + 0.3, 0, 0); pole.visible = false; g.add(pole);
+    const mark = new THREE.Mesh(diaGeoL, diaWhite); mark.position.y = l.kind === 'eiffel' || l.kind === 'tvtower' ? 2.5 : l.kind === 'christ' ? 6 : 3.2; g.add(mark);
+    world.add(g); return { l, g, pole, flag, mark };
+  });
+  function updateLandmarks(t) {
+    for (const v of lmViews) { v.pole.visible = v.l.owned; v.mark.visible = !v.l.owned && S.phase === 'day'; if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3; }
   }
 
   // ---------- markers ----------
@@ -388,7 +452,7 @@ export function createView(canvas, game, opts = {}) {
     }
     rain.count = n; rain.instanceMatrix.needsUpdate = true;
   }
-  let focus = null, seenV = -1, shroudT = 0;
+  let focus = null, seenV = -1, zoneV = -1, shroudT = 0;
   let dark = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
 
   // which warm lights matter: the keep fire, lanterns on towers, lit homes; the nearest win the pool
@@ -409,8 +473,9 @@ export function createView(canvas, game, opts = {}) {
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
-    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt);
-    if (S.seenVersion !== seenV && (shroudT -= dt) <= 0) { shroudT = 0.3; seenV = S.seenVersion; city.setTerritory(); }
+    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time);
+    game.zone();
+    if ((S.seenVersion !== seenV || S.zoneVersion !== zoneV) && (shroudT -= dt) <= 0) { shroudT = 0.3; if (S.zoneVersion !== zoneV) repaint = true; seenV = S.seenVersion; zoneV = S.zoneVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }
     const night = S.phase === 'night' || S.phase === 'over';
     dark += ((night ? 1 : 0) - dark) * Math.min(1, dt * 1.4);
@@ -540,6 +605,7 @@ export function createView(canvas, game, opts = {}) {
       else if (sel.type === 'keep') { x = C; y = C; s = 1.9; }
       else if (sel.type === 'region') { const n = map.regions[sel.id].nest; x = n.x; y = n.y; s = 1.8; }
       else if (sel.type === 'rubble') { x = Math.floor(sel.x) + 0.5; y = Math.floor(sel.y) + 0.5; s = 1.0; }
+      else if (sel.type === 'landmark') { const l = S.landmarks[sel.id]; x = l.x; y = l.y; s = l.size * 0.6; }
       else if (sel.type === 'site') { const st = S.scav.sites[sel.id]; x = st.x; y = st.y; s = 0.6; }
       selRing.position.copy(W(x, y, 0.1)); const k = s + Math.sin(time * 4) * 0.04; selRing.scale.set(k, k, k);
       if (sel.range) { rangeRing.visible = true; rangeRing.position.copy(W(x, y, 0.09)); rangeRing.scale.set(sel.range, sel.range, sel.range); }
@@ -559,6 +625,7 @@ export function createView(canvas, game, opts = {}) {
   function pick(cx, cy) {
     const p = groundAt(cx, cy); if (!p) return null;
     for (const m of sites) if (m.g.visible && Math.hypot(m.st.x - p.x, m.st.y - p.y) < 1.1) return { type: 'site', id: m.st.id, ...p };
+    { const cx = Math.floor(p.x), cy = Math.floor(p.y); if (cx >= 0 && cy >= 0 && cx < N && cy < N && map.lm[idx(cx, cy)] >= 0) return { type: 'landmark', id: map.lm[idx(cx, cy)], ...p }; }
     const b = game.buildingAt(p.x, p.y);
     if (b && b.type === 'keep') return { type: 'keep', ...p };
     if (b) return { type: 'building', id: b.id, ...p };

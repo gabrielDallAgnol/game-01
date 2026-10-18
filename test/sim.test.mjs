@@ -311,7 +311,7 @@ test('clearing rubble on your land costs gold and makes buildable ground', () =>
   let g, spot;
   for (let seed = 1; seed < 40 && !spot; seed++) {
     g = createGame({ seed }); const S = g.state, N = Math.sqrt(g.map.terrain.length);
-    for (let i = 0; i < g.map.terrain.length && !spot; i++) if (g.map.terrain[i] === 1 && S.claimed.has(g.map.region[i]) && S.occ[i] < 0) spot = { x: i % N + 0.5, y: Math.floor(i / N) + 0.5 };
+    for (let i = 0; i < g.map.terrain.length && !spot; i++) if (g.map.terrain[i] === 1 && g.zone()[i] && S.occ[i] < 0) spot = { x: i % N + 0.5, y: Math.floor(i / N) + 0.5 };
   }
   assert.ok(spot, 'no rubble in any starting town');
   readyDay(g); const S = g.state;
@@ -398,4 +398,17 @@ test('blessings: each hero only sees their own family plus the shared ones', () 
     for (const f of others) assert.ok(!fams.has(f), `${hero} was offered ${f} blessings`);
     assert.ok(fams.has(own), `${hero} never saw their own family`);
   }
+});
+
+test('build zone: near the keep at first, and every building widens it', () => {
+  const g = createGame({ mode: 'classic', seed: 9 }); readyDay(g); const S = g.state; S.gold = 200;
+  const t = g.map.town, far = { x: t.x + 13.5, y: t.y + 0.5 };
+  const z0 = g.zone().reduce((a, v) => a + v, 0);
+  assert.ok(!g.inZone(far.x, far.y), 'zone reaches too far at the start');
+  // build outward toward the far spot
+  for (let k = 0; k < 6; k++) { const p = [...Array(30).keys()].map(d => ({ x: t.x + 4 + k * 2 + (d % 5), y: t.y - 2 + Math.floor(d / 5) })).find(q => g.canPlace('tower', q.x + 0.5, q.y + 0.5).ok); if (p) g.build('tower', p.x + 0.5, p.y + 0.5); }
+  assert.ok(g.zone().reduce((a, v) => a + v, 0) > z0, 'buildings did not widen the zone');
+  const hive = g.map.regions.find(r => r.nest);
+  const i = Math.floor(hive.nest.y) * g.map.N + Math.floor(hive.nest.x);
+  assert.equal(g.zone()[i], 0, 'you can build on a living hive');
 });

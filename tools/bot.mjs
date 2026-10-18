@@ -25,7 +25,7 @@ function pickPurge(g, n, ok) {
   if (!opts.length) return null;
   opts.sort((a, b) => a.ratio - b.ratio || b.slots - a.slots);
   // only expand when the town is mostly built
-  const free = candidates(g).filter(s => S.claimed.has(s.region) && !s.gate && g.canPlace('house', s.x, s.y).ok).length;
+  const free = candidates(g).filter(s => g.inZone(s.x, s.y) && !s.gate && g.canPlace('house', s.x, s.y).ok).length;
   return free <= 3 ? opts[0].id : null;
 }
 
@@ -35,12 +35,12 @@ function nestPoints(g) { return g.activeNests(g.state.night + 1).concat(g.active
 // which is how tightly a player can pack 2×2 homes with a one-cell street between them
 const denseCache = new WeakMap();
 function candidates(g) {
-  const S = g.state, map = g.map, key = S.claimed.size;
+  const S = g.state, map = g.map; g.zone(); const key = S.zoneVersion;
   const c = denseCache.get(g); if (c && c.key === key) return c.list;
   const list = map.slots.slice(), N = Math.sqrt(map.terrain.length), seen = new Set(list.map(s => Math.floor(s.x) + ',' + Math.floor(s.y)));
   for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
     if ((x - Math.floor(map.town.x)) % 3 || (y - Math.floor(map.town.y)) % 3) continue;
-    const r = map.region[y * N + x]; if (r < 0 || !S.claimed.has(r) || seen.has(x + ',' + y)) continue;
+    const r = map.region[y * N + x]; if (r < 0 || !g.zone()[y * N + x] || seen.has(x + ',' + y)) continue;
     list.push({ x: x + 0.5, y: y + 0.5, region: r, gate: false, nearWater: false });
   }
   denseCache.set(g, { key, list });
@@ -49,7 +49,7 @@ function candidates(g) {
 function spotFor(g, kind) {
   const S = g.state, map = g.map;
   const def = kind === 'tower' || kind === 'wall';
-  const fits = s => { if (!S.claimed.has(s.region) || (s.gate && !def)) return null; for (const rot of kind === 'wall' ? [gateRot(g, s), 0, 1, 2, 3] : [0]) { const p = g.canPlace(kind, s.x, s.y, rot); if (p.ok) return { x: s.x, y: s.y, rot, gate: s.gate, nearWater: s.nearWater }; } return null; };
+  const fits = s => { if (!g.inZone(s.x, s.y) || (s.gate && !def)) return null; for (const rot of kind === 'wall' ? [gateRot(g, s), 0, 1, 2, 3] : [0]) { const p = g.canPlace(kind, s.x, s.y, rot); if (p.ok) return { x: s.x, y: s.y, rot, gate: s.gate, nearWater: s.nearWater }; } return null; };
   const free = candidates(g).map(fits).filter(Boolean);
   if (!free.length) return null;
   if (kind === 'wall') { const gate = free.find(s => s.gate); if (gate) return gate; }

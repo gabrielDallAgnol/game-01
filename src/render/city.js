@@ -16,7 +16,7 @@ const GROUND = {
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
 export const HIGH = 1.1;     // height of the plateaus (high ground)
 
-export function buildCity({ map, S, world, W, C, rand }) {
+export function buildCity({ map, S, world, W, C, rand, game }) {
   const lin = K.lin;
   const at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? T.VOID : map.terrain[idx(x, y)]);
 
@@ -54,8 +54,8 @@ export function buildCity({ map, S, world, W, C, rand }) {
     const ca = geo.attributes.color;
     cellOf.forEach((i, q) => {
       const t = map.terrain[i], x = i % N, y = (i / N) | 0;
-      const own = map.region[i] >= 0 && S.claimed.has(map.region[i]);
-      let key = map.high[i] ? (own ? 'deckOwn' : 'deck') : map.ramp[i] ? 'ramp' : t === T.GRASS ? (own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
+      const own = game.zone()[i] === 1;
+      let key = map.lm[i] >= 0 ? 'plaza' : map.high[i] ? (own ? 'deckOwn' : 'deck') : map.ramp[i] ? 'ramp' : t === T.GRASS ? (own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
       if (t === T.GRASS || t === T.DIRT || t === T.FOREST) {
         if (S.occ[i] >= 0) key = 'lot';
         else { let st = false; for (let dy = -1; dy <= 1 && !st; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < N && yy < N && S.occ[idx(xx, yy)] >= 0) { st = true; break; } } if (st) key = 'street'; }
@@ -82,9 +82,9 @@ export function buildCity({ map, S, world, W, C, rand }) {
   // ---------- ruins: every rock cell is one bay of a ruined block ----------
   const cluster = new Int32Array(N * N).fill(-1), clusters = [];
   for (let i = 0; i < N * N; i++) {
-    if (map.terrain[i] !== T.ROCK || cluster[i] >= 0) continue;
+    if (map.terrain[i] !== T.ROCK || cluster[i] >= 0 || map.lm[i] >= 0) continue;
     const id = clusters.length, q = [i], cells = []; cluster[i] = id;
-    while (q.length) { const j = q.pop(); cells.push(j); const x = j % N, y = (j / N) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue; const k = idx(xx, yy); if (map.terrain[k] === T.ROCK && cluster[k] < 0) { cluster[k] = id; q.push(k); } } }
+    while (q.length) { const j = q.pop(); cells.push(j); const x = j % N, y = (j / N) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue; const k = idx(xx, yy); if (map.terrain[k] === T.ROCK && cluster[k] < 0 && map.lm[k] < 0) { cluster[k] = id; q.push(k); } } }
     clusters.push(cells);
   }
   const WALLS = ['bone', 'sand', 'stone', 'pale', 'grey', 'sand'];
@@ -213,7 +213,7 @@ export function buildCity({ map, S, world, W, C, rand }) {
   world.add(statics.build());
 
   // ---------- territory: claimed land warm, the wild cool and grey ----------
-  function setTerritory() { K.setMask((x, y) => { const r = map.region[idx(x, y)]; return r >= 0 && S.claimed.has(r); }, N, (x, y) => S.seen[idx(x, y)] === 1); }
+  function setTerritory() { const z = game.zone(); K.setMask((x, y) => z[idx(x, y)] === 1, N, (x, y) => S.seen[idx(x, y)] === 1); }
   setTerritory();
 
   /** rubble cleared: rebuild the touched chunks and hide props standing on those cells */

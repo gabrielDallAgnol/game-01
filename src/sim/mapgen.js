@@ -11,10 +11,10 @@ export const BUILDABLE = [true, false, false, false, false, false, true, false];
 export const MOVE_COST = [1, 1.6, Infinity, Infinity, Infinity, 2.5, 1, Infinity];
 
 export const BIOMES = {
-  riverbend: { name: 'Canal District', blurb: 'A canal curls around one flank. The dead must cross at the footbridges.' },
-  highland:  { name: 'The Heights', blurb: 'The town sits on a raised plaza. Retaining walls leave only a few ramps up.' },
-  lakeshore: { name: 'Harbour Front', blurb: 'An old harbour basin guards your back. Open ground for allotments, open front.' },
-  vale:      { name: 'The Cut', blurb: 'You start at the bottom of a V-shaped sunken district. The dead only come from above, and you push up through it.' },
+  riverbend: { name: 'Paris', blurb: 'The river curls around one flank; the dead must cross at the bridges. The Eiffel Tower stands across the water.', signature: 'eiffel' },
+  highland:  { name: 'Rio de Janeiro', blurb: 'Your town sits on a raised plaza with few ramps up. Christ the Redeemer watches from a cliff top.', signature: 'christ' },
+  lakeshore: { name: 'Berlin', blurb: 'A lake guards your back, open ground in front. The Fernsehturm towers over the east.', signature: 'tvtower' },
+  vale:      { signature: 'tvtower', name: 'The Cut', blurb: 'You start at the bottom of a V-shaped sunken district. The dead only come from above, and you push up through it.' },
 };
 
 const R = 30 * K;       // playable radius
@@ -25,6 +25,15 @@ export function valeInside(rx, ry, pad = 0) {
   if (Math.hypot(rx, ry) < 10 * K + pad) return true;
   return ry < 0 && Math.abs(rx) <= -ry * Math.tan(VALE_HALF) + VALE_PAD + pad && Math.hypot(rx, ry) < 31 * K + pad;
 }
+// Landmarks: intact buildings you can claim for a bonus and a forward build zone. One signature per city.
+export const LANDMARKS = {
+  police:  { name: 'Police Station', size: 3, cost: 10, desc: 'The armory: your towers deal 15% more damage.' },
+  clinic:  { name: 'Clinic', size: 3, cost: 10, desc: 'Field medics: you heal 2 health a second, day and night.' },
+  fuel:    { name: 'Fuel Station', size: 3, cost: 10, desc: 'Fuel to trade: +4 gold every dawn.' },
+  eiffel:  { name: 'Eiffel Tower', size: 5, cost: 20, signature: true, desc: 'A lookout over the city: reveals all around it, and every tower reaches 1.5 further.' },
+  tvtower: { name: 'Fernsehturm', size: 4, cost: 20, signature: true, desc: 'The broadcast reaches everyone: reveals the whole city, and +3 gold every dawn.' },
+  christ:  { name: 'Christ the Redeemer', size: 4, cost: 20, signature: true, desc: 'Hope from the cliff top: a blessing every dawn, not every other.' },
+};
 const GRID = 4;         // lot spacing: a 3×3 building plus a one-cell street
 
 export const idx = (x, y) => y * N + x;
@@ -182,6 +191,39 @@ export function generateMap(seed, biome) {
     reg.nest = best;
   }
 
+  // 6b. landmarks: open ground in the near ring, away from hives and each other; the signature one stands further out
+  const lm = new Int16Array(N * N).fill(-1), landmarks = [];
+  const placeLm = (kind, cands) => {
+    const sz = LANDMARKS[kind].size, h = Math.floor(sz / 2);
+    for (const [x0, y0] of cands) {
+      let ok = true;
+      for (let dy = -h - 1; dy <= sz - h && ok; dy++) for (let dx = -h - 1; dx <= sz - h && ok; dx++) {
+        const x = x0 + dx, y = y0 + dy; if (!inside(x, y)) { ok = false; break; }
+        const i = idx(x, y), t = terrain[i];
+        if (!(t === T.GRASS || t === T.DIRT || t === T.FOREST) || lm[i] >= 0 || ramp[i] || !reach[i]) ok = false;
+      }
+      if (!ok) continue;
+      if (regions.some(r => r.nest && Math.hypot(r.nest.x - x0, r.nest.y - y0) < 7)) continue;
+      if (landmarks.some(l => Math.hypot(l.x - x0, l.y - y0) < 12)) continue;
+      const id = landmarks.length, cells = [];
+      for (let dy = -h; dy < sz - h; dy++) for (let dx = -h; dx < sz - h; dx++) { const i = idx(x0 + dx, y0 + dy); terrain[i] = T.ROCK; lm[i] = id; cells.push(i); }
+      landmarks.push({ id, kind, x: x0 - h + sz / 2, y: y0 - h + sz / 2, size: sz, cells, region: region[idx(x0, y0)] });
+      return true;
+    }
+    return false;
+  };
+  const ring = (d0, d1) => { const out = []; for (let y = 2; y < N - 2; y++) for (let x = 2; x < N - 2; x++) { const d = Math.hypot(x + 0.5 - c, y + 0.5 - c); if (d >= d0 && d <= d1) out.push([x, y]); } return rng.shuffle(out); };
+  const sig = BIOMES[biome].signature;
+  if (sig === 'christ' && feature.plateaus.length) {
+    // the statue stands on a plateau: the nearest one to the town
+    const p = feature.plateaus.slice().sort((a, b) => Math.hypot(a.x - c, a.y - c) - Math.hypot(b.x - c, b.y - c))[0];
+    const spots = []; for (let y = Math.floor(p.y - 1); y <= p.y + 1; y++) for (let x = Math.floor(p.x - 1); x <= p.x + 1; x++) spots.push([x, y]);
+    const sz = LANDMARKS.christ.size, h = Math.floor(sz / 2), [x0, y0] = spots[4] || spots[0], cells = [], id = landmarks.length;
+    for (let dy = -h; dy < sz - h; dy++) for (let dx = -h; dx < sz - h; dx++) { const i = idx(x0 + dx, y0 + dy); if (!high[i]) continue; terrain[i] = T.ROCK; lm[i] = id; cells.push(i); }
+    landmarks.push({ id, kind: 'christ', x: x0 - h + sz / 2, y: y0 - h + sz / 2, size: sz, cells, region: region[idx(x0, y0)], high: true });
+  } else if (sig) placeLm(sig, ring(20, 28));
+  for (const k of rng.shuffle(['police', 'clinic', 'fuel'])) placeLm(k, ring(14, 24));
+
   // 7. build slots on a street grid: every lot is 3×3 cells with a one-cell street around it,
   //    aligned to the keep, so the town reads as blocks and streets as it grows.
   const slots = [];
@@ -239,7 +281,7 @@ export function generateMap(seed, biome) {
   cells.sort((a, b) => Math.hypot(a[0] - c, a[1] - c) - Math.hypot(b[0] - c, b[1] - c));
   for (const [x, y] of cells) tryLot(x, y);
   for (const reg of regions) reg.neighbors = [...reg.neighbors].sort((p, q) => p - q);
-  return { N, seed, biome, name: BIOMES[biome].name, terrain, region, regions, slots, reach, high, ramp, town: { x: c, y: c }, feature };
+  return { N, seed, biome, name: BIOMES[biome].name, terrain, region, regions, slots, reach, high, ramp, lm, landmarks, town: { x: c, y: c }, feature };
 }
 
 /** Quick checks used by tests and by the map picker to reject weak maps. */

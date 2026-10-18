@@ -1,6 +1,6 @@
 // Screens, HUD, panels and input. Talks to the game only through its public API.
 import { createGame, STEP, CREW_NEED } from '../sim/game.js';
-import { mapChoices, generateMap, N, T, idx, BIOMES } from '../sim/mapgen.js';
+import { mapChoices, generateMap, N, T, idx, BIOMES, LANDMARKS } from '../sim/mapgen.js';
 import { createView } from '../render/view.js';
 import { BUILDINGS, BUILD_ORDER, KEEP, MAX_LEVEL } from '../content/buildings.js';
 import { HEROES, HERO_ORDER, TRADES } from '../content/heroes.js';
@@ -254,7 +254,7 @@ export function startApp() {
   function computeZone(type) {
     const S = game.state, n = SIZE[type], off = n % 2 ? 0.5 : 0, mask = new Uint8Array(N * N), spots = [];
     for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
-      const r = game.map.region[idx(x, y)]; if (r < 0 || !S.claimed.has(r)) continue;
+      if (!game.zone()[idx(x, y)]) continue;
       const p = game.canPlace(type, x + off, y + off, 0); if (!p.ok) continue;
       spots.push({ x: p.x, y: p.y, cells: p.cells }); for (const c of p.cells) mask[c] = 1;
     }
@@ -360,7 +360,7 @@ export function startApp() {
   function selB() { const S = game.state; return selected && selected.type === 'building' ? S.byId.get(selected.id) : selected && selected.type === 'keep' ? S.keep : null; }
   function panelSig() {
     const S = game.state, b = selB();
-    return [S.gold, S.food, S.phase, S.purge, S.halfUpgrade, S.trade && S.trade.done, selected && selected.type, selected && selected.id, scavSig(), b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}` : ''].join('|');
+    return [S.gold, S.food, S.phase, S.purge, S.halfUpgrade, S.trade && S.trade.done, selected && selected.type, selected && selected.id, scavSig(), selected && selected.type === 'landmark' ? game.landmarkReach(selected.id) : '', b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}` : ''].join('|');
   }
   function openSel(sel) { selected = sel; renderPanel(); lastSig = panelSig(); $('#panel').hidden = false; }
   function closePanel() { selected = null; $('#panel').hidden = true; }
@@ -436,6 +436,14 @@ export function startApp() {
       body.innerHTML = html;
       return;
     }
+    if (selected.type === 'landmark') {
+      const l = S.landmarks[selected.id], L = LANDMARKS[l.kind], near = game.landmarkReach(selected.id);
+      $('#pEyebrow').textContent = l.owned ? 'Yours · forward base' : L.signature ? 'Landmark of the city' : 'Landmark';
+      $('#pTitle').textContent = L.name;
+      let html = `<div class="stat"><span>${L.desc}</span><span>${l.owned ? 'You can build around it.' : 'Claim it and you can build around it too.'}</span></div>`;
+      if (!l.owned) html += `<div class="opts one">${opt('opt-claim', 'data-claim="1"', near ? `Claim the ${L.name}` : 'Walk up to it first', near ? L.cost : null, near ? 'Yours for good: its bonus and a build zone around it.' : 'Your hero is on the way. Tap again when you are next to it.', !near || S.gold < L.cost || !day)}</div>`;
+      body.innerHTML = html; return;
+    }
     if (selected.type === 'site') { renderSite(body, day); return; }
     if (selected.type === 'rubble') {
       const r = game.rubbleAt(selected.x, selected.y);
@@ -466,6 +474,7 @@ export function startApp() {
     const btn = e.target.closest('button'); if (!btn || btn.disabled || !selected) return;
     if (btn.dataset.who) { const id = +btn.dataset.who, pk = selected.pick || (selected.pick = new Set()); if (pk.has(id)) pk.delete(id); else pk.add(id); renderPanel(); return; }
     if (btn.dataset.send) { if (game.scavenge.send(selected.id, [...(selected.pick || [])])) { const n = selected.pick.size; selected.pick = new Set(); toast(`${n === 1 ? 'One survivor heads' : `${n} survivors head`} out. Back at dawn.`, 'good'); } }
+    if (btn.dataset.claim && game.claimLandmark(selected.id)) { closePanel(); updateHud(); return; }
     if (btn.dataset.clear) { const n = game.clearRubble(selected.x, selected.y); if (n) { toast(`${n} ${n === 1 ? 'cell' : 'cells'} cleared.`); closePanel(); updateHud(); return; } }
     if (btn.dataset.recall && game.scavenge.recall(selected.id)) toast('The crew stays home. Supplies returned.');
     if (btn.dataset.keep && game.upgradeKeep()) toast('The keep rises higher.');
@@ -656,6 +665,7 @@ export function startApp() {
     }
     const p = view.pick(e.clientX, e.clientY); if (!p) return;
     const S = game.state;
+    if (p.type === 'landmark') { const l = S.landmarks[p.id]; if (!l.owned) { game.heroTo(l.x, l.y + l.size / 2 + 1); view.showMove(l.x, l.y + l.size / 2 + 1); } openSel({ type: 'landmark', id: p.id }); return; }
     if (S.phase === 'day' && p.type === 'rubble') { game.heroTo(p.x, p.y); view.showMove(p.x, p.y); openSel({ type: 'rubble', x: p.x, y: p.y }); return; }
     if (S.phase === 'day' && p.type === 'site') { openSel({ type: 'site', id: p.id, pick: new Set() }); return; }
     if (S.phase === 'day' && (p.type === 'building' || p.type === 'keep')) { openSel(p.type === 'building' ? { type: 'building', id: p.id } : { type: 'keep' }); return; }
