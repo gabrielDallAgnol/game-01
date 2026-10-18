@@ -9,6 +9,7 @@ import { PACKS } from '../content/packs.js';
 import { MOBS } from '../content/mobs.js';
 import { regionNames } from '../content/names.js';
 import { TRAITS, TREAT, RUN } from '../content/scavenge.js';
+import { createAudio } from './audio.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -16,6 +17,8 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('hollowmere.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('hollowmere.' + k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
 };
+const audio = createAudio(store);
+for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => audio.unlock(), { capture: true });
 const RINGS = ['Town', 'Near lands', 'Far lands'];
 const ARM_MS = 700;          // cards ignore taps this long after they appear
 const DAWN_DELAY = 1.2;      // seconds between the last kill and the first card
@@ -92,7 +95,7 @@ export function startApp() {
     c.scrollTop = 0;
   }
   const armed = () => $('#card').dataset.armed === '1';
-  const onArmed = fn => e => { if (armed()) fn(e); };
+  const onArmed = fn => e => { if (armed()) { audio.play('card'); fn(e); } };
   function hideCard() { card = null; $('#overlay').hidden = true; }
 
   // the dawn sequence: blessings, then a pack, then (merchant) the trader. Each step opens only when needed.
@@ -466,6 +469,8 @@ export function startApp() {
   $('#bell').onclick = ringBell;
   $('#logBtn').onclick = showLog;
   $('#crewBtn').onclick = showCrew;
+  const showSound = () => { const b = $('#sndBtn'); b.classList.toggle('off', audio.muted()); b.setAttribute('aria-label', audio.muted() ? 'Sound off' : 'Sound on'); };
+  $('#sndBtn').onclick = () => { audio.setMuted(!audio.muted()); showSound(); }; showSound();
   // graphics quality: High (shadows, ambient occlusion, glow), Medium (glow), Low (fastest)
   const QNAME = { high: 'HQ', medium: 'MQ', low: 'LQ' }, QNEXT = { high: 'medium', medium: 'low', low: 'high' };
   function showQuality() { if (view) { $('#qBtn').textContent = QNAME[view.quality()]; $('#qBtn').setAttribute('aria-label', `Graphics quality: ${view.quality()}`); } }
@@ -667,6 +672,7 @@ export function startApp() {
     if (!paused) { acc += dt; while (acc >= STEP && !paused) { game.step(STEP); acc -= STEP; if (S.over) break; } }
     else acc = 0;
     const events = game.drainEvents();
+    audio.onEvents(events, game); audio.tick(game, dt);
     for (const e of events) {
       if (toastFor.has(e.t)) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);
       if (e.t === 'claim' && selected && selected.type === 'region') closePanel();

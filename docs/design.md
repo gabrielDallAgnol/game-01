@@ -78,8 +78,25 @@ Smarter hero pathing helped the fighters more than the Merchant (median 28–29 
 | UI | Barlow Condensed / Barlow / Plex Mono, dark glass pills; Brawler, Ranger, Scavver; Home, Barricade; hives; city map names |
 | Quality | HQ (SSAO + bloom), MQ (bloom, phone default), LQ (grade only); button on the right, remembered |
 
+## Scavenge runs v1 (Oct 18, evening)
+The first part of the agreed next drop: the ruins hold supplies, and survivors go out to get them.
+
+| Rule | Detail |
+|---|---|
+| Sites | One supply cache per region, at a doorway into a ruined block (or the open spot nearest the region's middle). A glowing amber marker by day. Tap it to open the site panel. |
+| Distance | Counted in regions from your land. 0 = inside your land, 1 = next door, 2 = deep in the city. Further than 2 is out of reach. |
+| Crew | You start with 2 survivors (max 8), each with a trait. Runs can find new survivors. |
+| A run | Pick who goes, pay supplies (1 / 3 / 5 gold per survivor by distance). They leave now and come back at dawn. Call them back before the bell for a refund. One crew per site; each site has 2–3 searches. |
+| Loot per survivor | 2–4 / 3–7 / 6–12 gold and 1–3 / 2–4 / 3–6 food, plus per run: a free building (15 / 30 / 45%), a new survivor (12 / 22 / 35%), a sealed cache = a rare blessing (0 / 8 / 20%). |
+| Risk per survivor | Death 0 / 8 / 18%, +10% if the site's hive is awake, +8% on a blood moon. Bites 0 / 10 / 15%. |
+| Bites | A bitten survivor turns at nightfall inside the town (a runner at the keep) unless treated: 4 food or 6 gold, from the Crew card. Or turn them out. The Crew button turns red while someone is bitten. |
+| Traits | Scout (run half as deadly), Medic (no bites on their run), Mule (double food), Tinker (more free buildings), Marksman (at home at night: towers +6%), Cook (at home at night: +2 food at dawn), Coward (never dies, half loot). Sending a Marksman or Cook costs their home bonus that night. |
+| Sim | `src/sim/scavenge.js`, own random stream: a run without scavenging plays out exactly as before. Bots don't scavenge yet. |
+
+Also this evening: auto graphics (steps HQ → MQ → LQ after ~6 s under 30 fps, unless you picked a level), calmer town ground, closer desktop camera, balance bots pack buildings on a 3-cell grid.
+
 ## Next drop: town stats (agreed direction)
-- **Main system: scavenge runs** (Dying Light / State of Decay / Project Zomboid): ruins in unclaimed regions hold loot. Send survivors out by day; the further out, the better the loot and the risk. Survivors arrive with traits (Medic, Carpenter, Coward…).
+- **Main system: scavenge runs** (v1 shipped, see above) (Dying Light / State of Decay / Project Zomboid): ruins in unclaimed regions hold loot. Send survivors out by day; the further out, the better the loot and the risk. Survivors arrive with traits (Medic, Carpenter, Coward…).
 - **Infection and noise as natural events,** not tied to buildings. For example: a scavenger comes back bitten (treat, quarantine or exile), or a storm whose thunder draws a horde from one side.
 
 ## Known balance issues (from `npm run balance`)
