@@ -64,7 +64,7 @@
 | Against the Storm | Hostility rising with growth → heat thresholds |
 | RimWorld / L4D | A director with pressure and relief; difficulty as a bundle of multipliers |
 | Frostpunk | One core + hard choices without judging (Hope deferred) |
-| Fallout | Starting gift, titles; next: rule-changing perks, Field Manuals in sites |
+| Fallout | Starting gift, titles, **Field Manuals in sites** (each claim offers blessings of one family); next: rule-changing perks |
 | Hades / PoE / Vampire Survivors | Evolution through two families |
 | Humankind | Districts as outposts; next: eras and fame-based goals |
 | Storylets / Wildermyth / Caves of Qud | Threads that come back, callbacks, one-shot moments, chapters |

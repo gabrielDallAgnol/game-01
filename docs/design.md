@@ -175,6 +175,7 @@ Decisions with Gabriel are in `docs/decisions-2026-10-18.md`; research in `docs/
 | Street finds | Blue beacons in open districts, guarded; 8 hand-written, then generated ones. |
 | Chapters | After each blood moon the last five days are retold. |
 | Legacy | Fame from a finished run buys small permanent edges (start screen). |
+| Field manuals | Claiming a site also offers a pick of one blessing family (Police → Brawn, Clinic/School → Heart, Substation → Aim, High Street/Radio → Wits, Fuel → Bow, Tower Block → Stone, Allotments → Harvest). |
 | Salvage | Kills give scrap at dawn, capped at 15 + 2 × night so big towns do not snowball. |
 | Autopilot | ⋯ → Auto: the hero defends, fetches crates and rests; builders work. Cards still pause for your choices. |
 | Saves | A dawn snapshot to your private folder in the artifact's store (any device) plus a local copy. Continue from the start screen. |
