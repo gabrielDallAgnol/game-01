@@ -54,11 +54,12 @@ export function createStory(ctx) {
       case 'hands': ST.hands += f.n; break;
       case 'handsToday': S.handsUsed -= f.n; break;
       case 'perk': if (f.mul) S.P[f.key] *= f.mul; else S.P[f.key] += f.add; ctx.refreshMax(); break;
-      case 'flag': ST.flags[f.key] = true; break;
+      case 'flag': if (f.key === 'garden') ST.garden = (ST.garden || 0) + 1; else if (f.key === 'beacon') ST.beacon = (ST.beacon || 0) + 1; else ST.flags[f.key] = true; break;
       case 'title': grant(f.id); break;
       case 'blessing': S.picks.push('chest'); ctx.syncPicks(); break;
       case 'openFor': {   // open (or point to) a district of this kind for the thread
         const r = districtFor(f.kit);
+        if (r === null) { if (enc) enc.noRegion = true; toast('[Signal lost] There is no way through to them any more.', 'bad'); break; }
         if (r !== null) { S.kits[r] = S.kits[r] || f.kit; if (S.sealed[r]) ctx.openDistrict(r, `${THREADS[enc.thread].title}.`); if (th) th.region = r; const l = ctx.siteOf(r); if (l) addQuest(l, enc.thread); }
         break;
       }
@@ -72,19 +73,21 @@ export function createStory(ctx) {
       case 'gamble': if (rng.next() >= f.p) { for (const b of f.bad) apply(b, enc); } else if (f.good) { for (const b of f.good) apply(b, enc); } else toast('The fever broke at dawn. He lives.', 'good'); break;
       case 'hurt': ctx.hurtHero(f.n); break;
       case 'unique': S.unique = { name: f.name, mult: f.mult, night: S.night + (f.later || 0) - (S.night % 5 === 0 && !f.later ? 0 : 0), thread: enc && enc.thread }; if (f.later) S.unique.night = nextMoon(S.night + 1); else S.unique.night = nextMoon(S.night); break;
-      case 'evolve': if (S.heroClass === f.from) { ctx.evolve(f.cls); chron(`Became a ${ctx.heroes[f.cls].name}.`, 5, ['hero']); } break;
+      case 'evolve': if (S.heroClass === f.from) { ctx.evolve(f.cls); chron(`Became a ${ctx.heroes[f.cls].name}.`, 5, ['hero']); ST.encounters = ST.encounters.filter(e => e === enc || e.kind !== 'evolve' || e.from === S.heroClass); if (ST.evoLater && ST.evoLater.from !== S.heroClass) ST.evoLater = null; } break;
       case 'evolveLater': ST.evoLater = { from: f.from, enc: { ...enc, id: undefined, ai: null } }; break;
-      case 'advance': if (th) { th.stage++; th.since = S.night; } break;
+      case 'advance': if (th) { if (enc && enc.noRegion) th.status = 'failed'; else { th.stage++; th.since = S.night; } } break;
       case 'resolve': if (th) { th.status = 'done'; } break;
       case 'fail': if (th) { if (f.after) { th.status = 'waiting'; th.failAt = S.night + f.after; } else th.status = 'failed'; } break;
     }
   }
   const nextMoon = n => { let k = n; while (k % 5) k++; return k; };
   function districtFor(kit) {
-    const front = ctx.frontier();
+    let front = ctx.frontier();
     // a region already holding this kit, else an unassigned frontier region, else any frontier region
-    const have = Object.keys(S.kits).map(Number).find(r => S.kits[r] === kit && S.sealed[r] && front.includes(r));
+    const ok = r => { const l = ctx.siteOf(r); return l && !l.owned && !l.stripped; };   // a quest needs a building to walk into
+    const have = Object.keys(S.kits).map(Number).find(r => S.kits[r] === kit && S.sealed[r] && front.includes(r) && ok(r));
     if (have !== undefined) return have;
+    front = front.filter(ok);
     const free = front.filter(r => !S.kits[r]); const pool = free.length ? free : front.filter(r => S.kits[r] !== 'signature');
     if (!pool.length) return null;
     const r = pool[rng.int(pool.length)]; S.kits[r] = kit; return r;
@@ -137,7 +140,7 @@ export function createStory(ctx) {
       if (f.op === 'stripSite') { const l = S.landmarks[f.site]; ctx.earn(f.n); l.stripped = true; ST.quests = ST.quests.filter(q => q.site !== l.id); chron(`Stripped the ${LM[l.kind].name} for parts.`, 2); continue; }
       apply(f, enc);
     }
-    if (enc.kind === 'site') { ST.quests = ST.quests.filter(q => q.site !== enc.site || choiceId === 'leave'); if (choiceId === 'leave') ST.visited[enc.site] = false; }
+    if (enc.kind === 'site') { ST.quests = ST.quests.filter(q => q.site !== enc.site || choiceId === 'leave'); if (choiceId === 'leave') ST.visited[enc.site] = 'left'; }
     const line = enc.aiChron || `${enc.title}: ${c.label}.`;
     chron(line, enc.kind === 'thread' ? 4 : 2, enc.thread ? [enc.thread] : []);
     ST.encounters.shift(); ev('chosen', { enc: enc.id, choice: choiceId, kind: enc.kind });
@@ -148,12 +151,13 @@ export function createStory(ctx) {
   function dawn() {
     ST.day = S.night; deeds();
     for (const n of ST.npcs) n.chatToday = 0;
-    if (ST.flags.caged && !(ST.threads.hummer && ST.threads.hummer.status === 'done')) S.food = Math.max(0, S.food - 1);
-    if (ST.flags.garden) S.food += 1;
+    if (ST.threads.hummer && ST.threads.hummer.status === 'open' && ST.threads.hummer.stage === 1) S.food = Math.max(0, S.food - 1);   // the caged one eats
+    S.food += (ST.garden || 0) + (ST.flags.garden ? 1 : 0);
     // threads that waited too long fail with a cost
     for (const [tid, th] of Object.entries(ST.threads)) if (th.status === 'waiting' && S.night >= th.failAt) { th.status = 'failed'; toast(`[Quest failed: ${THREADS[tid].title}] Too late.`, 'bad'); chron(`Too late for ${THREADS[tid].title}.`, 3, [tid]); }
     let shown = 0;
-    if (ST.evoLater && S.heroClass === ST.evoLater.from) { const e = ST.evoLater; ST.evoLater = null; push(e.enc); shown++; }
+    if (ST.evoLater && S.heroClass === ST.evoLater.from) { const e = ST.evoLater; ST.evoLater = null; push(e.enc); }   // does not take a story slot
+    else if (ST.evoLater) ST.evoLater = null;
     // a new thread starts on its day
     for (const [tid, T] of Object.entries(THREADS)) if (!ST.threads[tid] && S.night >= T.start.day && shown < 1) { ST.threads[tid] = { stage: 0, status: 'open', cast: {}, since: S.night }; push(threadEncounter(tid, 0)); shown++; }
     // dawn stages of running threads
@@ -164,7 +168,7 @@ export function createStory(ctx) {
       if (st.needs === 'uniqueDone' && !(S.unique && S.unique.slain)) { if (S.unique && S.unique.escaped) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[Unique Monster: ${S.unique.name}] It got away. It will be back on the next blood moon.`, 'bad'); } continue; }
       push(threadEncounter(tid, th.stage)); shown++;
     }
-    if (ST.flags.beacon) { ST.flags.beacon = false; S.survivors += 2; toast('Strangers walked in under your flag. +2 people.', 'good'); }
+    if (ST.beacon || ST.flags.beacon) { const n = (ST.beacon || 0) + (ST.flags.beacon ? 1 : 0); ST.beacon = 0; ST.flags.beacon = false; S.survivors += n; toast(`Strangers walked in under your flag. +${n} people.`, 'good'); }
     placeSpots();
     // quiet dawns: a small moment, once each
     if (!shown && S.night >= 3 && rng.next() < 0.6) { ST.ambient = ST.ambient || []; const pool = AMBIENT.filter(a => !ST.ambient.includes(a.id) && a.when(S)); if (pool.length) { const a = pool[rng.int(pool.length)]; ST.ambient.push(a.id); push({ kind: 'ambient', eyebrow: a.eyebrow, title: a.title, scene: a.scene, choices: a.choices.map(c => ({ ...c })) }); shown++; } }
@@ -218,6 +222,7 @@ export function createStory(ctx) {
     tips();
     if (S.phase !== 'day' || ST.encounters.length || S.hero.dead) return;
     if (spotTick()) return;
+    for (const l of S.landmarks) if (ST.visited[l.id] === 'left' && !ctx.landmarkReach(l)) ST.visited[l.id] = false;   // walked away: it can ask again
     for (const l of S.landmarks) {
       if (l.owned || l.stripped || l.kind === 'unknown' || S.sealed[l.region] || ST.visited[l.id] || !ctx.landmarkReach(l)) continue;
       ST.visited[l.id] = true;
@@ -252,7 +257,7 @@ export function createStory(ctx) {
   function offerEvolution(cls, from) {
     const H = ctx.heroes[cls], F = ctx.heroes[from];
     // one class choice at a time: a second Calling offered while the first waits joins it as another option
-    const open = ST.encounters.find(e => e.kind === 'evolve' && e.from === from);
+    const open = ST.encounters.find(e => e.kind === 'evolve' && e.from === from) || (ST.evoLater && ST.evoLater.from === from ? ST.evoLater.enc : null);
     if (open) { open.choices.splice(open.choices.length - 1, 0, { id: `evolve-${cls}`, label: `Become a ${H.name}`, hint: `${H.attack ? (H.attack.kind === 'melee' ? 'Fights up close' : 'Fights from range') : 'Never fights'} · ability: ${H.ability.name} · ${H.hp} health.`, fx: [{ op: 'evolve', cls, from }] }); open.title = `${F.name}: choose your Calling`; return; }
     push({ kind: 'evolve', from, eyebrow: '[Class evolution available]', title: `${F.name} → ${H.name}`, scene: `The status window flickers, then rewrites itself. A new line glows where your class used to be: ${H.name.toUpperCase()}. ${H.blurb}`,
       choices: [{ id: 'evolve', label: `Become a ${H.name}`, hint: `${H.attack ? (H.attack.kind === 'melee' ? 'Fights up close' : 'Fights from range') : 'Never fights'} · ability: ${H.ability.name} · ${H.hp} health.`, fx: [{ op: 'evolve', cls, from }] },

@@ -1560,18 +1560,19 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, reroll: S.reroll, halfUpgrade: S.halfUpgrade,
       landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),
-      evo: S.evo, story: S.story, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT,
+      evo: S.evo, story: S.story, unique: S.unique || null, eruption: S.eruption, heatCool: S.heatCool, sawBlackout: !!S.sawBlackout, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT,
       buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0]), keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)] };
   }
   function restoreSnap(R) {
     Object.assign(S, { night: R.night, gold: R.gold, food: R.food, kills: R.kills, stock: R.stock, survivors: R.survivors, heat: R.heat, foreman: R.foreman, builders: R.builders, autopilot: R.autopilot,
       kits: R.kits, claimed: new Set(R.claimed), nestAlive: R.nestAlive, wake: R.wake.map(w => (w < 0 ? Infinity : w)), P: R.P, picks: R.picks, chestsHeld: R.chestsHeld, dawns: R.dawns,
-      weather: R.weather, reroll: R.reroll, halfUpgrade: R.halfUpgrade, stats: R.stats, log: R.log || [], evo: R.evo, drained: R.drained, salvage: R.salvage, clearedIdx: R.cleared, handsUsed: R.handsUsed, dayT: R.dayT });
+      weather: R.weather, reroll: R.reroll, halfUpgrade: R.halfUpgrade, stats: R.stats, log: R.log || [], evo: R.evo, unique: R.unique || undefined, eruption: R.eruption || null, heatCool: R.heatCool || 0, sawBlackout: !!R.sawBlackout, trade: R.trade || null, drained: R.drained, salvage: R.salvage, clearedIdx: R.cleared, handsUsed: R.handsUsed, dayT: R.dayT });
     S.sealed = Uint8Array.from(R.sealed); S.sealVersion++;
     mastSet = new Set(Object.values(S.P.mastery));
     R.landmarks.forEach(([o, k, st], i) => { const l = S.landmarks[i]; if (l) { l.owned = !!o; l.kind = k; l.stripped = !!st; } });
     S.seen = unb64(R.seen, N * N); S.seenVersion++;
     for (const k of Object.keys(S.story)) delete S.story[k]; Object.assign(S.story, R.story);
+    for (const e of S.story.encounters) if (!e.ai || typeof e.ai !== 'object') e.ai = null;
     for (const i of R.cleared || []) map.terrain[i] = T.GRASS;
     for (const b of [...S.buildings]) removeBuilding(b);
     for (const [id, type, level, x, y, rot] of R.buildings) placeBuilding(type, x, y, rot, level, id);

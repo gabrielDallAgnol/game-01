@@ -171,7 +171,8 @@ export function startApp() {
   function showEncounter() {
     const S = game.state, enc = S.story.encounters[0]; if (!enc) return dawnFlow();
     paused = true; placing = null; closePanel();
-    const P = enc.ai && enc.ai !== 'pending' ? enc.ai : null;
+    if (enc.ai === 'pending' && !aiBusy.has(enc.id)) enc.ai = null;   // a request lost to a reload
+    const P = enc.ai && typeof enc.ai === 'object' ? enc.ai : null;
     const title = P ? P.title : enc.title, scene = P ? P.scene : enc.scene, line = P && P.line ? P.line : enc.speaker && enc.speaker.line;
     const costTxt = c => !c.cost ? '' : [c.cost.gold ? `<span class="dot gold"></span>${c.cost.gold}` : '', c.cost.food ? `<span class="dot food"></span>${c.cost.food}` : ''].filter(Boolean).join(' ');
     const sys = enc.kind === 'gift' || enc.kind === 'thread' && /^\[/.test(enc.eyebrow);
@@ -183,13 +184,14 @@ export function startApp() {
         return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span data-lbl="${c.id}">${esc(P && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}<span class="cost">${costTxt(c)}</span></span><span class="ds">${esc(c.hint || '')}</span></button>`; }).join('')}</div></div>`, true);
     $$('[data-choice]').forEach(b => b.onclick = onArmed(() => { if (P && P.chronicle) enc.aiChron = P.chronicle; if (game.choose(b.dataset.choice)) { audio.play('claim'); afterEncounter(); } }));
     if (enc.ai == null && chronicler.available() && enc.kind !== 'gift') {
-      enc.ai = 'pending'; const id = enc.id;
+      enc.ai = 'pending'; const id = enc.id; aiBusy.add(id);
       chronicler.rewrite(enc, game.story().context()).then(patch => {
-        enc.ai = patch || 'none';
+        aiBusy.delete(id); enc.ai = patch || 'none';
         if (patch && card === 'enc' && game.state.story.encounters[0] && game.state.story.encounters[0].id === id) showEncounterText(patch);
       });
     }
   }
+  const aiBusy = new Set();
   function showEncounterText(P) {
     const c = $('#card'); c.classList.add('rewrite');
     setTimeout(() => {
@@ -240,7 +242,7 @@ export function startApp() {
       const r = await chronicler.chat({ ...n, roleName: ROLES[n.role].post }, hist.slice(-8), game.story().context());
       hist.push({ role: 'assistant', content: r ? r.say : `(${n.name.split(' ')[0]} looks at you for a long moment and says nothing.)` });
       if (r && r.remember) { n.memory.push(r.remember); if (n.memory.length > 8) n.memory.shift(); }
-      if (r && r.mood === 'warm' && !n.bondedToday) { n.bondedToday = S.night; if (n.bond < 3) n.bond++; }
+      if (r && r.mood === 'warm' && n.bondedToday !== S.night) { n.bondedToday = S.night; if (n.bond < 3) n.bond++; }
       if (card === 'chat') showChat(id);
     };
     if (form) setTimeout(() => $('#sayIn') && $('#sayIn').focus(), 50);
