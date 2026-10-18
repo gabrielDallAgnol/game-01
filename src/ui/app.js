@@ -437,6 +437,7 @@ export function startApp() {
       else if (info.canPurge) {
         html += `<div class="stat"><span>Siege tonight would be <span class="rating ${info.rating}">${info.rating}</span></span><span>Your defences against this hive's last stand</span></div>`;
         html += `<div class="opts one">${opt('opt-purge', 'data-purge="1"', 'Clear this hive tonight', null, 'Its dead come in force at the end of the night. Survive and the land is yours, with a legendary blessing.', false)}</div>`;
+        html += `<div class="tiny">Or walk up and strike it yourself: while you hit it, it pours out its dead (health ${Math.round(game.hiveHealth(selected.id) * 100)}%).</div>`;
       } else html += `<div class="tiny">${!info.nest ? 'No hive here.' : game.keepLevel() < info.needKeep ? `Raise the keep to level ${info.needKeep} to march on ${reg.ring >= 2 ? 'a far' : 'a near'} hive.` : 'Claim the land between you and this hive first.'}</div>`;
       body.innerHTML = html;
       return;
@@ -564,7 +565,7 @@ export function startApp() {
     const bell = $('#bell');
     if (night || S.over) {
       bell.hidden = true;
-      const left = S.queue.length + S.mobs.filter(m => !m.roam).length;
+      const left = S.queue.length + S.mobs.filter(m => !m.roam && m.stream === undefined).length;
       $('#info').innerHTML = S.over ? 'The keep has fallen' : `<em>${left}</em> dead left${S.hero.dead ? ` · you return in ${Math.ceil(S.hero.respawn)}s` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     } else {
       bell.hidden = false; const bonus = game.bellBonus(), dusk = Math.ceil(game.duskIn());

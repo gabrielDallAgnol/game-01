@@ -461,6 +461,7 @@ export function createView(canvas, game, opts = {}) {
       if (e.t === 'claim') { city.setTerritory(); repaint = true; const h = hives.get(e.region); if (h) { const n = map.regions[e.region].nest; burst(n.x, n.y, 4, '#d9843a'); h.cleared = true; } }
       if (e.t === 'clear') { city.clear(e.cells); for (const i of e.cells) burst((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.5, '#b8ae9c'); }
       if (e.t === 'firstDead') focus = { id: e.id, t: 5 };
+      if (e.t === 'hitHive') { const n = map.regions[e.region].nest; burst(n.x, n.y, 1.4, '#9dff4a'); }
       if (e.t === 'bountyGold') burst(e.x, e.y, 0.6, '#f0c050');
       if (e.t === 'scavGo') sendWalkers(e.site, e.n, false);
       if (e.t === 'scavBack') sendWalkers(e.site, e.n, true);
@@ -631,6 +632,7 @@ export function createView(canvas, game, opts = {}) {
     const nk = `${S.claimed.size}|${S.night}|${S.phase}`;
     if (nk !== nestKey) { nestKey = nk; nearNests = new Set(S.phase === 'day' ? [...hives.keys()].filter(r => game.canPurge(r)) : []); }
     for (const [r, hv] of hives) {
+      { const hp = game.hiveHealth(r), n = map.regions[r].nest; if (!hv.bar) hv.bar = makeBar('boss', 2.4); if (hp > 0 && hp < 1) setBar(hv.bar, n.x, 3.4, n.y, hp); else hv.bar.visible = false; }
       const live = (active.has(r) || S.purge === r) && !hv.cleared;
       hv.g.visible = seenAt(map.regions[r].nest.x, map.regions[r].nest.y) || live;
       const want = hv.cleared ? 0 : live ? 1 : nearNests.has(r) ? 0.15 : 0;

@@ -405,3 +405,24 @@ test('tech: Workshop and Market need a level 2 keep, take time to build, and unl
   assert.ok(g.hasTech('market'));
   assert.ok(g.upgrade(home.id), 'level 3 home with a finished market');
 });
+
+test('the stream: the dead keep coming from awake hives, and they never hold up the dawn', () => {
+  const g = createGame({ seed: 16 }); const S = g.state; readyDay(g);
+  g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step();
+  readyDay(g);
+  let streamed = 0; for (let k = 0; k < 60 * 60; k++) { g.step(); }
+  streamed = S.mobs.filter(m => m.stream !== undefined).length + S.kills;
+  assert.ok(S.mobs.some(m => m.stream !== undefined) || S.kills > 0, 'no dead came by day');
+  g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 500; k++) g.step();
+  assert.equal(S.phase, 'day', 'the stream kept the night from ending');
+});
+
+test('breaking a hive by hand: it rages, then burns', () => {
+  const g = createGame({ seed: 16, hero: 'warrior' }); const S = g.state; readyDay(g);
+  const reg = g.map.regions.find(r => r.nest && r.ring === 1);
+  assert.equal(g.hitHive(reg.id, 5), false, 'a level 1 keep can break a near hive');
+  S.gold = 99; g.upgradeKeep();
+  for (let k = 0; k < 200 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
+  assert.equal(S.nestAlive[reg.id], false, 'the hive never burned');
+  assert.ok(S.claimed.has(reg.id));
+});

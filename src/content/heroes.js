@@ -8,8 +8,8 @@ export const HEROES = {
   },
   archer: {
     name: 'Ranger', blurb: 'A crossbow and a hood. Fragile, but picks off the dead from far away. Volley rains bolts on the thickest crowd.',
-    autoBuild: true, hp: 18, speed: 4.6, attack: { kind: 'ranged', dmg: 2, reach: 7.5, rate: 0.7 },
-    ability: { id: 'volley', name: 'Volley', cooldown: 20, radius: 2.5, dmg: 6, reach: 10 },
+    autoBuild: true, hp: 18, speed: 4.6, attack: { kind: 'ranged', dmg: 1.5, reach: 6.5, rate: 0.85 },
+    ability: { id: 'volley', name: 'Volley', cooldown: 28, radius: 2.2, dmg: 4, reach: 9 },
   },
   merchant: {
     name: 'Scavver', blurb: 'Never fights. Runs the town by hand, picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays gold.',

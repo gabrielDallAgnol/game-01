@@ -52,9 +52,9 @@ export const PERKS = [
   { id: 'labour',  fam: 'harvest', rarity: R, name: 'Cheap Labour', desc: 'Houses and farms cost 1 less; tower upkeep 2 lower.', max: 1, fx: P => { P.ecoDiscount += 1; P.upkeepCut += 1; } },
   { id: 'guild',   fam: 'harvest', rarity: L, name: 'Merchant Guild', desc: 'Every dawn, one tower is upgraded free for each 4 houses you have.', max: 1, fx: P => { P.guild = true; } },
   // Ranger
-  { id: 'tips',    fam: 'ranger', rarity: C, name: 'Hollow Points', desc: 'Your bolts deal +1 damage.', max: 3, fx: P => { P.heroDmg += 1; } },
-  { id: 'quiver',  fam: 'ranger', rarity: C, name: 'Quick Hands', desc: 'You shoot 20% faster.', max: 2, fx: P => { P.heroRate *= 1.2; } },
-  { id: 'longshot',fam: 'ranger', rarity: C, name: 'Long Shot', desc: 'You reach 1.5 further.', max: 2, fx: P => { P.heroRange += 1.5; } },
+  { id: 'tips',    fam: 'ranger', rarity: C, name: 'Hollow Points', desc: 'Your bolts deal +0.5 damage.', max: 3, fx: P => { P.heroDmg += 0.5; } },
+  { id: 'quiver',  fam: 'ranger', rarity: C, name: 'Quick Hands', desc: 'You shoot 12% faster.', max: 2, fx: P => { P.heroRate *= 1.12; } },
+  { id: 'longshot',fam: 'ranger', rarity: C, name: 'Long Shot', desc: 'You reach 1 further.', max: 2, fx: P => { P.heroRange += 1; } },
   { id: 'pierce',  fam: 'ranger', rarity: R, name: 'Pierce', desc: 'Each bolt also hits one zombie just behind its target.', max: 1, fx: P => { P.pierce = true; } },
   { id: 'mark',    fam: 'ranger', rarity: R, name: 'Marked', desc: 'Zombies you hit take 30% more damage from towers for 4 seconds.', max: 1, fx: P => { P.mark = true; } },
   { id: 'storm',   fam: 'ranger', rarity: R, name: 'Bolt Storm', desc: 'Volley covers a wider area and hits 50% harder.', max: 1, fx: P => { P.abilityRadius += 1; P.abilityDmg *= 1.5; } },

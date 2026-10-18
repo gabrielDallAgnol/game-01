@@ -15,6 +15,7 @@ import { WEATHER } from '../content/weather.js';
 export const STEP = 1 / 60;
 export const PICKS_PER_DAWN = 2;
 export const DROPS = { channel: 3, reach: 1.7, life: 2 };   // seconds to open, how close, nights it lasts
+export const STREAM = { every: 11, drop: 0.35, min: 3.5, nightMult: 1.6, rage: 4, rageTime: 18, hiveHp: 60 };   // seconds between dead per hive
 export const ZONE = { keep: 10, building: 4.5, landmark: 7, hiveBlock: 6, hiveReach: 14 };
 export const TOWN_DRAW = { free: 12, per: 0.012 };
 export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/3
@@ -731,6 +732,43 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     }
   }
 
+  function burnHive(r) {
+    clearRoamers(r); S.claimed.add(r); revealRegion(r); S.nestAlive[r] = false; S.stats.regionsClaimed++;
+    for (const nb of map.regions[r].neighbors) if (map.regions[nb].nest && !S.claimed.has(nb) && S.wake[nb] > S.night + 1) S.wake[nb] = S.night + 1;
+    const loot = WAVES.plunder(map.regions[r].ring); earn(loot);
+    for (const m of S.mobs) if (m.stream === r) m.stream = -1;
+    ev('claim', { region: r }); toast(`The hive burns: +${loot} gold and a rare blessing. New hives stir beyond it.`, 'good');
+  }
+  // ---------- the stream: the dead never stop coming from awake hives, day and night ----------
+  const streamAcc = {}, hiveDmg = {}, rage = {};
+  const hiveMax = r => Math.round(STREAM.hiveHp * (1 + 0.6 * (map.regions[r].ring - 1)) * WAVES.hpScale(S.night));
+  function stepStream(dt) {
+    if (!S.clock || S.night < 2 && !(S.phase === 'night' && S.qT > 15)) return;
+    const n = S.night, every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n), mult = S.phase === 'night' ? STREAM.nightMult : 1;
+    const nests = new Set(activeNests(n)); for (const r in rage) if (rage[r] > 0) { nests.add(+r); rage[r] -= dt; }
+    const u = unlocked(Math.max(1, n - 1));
+    for (const r of nests) {
+      if (!S.nestAlive[r]) continue;
+      streamAcc[r] = (streamAcc[r] || rng.range(0, every)) + dt * mult * (rage[r] > 0 ? STREAM.rage : 1);
+      while (streamAcc[r] >= every) {
+        streamAcc[r] -= every;
+        const [kind] = u[rng.weighted(u.map(([, m]) => m.weight))];
+        const m = spawnAtNest(kind, r); m.stream = r;
+      }
+    }
+  }
+  /** the hero hits a hive: it bleeds, it rages (pours out the dead), and at zero it burns */
+  function hitHive(r, d) {
+    const reg = map.regions[r];
+    if (keep.level < keepForRing(reg.ring)) { if (!S.nightFlags.keepWarn) { S.nightFlags.keepWarn = true; fail(`This hive is too strong: raise the keep to level ${keepForRing(reg.ring)} first.`); } return false; }
+    if (!hiveDmg[r]) { toast('You strike the hive. It wakes and pours out its dead!', 'bad'); if (S.wake[r] > S.night) S.wake[r] = S.night; }
+    hiveDmg[r] = (hiveDmg[r] || 0) + d; rage[r] = STREAM.rageTime;
+    ev('hitHive', { region: r, hp: Math.max(0, 1 - hiveDmg[r] / hiveMax(r)) });
+    if (hiveDmg[r] >= hiveMax(r)) { burnHive(r); S.picks.push('nest'); syncPicks(); if (S.picks.length === 1 && S.phase === 'day') rollOffer(); dropSupply('The hive is ash.'); delete hiveDmg[r]; delete rage[r]; }
+    return true;
+  }
+  const hiveHealth = r => (S.nestAlive[r] ? Math.max(0, 1 - (hiveDmg[r] || 0) / hiveMax(r)) : 0);
+
   function dawn() {
     S.phase = 'day'; S.dawns++;
     let foodIn = sc.dawnFood(), hg = 0;
@@ -746,13 +784,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (owns('tvtower')) goldIn += 3;
     S.gold = Math.max(0, S.gold + goldIn); S.stats.goldEarned += Math.max(0, goldIn);
     let claimedNow = null, nestPick = false;
-    if (S.purge !== null) {
-      claimedNow = S.purge; clearRoamers(S.purge); S.claimed.add(S.purge); revealRegion(S.purge); S.nestAlive[S.purge] = false; S.stats.regionsClaimed++;
-      for (const nb of map.regions[S.purge].neighbors) if (map.regions[nb].nest && !S.claimed.has(nb) && S.wake[nb] > S.night + 1) S.wake[nb] = S.night + 1;
-      const loot = WAVES.plunder(map.regions[S.purge].ring); earn(loot); nestPick = true;
-      ev('claim', { region: S.purge }); toast(`The nest burns: +${loot} gold and a rare blessing. The land is yours, but new nests stir beyond it.`, 'good');
-      S.purge = null;
-    }
+    if (S.purge !== null) { claimedNow = S.purge; burnHive(S.purge); nestPick = true; S.purge = null; }
     // Merchant Guild: free tower upgrades
     if (has('guild')) {
       let free = Math.floor(S.buildings.filter(b => b.type === 'house').length / 4);
@@ -999,6 +1031,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       const reach = A.reach + S.P.heroRange, dmg = heroDmg() * (S.nightFlags.lastT > 0 ? 2 : 1);
       let best = null, bd = reach;
       for (const m of S.mobs) { if (m.rise < 1) continue; const d = Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size; if (d < bd) { bd = d; best = m; } }
+      if (!best) {
+        // nothing to fight: strike a hive in reach
+        const hv = map.regions.find(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - h.x, r.nest.y - h.y) < reach + 1.4);
+        if (hv && hitHive(hv.id, dmg)) { h.cd = heroRate(); h.swing = 0.25; h.attacks++; h.face = Math.atan2(hv.nest.x - h.x, hv.nest.y - h.y); ev(A.kind === 'melee' ? 'swing' : 'shot', { src: 'hero' }); }
+      }
       if (best) {
         h.cd = heroRate(); h.swing = 0.25; h.attacks++; if (!moving) h.face = Math.atan2(best.x - h.x, best.y - h.y);
         const cleave = mastery('whirlwind') || (has('wardance') && h.attacks % 3 === 0);
@@ -1228,13 +1265,14 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const p of [...S.purses]) { p.life -= dt; if (p.life <= 0) { S.purses.splice(S.purses.indexOf(p), 1); ev('purseGone', { id: p.id }); } }
     stepProjectiles(dt);
     if (S.drops.length) stepDrops(dt);
+    stepStream(dt);
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }
     // sunrise: whatever still walks long after the last surge burns away
-    if (S.phase === 'night' && !S.queue.length && S.mobs.some(m => !m.roam) && S.qT > WAVES.duration(S.night) + 90) {
-      for (const m of S.mobs.filter(q => !q.roam)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
+    if (S.phase === 'night' && !S.queue.length && S.mobs.some(m => !m.roam && m.stream === undefined) && S.qT > WAVES.duration(S.night) + 90) {
+      for (const m of S.mobs.filter(q => !q.roam && q.stream === undefined)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
       toast('The sun rises and the last of the dead burn away.');
     }
-    if (S.phase === 'night' && !S.over && !S.queue.length && !S.mobs.some(m => !m.roam)) dawn();
+    if (S.phase === 'night' && !S.over && !S.queue.length && !S.mobs.some(m => !m.roam && m.stream === undefined)) dawn();
   }
 
   // ---------- forecast: where tonight's dead come from and how they walk ----------
@@ -1297,6 +1335,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     },
     buildLine, upgradeWall, wallRun, wallBudget, lineCells,
     weather: () => ({ id: S.weather, ...W8() }),
+    hiveHealth, hitHive,
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
     dropSupply,
     hasTech, crewing, manned, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
