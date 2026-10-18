@@ -441,8 +441,9 @@ export function createView(canvas, game, opts = {}) {
         const g = new THREE.Group(), m = model(b.type, b.level, { id: b.id, links }); g.add(m);
         if (FOOT[b.type]) g.add(padFor(FOOT[b.type]));
         g.position.copy(W(b.x, b.y)); if (b.type === 'house' || b.type === 'farm') g.rotation.y = faceKeep(b.x, b.y);
-        g.scale.setScalar(relink ? 1 : 0.05); world.add(g);
-        e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type }; bMeshes.set(b.id, e);
+        g.scale.set(1, relink ? 1 : 0.02, 1); world.add(g);
+        e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type, rise: relink ? 1 : 0 }; bMeshes.set(b.id, e);
+        if (!relink && b.type !== 'wall') dust(b.x, b.y, FOOT[b.type] || 1);
         if (b.ruined) e.g.visible = false;
       }
       if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.g.scale.setScalar(1); burst(b.x, b.y, 1.2, '#d9843a'); }
@@ -487,6 +488,13 @@ export function createView(canvas, game, opts = {}) {
     for (const ch of S.chests) { seen.add(ch.id); if (!cMeshes.has(ch.id)) { const g = chestMesh(); g.scale.setScalar(0.75); g.position.copy(W(ch.x, ch.y)); world.add(g); cMeshes.set(ch.id, g); } }
     for (const [id, g] of cMeshes) if (!seen.has(id)) { world.remove(g); cMeshes.delete(id); }
   }
+  // construction dust: a few grey puffs rolling out from the footprint
+  const puffs = [], puffMat = () => new THREE.SpriteMaterial({ map: glowTex, color: lc('#b9b1a2'), transparent: true, opacity: 0.55, depthWrite: false });
+  function dust(x, y, n) {
+    for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2 + vis(), sp = new THREE.Sprite(puffMat()); sp.position.copy(W(x + Math.cos(a) * n * 0.45, y + Math.sin(a) * n * 0.45, 0.3)); sp.scale.setScalar(0.6 + n * 0.3); fx.add(sp); puffs.push({ sp, vx: Math.cos(a) * (0.8 + n * 0.3), vz: Math.sin(a) * (0.8 + n * 0.3), t: 0 }); }
+    burst(x, y, 0.6 + n * 0.5, '#e08a3c');
+  }
+  function stepPuffs(dt) { for (const p of [...puffs]) { p.t += dt; p.sp.position.x += p.vx * dt; p.sp.position.z += p.vz * dt; p.sp.position.y += dt * 0.6; p.sp.scale.multiplyScalar(1 + dt * 0.9); p.sp.material.opacity = Math.max(0, 0.55 * (1 - p.t / 0.9)); if (p.t > 0.9) { fx.remove(p.sp); p.sp.material.dispose(); puffs.splice(puffs.indexOf(p), 1); } } }
   function burst(x, y, r, color) {
     const m = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.5, 32), new THREE.MeshBasicMaterial({ color: lc(color).multiplyScalar(1.4), transparent: true, opacity: 0.9, depthWrite: false }));
     m.rotation.x = -Math.PI / 2; m.position.copy(W(x, y, 0.12)); fx.add(m); effects.push({ m, t: 0, r });
@@ -764,11 +772,14 @@ export function createView(canvas, game, opts = {}) {
     crowd.end();
     for (const f of [...effects]) { f.t += dt; if (!f.line) { const s = 0.5 + f.t * f.r * 2.2; f.m.scale.set(s, s, s); } f.m.material.opacity = Math.max(0, 0.9 - f.t * 1.4); if (f.t > 0.7) { fx.remove(f.m); effects.splice(effects.indexOf(f), 1); } }
     for (const g of cMeshes.values()) { g.rotation.y += dt; g.position.y = 0.08 + Math.abs(Math.sin(time * 3)) * 0.12; }
+    stepPuffs(dt);
 
     // buildings
     for (const b of S.buildings) {
       const e = bMeshes.get(b.id); if (!e) continue;
-      const sc = e.g.scale.x; if (sc < 1 && !(b.built < 1)) e.g.scale.setScalar(Math.min(1, sc + dt * 3.2));
+      // Red Alert style: the building unfolds out of the ground with a little overshoot
+      if (e.rise < 1 && !(b.built < 1)) { e.rise = Math.min(1, e.rise + dt * 2.4); const k = e.rise, c1 = 1.9, ob = 1 + (c1 + 1) * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); e.g.scale.set(1, Math.max(0.02, ob), 1); }
+      else { const sc = e.g.scale.x; if (sc < 1 && !(b.built < 1)) e.g.scale.setScalar(Math.min(1, sc + dt * 3.2)); }
       if (b.built < 1) e.g.scale.set(1, 0.15 + 0.85 * b.built, 1);
       if (!b.ruined) setBar(e.bar, b.x, b.type === 'tower' ? 2.9 + b.level * 0.25 : b.type === 'wall' ? 1.7 : 3.2, b.y, b.hp / b.maxHp); else e.bar.visible = false;
     }
