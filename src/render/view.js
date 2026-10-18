@@ -11,7 +11,7 @@ import { buildCity } from './city.js';
 import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE } from './figures.js';
 
 const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
-const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2 };   // world units per metre of each kit model
+const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1 };   // world units per metre of each kit model
 const HERO_RIG = { warrior: 'brawler', archer: 'ranger', merchant: 'scavver', steward: 'scavver' };
 const HOUSE_COLORS = ['sand', 'bone', 'stone', 'pale'];
 const HIVES = ['metro', 'petrol', 'hospital'];
@@ -254,6 +254,22 @@ export function createView(canvas, game, opts = {}) {
     else if (type === 'farm') m = K.farm({ level, seed: b ? b.id : 1 });
     else if (type === 'tower') m = K.tower({ level, game: true });
     else if (type === 'wall') m = K.post(level, b ? b.links : { e: true, w: true }, b ? b.id : 1);
+    else if (type === 'workshop') {   // a corrugated shed with a sawtooth roof, a roller door and a chimney
+      const B = new K.B();
+      B.cbox('grey', 2.5, 1.1, 2.1, 0, 0, 0, { r: 0.04 });
+      for (let k = 0; k < 3; k++) B.cbox('metal', 0.85, 0.45, 2.15, -0.83 + k * 0.83, 1.1, 0, { r: 0.02, rz: 0.35 });
+      B.cbox('amberDeep', 1.0, 0.8, 0.06, 0.4, 0, 1.06, { r: 0.02 }); B.cbox('dark', 0.5, 0.5, 0.06, -0.7, 0.35, 1.06, { r: 0.02 });
+      B.cyl('dark', 0.12, 0.14, 1.2, -0.9, 1.1, -0.6, { seg: 10 }); B.cbox('steel', 0.6, 0.3, 0.4, 1.4, 0, 0.7, { r: 0.03 });
+      m = B.build();
+    } else if (type === 'market') {   // three stalls under striped awnings around a plaza of crates
+      const B = new K.B();
+      B.cbox('stone', 2.6, 0.08, 2.6, 0, 0, 0, { r: 0.02 });
+      for (let k = 0; k < 3; k++) { const a = k * 2.1, x = Math.cos(a) * 0.75, z = Math.sin(a) * 0.75;
+        B.cbox('canvas', 0.9, 0.5, 0.6, x, 0.08, z, { r: 0.03, ry: -a }); B.cbox(k % 2 ? 'amber' : 'canvas', 1.05, 0.06, 0.8, x, 0.95, z, { r: 0.01, ry: -a, rx: 0.15 });
+        for (const s2 of [-0.45, 0.45]) B.box('metal', 0.04, 0.9, 0.04, x + Math.cos(-a) * s2, 0.08, z + Math.sin(-a) * s2); }
+      B.cbox('amberDeep', 0.35, 0.3, 0.35, 0.2, 0.08, 0.2, { r: 0.03 }); B.cbox('canvas', 0.3, 0.25, 0.3, -0.25, 0.08, -0.1, { r: 0.03, ry: 0.5 });
+      m = B.build();
+    }
     m.scale.setScalar(BSCALE[type]);
     return m;
   }
@@ -300,6 +316,7 @@ export function createView(canvas, game, opts = {}) {
         e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type }; bMeshes.set(b.id, e);
         if (b.ruined) e.g.visible = false;
       }
+      if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.g.scale.setScalar(1); burst(b.x, b.y, 1.2, '#d9843a'); }
       if (b.type === 'tower') {
         if (!e.nc) { e.nc = new THREE.Sprite(noCrewMat); e.nc.scale.set(1.0, 0.25, 1); e.nc.renderOrder = 9; fx.add(e.nc); }
         e.nc.visible = !b.ruined && !game.manned(b); if (e.nc.visible) e.nc.position.copy(W(b.x, b.y, 2.1 + Math.sin(time * 3) * 0.05));
@@ -599,7 +616,8 @@ export function createView(canvas, game, opts = {}) {
     // buildings
     for (const b of S.buildings) {
       const e = bMeshes.get(b.id); if (!e) continue;
-      const sc = e.g.scale.y; if (sc < 1) e.g.scale.setScalar(Math.min(1, sc + dt * 3.2));
+      const sc = e.g.scale.x; if (sc < 1 && !(b.built < 1)) e.g.scale.setScalar(Math.min(1, sc + dt * 3.2));
+      if (b.built < 1) e.g.scale.set(1, 0.15 + 0.85 * b.built, 1);
       if (!b.ruined) setBar(e.bar, b.x, b.type === 'tower' ? 2.9 + b.level * 0.25 : b.type === 'wall' ? 1.7 : 3.2, b.y, b.hp / b.maxHp); else e.bar.visible = false;
     }
     keepG.visible = !S.keep.ruined;

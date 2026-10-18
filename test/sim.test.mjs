@@ -388,3 +388,18 @@ test('supply drops: guarded crates in the wild, opened by standing next to them'
   assert.equal(S.drops.length, 0, 'did not open after 3 seconds');
   assert.ok(S.gold > before.gold || g.pop() > before.pop || S.pendingPicks > before.picks || JSON.stringify(S.stock) !== before.stock, 'no reward');
 });
+
+test('tech: Workshop and Market need a level 2 keep, take time to build, and unlock level 3', () => {
+  const g = createGame({ mode: 'classic', seed: 9 }); readyDay(g); const S = g.state; S.gold = 400;
+  const t = g.map.town, spot = type => { for (let r = 3; r < 10; r++) for (let a = 0; a < 24; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace(type, x, y).ok) return { x, y }; } return null; };
+  assert.equal(spot('workshop'), null, 'a workshop with a level 1 keep');
+  g.upgradeKeep(); g.upgradeKeep();
+  const h = spot('house'); g.build('house', h.x, h.y); const home = S.buildings.find(b => b.type === 'house');
+  g.upgrade(home.id); assert.equal(home.level === 2 || S.byId.get(home.id).level === 2, true);
+  assert.equal(g.upgrade(home.id), false, 'level 3 home without a market');
+  const m = spot('market'); assert.ok(g.build('market', m.x, m.y));
+  assert.equal(g.upgrade(home.id), false, 'the market works before it is built');
+  for (let k = 0; k < 60 * 36; k++) g.step();
+  assert.ok(g.hasTech('market'));
+  assert.ok(g.upgrade(home.id), 'level 3 home with a finished market');
+});

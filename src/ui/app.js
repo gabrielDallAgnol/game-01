@@ -2,7 +2,7 @@
 import { createGame, STEP, CREW_NEED } from '../sim/game.js';
 import { mapChoices, generateMap, N, T, idx, BIOMES, LANDMARKS } from '../sim/mapgen.js';
 import { createView } from '../render/view.js';
-import { BUILDINGS, BUILD_ORDER, KEEP, MAX_LEVEL } from '../content/buildings.js';
+import { BUILDINGS, BUILD_ORDER, TECH_ORDER, UNLOCKS, KEEP, MAX_LEVEL } from '../content/buildings.js';
 import { HEROES, HERO_ORDER, TRADES } from '../content/heroes.js';
 import { PERKS, FAMILIES, SYNERGIES, MASTERIES } from '../content/perks.js';
 import { PACKS } from '../content/packs.js';
@@ -23,8 +23,8 @@ const RINGS = ['Town', 'Near lands', 'Far lands'];
 const ARM_MS = 700;          // cards ignore taps this long after they appear
 const DAWN_DELAY = 1.2;      // seconds between the last kill and the first card
 const JOY_PX = 14;           // a touch that moves further than this is a joystick drag, not a tap
-const SHORT = { house: 'Home', farm: 'Farm', tower: 'Tower', wall: 'Barricade' };
-const PLURAL = { house: 'Homes', farm: 'Farms', tower: 'Towers', wall: 'barricade posts' };
+const SHORT = { house: 'Home', farm: 'Farm', tower: 'Tower', wall: 'Barricade', workshop: 'Workshop', market: 'Market' };
+const PLURAL = { house: 'Homes', farm: 'Farms', tower: 'Towers', wall: 'barricade posts', workshop: 'Workshops', market: 'Markets' };
 
 export function startApp() {
   let game = null, view = null, names = [], selected = null, placing = null, paused = true, acc = 0, last = performance.now(), hudT = 0;
@@ -230,12 +230,16 @@ export function startApp() {
     const S = game.state, tray = $('#tray');
     tray.hidden = S.phase !== 'day' || !!card;
     if (tray.hidden) { trayKey = ''; return; }
-    const sig = [S.gold, JSON.stringify(S.stock), placing && placing.type, S.builders].join('|'); if (sig === trayKey) return; trayKey = sig;
+    const sig = [S.gold, JSON.stringify(S.stock), placing && placing.type, S.builders, game.keepLevel(), S.buildings.filter(b => b.tech || BUILDINGS[b.type].tech).length].join('|'); if (sig === trayKey) return; trayKey = sig;
     const FOCUS = { defence: 'Defence', balanced: 'Balanced', growth: 'Growth', off: 'Off' };
     const bRow = S.builders ? `<div class="builders" role="group" aria-label="What your builders focus on"><span>Builders</span>${Object.entries(FOCUS).map(([k, v]) => `<button data-focus="${k}" aria-pressed="${S.builders === k}">${v}</button>`).join('')}</div>` : '';
     tray.innerHTML = bRow + BUILD_ORDER.map(t => {
       const n = S.stock[t] || 0, cost = n ? 0 : game.buyCost(t), on = placing && placing.type === t;
       return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${!n && S.gold < cost ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
+    }).join('') + TECH_ORDER.map(t => {
+      const have = S.buildings.some(b => b.type === t), locked = game.keepLevel() < BUILDINGS[t].keep, cost = game.buyCost(t), on = placing && placing.type === t;
+      if (have) return '';
+      return `<button class="tb tech ${t}${on ? ' on' : ''}" data-tray="${t}" ${locked || S.gold < cost ? 'aria-disabled="true"' : ''} title="${BUILDINGS[t].desc[0]}"><i></i><span class="tn">${SHORT[t]}</span>${locked ? '<span class="tc">Keep 2</span>' : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
     }).join('');
   }
   $('#tray').addEventListener('click', e => {
@@ -243,13 +247,14 @@ export function startApp() {
     const b = e.target.closest('[data-tray]'); if (!b || !game || paused) return;
     const t = b.dataset.tray;
     if (placing && placing.type === t) { stopPlacing(); return; }
+    if (BUILDINGS[t].tech && game.keepLevel() < BUILDINGS[t].keep) { toast(`Raise the keep to level ${BUILDINGS[t].keep} to build a ${SHORT[t]}.`, 'bad'); return; }
     if (!(game.state.stock[t] > 0) && game.state.gold < game.buyCost(t)) { toast(`A ${SHORT[t].toLowerCase()} costs ${game.buyCost(t)} gold.`, 'bad'); return; }
     startPlacing(t);
   });
   // Placement works like a classic RTS: the land you can build on lights up, the building in hand
   // snaps to the nearest spot that fits (preferring spots that line up with a street), and
   // palisades are laid as lines: pick where the line starts, then where it ends.
-  const SIZE = { house: 2, farm: 2, tower: 1, wall: 1 };
+  const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3 };
   const cellOf = (x, y) => [Math.floor(x), Math.floor(y)];
   function computeZone(type) {
     const S = game.state, n = SIZE[type], off = n % 2 ? 0.5 : 0, mask = new Uint8Array(N * N), spots = [];
@@ -360,7 +365,7 @@ export function startApp() {
   function selB() { const S = game.state; return selected && selected.type === 'building' ? S.byId.get(selected.id) : selected && selected.type === 'keep' ? S.keep : null; }
   function panelSig() {
     const S = game.state, b = selB();
-    return [S.gold, S.food, S.phase, S.purge, S.halfUpgrade, S.trade && S.trade.done, selected && selected.type, selected && selected.id, scavSig(), selected && selected.type === 'landmark' ? game.landmarkReach(selected.id) : '', b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}` : ''].join('|');
+    return [S.gold, S.food, S.phase, S.purge, S.halfUpgrade, S.trade && S.trade.done, selected && selected.type, selected && selected.id, scavSig(), selected && selected.type === 'landmark' ? game.landmarkReach(selected.id) : '', b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}` : ''].join('|');
   }
   function openSel(sel) { selected = sel; renderPanel(); lastSig = panelSig(); $('#panel').hidden = false; }
   function closePanel() { selected = null; $('#panel').hidden = true; }
@@ -463,9 +468,10 @@ export function startApp() {
       html += opt('opt-demo', 'data-demo="1"', 'Pull down this post', null, 'Opens a gap you can build a gate tower in.', !day);
       body.innerHTML = html + '</div>'; selected.range = null; return;
     }
-    const capped = b.level >= game.keepLevel();
+    const capped = b.level >= game.keepLevel(), maxL = B.maxLevel || MAX_LEVEL, needTech = b.level + 1 === 3 && UNLOCKS[b.type] && !game.hasTech(UNLOCKS[b.type]);
+    if (B.tech) { body.innerHTML = `<div class="stat"><span>${b.built < 1 ? `Under construction <b>${Math.floor(b.built * 100)}%</b>` : 'Working'}</span><span>${B.desc[0]}</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} gold back.`, !day)}</div>`; selected.range = null; return; }
     if (b.type === 'tower') { const on = game.manned(b), need = CREW_NEED[b.level - 1]; html = html.replace('</div><div class="opts two">', `<span>${on ? `Crew <b>${need}</b> on watch` : `<b class="bad">No crew</b>: needs ${need} people. Build or upgrade homes.`}</span></div><div class="opts two">`); }
-    if (b.level < MAX_LEVEL) { const c = game.upCostOf(b); html += opt('opt-up', 'data-up="1"', capped ? `Raise the keep first` : `Upgrade to level ${b.level + 1}`, capped ? null : c, capped ? `Nothing grows past the keep (level ${game.keepLevel()}).` : `${B.desc[b.level]} · ${game.maxHpOf(b.type, b.level + 1)} hp${b.type === 'tower' ? ` · needs ${CREW_NEED[b.level]} crew` : ''}${S.halfUpgrade ? ' · half price' : ''}`, capped || S.gold < c || !day); }
+    if (b.level < maxL) { const c = game.upCostOf(b); html += opt('opt-up', 'data-up="1"', capped ? `Raise the keep first` : needTech ? `Needs a ${SHORT[UNLOCKS[b.type]]}` : `Upgrade to level ${b.level + 1}`, capped || needTech ? null : c, capped ? `Nothing grows past the keep (level ${game.keepLevel()}).` : needTech ? `Build a ${SHORT[UNLOCKS[b.type]]} to unlock level 3.` : `${B.desc[b.level]} · ${game.maxHpOf(b.type, b.level + 1)} hp${b.type === 'tower' ? ` · needs ${CREW_NEED[b.level]} crew` : ''}${S.halfUpgrade ? ' · half price' : ''}`, capped || needTech || S.gold < c || !day); }
     html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} gold back and free the space.`, !day);
     body.innerHTML = html + '</div>' + (b.level >= MAX_LEVEL ? '<div class="tiny">Fully upgraded.</div>' : '');
     selected.range = b.type === 'tower' ? game.towerStats(b).range : null;
@@ -689,7 +695,7 @@ export function startApp() {
     if (k === 'l') showLog();
     if (k === 'q' || k === ' ') { e.preventDefault(); useAbility(); }
     if (k === 'enter' && placing) placeNow();
-    if (['1', '2', '3', '4'].includes(k) && !paused && game.state.phase === 'day') { const t = BUILD_ORDER[+k - 1]; if (placing && placing.type === t) stopPlacing(); else startPlacing(t); }
+    if (['1', '2', '3', '4', '5', '6'].includes(k) && !paused && game.state.phase === 'day') { const t = [...BUILD_ORDER, ...TECH_ORDER][+k - 1]; if (placing && placing.type === t) stopPlacing(); else startPlacing(t); }
     if ((k === '=' || k === '+') && view) view.setZoom(view.getZoom() * 0.8);
     if ((k === '-' || k === '_') && view) view.setZoom(view.getZoom() * 1.25);
   });

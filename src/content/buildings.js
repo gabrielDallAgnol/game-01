@@ -17,8 +17,19 @@ export const BUILDINGS = {
     name: 'Barricade', cost: [1, 2, 3], hp: [30, 60, 100], blocks: true,
     desc: ['One barricade post · 30 hp · you walk through, the dead do not', 'Wrecks and sandbags · 60 hp', 'Concrete and razor wire · 100 hp'],
   },
+  // tech: one of each, bought with gold only, take time to build, unlock level 3
+  workshop: {
+    name: 'Workshop', cost: [18], hp: [60], tech: true, keep: 2, buildTime: 40, maxLevel: 1,
+    desc: ['Unlocks level 3 towers and concrete barricades.'],
+  },
+  market: {
+    name: 'Market', cost: [16], hp: [50], tech: true, keep: 2, buildTime: 35, maxLevel: 1,
+    desc: ['Unlocks level 3 homes and farms. Every home pays 1 more gold.'],
+  },
 };
 export const BUILD_ORDER = ['house', 'farm', 'tower', 'wall'];
+export const TECH_ORDER = ['workshop', 'market'];
+export const UNLOCKS = { tower: 'workshop', wall: 'workshop', house: 'market', farm: 'market' };   // what level 3 needs
 export const MAX_LEVEL = 3;
 
 export const KEEP = {

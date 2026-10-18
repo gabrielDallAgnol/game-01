@@ -47,6 +47,7 @@ export function createPlanner(g) {
     const [x, y] = [Math.floor(p[0]), Math.floor(p[1])];
     return (horiz ? g.buildLine(x - 2, y, x + 2, y, 5) : g.buildLine(x, y - 2, x, y + 2, 5)) > 0;
   }
+  function tech(type) { if (S.buildings.some(b => b.type === type) || g.keepLevel() < 2 || S.gold < g.buyCost(type) + RESERVE + 4) return false; return place(type); }
   const can = type => (S.stock[type] || 0) > 0 || S.gold >= g.buyCost(type) + RESERVE;
   function upgradeOne(type) {
     const cap = Math.min(3, g.keepLevel());
@@ -65,10 +66,12 @@ export function createPlanner(g) {
     upTower: () => upgradeOne('tower'),
     upHouse: () => upgradeOne('house'),
     keep: () => keepUp(),
+    workshop: () => tech('workshop'),
+    market: () => tech('market'),
   };
   const PLAN = {
-    defence: ['tower', 'wall', 'upTower', 'house', 'keep', 'upHouse'],
-    growth: ['house', 'upHouse', 'keep', 'tower', 'upTower', 'wall'],
+    defence: ['tower', 'wall', 'upTower', 'workshop', 'house', 'keep', 'upHouse'],
+    growth: ['house', 'upHouse', 'keep', 'market', 'tower', 'upTower', 'wall'],
   };
 
   function stepOnce() {
