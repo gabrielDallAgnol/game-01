@@ -646,6 +646,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (l.kind === 'tvtower' || L.reveal) { S.seen.fill(1); S.seenVersion++; } else reveal(l.x, l.y, l.kind === 'eiffel' ? 22 : 9);
     if (L.survivors) S.survivors += L.survivors;
     gainXp(15);
+    if (L.manual) { S.picks.push(`manual:${L.manual}`); syncPicks(); toast(`[Field manual found] ${FAMILIES[L.manual].name} blessings: pick one at once.`, 'good'); }
     S.stats.sites = (S.stats.sites || 0) + 1;
     ev('landmark', { id }); toast(`[Site claimed: ${L.name}] ${L.desc}`, 'good');
     if (story) { S.story.quests = S.story.quests.filter(q => q.site !== id); story.chron(`Claimed the ${L.name}.`, 3); }
@@ -1024,9 +1025,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const source = S.picks[0];
     S.offerSource = source;
     if (source.startsWith('mastery:')) { const fam = source.split(':')[1]; S.offer = MASTERIES[fam].map(m => `m:${m.id}`); return; }
-    const pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && famOk(p.fam));
+    const manual = source.startsWith('manual:') ? source.split(':')[1] : null;   // a field manual found in a site: blessings of one family
+    let pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && (manual ? p.fam === manual && !p.pact : famOk(p.fam)));
+    if (manual && !pool.length) pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && famOk(p.fam));
     const n = 3 + (source === 'dawn' ? (HC.extraOffer || 0) : 0);
-    const odds = ODDS[source] || ODDS.dawn, out = [];
+    const odds = ODDS[manual ? 'chest' : source] || ODDS.dawn, out = [];
     const want = [];
     for (let k = 0; k < n; k++) {
       let r = perkRng.weighted(odds);

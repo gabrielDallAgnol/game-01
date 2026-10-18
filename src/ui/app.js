@@ -136,7 +136,7 @@ export function startApp() {
   }
   const needsDawn = () => { const S = game.state; return S.phase === 'day' && !S.over && ((S.pendingPicks > 0 && S.offer.length) || S.story.encounters.length || S.packs.length || (S.trade && !S.trade.done && !traderSeen)); };
 
-  const sourceLabel = { dawn: 'Dawn blessing', chest: 'From a chest', nest: 'Spoils of the nest' };
+  const sourceLabel = { dawn: 'Dawn blessing', chest: 'From a chest', nest: 'Spoils of the nest', 'manual:hero': 'Field manual · Brawn', 'manual:ranger': 'Field manual · Aim', 'manual:scavver': 'Field manual · Wits', 'manual:heart': 'Field manual · Heart', 'manual:bow': 'Field manual · Bow', 'manual:stone': 'Field manual · Stone', 'manual:harvest': 'Field manual · Harvest' };
   function showPerks() {
     const S = game.state, src = S.offerSource || 'dawn', isMastery = src.startsWith('mastery:');
     const pips = f => [0, 1, 2].map(i => `<i class="${i < S.P.fam[f] ? 'on' : ''}"></i>`).join('');

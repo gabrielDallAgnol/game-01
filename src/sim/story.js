@@ -6,6 +6,7 @@
 import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET, STREET_GEN } from '../content/story.js';
 import { RARITY } from '../content/districts.js';
 
+const FAM_NAME = { hero: 'Brawn', ranger: 'Aim', scavver: 'Wits', heart: 'Heart', bow: 'Bow', stone: 'Stone', harvest: 'Harvest' };
 export function createStory(ctx) {
   const { S, map, rng, toast, ev } = ctx;
   const ST = S.story = { spots: [], day: 1, encounters: [], threads: {}, npcs: [], titles: [], chronicle: [], flags: {}, quests: [], power: 0, hands: 0, visited: {}, nextId: 1, lastOpen: 0 };
@@ -123,7 +124,7 @@ export function createStory(ctx) {
     const T = SITES[l.kind] || SITES.default, D = SITES.default, L = LM[l.kind], strip = 6 + 2 * (L.cost || 6);
     return { kind: 'site', site: l.id, eyebrow: `[${L.name}]`, title: L.name, scene: T.scene || D.scene,
       choices: [
-        { id: 'claim', label: T.claim || D.claim, hint: `${L.desc}${L.cost ? ` Costs ${L.cost} scrap.` : ''}`, cost: { gold: L.cost || 0 }, fx: [{ op: 'claimSite', site: l.id }] },
+        { id: 'claim', label: T.claim || D.claim, hint: `${L.desc}${L.manual ? ` Inside: a field manual (${FAM_NAME[L.manual]} blessings).` : ''}${L.cost ? ` Costs ${L.cost} scrap.` : ''}`, cost: { gold: L.cost || 0 }, fx: [{ op: 'claimSite', site: l.id }] },
         { id: 'strip', label: T.strip || D.strip, hint: `+${strip} scrap now. The building is gone for good.`, fx: [{ op: 'stripSite', site: l.id, n: strip }] },
         { id: 'leave', label: D.leave, hint: 'Come back any time. Tap it to claim it later.', fx: [] },
       ] };
