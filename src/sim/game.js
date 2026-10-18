@@ -50,7 +50,7 @@ const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, gen
 const LOT_PAD = { house: 1, farm: 1, tower: 1, workshop: 1, market: 1, wall: 0, generator: 1 };   // the path each lot includes   // compact footprints; palisades are single posts, laid in lines
 const BIG = 1.6; // mobs at least this size count as "big game"
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor' } = {}) {
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null } = {}) {
   if (hero === 'steward') hero = 'merchant';
   const map = generateMap(mapSeed ?? seed, biome);
   const rng = new Rng(hashSeed(seed, 'run'));
@@ -611,6 +611,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.gold < cost) return fail(`Clearing this costs ${cost} scrap.`);
     S.gold -= cost; S.cur.spent += cost; S.stats.goldSpent += cost;
     for (const i of cells) map.terrain[i] = T.GRASS;
+    (S.clearedIdx || (S.clearedIdx = [])).push(...cells);
     S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; S.cleared = (S.cleared || 0) + cells.length;
     ev('clear', { cells });
     return cells.length;
@@ -1515,6 +1516,39 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) takeSite(l); }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
     risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the dead.', 'bad'); } });
   story.start();
+
+  // ---------- saving: a dawn snapshot (what you built, chose and met; the dead are not saved) ----------
+  const b64 = u8 => { let s2 = ''; for (let i = 0; i < u8.length; i += 8) { let v = 0; for (let k = 0; k < 8; k++) if (u8[i + k]) v |= 1 << k; s2 += String.fromCharCode(v); } return btoa(s2); };
+  const unb64 = (str, n) => { const bin = atob(str), out = new Uint8Array(n); for (let i = 0; i < bin.length; i++) { const v = bin.charCodeAt(i); for (let k = 0; k < 8; k++) if (v & (1 << k) && i * 8 + k < n) out[i * 8 + k] = 1; } return out; };
+  function snapshot() {
+    if (S.phase !== 'day' || S.over) return null;
+    return { v: 1, seed, mapSeed: mapSeed ?? seed, biome, hero: S.heroClass, mode: S.mode, difficulty: S.difficulty, clock: S.clock, city: map.name, savedAt: Date.now(),
+      night: S.night, gold: S.gold, food: S.food, kills: S.kills, stock: S.stock, survivors: S.survivors, heat: S.heat, foreman: S.foreman, builders: S.builders, autopilot: !!S.autopilot,
+      sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
+      P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, reroll: S.reroll, halfUpgrade: S.halfUpgrade,
+      landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),
+      evo: S.evo, story: S.story, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT,
+      buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0]), keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)] };
+  }
+  function restoreSnap(R) {
+    Object.assign(S, { night: R.night, gold: R.gold, food: R.food, kills: R.kills, stock: R.stock, survivors: R.survivors, heat: R.heat, foreman: R.foreman, builders: R.builders, autopilot: R.autopilot,
+      kits: R.kits, claimed: new Set(R.claimed), nestAlive: R.nestAlive, wake: R.wake.map(w => (w < 0 ? Infinity : w)), P: R.P, picks: R.picks, chestsHeld: R.chestsHeld, dawns: R.dawns,
+      weather: R.weather, reroll: R.reroll, halfUpgrade: R.halfUpgrade, stats: R.stats, log: R.log || [], evo: R.evo, drained: R.drained, salvage: R.salvage, clearedIdx: R.cleared, handsUsed: R.handsUsed, dayT: R.dayT });
+    S.sealed = Uint8Array.from(R.sealed); S.sealVersion++;
+    mastSet = new Set(Object.values(S.P.mastery));
+    R.landmarks.forEach(([o, k, st], i) => { const l = S.landmarks[i]; if (l) { l.owned = !!o; l.kind = k; l.stripped = !!st; } });
+    S.seen = unb64(R.seen, N * N); S.seenVersion++;
+    for (const k of Object.keys(S.story)) delete S.story[k]; Object.assign(S.story, R.story);
+    for (const i of R.cleared || []) map.terrain[i] = T.GRASS;
+    for (const b of [...S.buildings]) removeBuilding(b);
+    for (const [id, type, level, x, y, rot] of R.buildings) placeBuilding(type, x, y, rot, level, id);
+    S.nextId = Math.max(R.nextId, S.nextId);
+    keep.level = R.keep[0]; keep.r = 2.3 * (1 + 0.12 * (keep.level - 1)); refreshMax(); keep.hp = Math.min(keep.maxHp, R.keep[1]);
+    refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, R.heroAt[0]); S.hero.x = R.heroAt[1]; S.hero.y = R.heroAt[2]; unstickHero();
+    for (const m of S.mobs) mobById.delete(m.id); S.mobs.length = 0; S.projectiles.length = 0; S.drops = []; S.chests = []; S.purses = [];
+    S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; liveTick = -1; crewCache = null;
+    spawnRoamers(); syncPicks(); rollOffer(); newLog(); S.events.length = 0; S.restored = true;
+  }
   let planner = null;
   const api = {
     setBuilders: f => { if (S.builders !== null && FOCI.includes(f)) S.builders = f; },
@@ -1532,7 +1566,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     hiveHealth, hitHive,
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
     dropSupply,
-    frontier, districtOffer, openDistrict, kitFor, siteOf, story: () => story, choose: id => story.choose(id),
+    snapshot, frontier, districtOffer, openDistrict, kitFor, siteOf, story: () => story, choose: id => story.choose(id),
     hasTech, crewing, manned, handsMax, handsFree, powerIn, powerOut, powered, heatFloor, addHeat, difficulty: () => DIFF, newCost, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
@@ -1544,5 +1578,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
   };
   planner = createPlanner(api);
+  if (restore) restoreSnap(restore);
   return api;
 }

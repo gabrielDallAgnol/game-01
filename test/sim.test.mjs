@@ -489,3 +489,17 @@ test('evolution: a Survivor takes a Calling, then a final class from a second fa
   g.choose('evolve'); assert.equal(S.heroClass, 'vanguard'); assert.equal(g.heroDef.name, 'Vanguard');
   assert.ok(S.hero.maxHp >= 34);
 });
+
+test('saving: a dawn snapshot restores the town, the story and the city', () => {
+  const g = createGame({ seed: 21, hero: 'survivor', difficulty: 'veteran' }); const S = g.state; readyDay(g); S.gold = 300;
+  const t = g.map.town; let n = 0; for (let r = 4; r < 10 && n < 4; r++) for (let a = 0; a < 24 && n < 4; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) n++; }
+  g.upgradeKeep(); const f = g.frontier(); g.openDistrict(f[0]);
+  const snap = JSON.parse(JSON.stringify(g.snapshot()));
+  assert.ok(JSON.stringify(snap).length < 200000, 'save too big');
+  const h = newGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, difficulty: snap.difficulty, restore: snap }); const R = h.state;
+  assert.equal(R.buildings.length, S.buildings.length); assert.equal(h.keepLevel(), 2); assert.equal(R.gold, S.gold);
+  assert.equal(R.sealed[f[0]], 0); assert.equal(R.story.chronicle.length, S.story.chronicle.length);
+  assert.equal(R.difficulty, 'veteran');
+  for (let k = 0; k < 60 * 5; k++) h.step();
+  assert.ok(!R.over);
+});

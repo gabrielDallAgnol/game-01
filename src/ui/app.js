@@ -11,6 +11,7 @@ import { regionNames } from '../content/names.js';
 import { TRAITS, TREAT, RUN } from '../content/scavenge.js';
 import { createAudio } from './audio.js';
 import { createChronicler } from './story-ai.js';
+import { createSaves } from './saves.js';
 import { TITLES, ROLES, BARKS } from '../content/story.js';
 import { RARITY } from '../content/districts.js';
 
@@ -22,6 +23,8 @@ const store = {
 };
 const audio = createAudio(store);
 const chronicler = createChronicler(store);
+const saves = createSaves();
+let lastSave = null;
 for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => audio.unlock(), { capture: true });
 const RINGS = ['Town', 'Near lands', 'Far lands'];
 const ARM_MS = 700;          // cards ignore taps this long after they appear
@@ -67,6 +70,7 @@ export function startApp() {
       <div class="choices">${opts.map((o, k) => `<button class="choice" data-map="${k}" aria-pressed="${setup.pick === k}"><canvas id="mm${k}" aria-hidden="true"></canvas><b>${o.name}</b><span>${BIOMES[o.biome].blurb}</span><span class="tiny">Seed ${o.seed}</span></button>`).join('')}</div>
       <div class="seedrow"><button class="btn ghost" id="reroll">Show other lands</button></div>
       <label class="tiny aitog" style="display:block;margin-top:12px"><input type="checkbox" id="aiStart" ${chronicler.enabled() ? 'checked' : ''}> ✦ Let the Chronicler (Claude) write your story and play your companions. Uses your Claude account; it asks first. Off = the scripted story.</label>
+      <div id="contRow" hidden class="cont"></div>
       <div class="cardrow" style="margin-top:16px"><button class="btn big" id="begin">Raise the town</button><span class="tiny">WASD or drag to walk · scroll or pinch to zoom</span></div>`, true, false);
     opts.forEach((o, k) => drawMinimap($(`#mm${k}`), generateMap(o.seed, o.biome)));
     const press = (sel, b) => $$(sel).forEach(x => x.setAttribute('aria-pressed', x === b));
@@ -76,17 +80,25 @@ export function startApp() {
     $('#aiStart').onchange = e => chronicler.setEnabled(e.target.checked);
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); };
     $('#begin').onclick = () => { const o = opts[setup.pick]; begin(o.seed, o.biome); };
+    saves.load().then(snap => {
+      if (!snap || card !== 'start' || !$('#contRow')) return;
+      const row = $('#contRow'); row.hidden = false;
+      row.innerHTML = `<button class="btn big" id="cont">Continue · day ${snap.night} in ${esc(snap.city || 'the city')}</button><span class="tiny">${saves.cloud() ? 'Saved to your account: works on any device' : 'Saved on this device'} · ${new Date(snap.savedAt).toLocaleString()}</span>`;
+      $('#cont').onclick = () => begin(snap.mapSeed, snap.biome, snap);
+    });
   }
 
-  function begin(mapSeed, biome) {
-    game = createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty });
+  function begin(mapSeed, biome, snap = null) {
+    game = snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap })
+      : createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty });
     names = regionNames(mapSeed, game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
     if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
     window.__game = game; window.__openSel = sel => openSel(sel);
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = !game.heroDef.ability;
-    toast(`[Day 1 · ${game.map.name}] Your survivors carry plans for a home, a farm and a tower. Every build takes a free pair of hands.`, 'sys');
+    if (snap) { toast(`[Run restored] Day ${snap.night} in ${game.map.name}. The dead did not wait for you.`, 'sys'); $('#autoBtn').setAttribute('aria-pressed', !!game.state.autopilot); $('#autoTag').hidden = !game.state.autopilot; }
+    else toast(`[Day 1 · ${game.map.name}] Your survivors carry plans for a home, a farm and a tower. Every build takes a free pair of hands.`, 'sys');
     traderSeen = true; dawnT = 0.3;
   }
 
@@ -199,6 +211,7 @@ export function startApp() {
       <h2>Titles</h2><div class="titles">${ST.titles.length ? ST.titles.map(t => `<span class="title" title="${esc(TITLES[t].desc)}">${esc(TITLES[t].name)}</span>`).join('') : '<span class="tiny">None yet. The System is watching.</span>'}</div>
       <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<button class="comp" data-chat="${n.id}"><b>${esc(n.name)}</b><span>${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}</span><span class="bond">${'♥'.repeat(Math.max(0, n.bond))}${'♡'.repeat(Math.max(0, 5 - n.bond))}</span><span class="talk">Talk</span></button>`).join('') : '<span class="tiny">Nobody yet. Answer the calls: people are out there.</span>'}</div>
       <h2>Chronicle</h2><ol class="chron">${ST.chronicle.slice().reverse().slice(0, 14).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
+      <div class="tiny" style="margin:6px 0;white-space:normal">${lastSave ? `Saved at dawn of day ${lastSave.day} (${lastSave.where === 'cloud' ? 'your account: any device' : 'this device'})` : 'The run saves itself every dawn.'}</div>
       <div class="cardrow spread"><label class="tiny aitog"><input type="checkbox" id="aiTog" ${chronicler.enabled() ? 'checked' : ''}> Chronicler (Claude writes the story) · ${({ on: 'on', off: 'off', denied: 'not allowed', absent: 'not available here' })[chronicler.status()]}</label><button class="btn" id="stClose">Back</button></div></div>`, true, false);
     $('#stClose').onclick = () => { hideCard(); paused = false; };
     $('#aiTog').onchange = e => { chronicler.setEnabled(e.target.checked); };
@@ -597,6 +610,7 @@ export function startApp() {
   $('#bell').onclick = ringBell;
   $('#logBtn').onclick = showLog;
   $('#crewBtn').onclick = () => { if (game) showStatus(); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden && game && !game.state.over) { const snap = game.snapshot(); if (snap) saves.save(snap); } });
   $('#autoBtn').onclick = () => { if (!game) return; const on = !game.state.autopilot; game.setAutopilot(on); $('#autoBtn').setAttribute('aria-pressed', on); $('#autoTag').hidden = !on; toast(on ? '[Autopilot on] Your hero defends the town and your people build. You still choose blessings and story moments.' : '[Autopilot off] Your hands again.', 'sys'); };
   let speed = 1; const SPEEDS = [1, 2, 3];
   $('#spdBtn').onclick = () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; $('#spdBtn').textContent = `${speed}×`; $('#spdBtn').classList.toggle('fast', speed > 1); };
@@ -827,8 +841,8 @@ export function startApp() {
     for (const e of events) {
       if (toastFor.has(e.t)) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);
       if (e.t === 'claim' && selected && selected.type === 'region') closePanel();
-      if (e.t === 'dawn') { dawnT = DAWN_DELAY; traderSeen = false; endJoy();  }
-      if (e.t === 'over') { endT = now + 2600; paused = false; closePanel(); stopPlacing(); view.startOrbit(); }
+      if (e.t === 'dawn') { dawnT = DAWN_DELAY; traderSeen = false; endJoy(); const snap = game.snapshot(); if (snap) saves.save(snap).then(w => { lastSave = { day: snap.night, where: w }; }); }
+      if (e.t === 'over') { saves.clear(); endT = now + 2600; paused = false; closePanel(); stopPlacing(); view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && selected && selected.type === 'building' && !S.byId.get(selected.id)) closePanel();
     }
     // the dawn cards wait a moment so a last tap at night can't land on them
