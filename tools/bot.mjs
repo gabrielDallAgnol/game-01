@@ -33,8 +33,10 @@ function nestPoints(g) { return g.activeNests(g.state.night + 1).concat(g.active
 
 function slotFor(g, kind) {
   const S = g.state, map = g.map;
-  const free = map.slots.filter(s => S.claimed.has(s.region) && S.slotB[s.id] < 0);
+  const def = kind === 'tower' || kind === 'wall';
+  const free = map.slots.filter(s => S.claimed.has(s.region) && S.slotB[s.id] < 0 && (def || !s.gate));
   if (!free.length) return null;
+  if (kind === 'wall') { const gate = free.find(s => s.gate); if (gate) return gate; }
   const nests = nestPoints(g);
   const near = s => nests.length ? Math.min(...nests.map(n => Math.hypot(n.x - s.x, n.y - s.y))) : Math.hypot(s.x - map.town.x, s.y - map.town.y);
   const town = s => Math.hypot(s.x - map.town.x, s.y - map.town.y);
@@ -49,7 +51,7 @@ function slotFor(g, kind) {
 export function dayTurn(g, strat) {
   const S = g.state;
   for (let guard = 0; guard < 60; guard++) {
-    const foodNet = g.foodPerDawn() - Math.ceil(g.pop() / 2);
+    const foodNet = g.foodPerDawn() - g.foodNeed();
     let did = false;
     for (const act of STRATEGIES[strat](S.night)) {
       if (act === 'food') { if (foodNet < 1 && S.food < 6) { const s = slotFor(g, 'farm'); if (s && g.build(s.id, 'farm')) { did = true; break; } } continue; }

@@ -55,6 +55,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   let liveCache = null, liveTick = -1;
   const live = () => { if (liveTick !== S.time) { liveCache = S.buildings.filter(b => !b.ruined); liveTick = S.time; } return liveCache; };
   const heroMax = () => HC.hp + S.P.heroHp;
+  const towerMult = () => (1 + S.P.towerDmg) * (mastered('bow') ? 1.5 : 1);
+  const keepMult = () => (1 + S.P.keepDmg) * (mastered('bow') ? 1.5 : 1);
+  const upkeep = () => Math.max(0, S.buildings.reduce((a, b) => a + ((BUILDINGS[b.type].upkeep || [])[b.level - 1] || 0), 0) - S.P.upkeepCut * 2);
+  const foodNeed = () => Math.ceil(pop() * START.foodPerCitizen);
 
   // ---------- buildings & footprints ----------
   function footprint(type, x, y) {
@@ -89,7 +93,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (!S.flowDirty) return;
     S.flow = computeFlow(map.terrain, S.occ, isWall, WALL_COST); S.flowNext = computeNext(map.terrain, S.flow);
     S.climb = computeFlow(map.terrain, S.occ, isWall, 0.6); S.climbNext = computeNext(map.terrain, S.climb);
-    S.flowDirty = false;
+    S.flowDirty = false; S.flowVersion = (S.flowVersion || 0) + 1;
   }
 
   // ---------- regions & nests ----------
@@ -123,9 +127,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function purgeBudget(r, n) { return WAVES.budget(n) * WAVES.purgeShare(map.regions[r].ring); }
   S.edgeSpawns = edgeSpawns;
   function defenceDps() {
-    let d = 0; const shots = mastered('bow') ? 2 : 1;
-    for (const b of live()) if (b.type === 'tower') { const B = BUILDINGS.tower; d += (B.dmg[b.level - 1] + S.P.towerDmg) / (B.rate[b.level - 1] / S.P.towerRate) * shots; }
-    if (!keep.ruined) d += (KEEP.dmg[keep.level - 1] + S.P.keepDmg) * S.P.keepRate / KEEP.rate * shots * KEEP.shots[keep.level - 1];
+    let d = 0;
+    for (const b of live()) if (b.type === 'tower') { const B = BUILDINGS.tower; d += B.dmg[b.level - 1] * towerMult() / (B.rate[b.level - 1] / S.P.towerRate); }
+    if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * KEEP.shots[keep.level - 1];
     return d;
   }
   function heroDps() {
@@ -243,6 +247,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const s = map.slots[slotId]; if (!s) return fail('No such slot.');
     if (!S.claimed.has(s.region)) return fail('Claim this region first.');
     if (S.slotB[slotId] >= 0) return fail('Something is already built here.');
+    if (s.gate && !isDef(type)) return fail('Gate lots only take palisades and towers.');
     const cost = costOf(type); if (S.gold < cost) return fail('Not enough gold.');
     S.gold -= cost; S.cur.spent += cost; S.cur.built.push(type);
     placeBuilding(slotId, type, 1); return true;
@@ -290,10 +295,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const b of S.buildings) { if (b.fell) continue; if (b.type === 'farm') foodIn += farmFood(b); if (b.type === 'house') hg += houseGold(b); }
     foodIn = Math.round(foodIn * (mastered('harvest') ? 1.3 : 1));
     S.food += foodIn;
-    const need = Math.ceil(pop() / 2), fed = need === 0 ? 1 : Math.min(1, S.food / need);
+    const need = foodNeed(), fed = need === 0 ? 1 : Math.min(1, S.food / need);
     S.food = Math.max(0, S.food - need);
-    const goldIn = Math.round((START.baseIncome + S.P.tax + hg * fed) * incomeMult());
-    S.gold += goldIn;
+    const upk = upkeep(), goldIn = Math.round((START.baseIncome + S.P.tax + hg * fed) * incomeMult()) - upk;
+    S.gold = Math.max(0, S.gold + goldIn);
     let claimedNow = null;
     if (S.purge !== null) {
       claimedNow = S.purge; S.claimed.add(S.purge); S.nestAlive[S.purge] = false;
@@ -311,7 +316,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (HC.bonusPickEvery && S.dawns % HC.bonusPickEvery === 0) picks++;
     S.pendingPicks += picks; rollOffer();
     ev('dawn', { goldIn, foodIn, need, fed });
-    toast(`Dawn. +${goldIn} gold, +${foodIn} food. Citizens ate ${need}.`, 'good');
+    toast(`Dawn. ${goldIn >= 0 ? '+' : ''}${goldIn} gold${upk ? ` after ${upk} tower upkeep` : ''}, +${foodIn} food. Citizens ate ${need}.`, 'good');
     if (fed < 1) toast(`Not enough food. Houses earned ${Math.round(fed * 100)}% of their gold.`, 'bad');
   }
 
@@ -483,9 +488,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function stepTowers(dt) {
     const shooters = live().filter(b => b.type === 'tower'); if (!keep.ruined) shooters.push(keep);
     for (const b of shooters) {
-      let range, dmg, rate, shots = mastered('bow') ? 2 : 1;
-      if (b.type === 'tower') { const B = BUILDINGS.tower, l = b.level - 1; range = B.range[l] + S.P.towerRange; dmg = B.dmg[l] + S.P.towerDmg; rate = B.rate[l] / S.P.towerRate; }
-      else { const l = keep.level - 1; range = KEEP.range[l] + S.P.towerRange; dmg = KEEP.dmg[l] + S.P.keepDmg; rate = KEEP.rate / S.P.keepRate; shots *= KEEP.shots[l]; }
+      let range, dmg, rate, shots = 1;
+      if (b.type === 'tower') { const B = BUILDINGS.tower, l = b.level - 1; range = B.range[l] + S.P.towerRange; dmg = B.dmg[l] * towerMult(); rate = B.rate[l] / S.P.towerRate; }
+      else { const l = keep.level - 1; range = KEEP.range[l] + S.P.towerRange; dmg = KEEP.dmg[l] * keepMult(); rate = KEEP.rate / S.P.keepRate; shots = KEEP.shots[l]; }
       b.cd -= dt; if (b.cd > 0) continue;
       let n1 = null, n2 = null, d1 = range * range, d2 = range * range;
       for (const m of S.mobs) {
@@ -535,6 +540,33 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.phase === 'night' && !S.over && !S.queue.length && !S.mobs.length) dawn();
   }
 
+  // ---------- forecast: where tonight's dead come from and how they walk ----------
+  function tracePath(x, y, climb = false) {
+    const next = climb ? S.climbNext : S.flowNext, pts = [[x, y]];
+    let i = idx(Math.floor(x), Math.floor(y));
+    for (let k = 0; k < 300; k++) { const j = next[i]; if (j < 0) break; pts.push([(j % N) + 0.5, ((j / N) | 0) + 0.5]); i = j; }
+    return pts;
+  }
+  function forecast(n = S.night) {
+    refreshFlow();
+    let nests = activeNests(n);
+    if (!nests.length) nests = edgeSpawns.map((_, k) => -1 - k);
+    const w = nests.map(r => (S.wake[r] === n && n > 1 ? 0.5 : 1)), tw = w.reduce((a, b) => a + b, 0);
+    const u = unlocked(n), wsum = u.reduce((a, [, m]) => a + m.weight, 0), avgCost = u.reduce((a, [, m]) => a + m.weight * m.cost, 0) / wsum;
+    const total = nightBudget(n) / avgCost;
+    const out = nests.map((r, k) => {
+      const p = r < 0 ? edgeSpawns[-1 - r] : map.regions[r].nest;
+      return { nest: r, x: p.x, y: p.y, count: Math.round(total * w[k] / tw), siege: false, boss: false, path: tracePath(p.x, p.y) };
+    });
+    if (S.purge !== null && n === S.night) {
+      const p = map.regions[S.purge].nest, extra = Math.round(purgeBudget(S.purge, n) / avgCost) + 1;
+      const e = out.find(o => o.nest === S.purge);
+      if (e) { e.count += extra; e.siege = true; } else out.push({ nest: S.purge, x: p.x, y: p.y, count: extra, siege: true, boss: false, path: tracePath(p.x, p.y) });
+    }
+    if (isBloodMoon(n) && out.length) out[0].boss = true;
+    return out;
+  }
+
   // ---------- queries for UI and bots ----------
   function regionInfo(r) {
     const reg = map.regions[r]; if (!reg) return null;
@@ -553,8 +585,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     heroTo: (x, y) => { S.hero.target = { x, y }; },
     costOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
     foodPerDawn: () => Math.round(S.buildings.reduce((a, b) => a + (b.type === 'farm' ? farmFood(b) : 0), 0) * (mastered('harvest') ? 1.3 : 1)),
-    goldPerDawn: () => Math.round((START.baseIncome + S.P.tax + S.buildings.reduce((a, b) => a + (b.type === 'house' ? houseGold(b) : 0), 0)) * incomeMult()),
-    mastered, isBloodMoon, drainEvents: () => S.events.splice(0),
+    goldPerDawn: () => Math.round((START.baseIncome + S.P.tax + S.buildings.reduce((a, b) => a + (b.type === 'house' ? houseGold(b) : 0), 0)) * incomeMult()) - upkeep(),
+    upkeep, foodNeed,
+    forecast, mastered, isBloodMoon, drainEvents: () => S.events.splice(0),
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
   };
 }

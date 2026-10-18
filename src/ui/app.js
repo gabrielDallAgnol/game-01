@@ -159,7 +159,9 @@ export function startApp() {
     $('#pEyebrow').textContent = names[s.region] + (s.nearWater ? ' · by the water' : '');
     if (!b) {
       $('#pTitle').textContent = 'Build';
-      body.innerHTML = `<div class="opts">${BUILD_ORDER.map(t => opt(`opt-${t}`, `data-build="${t}"`, BUILDINGS[t].name, game.costOf(t), BUILDINGS[t].desc[0] + (t === 'farm' && s.nearWater ? ' (+1 by water)' : ''), S.gold < game.costOf(t) || S.phase !== 'day')).join('')}</div>`;
+      const allowed = s.gate ? BUILD_ORDER.filter(t => t === 'tower' || t === 'wall') : BUILD_ORDER;
+      if (s.gate) $('#pEyebrow').textContent = names[s.region] + ' · gate: towers and palisades only';
+      body.innerHTML = `<div class="opts">${allowed.map(t => opt(`opt-${t}`, `data-build="${t}"`, BUILDINGS[t].name, game.costOf(t), BUILDINGS[t].desc[0] + (t === 'farm' && s.nearWater ? ' (+1 by water)' : ''), S.gold < game.costOf(t) || S.phase !== 'day')).join('')}</div>`;
       selected.range = null;
     } else {
       const B = BUILDINGS[b.type];
@@ -197,7 +199,8 @@ export function startApp() {
     $('#keepTxt').textContent = Math.max(0, Math.ceil(S.keep.hp));
     $('#resPill').hidden = night;
     $('#gold').textContent = S.gold; $('#goldNote').textContent = `+${game.goldPerDawn()}`;
-    $('#food').textContent = S.food; $('#foodNote').textContent = `+${game.foodPerDawn()} −${Math.ceil(game.pop() / 2)}`;
+    $('#food').textContent = S.food; $('#foodNote').textContent = `+${game.foodPerDawn()} −${game.foodNeed()}`;
+    $('#foodNote').classList.toggle('warn', game.foodPerDawn() + S.food < game.foodNeed());
     $('#pop').textContent = game.pop();
     const bell = $('#bell');
     if (night) {
@@ -206,15 +209,15 @@ export function startApp() {
       $('#info').innerHTML = `<em>${left}</em> dead left${S.hero.dead ? ` · you return in ${Math.ceil(S.hero.respawn)}s` : ''}`;
     } else {
       bell.hidden = false; bell.textContent = bm ? 'Face the blood moon' : 'Ring the bell';
-      const nests = game.activeNests().length, ratio = game.threatRatio();
-      $('#info').innerHTML = `Night ${S.night}: <em>${nests}</em> ${nests === 1 ? 'nest' : 'nests'} awake · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}`;
+      const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
+      $('#info').innerHTML = `Tonight <em>~${dead}</em> dead from ${fc.length} ${fc.length === 1 ? 'nest' : 'nests'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}`;
     }
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();
     edge.top = tb.bottom + 10; edge.bot = innerHeight - db.top + 10;
   }
 
   // ---------- edge arrows ----------
-  const edge = { top: 60, bot: 100, pool: [] };
+  const edge = { top: 60, bot: 100, pool: [], tags: [] };
   function edgeMarks() {
     const S = game.state, Wd = innerWidth, Hh = innerHeight, m = 22, t = edge.top, bt = Hh - edge.bot, cx = Wd / 2, cy = (t + bt) / 2, buckets = new Map();
     if (S.phase === 'night') for (const z of S.mobs) {
@@ -222,12 +225,26 @@ export function startApp() {
       const ang = Math.atan2(p.y - cy, p.x - cx), key = Math.round(ang / (Math.PI / 16));
       const b = buckets.get(key) || { ang, n: 0, big: false }; b.n++; if (MOBS[z.kind].size >= 1.6) b.big = true; buckets.set(key, b);
     }
+    // by day: tag each nest that will attack tonight; off-screen ones become arrows with their count
+    let tagN = 0;
+    if (S.phase === 'day') for (const r of view.routes()) {
+      const p = view.project(r.x, r.y, 2.2);
+      if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) {
+        let el = edge.tags[tagN]; if (!el) { el = document.createElement('div'); el.className = 'nestTag'; $('#edge').appendChild(el); edge.tags[tagN] = el; }
+        el.textContent = `${r.siege ? 'Siege · ' : ''}~${r.count}${r.boss ? ' + boss' : ''}`; el.classList.toggle('siege', r.siege);
+        el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -100%)`; el.hidden = false; tagN++;
+      } else {
+        const ang = Math.atan2(p.y - cy, p.x - cx), key = 1000 + Math.round(ang / (Math.PI / 16));
+        const b = buckets.get(key) || { ang, n: 0, big: false, day: true }; b.n += r.count; if (r.siege || r.boss) b.big = true; buckets.set(key, b);
+      }
+    }
+    for (let k = tagN; k < edge.tags.length; k++) edge.tags[k].hidden = true;
     let i = 0;
     for (const b of buckets.values()) {
       let el = edge.pool[i]; if (!el) { el = document.createElement('div'); el.className = 'ar'; el.innerHTML = '<i></i><span></span>'; $('#edge').appendChild(el); edge.pool[i] = el; }
       const c = Math.cos(b.ang), s = Math.sin(b.ang), hx = Wd / 2 - m, hy = Math.max(10, (bt - t) / 2 - m * 0.5), k = Math.min(Math.abs(hx / (c || 1e-6)), Math.abs(hy / (s || 1e-6)));
       el.style.transform = `translate(${cx + c * k}px, ${cy + s * k}px) rotate(${b.ang}rad)`;
-      const sp = el.lastChild; sp.textContent = b.n > 1 ? b.n : ''; sp.style.transform = `rotate(${-b.ang}rad)`;
+      const sp = el.lastChild; sp.textContent = b.day ? `~${b.n}` : b.n > 1 ? b.n : ''; sp.style.transform = `rotate(${-b.ang}rad)`;
       el.classList.toggle('big', b.big); el.hidden = false; i++;
     }
     for (; i < edge.pool.length; i++) edge.pool[i].hidden = true;

@@ -5,10 +5,12 @@ import { mulberry32 } from '../sim/rng.js';
 import { MOBS } from '../content/mobs.js';
 import { mat, box, cyl, cone, buildingMesh, keepMesh, nestMesh, mobMesh, heroMesh, chestMesh, windowMat, torchMat } from './meshes.js';
 
+// Few colours on purpose: your town is warm and bright, the wild is muted, the dead's routes are the only accent.
 const TERRAIN_COLOR = {
-  [T.GRASS]: 0x6c8a4b, [T.FOREST]: 0x4f6e3c, [T.ROCK]: 0x7d7f74, [T.WATER]: 0x3d6f8a, [T.CLIFF]: 0x7a7266,
-  [T.FORD]: 0x6a8f9a, [T.DIRT]: 0x8a7350, [T.VOID]: 0x2a3a2a,
+  [T.GRASS]: 0x6f8a4e, [T.FOREST]: 0x587543, [T.ROCK]: 0x6f716a, [T.WATER]: 0x4a7a90, [T.CLIFF]: 0x8a8072,
+  [T.FORD]: 0x7a9aa2, [T.DIRT]: 0xc2ab80, [T.VOID]: 0x2a3a2a,
 };
+const STREET = 0xa89470, LOT = 0x8e7a58, WILD_FOG = 0x34402f;
 const DAY = { bg: 0x9fc4b3, sky: 0xfff2d8, gnd: 0x4d6b3c, sun: 0xffe0ad, hemi: 0.95, sunI: 1.05 };
 const NIGHT = { bg: 0x0d1720, sky: 0x5a74a8, gnd: 0x182330, sun: 0x8ea6ff, hemi: 0.34, sunI: 0.3 };
 const BLOOD = { bg: 0x220c0f, sky: 0xa85a5a, gnd: 0x2a1418, sun: 0xff8a7a, hemi: 0.34, sunI: 0.35 };
@@ -47,28 +49,42 @@ export function createView(canvas, game) {
   ground.receiveShadow = true; world.add(ground);
   const under = new THREE.Mesh(new THREE.CircleGeometry(60, 40), mat(0x1f2b1f)); under.rotation.x = -Math.PI / 2; under.position.y = -0.3; world.add(under);
   const tmpC = new THREE.Color();
+  // which cells are lots and streets of the town (claimed land only)
+  const lotCell = new Int16Array(N * N).fill(-1);
+  for (const sl of map.slots) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) lotCell[idx(Math.floor(sl.x) + dx, Math.floor(sl.y) + dy)] = sl.id;
+  const fog = new THREE.Color(WILD_FOG);
   function paintTerrain() {
     const ca = tgeo.attributes.color;
     cellOf.forEach((i, q) => {
-      const t = map.terrain[i], r = map.region[i];
+      const t = map.terrain[i], r = map.region[i], x = i % N, y = (i / N) | 0;
+      const town = r >= 0 && S.claimed.has(r);
       tmpC.setHex(TERRAIN_COLOR[t]);
-      const n = (Math.sin(i * 12.9898) * 43758.5453) % 1; tmpC.offsetHSL(0, 0, (n - 0.5) * 0.03);
-      if (r >= 0 && !S.claimed.has(r)) tmpC.multiplyScalar(0.62).lerp(new THREE.Color(0x2a3328), 0.18);
+      if (town && (t === T.GRASS || t === T.DIRT)) {
+        if (lotCell[i] >= 0) tmpC.setHex(LOT);
+        else { // a street: any open cell touching a lot
+          let st = false; for (let dy = -1; dy <= 1 && !st; dy++) for (let dx = -1; dx <= 1; dx++) { const j = idx(x + dx, y + dy); if (j >= 0 && j < N * N && lotCell[j] >= 0) { st = true; break; } }
+          if (st || t === T.DIRT) tmpC.setHex(STREET);
+        }
+      }
+      if (!town && r >= 0) tmpC.lerp(fog, 0.55);
       for (let v = 0; v < 6; v++) ca.setXYZ(q * 6 + v, tmpC.r, tmpC.g, tmpC.b);
     });
     ca.needsUpdate = true;
+    drawBorder();
   }
+  // one border: the edge of your land
+  const borders = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xf3e6c8, transparent: true, opacity: 0.55 })); world.add(borders);
+  function drawBorder() {
+    const seg = [], own = (x, y) => { if (x < 0 || y < 0 || x >= N || y >= N) return false; const r = map.region[idx(x, y)]; return r >= 0 && S.claimed.has(r); };
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const a = own(x, y);
+      if (a !== own(x + 1, y)) seg.push(x + 1 - C, 0.06, y - C, x + 1 - C, 0.06, y + 1 - C);
+      if (a !== own(x, y + 1)) seg.push(x - C, 0.06, y + 1 - C, x + 1 - C, 0.06, y + 1 - C);
+    }
+    borders.geometry.dispose(); borders.geometry = new THREE.BufferGeometry(); borders.geometry.setAttribute('position', new THREE.Float32BufferAttribute(seg, 3));
+  }
+
   paintTerrain();
-  // region borders
-  const seg = [];
-  for (let y = 0; y < N - 1; y++) for (let x = 0; x < N - 1; x++) {
-    const r = map.region[idx(x, y)]; if (r < 0) continue;
-    const rx = map.region[idx(x + 1, y)], ry = map.region[idx(x, y + 1)];
-    if (rx >= 0 && rx !== r) seg.push(x + 1 - C, 0.05, y - C, x + 1 - C, 0.05, y + 1 - C);
-    if (ry >= 0 && ry !== r) seg.push(x - C, 0.05, y + 1 - C, x + 1 - C, 0.05, y + 1 - C);
-  }
-  const bgeo = new THREE.BufferGeometry(); bgeo.setAttribute('position', new THREE.Float32BufferAttribute(seg, 3));
-  const borders = new THREE.LineSegments(bgeo, new THREE.LineBasicMaterial({ color: 0xecdfc6, transparent: true, opacity: 0.18 })); world.add(borders);
 
   // forests, rocks, cliffs, edge woods: instanced
   const dummy = new THREE.Object3D();
@@ -85,8 +101,8 @@ export function createView(canvas, game) {
   const at = (i, o, h = 0) => { const x = i % N, y = (i / N) | 0; o.position.set(x + 0.5 - C + (vis() - 0.5) * 0.5, h, y + 0.5 - C + (vis() - 0.5) * 0.5); };
   instanced(new THREE.CylinderGeometry(0.12, 0.17, 0.7, 5), mat(0x5a4030), treeCells, (i, o) => { at(i, o, 0.35); o.scale.setScalar(1); o.rotation.set(0, 0, 0); });
   const crown = instanced(new THREE.ConeGeometry(0.62, 1.55, 6), mat(0x3f6b3a), treeCells, (i, o) => { at(i, o, 1.3); const s = 0.75 + vis() * 0.45; o.scale.set(s, s * (0.9 + vis() * 0.4), s); o.rotation.y = vis() * 6; });
-  treeCells.forEach((i, k) => crown.setColorAt(k, tmpC.setHex(map.terrain[i] === T.VOID ? 0x2c4630 : [0x3f6b3a, 0x4c7a3d, 0x355e3a, 0x5b7f3c][k % 4])));
-  instanced(new THREE.DodecahedronGeometry(0.6, 0), mat(0x7d7f74), cells(T.ROCK), (i, o) => { at(i, o, 0.25); o.scale.set(1 + vis() * 0.4, 0.6 + vis() * 0.5, 1 + vis() * 0.4); o.rotation.set(vis(), vis() * 3, vis()); });
+  treeCells.forEach((i, k) => crown.setColorAt(k, tmpC.setHex(map.terrain[i] === T.VOID ? 0x2c4630 : k % 3 ? 0x41663a : 0x4a713f)));
+  instanced(new THREE.DodecahedronGeometry(0.6, 0), mat(0x6c6e68), cells(T.ROCK), (i, o) => { at(i, o, 0.25); o.scale.set(1 + vis() * 0.4, 0.6 + vis() * 0.5, 1 + vis() * 0.4); o.rotation.set(vis(), vis() * 3, vis()); });
   instanced(new THREE.BoxGeometry(1, 1, 1), mat(0x8a8072), cells(T.CLIFF), (i, o) => { const x = i % N, y = (i / N) | 0; o.position.set(x + 0.5 - C, 0.8, y + 0.5 - C); o.scale.set(1.02, 1.6 + vis() * 0.6, 1.02); o.rotation.set(0, 0, 0); });
 
   // ---------- nests ----------
@@ -95,7 +111,8 @@ export function createView(canvas, game) {
 
   // ---------- slots ----------
   const slotTiles = map.slots.map(s => {
-    const t = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.07, 2.1), new THREE.MeshStandardMaterial({ color: 0x7a6545, flatShading: true, roughness: 1 }));
+    const t = new THREE.Mesh(new THREE.BoxGeometry(s.gate ? 2.6 : 2.0, 0.06, s.gate ? 1.2 : 2.0), new THREE.MeshStandardMaterial({ color: s.gate ? 0x8a8a84 : LOT, flatShading: true, roughness: 1 }));
+    if (s.gate) t.rotation.y = -Math.atan2(Math.cos(Math.atan2(s.y - C, s.x - C)), -Math.sin(Math.atan2(s.y - C, s.x - C)));
     t.position.copy(W(s.x, s.y, 0.04)); t.receiveShadow = true;
     for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) t.add(box(0.1, 0.28, 0.1, 0x5a4030, a * 0.95, 0.14, b * 0.95));
     world.add(t); return t;
@@ -109,6 +126,40 @@ export function createView(canvas, game) {
   rangeRing.rotation.x = -Math.PI / 2; rangeRing.position.y = 0.09; rangeRing.visible = false; fx.add(rangeRing);
   const moveMark = new THREE.Mesh(ringGeo(0.3, 0.42), new THREE.MeshBasicMaterial({ color: 0xecdfc6, transparent: true, opacity: 0, depthWrite: false }));
   moveMark.rotation.x = -Math.PI / 2; moveMark.position.y = 0.07; fx.add(moveMark);
+
+  // ---------- tonight's routes: chevrons flowing from each nest to the town ----------
+  const chevGeo = new THREE.ConeGeometry(0.32, 0.8, 3); chevGeo.rotateX(Math.PI / 2);
+  const routeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false });
+  let routeMesh = null, routeSig = '', routes = [];
+  const SPACING = 1.2;
+  function rebuildRoutes() {
+    routes = game.forecast().map(r => {
+      const cum = [0]; for (let k = 1; k < r.path.length; k++) cum.push(cum[k - 1] + Math.hypot(r.path[k][0] - r.path[k - 1][0], r.path[k][1] - r.path[k - 1][1]));
+      return { ...r, cum, len: cum[cum.length - 1] };
+    });
+    const count = routes.reduce((a, r) => a + Math.max(1, Math.floor(r.len / SPACING)), 0);
+    if (routeMesh) { fx.remove(routeMesh); routeMesh.dispose(); }
+    routeMesh = new THREE.InstancedMesh(chevGeo, routeMat, Math.max(1, count)); routeMesh.renderOrder = 5; fx.add(routeMesh);
+    let k = 0; for (const r of routes) { const n = Math.max(1, Math.floor(r.len / SPACING)); for (let q = 0; q < n; q++) routeMesh.setColorAt(k++, tmpC.setHex(r.siege ? 0xeaa441 : 0xe0604a)); }
+    if (routeMesh.instanceColor) routeMesh.instanceColor.needsUpdate = true;
+  }
+  const rd = new THREE.Object3D();
+  function animateRoutes(t) {
+    if (!routeMesh) return;
+    let k = 0;
+    for (const r of routes) {
+      const n = Math.max(1, Math.floor(r.len / SPACING)); let seg = 1;
+      for (let q = 0; q < n; q++) {
+        const at = (q * SPACING + (t * 1.6) % SPACING);
+        while (seg < r.cum.length - 1 && r.cum[seg] < at) seg++;
+        const a = r.path[seg - 1], b = r.path[Math.min(seg, r.path.length - 1)], L = (r.cum[seg] - r.cum[seg - 1]) || 1, f = Math.min(1, Math.max(0, (at - r.cum[seg - 1]) / L));
+        rd.position.copy(W(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0.3));
+        rd.rotation.set(0, Math.atan2(b[0] - a[0], b[1] - a[1]), 0); const fade = Math.min(1, (r.len - at) / 3, at / 2 + 0.3); rd.scale.setScalar(Math.max(0.2, fade));
+        rd.updateMatrix(); routeMesh.setMatrixAt(k++, rd.matrix);
+      }
+    }
+    routeMesh.instanceMatrix.needsUpdate = true;
+  }
 
   // ---------- health bars ----------
   const barGeo = new THREE.PlaneGeometry(1, 0.2), barFg = new THREE.PlaneGeometry(1, 0.2); barFg.translate(0.5, 0, 0);
@@ -139,7 +190,7 @@ export function createView(canvas, game) {
         const g = buildingMesh(b.type, b.level); g.position.copy(W(b.x, b.y));
         if (b.type === 'wall') { const a = Math.atan2(b.y - C, b.x - C); g.rotation.y = -Math.atan2(Math.cos(a), -Math.sin(a)); }
         else g.rotation.y = -Math.atan2(b.y - C, b.x - C) - Math.PI / 2;
-        g.scale.setScalar(0.05); world.add(g);
+        g.userData.full = b.type === 'wall' ? 1 : 0.82; g.scale.setScalar(0.05); world.add(g);
         e = { g, bar: makeBar('b', 1.4), level: b.level, rubble: null }; bMeshes.set(b.id, e);
       }
       if (b.ruined && !e.rubble) { e.g.visible = false; e.rubble = rubble(b.r); e.rubble.position.copy(W(b.x, b.y)); world.add(e.rubble); }
@@ -245,7 +296,7 @@ export function createView(canvas, game) {
     // buildings
     for (const b of S.buildings) {
       const e = bMeshes.get(b.id); if (!e) continue;
-      const sc = e.g.scale.x; if (sc < 1) e.g.scale.setScalar(Math.min(1, sc + dt * 3.2));
+      const full = e.g.userData.full || 1, sc = e.g.scale.x; if (sc < full) e.g.scale.setScalar(Math.min(full, sc + dt * 3.2));
       if (!b.ruined) setBar(e.bar, b.x, b.type === 'tower' ? 4.6 : 2.8, b.y, b.hp / b.maxHp); else e.bar.visible = false;
     }
     keepG.visible = !S.keep.ruined;
@@ -255,7 +306,7 @@ export function createView(canvas, game) {
     map.slots.forEach((s, i) => {
       const t = slotTiles[i];
       t.visible = S.claimed.has(s.region) && S.slotB[i] < 0;
-      if (t.visible) t.material.color.setHex(ui.hoverSlot === i && S.phase === 'day' ? 0xb39060 : 0x7a6545);
+      if (t.visible) t.material.color.setHex(ui.hoverSlot === i && S.phase === 'day' ? 0xd8c08a : s.gate ? 0x8a8a84 : 0x9c8560);
     });
     const active = new Set(S.phase === 'night' ? game.activeNests() : game.activeNests(S.night));
     for (const [r, g] of nests) {
@@ -263,6 +314,11 @@ export function createView(canvas, game) {
       p.material.color.setHex(S.purge === r ? 0xeaa441 : 0xa8d65c);
       p.material.opacity = 0.08 + 0.05 * Math.sin(time * 2 + r) + (S.phase === 'night' ? 0.05 : 0);
     }
+
+    // routes: visible while you plan the day
+    const sig = `${S.flowVersion}|${S.night}|${S.purge}|${S.claimed.size}|${S.phase}`;
+    if (sig !== routeSig) { routeSig = sig; rebuildRoutes(); }
+    if (routeMesh) { routeMesh.visible = S.phase === 'day'; routeMat.opacity = 0.85; if (routeMesh.visible) animateRoutes(time); }
 
     // selection
     const sel = ui.selected;
@@ -300,7 +356,7 @@ export function createView(canvas, game) {
   function project(x, y, h = 0.6) { const v = W(x, y, h).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, behind: v.z > 1 }; }
 
   return {
-    frame, pick, project, showMove, resize,
+    frame, pick, project, showMove, resize, routes: () => routes,
     setZoom: z => { zoom = Math.max(0.45, Math.min(1.8, z)); }, getZoom: () => zoom,
   };
 }

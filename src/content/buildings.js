@@ -10,8 +10,8 @@ export const BUILDINGS = {
     desc: ['+3 food', '+6 food', '+9 food'],
   },
   tower: {
-    name: 'Watchtower', cost: [6, 8, 14], hp: [24, 36, 50], range: [7, 8.5, 10], dmg: [1, 2, 3], rate: [0.9, 0.75, 0.6],
-    desc: ['Shoots · range 7', 'Faster · range 8.5', 'Heavy bolts · range 10'],
+    name: 'Watchtower', cost: [6, 8, 14], upkeep: [0, 1, 2], hp: [24, 36, 50], range: [7, 8.5, 10], dmg: [1, 2, 3], rate: [0.9, 0.75, 0.6],
+    desc: ['Shoots · range 7', 'Faster · range 8.5 · upkeep 1', 'Heavy bolts · range 10 · upkeep 2'],
   },
   wall: {
     name: 'Palisade', cost: [2, 4, 8], hp: [45, 90, 150], blocks: true,
@@ -26,4 +26,4 @@ export const KEEP = {
   desc: ['Shoots · range 8', '+40 health · harder arrows · range 9', '+50 health · two arrows · range 10'],
 };
 
-export const START = { gold: 12, food: 4, baseIncome: 3 };
+export const START = { gold: 12, food: 6, baseIncome: 3, foodPerCitizen: 1 };

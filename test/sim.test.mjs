@@ -100,3 +100,29 @@ test('the dead never end up inside walls or water', () => {
     for (const m of S.mobs) { const i = idx(Math.floor(m.x), Math.floor(m.y)); assert.ok(PASSABLE[g.map.terrain[i]], `${m.kind} stands on impassable ground`); }
   }
 });
+
+import { spaceStats } from '../tools/space.mjs';
+test('towns use their space: enough lots, little dead land, a street around every building', () => {
+  for (const biome of Object.keys(BIOMES)) for (let s = 1; s <= 20; s++) {
+    const m = generateMap(s, biome), st = spaceStats(m);
+    assert.ok(st.coreSlots >= 7, `${biome} ${s}: town has ${st.coreSlots} lots`);
+    assert.ok(st.coreUnused <= 0.25, `${biome} ${s}: ${Math.round(st.coreUnused * 100)}% of town land unused`);
+    for (const a of m.slots) for (const b of m.slots) if (a !== b && !a.gate && !b.gate)
+      assert.ok(Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) >= 4, `${biome} ${s}: lots ${a.id} and ${b.id} touch`);
+  }
+});
+
+test('rivers and passes get gate lots, which only take towers and palisades', () => {
+  const g = createGame({ seed: 3, biome: 'highland' });
+  const gate = g.map.slots.find(s => s.gate);
+  assert.ok(gate, 'no gate lot on a highland map');
+  assert.equal(g.build(gate.id, 'house'), false);
+  assert.equal(g.build(gate.id, 'wall'), true);
+});
+
+test('the forecast traces every attacking nest to the town', () => {
+  for (const biome of Object.keys(BIOMES)) {
+    const g = createGame({ seed: 8, biome }); g.state.night = 6;
+    for (const f of g.forecast()) { assert.ok(f.count > 0); assert.ok(f.path.length > 3, `${biome} nest ${f.nest} has no route`); }
+  }
+});

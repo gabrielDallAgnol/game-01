@@ -16,7 +16,7 @@ export const BIOMES = {
 };
 
 const R = 30;           // playable radius
-const SLOT_GAP = 3.1;   // minimum distance between build slots
+const GRID = 4;         // lot spacing: a 3×3 building plus a one-cell street
 
 export const idx = (x, y) => y * N + x;
 export const inside = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
@@ -87,18 +87,21 @@ export function generateMap(seed, biome) {
 
   // 3. town clearing
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
-    if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 5.5) terrain[idx(x, y)] = T.DIRT;
+    if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 6.5) terrain[idx(x, y)] = T.DIRT;
 
   // 4. regions: town + a ring of 6 + an outer ring of 10
   const seeds = [{ x: c, y: c, ring: 0 }];
   const off1 = rng.range(0, Math.PI * 2), off2 = rng.range(0, Math.PI * 2);
-  for (let k = 0; k < 6; k++) { const an = off1 + k * Math.PI / 3 + rng.range(-0.22, 0.22), r = rng.range(11.5, 14); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 1 }); }
+  for (let k = 0; k < 6; k++) { const an = off1 + k * Math.PI / 3 + rng.range(-0.22, 0.22), r = rng.range(14, 16.5); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 1 }); }
   for (let k = 0; k < 10; k++) { const an = off2 + k * Math.PI / 5 + rng.range(-0.18, 0.18), r = rng.range(21.5, 25); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 2 }); }
   const region = new Int16Array(N * N).fill(-1);
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     if (terrain[idx(x, y)] === T.VOID) continue;
     let best = 0, bd = Infinity;
     for (let s = 0; s < seeds.length; s++) { const d = (x + 0.5 - seeds[s].x) ** 2 + (y + 0.5 - seeds[s].y) ** 2; if (d < bd) { bd = d; best = s; } }
+    // the town owns its natural fortress: the whole plateau on Highland, a wide circle elsewhere
+    const d = Math.hypot(x + 0.5 - c, y + 0.5 - c);
+    if (d < (biome === 'highland' ? 10.6 : 9)) best = 0;
     region[idx(x, y)] = best;
   }
   const regions = seeds.map((s, id) => ({ id, ring: s.ring, x: s.x, y: s.y, neighbors: new Set(), cells: 0, forest: 0, water: 0, nest: null, slots: [] }));
@@ -139,37 +142,62 @@ export function generateMap(seed, biome) {
     reg.nest = best;
   }
 
-  // 7. build slots: spaced-out buildable cells in each region
+  // 7. build slots on a street grid: every lot is 3×3 cells with a one-cell street around it,
+  //    aligned to the keep, so the town reads as blocks and streets as it grows.
   const slots = [];
-  const cand = [];
-  for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
-    const i = idx(x, y);
-    if (!BUILDABLE[terrain[i]] || !reach[i] || region[i] < 0) continue;
-    const px = x + 0.5, py = y + 0.5;
-    if (Math.hypot(px - c, py - c) < 3.2) continue; // keep footprint
-    const reg = regions[region[i]];
-    if (reg.nest && Math.hypot(px - reg.nest.x, py - reg.nest.y) < 3.5) continue;
-    cand.push({ x: px, y: py, region: reg.id });
-  }
-  rng.shuffle(cand);
-  // town slots first so the starting region is always well supplied
-  cand.sort((p, q) => (regions[p.region].ring === 0 ? 0 : 1) - (regions[q.region].ring === 0 ? 0 : 1));
-  for (const p of cand) {
-    const reg = regions[p.region];
-    if (reg.slots.length >= (reg.ring === 0 ? 10 : 9)) continue;
-    if (slots.some(s => (s.x - p.x) ** 2 + (s.y - p.y) ** 2 < SLOT_GAP * SLOT_GAP)) continue;
+  const lotOk = (cx, cy) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const x = cx + dx, y = cy + dy; if (!inside(x, y)) return false;
+      const i = idx(x, y), t = terrain[i];
+      if (!reach[i] || !(BUILDABLE[t] || t === T.FOREST)) return false;   // a lot may clear a few trees
+    }
+    return true;
+  };
+  const clearLot = (cx, cy) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const i = idx(cx + dx, cy + dy); if (terrain[i] === T.FOREST) terrain[i] = T.GRASS; } };
+  const scan = (x0, y0) => {
     let forest = 0, water = false;
     for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-      const x = Math.floor(p.x) + dx, y = Math.floor(p.y) + dy;
-      if (!inside(x, y) || dx * dx + dy * dy > 10) continue;
-      const t = terrain[idx(x, y)];
-      if (t === T.FOREST) forest++;
-      if (t === T.WATER || t === T.FORD) water = true;
+      const x = x0 + dx, y = y0 + dy; if (!inside(x, y) || dx * dx + dy * dy > 10) continue;
+      const t = terrain[idx(x, y)]; if (t === T.FOREST) forest++; if (t === T.WATER || t === T.FORD) water = true;
     }
-    const slot = { id: slots.length, x: p.x, y: p.y, region: reg.id, forest, nearWater: water };
+    return { forest, water };
+  };
+  const ci = Math.floor(c);
+  const clear = (cx, cy) => slots.every(o => Math.max(Math.abs(o.x - 0.5 - cx), Math.abs(o.y - 0.5 - cy)) >= GRID);
+  const tryLot = (cx, cy) => {
+    if (Math.hypot(cx + 0.5 - c, cy + 0.5 - c) < 4.5) return false;   // the keep and its ring street
+    if (!lotOk(cx, cy) || !clear(cx, cy)) return false;
+    const r = region[idx(cx, cy)]; if (r < 0) return false;
+    const reg = regions[r];
+    if (reg.nest && Math.hypot(cx + 0.5 - reg.nest.x, cy + 0.5 - reg.nest.y) < 3.5) return false;
+    const { forest, water } = scan(cx, cy);
+    clearLot(cx, cy);
+    const slot = { id: slots.length, x: cx + 0.5, y: cy + 0.5, region: r, forest, nearWater: water, gate: false };
     slots.push(slot); reg.slots.push(slot.id);
+    return true;
+  };
+  // gate slots: one lot on each ford or mountain pass, for palisades and towers only.
+  // They belong to the town, because they are its natural defensive line.
+  const gates = [];
+  if (feature.fords) gates.push(...feature.fords);
+  if (feature.passes) for (const p of feature.passes) gates.push({ x: c + Math.cos(p) * 11.7, y: c + Math.sin(p) * 11.7 });
+  for (const gpt of gates) {
+    const x = Math.floor(gpt.x), y = Math.floor(gpt.y); if (!inside(x, y) || !reach[idx(x, y)]) continue;
+    const slot = { id: slots.length, x: x + 0.5, y: y + 0.5, region: 0, forest: 0, nearWater: true, gate: true };
+    slots.push(slot); regions[0].slots.push(slot.id);
   }
 
+  // grid points, nearest to the keep first; each may shift one cell to fit the land
+  const pts = [];
+  for (let gy = -8; gy <= 8; gy++) for (let gx = -8; gx <= 8; gx++) pts.push([gx, gy]);
+  pts.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
+  const nudges = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
+  for (const [gx, gy] of pts) for (const [dx, dy] of nudges) if (tryLot(ci + gx * GRID + dx, ci + gy * GRID + dy)) break;
+  // fill pass: any leftover space that still fits a lot with a street around it
+  const cells = [];
+  for (let y = 2; y < N - 2; y++) for (let x = 2; x < N - 2; x++) cells.push([x, y]);
+  cells.sort((a, b) => Math.hypot(a[0] - c, a[1] - c) - Math.hypot(b[0] - c, b[1] - c));
+  for (const [x, y] of cells) tryLot(x, y);
   for (const reg of regions) reg.neighbors = [...reg.neighbors].sort((p, q) => p - q);
   return { N, seed, biome, name: BIOMES[biome].name, terrain, region, regions, slots, reach, town: { x: c, y: c }, feature };
 }
@@ -178,12 +206,12 @@ export function generateMap(seed, biome) {
 export function validateMap(map) {
   const problems = [];
   const core = map.regions[0];
-  if (core.slots.length < 8) problems.push(`town has only ${core.slots.length} slots`);
+  if (core.slots.length < 7) problems.push(`town has only ${core.slots.length} slots`);
   const nests = map.regions.filter(r => r.nest);
   if (nests.filter(r => r.ring === 1).length < 4) problems.push('fewer than 4 first-ring nests');
   for (const r of nests) if (!map.reach[idx(Math.floor(r.nest.x), Math.floor(r.nest.y))]) problems.push(`nest ${r.id} unreachable`);
   const total = map.slots.length;
-  if (total < 50) problems.push(`only ${total} slots on the map`);
+  if (total < 40) problems.push(`only ${total} slots on the map`);
   return problems;
 }
 
