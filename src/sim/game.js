@@ -26,7 +26,7 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 export const HEAT = { floorPer: 1.4, floorMax: 60, decay: 0.04, rise: 2.5, shot: 0.04, kill: 0.2, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Difficulty: threat (how many dead), economy (what homes and farms give), heat (how fast attention builds).
 export const DIFFICULTY = {
-  story:     { name: 'Story', blurb: 'For the story and the city. Fewer dead, richer homes.', threat: 0.7, eco: 1.25, heat: 0.75 },
+  story:     { name: 'Story', blurb: 'For the story and the city. Fewer dead, richer homes.', threat: 0.62, eco: 1.25, heat: 0.7 },
   survivor:  { name: 'Survivor', blurb: 'Fair but hard. The way it is meant to be played.', threat: 1, eco: 1, heat: 1 },
   veteran:   { name: 'Veteran', blurb: 'More dead, thinner supplies. Mistakes cost buildings.', threat: 1.3, eco: 0.9, heat: 1.2 },
   nightmare: { name: 'Nightmare', blurb: 'The city wants you dead. It usually gets its way.', threat: 1.65, eco: 0.8, heat: 1.4 },
@@ -421,7 +421,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
 
   function spawnMob(kind, x, y, opts = {}) {
     const m = MOBS[kind], hs = WAVES.hpScale(S.night);
-    const hp = m.fixedHp ? m.hp : Math.ceil(m.hp * hs);
+    const hp = m.fixedHp ? m.hp : Math.ceil(m.hp * hs * (m.weight === 0 && kind !== 'risen' ? DIFF.threat : 1));   // bosses scale with the difficulty too
     const mob = { id: S.nextId++, kind, x, y, hp, maxHp: hp, cd: rng.range(0, 0.5), speed: m.speed * rng.range(0.9, 1.1), boost: 1, rise: opts.instant ? 1 : 0, face: 0, attacking: false, summonT: m.summon ? m.summon.every : 0, tauntT: 0, burn: null };
     S.mobs.push(mob); mobById.set(mob.id, mob); ev('spawn', { id: mob.id, kind });
     return mob;
