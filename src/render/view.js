@@ -18,7 +18,8 @@ const HIVES = ['metro', 'petrol', 'hospital'];
 
 export function createView(canvas, game, opts = {}) {
   const S = game.state, map = game.map, C = map.town.x;
-  const W = (x, y, h = 0) => new THREE.Vector3(x - C, h, y - C);
+  let elev = () => 0;   // ground height (plateaus), set once the city is built
+  const W = (x, y, h = 0) => new THREE.Vector3(x - C, h + elev(x, y), y - C);
   const vis = mulberry32(map.seed * 7 + 3);
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -29,7 +30,7 @@ export function createView(canvas, game, opts = {}) {
 
   // ---------- the city ----------
   CFG.lite = true;
-  const city = buildCity({ map, S, world, W, C, rand: vis });
+  const city = buildCity({ map, S, world, W: (x, y, h = 0) => new THREE.Vector3(x - C, h, y - C), C, rand: vis }); elev = city.heightAt;
 
   // ---------- night lights: a fixed pool, handed to the sources nearest the camera ----------
   const POOL = 6, pool = [];
@@ -387,7 +388,7 @@ export function createView(canvas, game, opts = {}) {
     }
     rain.count = n; rain.instanceMatrix.needsUpdate = true;
   }
-  let focus = null;
+  let focus = null, seenV = -1, shroudT = 0;
   let dark = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
 
   // which warm lights matter: the keep fire, lanterns on towers, lit homes; the nearest win the pool
@@ -409,6 +410,7 @@ export function createView(canvas, game, opts = {}) {
     time += dt;
     handleEvents(ui.events || []);
     syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt);
+    if (S.seenVersion !== seenV && (shroudT -= dt) <= 0) { shroudT = 0.3; seenV = S.seenVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }
     const night = S.phase === 'night' || S.phase === 'over';
     dark += ((night ? 1 : 0) - dark) * Math.min(1, dt * 1.4);

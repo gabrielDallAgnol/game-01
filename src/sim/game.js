@@ -14,7 +14,7 @@ import { WEATHER } from '../content/weather.js';
 
 export const STEP = 1 / 60;
 export const PICKS_PER_DAWN = 2;
-export const TOWN_DRAW = { free: 15, per: 0.01 };
+export const TOWN_DRAW = { free: 12, per: 0.012 };
 export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/3
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
@@ -50,7 +50,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     mobs: [], projectiles: [], chests: [], purses: [], allies: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
     P: freshPerkState(), picks: [], pendingPicks: 0, offer: [], offerSource: null, chestsHeld: 0, dawns: 0,
     reroll: { free: REROLL.free, cost: REROLL.base }, trade: null, halfUpgrade: false,
-    ability: { cd: 0, hires: 0 }, weather: 'clear', clock, dayT: 0, dayQueue: [], builders: clock && HEROES[hero === 'steward' ? 'merchant' : hero].autoBuild ? 'balanced' : null,
+    ability: { cd: 0, hires: 0 }, weather: 'clear', clock, dayT: 0, dayQueue: [], seen: new Uint8Array(N * N), seenVersion: 0, builders: clock && HEROES[hero === 'steward' ? 'merchant' : hero].autoBuild ? 'balanced' : null,
     log: [], cur: null, over: false, won: false,
     hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0, guardT: 0, attacks: 0 },
     flow: null, flowNext: null, climb: null, climbNext: null, flowDirty: true,
@@ -136,6 +136,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       if (r < 0 || !S.claimed.has(r)) { out.reason = 'Claim this land first.'; return out; }
       if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD || t === T.FOREST) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Barricades need ground, rubble or a ford.' : t === T.FOREST ? 'Rubble in the way. Tap it to clear it first.' : 'Needs open ground.'; return out; }
       if (S.occ[i] >= 0) { out.reason = 'Something is already built here.'; return out; }
+      if (map.ramp[i] && type !== 'wall') { out.reason = 'Keep the ramp clear (a barricade can close it).'; return out; }
     }
     for (const i of out.cells) {
       const x0 = i % N, y0 = (i / N) | 0;
@@ -202,10 +203,21 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   S.keep = keep; S.byId = new Map([[0, keep]]);
   occupy(keep);
 
+  // ---------- the shroud: the city starts dark; you, your buildings and your land reveal it ----------
+  function reveal(x, y, r) {
+    const r2 = r * r; let changed = false;
+    for (let yy = Math.max(0, Math.floor(y - r)); yy <= Math.min(N - 1, Math.ceil(y + r)); yy++) for (let xx = Math.max(0, Math.floor(x - r)); xx <= Math.min(N - 1, Math.ceil(x + r)); xx++) {
+      const i = idx(xx, yy); if (S.seen[i]) continue;
+      if ((xx + 0.5 - x) ** 2 + (yy + 0.5 - y) ** 2 <= r2) { S.seen[i] = 1; changed = true; }
+    }
+    if (changed) S.seenVersion++;
+  }
+  function revealRegion(r) { for (let i = 0; i < N * N; i++) if (map.region[i] === r) S.seen[i] = 1; S.seenVersion++; }
   function placeBuilding(type, x, y, rot, level, id) {
     const b = { id: id ?? S.nextId++, type, level, x, y, rot: type === 'wall' ? rot : 0, r: type === 'wall' ? 0.6 : type === 'tower' ? 0.6 : 1.0,
       hp: maxHpOf(type, level), maxHp: maxHpOf(type, level), cd: 0, ruined: false, fell: false, nearWater: nearWaterAt(x, y), shotN: 0, rainT: 0 };
     S.buildings.push(b); S.byId.set(b.id, b); occupy(b); liveTick = -1;
+    reveal(x, y, type === 'tower' ? 8 : 5);
     ev('build', { id: b.id });
     return b;
   }
@@ -252,12 +264,15 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function bossesFor(n) { return n < 10 ? ['guardian'] : Array.from({ length: Math.floor(n / 10) }, () => 'gravelord'); }
   const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
   // a bigger town draws more dead: +1% per citizen past the first 15
-  const townDraw = () => 1 + Math.max(0, pop() - TOWN_DRAW.free) * TOWN_DRAW.per;
+  // noise: people, homes, workshops and gunfire carry; the louder the town, the more dead it draws
+  const NOISE = { house: 1, farm: 0.5, tower: 1.5, wall: 0.1 };
+  const noise = () => pop() * 0.5 + S.buildings.reduce((a, b) => a + (NOISE[b.type] || 0) * (b.type === 'wall' ? 1 : b.level), 0);
+  const townDraw = () => 1 + Math.max(0, noise() - TOWN_DRAW.free) * TOWN_DRAW.per;
   function nightBudget(n) { return WAVES.budget(n) * (TIDE.opening[n] ?? 1) * territory() * townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * weatherFor(n).dead; }
   function purgeBudget(r, n) { return WAVES.budget(n) * WAVES.purgeShare(map.regions[r].ring); }
   function towerStats(b) {
     const B = BUILDINGS.tower, l = b.level - 1;
-    let range = (B.range[l] + S.P.towerRange + (has('watch') && b.paired ? 2 : 0)) * (S.phase === 'night' ? W8().range : 1);
+    let range = (B.range[l] + S.P.towerRange + (has('watch') && b.paired ? 2 : 0) + (map.high[idx(Math.floor(b.x), Math.floor(b.y))] ? 2 : 0)) * (S.phase === 'night' ? W8().range : 1);
     let dmg = B.dmg[l] * towerMult() * (has('bastion') && b.walled ? 1.4 : 1);
     let rate = B.rate[l] / S.P.towerRate;
     const h = S.hero, rallyR = combo('rally', 'watch') ? 8 : 5;
@@ -631,7 +646,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.gold = Math.max(0, S.gold + goldIn); S.stats.goldEarned += Math.max(0, goldIn);
     let claimedNow = null, nestPick = false;
     if (S.purge !== null) {
-      claimedNow = S.purge; clearRoamers(S.purge); S.claimed.add(S.purge); S.nestAlive[S.purge] = false; S.stats.regionsClaimed++;
+      claimedNow = S.purge; clearRoamers(S.purge); S.claimed.add(S.purge); revealRegion(S.purge); S.nestAlive[S.purge] = false; S.stats.regionsClaimed++;
       for (const nb of map.regions[S.purge].neighbors) if (map.regions[nb].nest && !S.claimed.has(nb) && S.wake[nb] > S.night + 1) S.wake[nb] = S.night + 1;
       const loot = WAVES.plunder(map.regions[S.purge].ring); earn(loot); nestPick = true;
       ev('claim', { region: S.purge }); toast(`The nest burns: +${loot} gold and a rare blessing. The land is yours, but new nests stir beyond it.`, 'good');
@@ -1085,6 +1100,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     refreshFlow();
     if (S.ability.cd > 0) S.ability.cd = Math.max(0, S.ability.cd - dt);
     stepHero(dt);
+    if ((S.revealT = (S.revealT || 0) - dt) <= 0) { S.revealT = 0.25; if (!S.hero.dead) reveal(S.hero.x, S.hero.y, 8); }
     if (S.phase === 'day' && S.clock && !S.over) {
       S.dayT += dt;
       while (S.dayQueue.length && S.dayQueue[0].t <= S.dayT) { const q = S.dayQueue.shift(); if (nestAlive(q.nest) && !S.claimed.has(q.nest)) spawnAtNest(q.kind, q.nest); }
@@ -1152,6 +1168,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   /** building whose footprint covers the cell under (x, y), or the keep */
   function buildingAt(x, y) { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return null; const o = S.occ[idx(cx, cy)]; return o >= 0 ? S.byId.get(o) : null; }
+  for (const r of S.claimed) revealRegion(r); reveal(c, c, 14);
   S.picks.push('dawn'); rollOffer(); rollPacks(); spawnRoamers();
 
   // ---------- scavenging ----------
@@ -1172,7 +1189,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     buildLine, upgradeWall, wallRun, wallBudget, lineCells,
     weather: () => ({ id: S.weather, ...W8() }),
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
-    crewing, manned, townDraw, keepForRing, keepLevel: () => keep.level,
+    crewing, manned, townDraw, noise, reveal, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
     abilityCost, towerStats: b => towerStats(b), has,

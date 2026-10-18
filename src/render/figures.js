@@ -48,7 +48,7 @@ const KIND_RIG = {
 export function createCrowd(world) {
   const kinds = {};
   // a faint sickly self-light keeps the dead readable against dark asphalt at night
-  const bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: new THREE.Color(0x070c05), emissiveIntensity: 1 });
+  const bodyMat = K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: new THREE.Color(0x070c05), emissiveIntensity: 1 }));   // dark in the shroud: only their eyes show
   const eyeMat = new THREE.MeshBasicMaterial({ vertexColors: true }); eyeMat.color.setRGB(4, 4, 4);
   function kindOf(kind) {
     if (kinds[kind]) return kinds[kind];

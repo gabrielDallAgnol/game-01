@@ -20,12 +20,13 @@ export const K = (() => {
   };
 
   // territory tint: every surface outside your land is drawn cooler, darker and desaturated.
-  // A 64×64 mask texture (1 = claimed) is sampled in world space by every standard material.
-  const maskData = new Uint8Array(64 * 64 * 4);
-  const maskTex = new THREE.DataTexture(maskData, 64, 64, THREE.RGBAFormat);
+  // A 128×128 mask texture (1 = claimed, one texel per cell) is sampled in world space by every standard material.
+  const MS = 128, maskData = new Uint8Array(MS * MS * 4);
+  const maskTex = new THREE.DataTexture(maskData, MS, MS, THREE.RGBAFormat);
   maskTex.magFilter = THREE.LinearFilter; maskTex.minFilter = THREE.LinearFilter; maskTex.needsUpdate = true;
   const T = { mask: { value: maskTex }, off: { value: 32 }, amount: { value: 0.8 }, dark: { value: 0.7 } };
-  function setMask(fn) { for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const v = fn(x, y) ? 255 : 0, k = (y * 64 + x) * 4; maskData[k] = maskData[k + 1] = maskData[k + 2] = v; maskData[k + 3] = 255; } maskTex.needsUpdate = true; }
+  // R = your land, G = explored (the shroud is black where G = 0)
+  function setMask(fn, n = 64, seen = null) { T.off.value = n / 2; for (let y = 0; y < MS; y++) for (let x = 0; x < MS; x++) { const inMap = x < n && y < n, v = inMap && fn(x, y) ? 255 : 0, k = (y * MS + x) * 4; maskData[k] = maskData[k + 2] = v; maskData[k + 1] = !seen || (inMap && seen(x, y)) ? 255 : 0; maskData[k + 3] = 255; } maskTex.needsUpdate = true; }
   function territory(m) {
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { tMask: T.mask, tOff: T.off, tAmount: T.amount, tDark: T.dark });
@@ -33,11 +34,13 @@ export const K = (() => {
         .replace('#include <project_vertex>', '#include <project_vertex>\n  vec4 tw = vec4(transformed, 1.0);\n  #ifdef USE_INSTANCING\n  tw = instanceMatrix * tw;\n  #endif\n  vTWorld = (modelMatrix * tw).xyz;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTWorld; uniform sampler2D tMask; uniform float tOff, tAmount, tDark;')
         .replace('#include <dithering_fragment>', `#include <dithering_fragment>
-  float own = texture2D(tMask, (vTWorld.xz + tOff) / 64.0).r;
+  float own = texture2D(tMask, (vTWorld.xz + tOff) / 128.0).r;
   float wild = (1.0 - smoothstep(0.25, 0.75, own)) * tAmount;
   vec3 c = gl_FragColor.rgb; float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   vec3 cool = mix(vec3(l), c, 0.45) * vec3(0.9, 0.97, 1.08) * tDark;
-  gl_FragColor.rgb = mix(c, cool, wild);`);
+  gl_FragColor.rgb = mix(c, cool, wild);
+  float seen = texture2D(tMask, (vTWorld.xz + tOff) / 128.0).g;
+  gl_FragColor.rgb *= 0.02 + 0.98 * smoothstep(0.15, 0.85, seen);`);
     };
     m.customProgramCacheKey = () => 'territory';
     return m;

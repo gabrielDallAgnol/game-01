@@ -3,7 +3,8 @@
 // a nest in every region but the town's, and build slots per region.
 import { Rng, hashSeed, valueNoise } from './rng.js';
 
-export const N = 64;
+export const N = 96;
+const K = 1.45;          // the city grew: distances scale with this
 export const T = { GRASS: 0, FOREST: 1, ROCK: 2, WATER: 3, CLIFF: 4, FORD: 5, DIRT: 6, VOID: 7 };
 export const PASSABLE = [true, true, false, false, false, true, true, false];
 export const BUILDABLE = [true, false, false, false, false, false, true, false];
@@ -16,13 +17,13 @@ export const BIOMES = {
   vale:      { name: 'The Cut', blurb: 'You start at the bottom of a V-shaped sunken district. The dead only come from above, and you push up through it.' },
 };
 
-const R = 30;           // playable radius
+const R = 30 * K;       // playable radius
 const VALE_HALF = 0.72; // half-opening of the Vale's V (radians), widened by VALE_PAD at the tip
-const VALE_PAD = 6.5;
+const VALE_PAD = 6.5 * K;
 /** inside the Vale: the town circle at the tip, then a V opening upward (screen up is −y) */
 export function valeInside(rx, ry, pad = 0) {
-  if (Math.hypot(rx, ry) < 10 + pad) return true;
-  return ry < 0 && Math.abs(rx) <= -ry * Math.tan(VALE_HALF) + VALE_PAD + pad && Math.hypot(rx, ry) < 31 + pad;
+  if (Math.hypot(rx, ry) < 10 * K + pad) return true;
+  return ry < 0 && Math.abs(rx) <= -ry * Math.tan(VALE_HALF) + VALE_PAD + pad && Math.hypot(rx, ry) < 31 * K + pad;
 }
 const GRID = 4;         // lot spacing: a 3×3 building plus a one-cell street
 
@@ -44,8 +45,8 @@ export function generateMap(seed, biome) {
     if (vale ? !valeInside(x + 0.5 - c, y + 0.5 - c) : d > R) t = vale && valeInside(x + 0.5 - c, y + 0.5 - c, 1.6) ? T.CLIFF : T.VOID;
     else {
       const f = 0.65 * f1(x, y) + 0.35 * f2(x, y);
-      if (f > 0.6 && d > 7) t = T.FOREST;
-      if (rk(x, y) > 0.83 && d > 8) t = T.ROCK;
+      if (f > 0.6 && d > 8) t = T.FOREST;
+      if (rk(x, y) > 0.83 && d > 9.5) t = T.ROCK;
     }
     terrain[idx(x, y)] = t;
   }
@@ -55,18 +56,18 @@ export function generateMap(seed, biome) {
   const nx = Math.cos(a), ny = Math.sin(a), ux = -ny, uy = nx;
   const feature = { kind: biome, angle: a };
   if (biome === 'riverbend') {
-    const phase = rng.range(0, 6), fords = [rng.range(-13, -6), rng.range(5, 12)];
+    const phase = rng.range(0, 6), fords = [rng.range(-19, -9), rng.range(7, 17)];
     feature.fords = [];
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       const rx = x + 0.5 - c, ry = y + 0.5 - c;
       const s = rx * ux + ry * uy, q = rx * nx + ry * ny;
-      const q0 = 10 + 2.2 * Math.sin(s * 0.17 + phase) - 0.013 * s * s; // bends back around the town
+      const q0 = 13 + 2.6 * Math.sin(s * 0.12 + phase) - 0.009 * s * s; // bends back around the town
       if (Math.abs(q - q0) < 1.7 && terrain[idx(x, y)] !== T.VOID) {
         const ford = fords.some(f => Math.abs(s - f) < 1.4);
         terrain[idx(x, y)] = ford ? T.FORD : T.WATER;
       }
     }
-    for (const f of fords) feature.fords.push({ x: c + ux * f + nx * (10 - 0.013 * f * f), y: c + uy * f + ny * (10 - 0.013 * f * f) });
+    for (const f of fords) feature.fords.push({ x: c + ux * f + nx * (13 - 0.009 * f * f), y: c + uy * f + ny * (13 - 0.009 * f * f) });
   } else if (biome === 'highland') {
     const passes = [];
     while (passes.length < 3) {
@@ -76,18 +77,18 @@ export function generateMap(seed, biome) {
     feature.passes = passes;
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       const rx = x + 0.5 - c, ry = y + 0.5 - c, d = Math.hypot(rx, ry);
-      if (d >= 10.8 && d < 12.6) {
+      if (d >= 12.8 && d < 14.6) {
         const ang = Math.atan2(ry, rx);
-        const open = passes.some(p => Math.abs(((ang - p + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < 0.14);
+        const open = passes.some(p => Math.abs(((ang - p + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < 0.12);
         terrain[idx(x, y)] = open ? T.GRASS : T.CLIFF;
-      } else if (d < 10.8 && terrain[idx(x, y)] === T.ROCK) terrain[idx(x, y)] = T.GRASS;
+      } else if (d < 12.8 && terrain[idx(x, y)] === T.ROCK) terrain[idx(x, y)] = T.GRASS;
     }
   } else if (biome === 'lakeshore') {
-    const lx = c + nx * 15, ly = c + ny * 15;
+    const lx = c + nx * 20, ly = c + ny * 20;
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       const rx = x + 0.5 - lx, ry = y + 0.5 - ly;
       const along = rx * ux + ry * uy, across = rx * nx + ry * ny;
-      const e = (along / 13) ** 2 + (across / 8.5) ** 2;
+      const e = (along / 17) ** 2 + (across / 10.5) ** 2;
       if (e < 1 && terrain[idx(x, y)] !== T.VOID) terrain[idx(x, y)] = T.WATER;
       else if (e < 1.35 && terrain[idx(x, y)] !== T.VOID) terrain[idx(x, y)] = T.GRASS; // open shore for farms
     }
@@ -96,7 +97,7 @@ export function generateMap(seed, biome) {
 
   // 3. town clearing
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
-    if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 6.5) terrain[idx(x, y)] = T.DIRT;
+    if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 7) terrain[idx(x, y)] = T.DIRT;
 
   // 4. regions: town + a ring of 6 + an outer ring of 10
   const seeds = [{ x: c, y: c, ring: 0 }];
@@ -104,9 +105,9 @@ export function generateMap(seed, biome) {
   if (biome === 'vale') {
     // bands across the V, each wider than the last: 4 near, 5 far
     const band = (n, r0, r1, ring) => { for (let k = 0; k < n; k++) { const f = (k + 0.5) / n * 2 - 1, an = -Math.PI / 2 + f * (VALE_HALF + 0.12) + rng.range(-0.06, 0.06), r = rng.range(r0, r1); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring }); } };
-    band(4, 14.5, 16.5, 1); band(5, 23.5, 26.5, 2);
-  } else for (let k = 0; k < 6; k++) { const an = off1 + k * Math.PI / 3 + rng.range(-0.22, 0.22), r = rng.range(14, 16.5); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 1 }); }
-  if (biome !== 'vale') for (let k = 0; k < 10; k++) { const an = off2 + k * Math.PI / 5 + rng.range(-0.18, 0.18), r = rng.range(21.5, 25); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 2 }); }
+    band(4, 20, 23, 1); band(5, 33, 37, 2);
+  } else for (let k = 0; k < 6; k++) { const an = off1 + k * Math.PI / 3 + rng.range(-0.22, 0.22), r = rng.range(19.5, 23); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 1 }); }
+  if (biome !== 'vale') for (let k = 0; k < 10; k++) { const an = off2 + k * Math.PI / 5 + rng.range(-0.18, 0.18), r = rng.range(31, 36); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 2 }); }
   const region = new Int16Array(N * N).fill(-1);
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     if (terrain[idx(x, y)] === T.VOID) continue;
@@ -114,7 +115,7 @@ export function generateMap(seed, biome) {
     for (let s = 0; s < seeds.length; s++) { const d = (x + 0.5 - seeds[s].x) ** 2 + (y + 0.5 - seeds[s].y) ** 2; if (d < bd) { bd = d; best = s; } }
     // the town owns its natural fortress: the whole plateau on Highland, a wide circle elsewhere
     const d = Math.hypot(x + 0.5 - c, y + 0.5 - c);
-    if (d < (biome === 'highland' ? 10.6 : 9)) best = 0;
+    if (d < (biome === 'highland' ? 12.6 : 11)) best = 0;
     region[idx(x, y)] = best;
   }
   const regions = seeds.map((s, id) => ({ id, ring: s.ring, x: s.x, y: s.y, neighbors: new Set(), cells: 0, forest: 0, water: 0, nest: null, slots: [] }));
@@ -129,6 +130,32 @@ export function generateMap(seed, biome) {
       const r2 = region[idx(x + dx, y + dy)];
       if (r2 >= 0 && r2 !== r) { reg.neighbors.add(r2); regions[r2].neighbors.add(r); }
     }
+  }
+
+  // 4b. high ground: small plateaus behind retaining walls, one ramp facing the town.
+  //     Easy to hold: build an outpost up there and the dead can only come up the ramp.
+  const high = new Uint8Array(N * N), ramp = new Uint8Array(N * N);
+  feature.plateaus = [];
+  for (const reg of regions) {
+    if (reg.ring < 1 || biome === 'highland' && reg.ring < 1) continue;
+    if (rng.next() > (reg.ring === 1 ? 0.6 : 0.45)) continue;
+    // halfway between the region's heart and the town side of it
+    const tx = reg.x + (c - reg.x) * 0.28 + rng.range(-2, 2), ty = reg.y + (c - reg.y) * 0.28 + rng.range(-2, 2);
+    const pr = rng.range(2.6, 3.6), wall = pr + 1.2, toTown = Math.atan2(c - ty, c - tx);
+    let ok = Math.hypot(tx - c, ty - c) > 15;
+    for (let y = Math.floor(ty - wall - 1); y <= ty + wall + 1 && ok; y++) for (let x = Math.floor(tx - wall - 1); x <= tx + wall + 1 && ok; x++) {
+      if (!inside(x, y)) { ok = false; break; }
+      const d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty), t = terrain[idx(x, y)];
+      if (d < wall + 1 && (t === T.WATER || t === T.FORD || t === T.VOID || t === T.CLIFF || high[idx(x, y)])) ok = false;
+    }
+    if (!ok) continue;
+    for (let y = Math.floor(ty - wall); y <= ty + wall; y++) for (let x = Math.floor(tx - wall); x <= tx + wall; x++) {
+      const i = idx(x, y), d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty);
+      const ang = Math.atan2(y + 0.5 - ty, x + 0.5 - tx), off = Math.abs(((ang - toTown + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      if (d < pr) { terrain[i] = T.GRASS; high[i] = 1; }
+      else if (d < wall) { if (off < 0.32) { terrain[i] = T.GRASS; ramp[i] = 1; } else terrain[i] = T.CLIFF; }
+    }
+    feature.plateaus.push({ x: tx, y: ty, r: pr, region: reg.id });
   }
 
   // 5. which cells can be walked to from the town
@@ -148,7 +175,7 @@ export function generateMap(seed, biome) {
       const i = idx(x, y);
       if (region[i] !== reg.id || !reach[i]) continue;
       const t = terrain[i]; if (t !== T.GRASS && t !== T.FOREST) continue;
-      if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 13) continue;
+      if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 17 || high[i]) continue;
       const d = (x + 0.5 - reg.x) ** 2 + (y + 0.5 - reg.y) ** 2;
       if (d < bd) { bd = d; best = { x: x + 0.5, y: y + 0.5 }; }
     }
@@ -193,7 +220,7 @@ export function generateMap(seed, biome) {
   // They belong to the town, because they are its natural defensive line.
   const gates = [];
   if (feature.fords) gates.push(...feature.fords);
-  if (feature.passes) for (const p of feature.passes) gates.push({ x: c + Math.cos(p) * 11.7, y: c + Math.sin(p) * 11.7 });
+  if (feature.passes) for (const p of feature.passes) gates.push({ x: c + Math.cos(p) * 13.7, y: c + Math.sin(p) * 13.7 });
   for (const gpt of gates) {
     const x = Math.floor(gpt.x), y = Math.floor(gpt.y); if (!inside(x, y) || !reach[idx(x, y)]) continue;
     const slot = { id: slots.length, x: x + 0.5, y: y + 0.5, region: 0, forest: 0, nearWater: true, gate: true };
@@ -202,7 +229,7 @@ export function generateMap(seed, biome) {
 
   // grid points, nearest to the keep first; each may shift one cell to fit the land
   const pts = [];
-  for (let gy = -8; gy <= 8; gy++) for (let gx = -8; gx <= 8; gx++) pts.push([gx, gy]);
+  for (let gy = -12; gy <= 12; gy++) for (let gx = -12; gx <= 12; gx++) pts.push([gx, gy]);
   pts.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
   const nudges = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
   for (const [gx, gy] of pts) for (const [dx, dy] of nudges) if (tryLot(ci + gx * GRID + dx, ci + gy * GRID + dy)) break;
@@ -212,7 +239,7 @@ export function generateMap(seed, biome) {
   cells.sort((a, b) => Math.hypot(a[0] - c, a[1] - c) - Math.hypot(b[0] - c, b[1] - c));
   for (const [x, y] of cells) tryLot(x, y);
   for (const reg of regions) reg.neighbors = [...reg.neighbors].sort((p, q) => p - q);
-  return { N, seed, biome, name: BIOMES[biome].name, terrain, region, regions, slots, reach, town: { x: c, y: c }, feature };
+  return { N, seed, biome, name: BIOMES[biome].name, terrain, region, regions, slots, reach, high, ramp, town: { x: c, y: c }, feature };
 }
 
 /** Quick checks used by tests and by the map picker to reject weak maps. */

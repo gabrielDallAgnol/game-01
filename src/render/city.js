@@ -11,9 +11,10 @@ import { bake, vcMat } from './figures.js';
 
 const GROUND = {
   open: '#3d3c39', paved: '#4c4a45', plaza: '#54514b', rubble: '#45433d', rock: '#2f2e2b', ford: '#8d887d', cliff: '#56534c', voidc: '#262522', bed: '#1c2527',
-  lot: '#5c5951', street: '#68645c',
+  lot: '#5c5951', street: '#68645c', deck: '#6f6b63', deckOwn: '#7a7469', ramp: '#77736a',
 };
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
+export const HIGH = 1.1;     // height of the plateaus (high ground)
 
 export function buildCity({ map, S, world, W, C, rand }) {
   const lin = K.lin;
@@ -21,10 +22,24 @@ export function buildCity({ map, S, world, W, C, rand }) {
 
   // ---------- ground: one quad per cell, coloured by what stands on it ----------
   const pos = [], cellOf = [], hOf = t => (t === T.WATER ? -0.42 : t === T.FORD ? -0.42 : 0);
+  const isHigh = (x, y) => x >= 0 && y >= 0 && x < N && y < N && map.high[idx(x, y)] === 1;
+  // a corner is high if any cell touching it is high: plateau tops sit at HIGH and ramps slope up to them
+  const cornerH = (x, y) => (isHigh(x - 1, y - 1) || isHigh(x, y - 1) || isHigh(x - 1, y) || isHigh(x, y) ? HIGH : 0);
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const t = at(x, y), h = hOf(t), x0 = x - C, z0 = y - C;
-    pos.push(x0, h, z0, x0, h, z0 + 1, x0 + 1, h, z0, x0 + 1, h, z0, x0, h, z0 + 1, x0 + 1, h, z0 + 1);
-    cellOf.push(idx(x, y));
+    const t = at(x, y), x0 = x - C, z0 = y - C;
+    const water = t === T.WATER || t === T.FORD, i = idx(x, y), lift = map.high[i] || map.ramp[i];
+    const h = (cx, cy) => (water ? hOf(t) : lift ? cornerH(cx, cy) : 0);
+    const a = h(x, y), b = h(x, y + 1), cc = h(x + 1, y), d = h(x + 1, y + 1);
+    pos.push(x0, a, z0, x0, b, z0 + 1, x0 + 1, cc, z0, x0 + 1, cc, z0, x0, b, z0 + 1, x0 + 1, d, z0 + 1);
+    cellOf.push(i);
+  }
+  /** ground height under a point: plateau tops are HIGH, ramps blend between their corners */
+  function heightAt(x, y) {
+    const cx = Math.floor(x), cy = Math.floor(y); if (cx < 0 || cy < 0 || cx >= N || cy >= N) return 0;
+    const i = idx(cx, cy); if (map.high[i]) return HIGH; if (!map.ramp[i]) return 0;
+    const fx = x - cx, fy = y - cy;
+    const a = cornerH(cx, cy), b = cornerH(cx + 1, cy), c2 = cornerH(cx, cy + 1), d = cornerH(cx + 1, cy + 1);
+    return (a * (1 - fx) + b * fx) * (1 - fy) + (c2 * (1 - fx) + d * fx) * fy;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -32,7 +47,7 @@ export function buildCity({ map, S, world, W, C, rand }) {
   geo.computeVertexNormals();
   const groundMat = K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }));
   const ground = new THREE.Mesh(geo, groundMat); ground.receiveShadow = true; world.add(ground);
-  const under = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), K.M('#262522')); under.rotation.x = -Math.PI / 2; under.position.y = -0.5; world.add(under);
+  const under = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), K.M('#262522')); under.rotation.x = -Math.PI / 2; under.position.y = -0.5; world.add(under);
   const jitter = new Float32Array(N * N).map(() => 0.97 + rand() * 0.05);
   const c = new THREE.Color(), c2 = new THREE.Color();
   function paint() {
@@ -40,7 +55,7 @@ export function buildCity({ map, S, world, W, C, rand }) {
     cellOf.forEach((i, q) => {
       const t = map.terrain[i], x = i % N, y = (i / N) | 0;
       const own = map.region[i] >= 0 && S.claimed.has(map.region[i]);
-      let key = t === T.GRASS ? (own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
+      let key = map.high[i] ? (own ? 'deckOwn' : 'deck') : map.ramp[i] ? 'ramp' : t === T.GRASS ? (own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
       if (t === T.GRASS || t === T.DIRT || t === T.FOREST) {
         if (S.occ[i] >= 0) key = 'lot';
         else { let st = false; for (let dy = -1; dy <= 1 && !st; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < N && yy < N && S.occ[idx(xx, yy)] >= 0) { st = true; break; } } if (st) key = 'street'; }
@@ -56,7 +71,7 @@ export function buildCity({ map, S, world, W, C, rand }) {
 
   // ---------- asphalt detail: cracks, patches, manholes, faded paint ----------
   for (let i = 0; i < N * N; i++) {
-    const t = map.terrain[i]; if (t !== T.GRASS && t !== T.DIRT) continue;
+    const t = map.terrain[i]; if ((t !== T.GRASS && t !== T.DIRT) || map.high[i] || map.ramp[i]) continue;
     const x = (i % N) - C + 0.5, z = ((i / N) | 0) - C + 0.5, r = rand();
     if (r < 0.07) statics.cbox('soot', 0.03, 0.006, 0.5 + rand() * 0.7, x + (rand() - 0.5) * 0.6, 0.004, z + (rand() - 0.5) * 0.6, { r: 0.001, ry: rand() * 3 });
     else if (r < 0.11) statics.cbox('asphalt2', 0.4 + rand() * 0.5, 0.005, 0.3 + rand() * 0.5, x, 0.003, z, { r: 0.001, ry: rand() * 3 });
@@ -127,10 +142,10 @@ export function buildCity({ map, S, world, W, C, rand }) {
   // ---------- rubble fields (forest cells): debris, scrub, dead trees, wrecks ----------
   const forest = []; for (let i = 0; i < N * N; i++) if (map.terrain[i] === T.FOREST) forest.push(i);
   // built in 8×8 chunks from a per-cell random stream, so a chunk can be rebuilt without a cleared cell
-  const rubCols = ['slab', 'stone', 'dark', 'slab', 'grey'], CH = 8, chunks = new Map();
+  const rubCols = ['slab', 'stone', 'dark', 'slab', 'grey'], CH = 8, CW = Math.ceil(N / CH), chunks = new Map();
   function buildChunk(key) {
     const old = chunks.get(key); if (old) { world.remove(old); old.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); chunks.delete(key); }
-    const cx0 = (key % 8) * CH, cy0 = Math.floor(key / 8) * CH, rub = new K.B(); let any = false;
+    const cx0 = (key % CW) * CH, cy0 = Math.floor(key / CW) * CH, rub = new K.B(); let any = false;
     for (let y = cy0; y < cy0 + CH; y++) for (let x0 = cx0; x0 < cx0 + CH; x0++) {
       const i = idx(x0, y); if (map.terrain[i] !== T.FOREST) continue;
       any = true; const r = mulberry32(i * 7919 + 13), x = x0 - C + 0.5, z = y - C + 0.5;
@@ -141,7 +156,7 @@ export function buildCity({ map, S, world, W, C, rand }) {
     if (!any) return;
     const m = rub.build(); world.add(m); chunks.set(key, m);
   }
-  const chunkOf = i => Math.floor(((i / N) | 0) / CH) * 8 + Math.floor((i % N) / CH);
+  const chunkOf = i => Math.floor(((i / N) | 0) / CH) * CW + Math.floor((i % N) / CH);
   new Set(forest.map(chunkOf)).forEach(buildChunk);
   // instanced props baked from the kit
   const propMeshes = [];
@@ -157,7 +172,7 @@ export function buildCity({ map, S, world, W, C, rand }) {
   props(() => K.tree({ dead: true, seed: 3 }), pickCells(forest, 0.1), (i, d) => { cellPos(i, d); d.scale.setScalar(0.3 + rand() * 0.1); d.rotation.set(0, rand() * 6, 0); });
   props(() => K.tree({ seed: 7, h: 5 }), pickCells(forest, 0.015), (i, d) => { cellPos(i, d); d.scale.setScalar(0.24 + rand() * 0.05); d.rotation.set(0, rand() * 6, 0); });
   props(() => K.bush({ seed: 5, n: 5 }), pickCells(forest, 0.1), (i, d) => { cellPos(i, d); d.scale.set(0.34 + rand() * 0.12, 0.22, 0.34 + rand() * 0.12); d.rotation.set(0, rand() * 6, 0); });
-  const wreckCells = pickCells(forest.concat(pickCells([...Array(N * N).keys()].filter(i => map.terrain[i] === T.GRASS && !(map.region[i] >= 0 && S.claimed.has(map.region[i]))), 0.01)), 0.04);
+  const wreckCells = pickCells(forest.concat(pickCells([...Array(N * N).keys()].filter(i => map.terrain[i] === T.GRASS && !map.high[i] && !map.ramp[i] && !(map.region[i] >= 0 && S.claimed.has(map.region[i]))), 0.01)), 0.04);
   ['rust', 'stone', 'grey', 'pale'].forEach((color, v) => props(() => K.car({ wreck: true, color, seed: 11 + v }), wreckCells.filter((_, k) => k % 4 === v), (i, d) => { cellPos(i, d, 0.2); d.scale.setScalar(0.3); d.rotation.set((rand() - 0.5) * 0.08, rand() * 6, (rand() - 0.5) * 0.08); }));
 
   // ---------- canals, footbridges, retaining walls ----------
@@ -184,8 +199,11 @@ export function buildCity({ map, S, world, W, C, rand }) {
   }
   for (let i = 0; i < N * N; i++) {
     if (map.terrain[i] !== T.CLIFF) continue;
-    const x = (i % N) - C + 0.5, z = ((i / N) | 0) - C + 0.5, h = 1.4 + rand() * 0.5;
-    statics.box('grey', 1.0, h, 1.0, x, 0, z, { r: 0.02 });
+    const cx = i % N, cy = (i / N) | 0, x = cx - C + 0.5, z = cy - C + 0.5;
+    // a plateau's edge is a terrace wall with a low parapet; elsewhere cliffs are tall retaining walls
+    const terrace = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(([dx, dy]) => cx + dx >= 0 && cy + dy >= 0 && cx + dx < N && cy + dy < N && map.high[idx(cx + dx, cy + dy)]);
+    const h = terrace ? HIGH + 0.22 : 1.4 + rand() * 0.5;
+    statics.box(terrace ? 'stone' : 'grey', 1.0, h, 1.0, x, 0, z, { r: 0.02 });
     for (let k = 1; k < 3; k++) statics.cbox('soot', 1.02, 0.04, 1.02, x, h * k / 3, z, { r: 0.005 });
     statics.cbox('dark', 1.02, 0.08, 1.02, x, h, z, { r: 0.01 });
     if (rand() < 0.3) statics.box('metal', 0.04, 0.35, 0.04, x + (rand() - 0.5) * 0.8, h, z + (rand() - 0.5) * 0.8, { r: 0.005 });
@@ -195,7 +213,7 @@ export function buildCity({ map, S, world, W, C, rand }) {
   world.add(statics.build());
 
   // ---------- territory: claimed land warm, the wild cool and grey ----------
-  function setTerritory() { K.setMask((x, y) => { const r = map.region[idx(x, y)]; return r >= 0 && S.claimed.has(r); }); }
+  function setTerritory() { K.setMask((x, y) => { const r = map.region[idx(x, y)]; return r >= 0 && S.claimed.has(r); }, N, (x, y) => S.seen[idx(x, y)] === 1); }
   setTerritory();
 
   /** rubble cleared: rebuild the touched chunks and hide props standing on those cells */
@@ -206,5 +224,5 @@ export function buildCity({ map, S, world, W, C, rand }) {
     for (const { m, cells: pc } of propMeshes) { let hit = false; pc.forEach((i, k) => { if (set.has(i)) { m.setMatrixAt(k, zero); hit = true; } }); if (hit) m.instanceMatrix.needsUpdate = true; }
     paint();
   }
-  return { paint, setTerritory, ground, clear };
+  return { paint, setTerritory, ground, clear, heightAt };
 }
