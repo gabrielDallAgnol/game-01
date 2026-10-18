@@ -14,7 +14,7 @@ import { KITS, RARITY } from '../content/districts.js';
 const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
 const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
 const FOOT = { house: 2, farm: 2, tower: 1, workshop: 3, market: 3, generator: 2 };   // cells each building covers   // world units per metre of each kit model
-const HERO_RIG = { warrior: 'brawler', archer: 'ranger', merchant: 'scavver', steward: 'scavver', survivor: 'brawler', vanguard: 'brawler', warlord: 'brawler', deadeye: 'ranger' };
+const HERO_RIG = { warrior: 'brawler', archer: 'ranger', merchant: 'scavver', steward: 'scavver', survivor: 'brawler', vanguard: 'brawler', warlord: 'brawler', deadeye: 'ranger', medic: 'scavver', warden: 'brawler', marshal: 'ranger', quartermaster: 'scavver' };
 const HOUSE_COLORS = ['sand', 'bone', 'stone', 'pale'];
 const HIVES = ['metro', 'petrol', 'hospital'];
 

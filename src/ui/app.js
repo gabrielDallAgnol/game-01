@@ -63,7 +63,7 @@ export function startApp() {
       <p>Build by day. Hold the keep by night. Clear the hives around you to claim more of the city, and see how many nights you last.</p>
       <p class="tiny">Build out from the keep: every building widens your zone · claim landmarks for a forward base · after big nights, supply drops land in the wild: go get them yourself.</p>
       <h2>Your hero</h2>
-      <p class="tiny" style="white-space:normal">You start as a <b>Survivor</b>. Blessings come in three hero families: <b>Brawn</b>, <b>Aim</b> and <b>Wits</b>. Two of one family and the System offers its Calling (Brawler, Ranger or Scavver); two of a second family and you evolve into a final class: Vanguard, Warlord or Deadeye.</p>
+      <p class="tiny" style="white-space:normal">You start as a <b>Survivor</b>. Blessings come in four hero families: <b>Brawn</b>, <b>Aim</b>, <b>Wits</b> and <b>Heart</b>. Two of one family and the System offers its Calling (Brawler, Ranger, Scavver or Medic); two of a second family and you evolve into one of six final classes: Vanguard, Warlord, Deadeye, Warden, Marshal or Quartermaster.</p>
       <h2>Difficulty</h2>
       <div class="choices">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="choice" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><b>${d.name}</b><span>${d.blurb}</span></button>`).join('')}</div>
       <h2>Your land</h2>

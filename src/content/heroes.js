@@ -22,16 +22,24 @@ export const HEROES = {
     ability: { id: 'bounty', name: 'Bounty', cooldown: 45, duration: 20, radius: 9, gold: 1, bigGold: 3 },
   },
 };
-export const HERO_ORDER = ['warrior', 'archer', 'merchant'];
+HEROES.medic = {
+  name: 'Medic', blurb: 'A flare pistol and a bag of bandages. Weak in a fight, but Patch Up mends the buildings around you and puts you back on your feet.',
+  hp: 26, speed: 4.5, attack: { kind: 'ranged', dmg: 1.1, reach: 5.5, rate: 0.85 },
+  ability: { id: 'patch', name: 'Patch Up', cooldown: 22, radius: 6, heal: 0.25 },
+};
+export const HERO_ORDER = ['warrior', 'archer', 'merchant', 'medic'];
 // final classes: a Calling plus a second hero family. Each keeps its Calling's ability and adds one twist.
 Object.assign(HEROES, {
   vanguard: { ...HEROES.warrior, name: 'Vanguard', base: 'warrior', blurb: 'Brawler who learned to throw: every swing also strikes a second dead within reach.', hp: 34, attack: { kind: 'melee', dmg: 3.4, reach: 2.5, rate: 0.55 }, twin: true },
   warlord: { ...HEROES.warrior, name: 'Warlord', base: 'warrior', blurb: 'War Cry pays: every dead that falls near you while it lasts pays 1 scrap. Tougher than anyone.', hp: 42, cryPays: 1 },
+  warden: { ...HEROES.warrior, name: 'Warden', base: 'warrior', blurb: 'Brawler with a medic\'s heart: buildings within 5 of you take 30% less damage.', hp: 40, ward: 0.7 },
+  marshal: { ...HEROES.archer, name: 'Marshal', base: 'archer', blurb: 'Ranger who leads: towers within 6 of you shoot 25% faster.', hp: 26, marshal: 1.25 },
+  quartermaster: { ...HEROES.medic, name: 'Quartermaster', base: 'medic', blurb: 'Keeps everyone fed and patched: +4 scrap and +2 food every dawn, and Patch Up mends the whole town.', hp: 26, quarter: true },
   deadeye: { ...HEROES.archer, name: 'Deadeye', base: 'archer', blurb: 'Ranger who sells the shot: reach 8, and every dead your Volley kills pays 2 scrap.', hp: 22, attack: { kind: 'ranged', dmg: 2, reach: 8, rate: 0.8 }, volleyPays: 2 },
 });
 // which hero family leads to which Calling, and which pair to which final class
-export const CALLINGS = { hero: 'warrior', ranger: 'archer', scavver: 'merchant' };
-export const FINALS = { 'archer+warrior': 'vanguard', 'merchant+warrior': 'warlord', 'archer+merchant': 'deadeye' };
+export const CALLINGS = { hero: 'warrior', ranger: 'archer', scavver: 'merchant', heart: 'medic' };
+export const FINALS = { 'archer+warrior': 'vanguard', 'merchant+warrior': 'warlord', 'archer+merchant': 'deadeye', 'medic+warrior': 'warden', 'archer+medic': 'marshal', 'medic+merchant': 'quartermaster' };
 export const EVOLVE_AT = 2;   // blessings of one hero family that unlock its Calling (and the second family the final class)
 
 export const MERC = { hp: 15, dmg: 3, rate: 0.8, speed: 5.5, leash: 6, reach: 1.1 };

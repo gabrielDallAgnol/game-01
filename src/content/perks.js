@@ -7,6 +7,7 @@ export const FAMILIES = {
   hero:    { name: 'Brawn', color: '#e58a6a', hero: 'warrior', path: 'Brawler' },
   ranger:  { name: 'Aim',  color: '#7fc4d8', hero: 'archer', path: 'Ranger' },
   scavver: { name: 'Wits', color: '#d9b45a', hero: 'merchant', path: 'Scavver' },
+  heart:   { name: 'Heart', color: '#f08aa8', hero: 'medic', path: 'Medic' },
   bow:     { name: 'Bow',     color: '#eaa441' },
   stone:   { name: 'Stone',   color: '#a9bccd' },
   harvest: { name: 'Harvest', color: '#a3c65c' },
@@ -69,6 +70,14 @@ export const PERKS = [
   { id: 'deals',   fam: 'scavver', rarity: R, name: 'Wholesale', desc: 'Towers and homes cost 1 less for you.', max: 1, fx: P => { P.defDiscount += 1; P.ecoDiscount += 1; } },
   { id: 'loyal',   fam: 'scavver', rarity: R, name: 'Quick Contracts', desc: 'Bounty recharges 35% faster.', max: 1, fx: P => { P.abilityCd *= 0.65; } },
   { id: 'kingpin', fam: 'scavver', rarity: L, name: 'Kingpin', desc: 'While Bounty runs, towers near you shoot 40% faster.', max: 1, fx: P => { P.kingpin = true; } },
+  // Heart
+  { id: 'bandage', fam: 'heart', rarity: C, name: 'Field Dressing', desc: 'You heal 1.5 health a second at night.', max: 2, fx: P => { P.heroRegen += 1.5; } },
+  { id: 'sturdy',  fam: 'heart', rarity: C, name: 'Shored Up', desc: 'All buildings +15% health.', max: 2, fx: P => { P.allHp += 0.15; } },
+  { id: 'triage',  fam: 'heart', rarity: C, name: 'Triage', desc: 'Your ability heals 50% more and reaches 2 further.', max: 1, fx: P => { P.abilityDmg *= 1.5; P.abilityRadius += 2; } },
+  { id: 'kinship', fam: 'heart', rarity: R, name: 'Kinship', desc: 'Companions at your side hit 50% harder and have 50% more health.', max: 1, fx: P => { P.compBuff = 1.5; } },
+  { id: 'shelter', fam: 'heart', rarity: R, name: 'Safe Rooms', desc: 'When a home falls, its families hide instead of rising with the dead.', max: 1, fx: P => { P.shelter = true; } },
+  { id: 'calm',    fam: 'heart', rarity: R, name: 'A Calm Voice', desc: 'The town draws 20% less heat.', max: 1, fx: P => { P.calm = 0.8; } },
+  { id: 'sanct',   fam: 'heart', rarity: L, name: 'Sanctuary', desc: 'The keep mends 2 health a second at night.', max: 1, fx: P => { P.sanctuary = true; } },
   // Pacts: rare, with a real downside
   { id: 'pactBlood', fam: 'bow', rarity: R, pact: true, name: 'Blood Arrows', desc: 'Towers deal 50% more damage.', cost: 'The keep has 30% less health.', max: 1, fx: P => { P.towerDmg += 0.5; P.keepHpMult *= 0.7; } },
   { id: 'pactGreed', fam: 'harvest', rarity: R, pact: true, name: 'Usury', desc: '+12 scrap every dawn.', cost: 'Each claimed region adds 25% threat instead of 12%.', max: 1, fx: P => { P.tax += 12; P.greed = true; } },
@@ -98,6 +107,10 @@ export const MASTERIES = {
     { id: 'warband', name: 'Headhunter', desc: 'Bounty pays triple for brutes, guardians and Gravelords, and it lasts 10 seconds longer.' },
     { id: 'tycoon', name: 'Tycoon', desc: 'Purses are worth double, and homes pay 1 more scrap.' },
   ],
+  heart: [
+    { id: 'saint', name: 'Saint of the Ruins', desc: 'Your ability also burns the dead around you for 6 damage.' },
+    { id: 'lifeline', name: 'Lifeline', desc: 'You come back in 2 seconds instead of 6, and companions get up the moment they fall.' },
+  ],
   bow: [
     { id: 'deadeye', name: 'Deadeye', desc: 'Towers and the keep deal 40% more damage.' },
     { id: 'rain', name: 'Rain of Arrows', desc: 'Every 6 seconds each tower fires at 3 targets at once.' },
@@ -121,7 +134,7 @@ export const REROLL = { free: 1, base: 5, step: 5 };
 
 export function freshPerkState() {
   return {
-    taken: {}, fam: { hero: 0, ranger: 0, scavver: 0, bow: 0, stone: 0, harvest: 0 }, mastery: {},
+    taken: {}, fam: { hero: 0, ranger: 0, scavver: 0, heart: 0, bow: 0, stone: 0, harvest: 0 }, mastery: {},
     abilityCd: 1, bountyTime: 0, bountyGold: 0, bountyRadius: 0, abilityRadius: 0, abilityDmg: 1, heroSpeed: 1, runHeal: 0, hireDiscount: 0, hireExtra: 0, mercHp: 0, mercDmg: 0, purseBonus: 0, purseChance: 1,
     heroDmg: 0, heroDmgMult: 1, heroRate: 1, heroRange: 0, heroHp: 0, heroHpMult: 1, heroRegen: 0, lifesteal: 0,
     towerDmg: 0, towerRange: 0, towerRate: 1, keepDmg: 0, keepRate: 1, keepHpMult: 1,

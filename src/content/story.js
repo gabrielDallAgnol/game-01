@@ -268,7 +268,7 @@ export const TIPS = [
   { id: 'stream', when: S => S.mobs.some(m => m.stream !== undefined && !m.roam), text: '[Tip: The stream] Awake hives never stop sending their dead, day or night. Burn a hive to stop it, but hitting one makes it rage.' },
   { id: 'street', when: S => S.story.spots.length > 0 && S.phase === 'day', text: '[Tip: Encounters] Blue beacons in the open districts are people and places worth a look. A few dead guard each one.' },
   { id: 'district', when: S => S.story.quests.length > 0, text: '[Tip: Quests] A blue arrow points to your quest. Walk there yourself: the town will hold for a while.' },
-  { id: 'evolve', when: S => S.P.fam.hero + S.P.fam.ranger + S.P.fam.scavver >= 1, text: '[Tip: Evolution] Two blessings of one hero family (Brawn, Aim, Wits) unlock its Calling. A second family later makes your final class.' },
+  { id: 'evolve', when: S => S.P.fam.hero + S.P.fam.ranger + S.P.fam.scavver + (S.P.fam.heart || 0) >= 1, text: '[Tip: Evolution] Two blessings of one hero family (Brawn, Aim, Wits, Heart) unlock its Calling. A second family later makes your final class.' },
   { id: 'foreman', when: S => S.foreman, text: '[Tip: Foreman] Your people now build on their own. Set their focus in the build menu, or turn on Auto in the ⋯ menu and just make the big choices.' },
 ];
 

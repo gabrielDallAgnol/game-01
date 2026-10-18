@@ -503,3 +503,14 @@ test('saving: a dawn snapshot restores the town, the story and the city', () => 
   for (let k = 0; k < 60 * 5; k++) h.step();
   assert.ok(!R.over);
 });
+
+test('the Heart family: a Medic patches the town, and Brawn + Heart makes a Warden', async () => {
+  const g = createGame({ seed: 12, hero: 'survivor' }); const S = g.state; readyDay(g);
+  const take = id => { S.picks = ['dawn']; S.offer = [id]; S.pendingPicks = 1; g.choosePerk(id); };
+  take('bandage'); take('sturdy'); g.choose('evolve'); assert.equal(S.heroClass, 'medic');
+  S.gold = 99; const t = g.map.town; let b = null;
+  for (let r = 4; r < 10 && !b; r++) for (let a = 0; a < 24 && !b; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) b = S.buildings[S.buildings.length - 1]; }
+  b.hp = 1; S.hero.x = b.x + 1; S.hero.y = b.y + 1; S.ability.cd = 0;
+  assert.ok(g.useAbility(), 'Patch Up did not fire'); assert.ok(b.hp > 1, 'Patch Up healed nothing');
+  take('steel'); take('steel'); g.choose('evolve'); assert.equal(S.heroClass, 'warden');
+});

@@ -342,6 +342,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     let dmg = B.dmg[l] * towerMult() * (has('bastion') && b.walled ? 1.4 : 1);
     let rate = B.rate[l] / S.P.towerRate;
     if (S.P.kingpin && S.bountyT > 0 && !S.hero.dead && Math.hypot(S.hero.x - b.x, S.hero.y - b.y) < 9) rate /= 1.4;
+    if (HC.marshal && !S.hero.dead && Math.hypot(S.hero.x - b.x, S.hero.y - b.y) < 6) rate /= HC.marshal;
     const h = S.hero, rallyR = combo('rally', 'watch') ? 8 : 5;
     if (has('rally') && !h.dead && (Math.hypot(h.x - b.x, h.y - b.y) < rallyR || (combo('rally', 'watch') && b.paired))) rate /= 1.3;
     return { range, dmg, rate, shots: has('volley') && b.level === 3 ? 2 : 1 };
@@ -431,6 +432,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- combat ----------
   function damageBuilding(b, d, by) {
     if (b.ruined || d <= 0) return;
+    if (HC.ward && !S.hero.dead && Math.hypot(S.hero.x - b.x, S.hero.y - b.y) < 5) d *= HC.ward;
     S.cur.taken[b.type] = (S.cur.taken[b.type] || 0) + Math.min(d, b.hp);
     b.hp -= d; ev('hitB', { id: b.id });
     if (b.type === 'wall' && by && mastery('fortress')) hitMob(by, d * 0.5, 'thorns');
@@ -446,7 +448,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (b.type === 'keep') { endRun(false); return; }
     S.cur.lost.push(b.type); S.stats.buildingsLost++;
     if (has('salvage')) earn(combo('salvage', 'mortar') ? 4 : 2);
-    if (b.type === 'house') {
+    if (b.type === 'house' && S.P.shelter) { S.stats.housesLost++; toast('A home fell. Its families hid in the safe room.', 'bad'); }
+    else if (b.type === 'house') {
       const n = BUILDINGS.house.pop[b.level - 1] / 2; S.cur.risen += n; S.stats.risen += n; S.stats.housesLost++;
       for (let k = 0; k < n; k++) { const m = spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1), { instant: false }); m.rise = 0.4; }
       toast(`A house fell. ${n === 1 ? 'Its family rises' : 'Its families rise'} with the dead.`, 'bad');
@@ -497,7 +500,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (has('last') && !S.nightFlags.lastUsed && h.hp - d < h.maxHp * 0.3) { S.nightFlags.lastUsed = true; S.nightFlags.lastT = 4; ev('lastStand'); toast('Last Stand!', 'good'); }
     S.cur.taken.hero = (S.cur.taken.hero || 0) + d; h.hp -= d; ev('hitH');
     if (S.nightFlags.lastT > 0 && h.hp < 1) h.hp = 1;
-    if (h.hp <= 0) { h.dead = true; h.respawn = 6; h.target = null; S.cur.heroDeaths++; S.stats.heroDeaths++; ev('heroDie'); toast('You fell. Back at the keep in 6 seconds.', 'bad'); }
+    if (h.hp <= 0) { h.dead = true; h.respawn = mastery('lifeline') ? 2 : 6; h.target = null; S.cur.heroDeaths++; S.stats.heroDeaths++; ev('heroDie'); toast('You fell. Back at the keep in 6 seconds.', 'bad'); }
   }
   function fire(from, x0, y0, target, dmg, src, speed = 18, extra = {}) {
     if (src !== 'hero' && has('hunter') && MOBS[target.kind] && MOBS[target.kind].size >= BIG) dmg *= 1.6;
@@ -822,11 +825,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
 
   // ---------- heat: a loud town draws the dead; past the limit a hive bursts ----------
   const heatFloor = () => Math.min(HEAT.floorMax, noise() * HEAT.floorPer);
-  function addHeat(v) { if (S.clock && !S.over) S.heat = Math.max(0, Math.min(100, S.heat + v * DIFF.heat * (story && v > 0 ? story.bonus.heat() : 1))); }
+  function addHeat(v) { if (S.clock && !S.over) S.heat = Math.max(0, Math.min(100, S.heat + v * DIFF.heat * (v > 0 ? (story ? story.bonus.heat() : 1) * (S.P.calm || 1) : 1))); }
   const hiveOpen = r => !S.sealed || !S.sealed[r];
   function stepHeat(dt) {
     if (!S.clock) return;
-    const f = heatFloor() * DIFF.heat * (story ? story.bonus.heat() : 1);
+    const f = heatFloor() * DIFF.heat * (story ? story.bonus.heat() : 1) * (S.P.calm || 1);
     if (S.heat < f) S.heat = Math.min(f, S.heat + HEAT.rise * dt);
     else S.heat = Math.max(f, S.heat - (S.heat - f) * HEAT.decay * dt);
     S.heatCool = Math.max(0, S.heatCool - dt);
@@ -906,6 +909,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (has('granary')) goldIn += Math.floor(S.food / 5);
     for (const l of S.landmarks) if (l.owned) { const L = LANDMARKS[l.kind]; goldIn += L.gold || 0; S.food += L.food || 0; if (L.reveal && S.night % 2 === 0) { S.survivors++; toast('A survivor followed the broadcast to your gates.', 'good'); } }
     if (owns('tvtower')) goldIn += 3;
+    if (HC.quarter) { goldIn += 4; S.food += 2; }
     S.gold = Math.max(0, S.gold + goldIn); S.stats.goldEarned += Math.max(0, goldIn);
     let claimedNow = null, nestPick = false;
     if (S.purge !== null) { claimedNow = S.purge; burnHive(S.purge); nestPick = true; S.purge = null; }
@@ -960,7 +964,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function useAbility(x, y) {
     const A = HC.ability, h = S.hero;
     if (!A || S.over) return false;
-    if (!S.mobs.some(m => !m.roam || Math.hypot(m.x - h.x, m.y - h.y) < 10)) return fail('No dead nearby.');
+    if (A.id !== 'patch' && !S.mobs.some(m => !m.roam || Math.hypot(m.x - h.x, m.y - h.y) < 10)) return fail('No dead nearby.');
     if (S.ability.cd > 0 || h.dead) return false;
     if (A.id === 'warcry') {
       const rad = A.radius + S.P.abilityRadius;
@@ -977,6 +981,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       const dmg = A.dmg * S.P.abilityDmg * Math.sqrt(WAVES.hpScale(S.night)), rad = A.radius + S.P.abilityRadius;
       for (const m of [...S.mobs]) if (Math.hypot(m.x - tx, m.y - ty) < rad) hitMob(m, dmg, HC.volleyPays ? 'volley' : 'hero');
       ev('volley', { x: tx, y: ty, r: rad });
+    } else if (A.id === 'patch') {
+      const rad = (HC.quarter ? 99 : A.radius) + S.P.abilityRadius, heal = A.heal * S.P.abilityDmg;
+      for (const b of live().concat(keep.ruined ? [] : [keep])) if (Math.hypot(b.x - h.x, b.y - h.y) < rad) b.hp = Math.min(b.maxHp, b.hp + b.maxHp * heal);
+      h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.4); for (const a of S.allies) a.hp = a.maxHp;
+      if (mastery('saint')) for (const m of [...S.mobs]) if (Math.hypot(m.x - h.x, m.y - h.y) < Math.min(rad, 7)) hitMob(m, 6, 'hero');
+      ev('volley', { x: h.x, y: h.y, r: Math.min(rad, 8) });
     } else if (A.id === 'shove') {
       const rad = A.radius + S.P.abilityRadius;
       for (const m of [...S.mobs]) { const d = Math.hypot(m.x - h.x, m.y - h.y); if (d > rad || m.kind === 'gravelord') continue; const k = A.push * (1 - d / rad * 0.5) / Math.max(0.3, MOBS[m.kind].size); const nx = m.x + (m.x - h.x) / (d || 1) * k, ny = m.y + (m.y - h.y) / (d || 1) * k; if (standable(m, nx, ny)) { m.x = nx; m.y = ny; } m.cd = Math.max(m.cd, 0.8); hitMob(m, A.dmg * S.P.abilityDmg, 'hero'); }
@@ -1165,8 +1175,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   // ---------- companions at your side: one at a time, and their post stands empty while they travel with you ----------
   function spawnCompanion(n) {
-    const h = S.hero, hp = 24 + n.bond * 4 + (n.named ? 14 : 0);
-    const a = { id: S.nextId++, ally: true, comp: n.id, name: n.name.split(' ')[0], x: h.x + 0.6, y: h.y + 0.6, hp, maxHp: hp, dmg: 2.5 + n.bond * 0.4 + (n.named ? 2 : 0), cd: 0, face: 0, attacking: false };
+    const h = S.hero, k = S.P.compBuff || 1, hp = Math.round((24 + n.bond * 4 + (n.named ? 14 : 0)) * k);
+    const a = { id: S.nextId++, ally: true, comp: n.id, name: n.name.split(' ')[0], x: h.x + 0.6, y: h.y + 0.6, hp, maxHp: hp, dmg: (2.5 + n.bond * 0.4 + (n.named ? 2 : 0)) * k, cd: 0, face: 0, attacking: false };
     S.allies.push(a); ev('ally', { id: a.id });
   }
   function companionFollow(id, on) {
@@ -1260,6 +1270,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function stepAllies(dt) {
     const h = S.hero;
     for (const a of [...S.allies]) {
+      if (a.hp <= 0 && a.comp && mastery('lifeline')) { a.hp = a.maxHp; continue; }
       if (a.hp <= 0) { S.allies.splice(S.allies.indexOf(a), 1); ev('allyGone', { id: a.id, died: true }); if (a.comp) toast(`${a.name} is down. They will be back on their feet at dawn.`, 'bad'); continue; }
       a.cd -= dt; a.attacking = false;
       let best = null, bd = Infinity;
@@ -1460,6 +1471,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       stepAllies(dt);
       stepTowers(dt);
       if (mastery('mending')) for (const b of live()) if (b.hp < b.maxHp) b.hp = Math.min(b.maxHp, b.hp + dt * 0.3);
+      if (S.P.sanctuary && !keep.ruined) keep.hp = Math.min(keep.maxHp, keep.hp + 2 * dt);
     }
     for (const p of [...S.purses]) { p.life -= dt; if (p.life <= 0) { S.purses.splice(S.purses.indexOf(p), 1); ev('purseGone', { id: p.id }); } }
     stepProjectiles(dt);
