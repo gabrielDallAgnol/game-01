@@ -25,7 +25,7 @@ export function createAudio(store) {
     wind.connect(lp); lp.connect(windGain); windGain.connect(master); wind.start();
   }
 
-  const env = (g, t, a, peak, dec) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + dec); };
+  const env = (g, t, a, peak, dec) => { peak = Math.max(0.0002, peak || 0); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + dec); };
   function tone(type, f, peak, dec, opts = {}) {
     const t = ctx.currentTime + (opts.at || 0), o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(f, t); if (opts.to) o.frequency.exponentialRampToValueAtTime(opts.to, t + dec);

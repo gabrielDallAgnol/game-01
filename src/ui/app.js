@@ -862,7 +862,7 @@ export function startApp() {
     if (!paused) { acc += dt * speed; let n = 0; while (acc >= STEP && !paused && n++ < 240) { game.step(STEP); acc -= STEP; if (S.over) break; } if (n >= 240) acc = 0; }
     else acc = 0;
     const events = game.drainEvents();
-    audio.onEvents(events, game); audio.tick(game, dt);
+    try { audio.onEvents(events, game); audio.tick(game, dt); } catch (err) { /* sound must never stop the game */ }
     for (const e of events) {
       if (toastFor.has(e.t)) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);
       if (e.t === 'claim' && selected && selected.type === 'region') closePanel();
