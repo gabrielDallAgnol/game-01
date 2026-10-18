@@ -3,7 +3,7 @@
 //
 // S.story = { day, encounters (queue shown as cards), threads {id: {stage, status, cast, region, failAt}},
 //   npcs [], titles [], chronicle [], flags {}, quests [], power, hands, visited {} }
-import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT } from '../content/story.js';
+import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS } from '../content/story.js';
 import { RARITY } from '../content/districts.js';
 
 export function createStory(ctx) {
@@ -170,7 +170,13 @@ export function createStory(ctx) {
     if (front.length && S.night >= 2 && shown < 2 && (S.night % 2 === 0 || S.night - ST.lastOpen >= 3)) { const e = districtEncounter(); if (e) { push(e); shown++; } }
   }
   /** the hero walks up to a site: its story (or the thread waiting there) plays */
+  let tipT = 0;
+  function tips() {
+    if ((tipT -= 0.25) > 0) return; ST.tips = ST.tips || [];
+    for (const t of TIPS) if (!ST.tips.includes(t.id) && t.when(S, ctx.api())) { ST.tips.push(t.id); toast(t.text, 'sys'); tipT = 8; return; }
+  }
   function tick() {
+    tips();
     if (S.phase !== 'day' || ST.encounters.length || S.hero.dead) return;
     for (const l of S.landmarks) {
       if (l.owned || l.stripped || l.kind === 'unknown' || S.sealed[l.region] || ST.visited[l.id] || !ctx.landmarkReach(l)) continue;

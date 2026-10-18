@@ -1,15 +1,26 @@
-// Cosmetic names for regions, picked per map seed.
+// Names for the city's districts and its hives, picked per map seed. Modern, a little worn.
 import { Rng, hashSeed } from '../sim/rng.js';
 
-const FIRST = ['Ashen', 'Crow', 'Hollow', 'Gallows', 'Bramble', 'Widow', 'Mire', 'Lantern', 'Thorn', 'Grey', 'Raven', 'Sorrow', 'Bone', 'Elder', 'Mourn', 'Cinder', 'Wolf', 'Candle', 'Briar', 'Tallow'];
-const SECOND = ['Fields', 'Hollow', 'Reach', 'Moor', 'Glen', 'Copse', 'Ford', 'Barrow', 'Meadow', 'Rise', 'Dell', 'Wood', 'Heath', 'Crossing', 'Fen', 'Knoll'];
+const FIRST = ['Ashford', 'Kingsgate', 'Marrow', 'Northwall', 'Saltmarket', 'Greyfield', 'Vine', 'Cannery', 'Harbour', 'Old Mill', 'Bellmont', 'Tanner', 'Foundry', 'Linden', 'Crown', 'Weaver', 'Rook', 'Station', 'Chapel', 'Copper'];
+const SECOND = ['Quarter', 'Row', 'Heights', 'Yards', 'Square', 'Estate', 'Docks', 'Park', 'Gardens', 'Cross', 'End', 'Terrace', 'Hill', 'Lane'];
+const LINES = ['Red', 'Orange', 'Circle', 'Harbour', 'Night', 'Green', 'Silver'];
+const SAINTS = ['Agnes', 'Brigid', 'Lucia', 'Anselm', 'Cyprian', 'Margaret', 'Jude'];
+const PUMPS = ['Ninth Street', 'Crossroads', 'Ringway', 'Old Toll', 'Westway', 'Bypass'];
+export const HIVE_KINDS = ['metro', 'petrol', 'hospital'];
 
 export function regionNames(seed, count) {
   const rng = new Rng(hashSeed(seed, 'names'));
   const used = new Set(), out = ['Hollowmere'];
   while (out.length < count) {
     const n = `${rng.pick(FIRST)} ${rng.pick(SECOND)}`;
-    if (!used.has(n) && !n.startsWith('Hollow Hollow')) { used.add(n); out.push(n); }
+    if (!used.has(n)) { used.add(n); out.push(n); }
   }
   return out;
+}
+/** a hive is a building that went bad: it keeps its old name */
+export function hiveName(seed, region) {
+  const rng = new Rng(hashSeed(seed, 'hive', region)), kind = HIVE_KINDS[region % HIVE_KINDS.length];
+  if (kind === 'metro') return `${rng.pick(LINES)} Line Station`;
+  if (kind === 'petrol') return `${rng.pick(PUMPS)} Petrol`;
+  return `St. ${rng.pick(SAINTS)}'s Hospital`;
 }

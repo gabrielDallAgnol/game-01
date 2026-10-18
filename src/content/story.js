@@ -258,3 +258,15 @@ export const BARKS = {
   city: ['"{district} was quiet last night. Too quiet."', '"The heat is at {heat}. They can hear us."', '"We have {pop} people now. I remember when it was three."'],
   you: ['"You walk like someone who has done this before. Have you?"', '"I trust you. Mostly."', '"You talk to that blue window when you think nobody is looking."'],
 };
+
+// One new idea at a time: System tips that appear the first time something matters
+export const TIPS = [
+  { id: 'hands', when: (S, g) => S.handsUsed > 0, text: '[Tip: Hands] Every build or upgrade takes a free pair of hands for the day. More people, more hands. They rest at dawn.' },
+  { id: 'night', when: S => S.phase === 'night' && S.night === 1, text: '[Tip: The first night] Something is coming from the dark. Your towers shoot on their own; you can fight too.' },
+  { id: 'heat', when: S => S.heat >= 30, text: '[Tip: Heat] Your town makes noise: people, guns, generators. Past the first mark the dead drift in; at the red mark a hive bursts.' },
+  { id: 'power', when: (S, g) => g.powerOut() > 0, text: '[Tip: Power] Upgraded towers and tech need power. Short of it, they all switch off. Generators are loud; substations out in the city are quiet.' },
+  { id: 'stream', when: S => S.mobs.some(m => m.stream !== undefined && !m.roam), text: '[Tip: The stream] Awake hives never stop sending their dead, day or night. Burn a hive to stop it, but hitting one makes it rage.' },
+  { id: 'district', when: S => S.story.quests.length > 0, text: '[Tip: Quests] A blue arrow points to your quest. Walk there yourself: the town will hold for a while.' },
+  { id: 'evolve', when: S => S.P.fam.hero + S.P.fam.ranger + S.P.fam.scavver >= 1, text: '[Tip: Evolution] Two blessings of one hero family (Brawn, Aim, Wits) unlock its Calling. A second family later makes your final class.' },
+  { id: 'foreman', when: S => S.foreman, text: '[Tip: Foreman] Your people now build on their own. Set their focus in the build menu, or turn on Auto in the ⋯ menu and just make the big choices.' },
+];

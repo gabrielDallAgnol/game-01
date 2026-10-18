@@ -62,6 +62,7 @@ export function createView(canvas, game, opts = {}) {
       g.scale.setScalar(0.3);
     }
     CFG.hiveGlow = 1;
+    g.scale.multiplyScalar(1.35);   // fewer hives, so each one is a landmark
     const pale = K.M('pale'), stone = K.M('stone');
     g.traverse(o => { if (o.isMesh && o.material === pale) o.material = stone; });
     return g;

@@ -7,7 +7,7 @@ import { HEROES, HERO_ORDER, TRADES } from '../content/heroes.js';
 import { PERKS, FAMILIES, SYNERGIES, MASTERIES } from '../content/perks.js';
 import { PACKS } from '../content/packs.js';
 import { MOBS } from '../content/mobs.js';
-import { regionNames } from '../content/names.js';
+import { regionNames, hiveName } from '../content/names.js';
 import { TRAITS, TREAT, RUN } from '../content/scavenge.js';
 import { createAudio } from './audio.js';
 import { createChronicler } from './story-ai.js';
@@ -26,7 +26,7 @@ const chronicler = createChronicler(store);
 const saves = createSaves();
 let lastSave = null;
 for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => audio.unlock(), { capture: true });
-const RINGS = ['Town', 'Near lands', 'Far lands'];
+const RINGS = ['Home district', 'Inner city', 'Outer city'];
 const ARM_MS = 700;          // cards ignore taps this long after they appear
 const DAWN_DELAY = 1.2;      // seconds between the last kill and the first card
 const JOY_PX = 14;           // a touch that moves further than this is a joystick drag, not a tap
@@ -536,10 +536,15 @@ export function startApp() {
       selected.range = KEEP.range[l - 1] + S.P.towerRange;
       return;
     }
+    if (selected.type === 'region' && S.sealed[selected.id]) {
+      const known = S.kits[selected.id]; $('#pEyebrow').textContent = 'Sealed district'; $('#pTitle').textContent = names[selected.id];
+      body.innerHTML = `<div class="stat"><span>Behind the quarantine fence${known ? ` · scouts say: <b>${known === 'signature' ? 'a landmark' : known}</b>` : ''}</span></div><div class="tiny" style="white-space:normal">Districts open through the story: your scouts offer a route every other dawn, and some calls cut a way straight to where you are needed. You cannot walk in until then. The dead can.</div>`;
+      return;
+    }
     if (selected.type === 'region') {
       const info = game.regionInfo(selected.id), reg = game.map.regions[selected.id];
-      $('#pEyebrow').textContent = `${RINGS[Math.min(2, reg.ring)]} · ${info.nest ? (info.active ? 'hive awake' : 'hive asleep') : 'no hive'}`;
-      $('#pTitle').textContent = names[selected.id];
+      $('#pEyebrow').textContent = `${names[selected.id]} · ${S.sealed[selected.id] ? 'sealed' : RINGS[Math.min(2, reg.ring)]}`;
+      $('#pTitle').textContent = info.nest ? `Hive: ${hiveName(game.map.seed, selected.id)} · ${info.active ? 'awake' : 'asleep'}` : names[selected.id];
       const land = [info.forest > 40 ? 'deep forest' : info.forest > 15 ? 'woods' : 'open fields', info.water ? 'water' : null].filter(Boolean).join(' · ');
       let html = `<div class="stat"><span>${land}</span>${info.wakes ? `<span>Wakes <b>${info.wakes}</b> more ${info.wakes === 1 ? 'hive' : 'hives'} beyond it</span>` : ''}</div>`;
       if (S.purge === selected.id) html += `<div class="opts one">${opt('opt-cancel', 'data-cancel="1"', 'Call off the march', null, 'Tonight will be a normal night.', !day)}</div>`;
@@ -802,6 +807,7 @@ export function startApp() {
     if (S.phase === 'day' && p.type === 'rubble') { game.heroTo(p.x, p.y); view.showMove(p.x, p.y); openSel({ type: 'rubble', x: p.x, y: p.y }); return; }
     if (S.phase === 'day' && p.type === 'site') { openSel({ type: 'site', id: p.id, pick: new Set() }); return; }
     if (S.phase === 'day' && (p.type === 'building' || p.type === 'keep')) { openSel(p.type === 'building' ? { type: 'building', id: p.id } : { type: 'keep' }); return; }
+    if (S.phase === 'day' && p.type === 'region' && S.sealed[p.id]) { openSel({ type: 'region', id: p.id }); return; }
     if (S.phase === 'day' && p.type === 'region' && game.map.regions[p.id].nest && game.regionInfo(p.id).nest) {
       const n = game.map.regions[p.id].nest;
       if (Math.hypot(n.x - p.x, n.y - p.y) < 4 || !(selected && selected.type === 'region')) { openSel({ type: 'region', id: p.id }); return; }
