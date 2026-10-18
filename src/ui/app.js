@@ -58,10 +58,10 @@ export function startApp() {
     paused = true; $('#hud').hidden = true;
     const opts = mapChoices(setup.runSeed);
     const best = store.get('best', 0);
-    showCard('start', `<div class="eyebrow">Endless nights${best ? ` · your best: night ${best}` : ''}</div>
+    showCard('start', `<div class="eyebrow">An open-ended reclaiming${best ? ` · your best: night ${best}` : ''}</div>
       <h1>Hold Hollowmere</h1>
-      <p>Build by day. Hold the keep by night. Clear the hives around you to claim more of the city, and see how many nights you last.</p>
-      <p class="tiny">Build out from the keep: every building widens your zone · claim landmarks for a forward base · after big nights, supply drops land in the wild: go get them yourself.</p>
+      <p>You woke up in a fallen city with a status window and a bus full of strangers. Build by day, hold the town hall by night, and open the quarantined districts one by one: people to save, power to restore, hives to burn.</p>
+      <p class="tiny" style="white-space:normal">Every build takes a free pair of hands · noise raises heat, and at the red mark a hive bursts · power runs the best towers, and a blackout switches them all off · blue arrows and beacons are your story.</p>
       <h2>Your hero</h2>
       <p class="tiny" style="white-space:normal">You start as a <b>Survivor</b>. Blessings come in four hero families: <b>Brawn</b>, <b>Aim</b>, <b>Wits</b> and <b>Heart</b>. Two of one family and the System offers its Calling (Brawler, Ranger, Scavver or Medic); two of a second family and you evolve into one of six final classes: Vanguard, Warlord, Deadeye, Warden, Marshal or Quartermaster.</p>
       <h2>Difficulty</h2>
@@ -288,7 +288,8 @@ export function startApp() {
     const topKinds = Object.entries(st.killsByKind).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => `${n} ${(MOBS[k] && MOBS[k].name || k).toLowerCase()}${n > 1 ? 's' : ''}`).join(' · ');
     const by = st.killsBy, heroShare = kills ? Math.round((by.hero || 0) / kills * 100) : 0;
     const stats = [
-      ['Nights held', held], ['Dead put down', kills], ['Gold earned', st.goldEarned], ['Buildings raised', st.built],
+      ['Nights held', held], ['Dead put down', kills], ['Scrap earned', st.goldEarned], ['Buildings raised', st.built],
+      ['Districts opened', st.districts || 0], ['Sites claimed', st.sites || 0], ['Companions', S.story.npcs.filter(n => n.joined).length], ['Titles', S.story.titles.length],
       ['Most citizens', st.peakPop], ['Land claimed', st.regionsClaimed], ['Blessings', st.blessings], ['Bosses slain', st.bosses],
     ];
     if (S.heroClass === 'merchant') stats.push(['Sellswords hired', st.mercsHired], ['Gold from purses', st.pursesGold]);
@@ -301,6 +302,7 @@ export function startApp() {
       <h1>Hollowmere is lost</h1>
       <p>${HEROES[S.heroClass].name} of ${game.map.name}. ${topKinds ? `Among the fallen: ${topKinds}.` : ''} ${heroShare ? `${heroShare}% of the kills were yours.` : ''}${masteries.length ? ` Mastered: ${masteries.join(', ')}.` : ''}</p>
       <div class="endstats">${stats.map(([k, v]) => `<div><b data-to="${typeof v === 'number' ? v : ''}">${typeof v === 'number' ? 0 : v}</b><span>${k}</span></div>`).join('')}</div>
+      <h2>The chronicle of ${esc(game.map.name)}</h2><ol class="chron">${S.story.chronicle.filter(c => c.imp >= 3).slice(-12).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
       <details class="ledger"><summary>The night-by-night ledger</summary>${logTable()}</details>
       <div class="cardrow"><button class="btn big" id="again">New run</button><button class="btn ghost" id="logCopy">Copy log</button></div><textarea id="logJson" hidden readonly aria-label="Run log data"></textarea>`, true);
     // numbers count up
