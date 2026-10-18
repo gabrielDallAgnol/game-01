@@ -9,6 +9,7 @@ import { HEROES, MERC, PURSE, TRADES } from '../content/heroes.js';
 import { PERKS, FAMILIES, MASTERIES, SYNERGIES, ODDS, REROLL, freshPerkState } from '../content/perks.js';
 import { PACKS, PACK_RULES } from '../content/packs.js';
 import { createScavenge } from './scavenge.js';
+import { WEATHER } from '../content/weather.js';
 
 export const STEP = 1 / 60;
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
@@ -45,7 +46,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     mobs: [], projectiles: [], chests: [], purses: [], allies: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
     P: freshPerkState(), picks: [], pendingPicks: 0, offer: [], offerSource: null, chestsHeld: 0, dawns: 0,
     reroll: { free: REROLL.free, cost: REROLL.base }, trade: null, halfUpgrade: false,
-    ability: { cd: 0, hires: 0 },
+    ability: { cd: 0, hires: 0 }, weather: 'clear',
     log: [], cur: null, over: false, won: false,
     hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0, guardT: 0, attacks: 0 },
     flow: null, flowNext: null, climb: null, climbNext: null, flowDirty: true,
@@ -80,6 +81,14 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const prosper = () => (mastery('prosperity') ? 1.3 : 1);
   const claimedCount = () => S.claimed.size;
   const isBloodMoon = n => n % WAVES.bloodMoonEvery === 0;
+  // weather for tonight, rolled at dawn on its own random stream (never on blood moons)
+  const weatherRng = new Rng(hashSeed(seed, 'weather'));
+  const W8 = () => WEATHER[S.weather] || WEATHER.clear;
+  const weatherFor = n => (n === S.night ? W8() : WEATHER.clear);
+  function rollWeather(n) {
+    if (n < 3 || isBloodMoon(n)) return 'clear';
+    const ids = Object.keys(WEATHER); return ids[weatherRng.weighted(ids.map(k => WEATHER[k].odds))];
+  }
   let liveCache = null, liveTick = -1;
   const live = () => { if (liveTick !== S.time) { liveCache = S.buildings.filter(b => !b.ruined); liveTick = S.time; } return liveCache; };
   const heroMax = () => Math.round((HC.hp + S.P.heroHp + (mastery('champion') ? 25 : 0)) * S.P.heroHpMult);
@@ -235,11 +244,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // first blood moon brings a nest guardian; from night 10 the Gravelord walks, one more every 10 nights
   function bossesFor(n) { return n < 10 ? ['guardian'] : Array.from({ length: Math.floor(n / 10) }, () => 'gravelord'); }
   const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
-  function nightBudget(n) { return WAVES.budget(n) * territory() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1); }
+  function nightBudget(n) { return WAVES.budget(n) * territory() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * weatherFor(n).dead; }
   function purgeBudget(r, n) { return WAVES.budget(n) * WAVES.purgeShare(map.regions[r].ring); }
   function towerStats(b) {
     const B = BUILDINGS.tower, l = b.level - 1;
-    let range = B.range[l] + S.P.towerRange + (has('watch') && b.paired ? 2 : 0);
+    let range = (B.range[l] + S.P.towerRange + (has('watch') && b.paired ? 2 : 0)) * (S.phase === 'night' ? W8().range : 1);
     let dmg = B.dmg[l] * towerMult() * (has('bastion') && b.walled ? 1.4 : 1);
     let rate = B.rate[l] / S.P.towerRate;
     const h = S.hero, rallyR = combo('rally', 'watch') ? 8 : 5;
@@ -498,7 +507,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.phase = 'day'; S.dawns++;
     let foodIn = sc.dawnFood(), hg = 0;
     for (const b of S.buildings) { if (b.fell) continue; if (b.type === 'farm') foodIn += farmFood(b); if (b.type === 'house') hg += houseGold(b); }
-    foodIn = Math.round(foodIn * prosper());
+    foodIn = Math.round(foodIn * prosper() * W8().food);
     S.food += foodIn;
     const need = foodNeed(), fed = need === 0 ? 1 : Math.min(1, S.food / need);
     S.food = Math.max(0, S.food - need);
@@ -528,6 +537,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.purses = []; S.ability.cd = 0;
     sc.dawn(isBloodMoon(S.night));
     S.night++; newLog();
+    S.weather = rollWeather(S.night); if (S.weather !== 'clear') toast(`Tonight: ${W8().name.toLowerCase()}. ${W8().desc}`, W8().kind);
     S.reroll.cost = REROLL.base;
     S.picks.push('dawn'); for (let k = 0; k < S.chestsHeld; k++) S.picks.push('chest'); S.chestsHeld = 0;
     if (nestPick) S.picks.push('nest');
@@ -812,7 +822,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       if (D.summon) { m.summonT -= dt; if (m.summonT <= 0) { m.summonT = D.summon.every; for (let k = 0; k < D.summon.count; k++) spawnMob(D.summon.kind, m.x + rng.range(-1.5, 1.5), m.y + rng.range(-1.5, 1.5)); ev('summon', { id: m.id }); } }
       m.cd -= dt; m.attacking = false; m.tauntT = Math.max(0, m.tauntT - dt);
       const ci = idx(Math.floor(m.x), Math.floor(m.y));
-      const speed = m.speed * m.boost * (inTar ? 0.6 : 1) / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
+      const speed = m.speed * m.boost * W8().speed * (inTar ? 0.6 : 1) / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
       const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
       // nearest sellsword
       let ally = null, ad = Infinity;
@@ -907,7 +917,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       b.cd = t.rate;
     }
     if (!keep.ruined) {
-      const l = keep.level - 1, range = KEEP.range[l] + S.P.towerRange, dmg = KEEP.dmg[l] * keepMult();
+      const l = keep.level - 1, range = (KEEP.range[l] + S.P.towerRange) * W8().range, dmg = KEEP.dmg[l] * keepMult();
       keep.cd -= dt;
       if (keep.cd <= 0) { const ms = nearestMobs(c, c, range, 2); if (ms.length) { for (let k = 0; k < KEEP.shots[l]; k++) fire(4, c, c, ms[k % ms.length], dmg, 'keep'); keep.cd = KEEP.rate / S.P.keepRate; } }
       if (has('ballista')) {
@@ -1021,6 +1031,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       h.target = { x, y }; h.path = heroPath(x, y);
     },
     buildLine, upgradeWall, wallRun, wallBudget, lineCells,
+    weather: () => ({ id: S.weather, ...W8() }),
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
     abilityCost, towerStats: b => towerStats(b), has,
     foodPerDawn: () => Math.round(S.buildings.reduce((a, b) => a + (b.type === 'farm' ? farmFood(b) : 0), 0) * prosper()),

@@ -68,6 +68,7 @@ export function createAudio(store) {
     card() { if (!ok('card', 0.05)) return; hiss('bandpass', 3000, 1.5, 0.03, 0.05); },
     warcry() { tone('sawtooth', 160, 0.12, 0.5, { to: 120, lp: 1100, a: 0.03 }); hiss('bandpass', 600, 1, 0.06, 0.4); },
     claim() { for (const [f, at] of [[392, 0], [523, 0.15], [659, 0.3], [784, 0.45]]) tone('triangle', f, 0.05, 0.8, { at, a: 0.02 }); },
+    thunder() { hiss('bandpass', 2600, 0.8, 0.12, 0.18); hiss('lowpass', 260, 0.7, 0.4, 2.6, { at: 0.12, a: 0.25, rate: 0.5, to: 90 }); },
     bad() { tone('sine', 220, 0.06, 0.5, { to: 160, a: 0.02 }); },
   };
 

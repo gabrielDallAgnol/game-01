@@ -78,7 +78,7 @@ export function startApp() {
     game = createGame({ seed: setup.runSeed, mapSeed, biome, hero: setup.hero, mode: setup.mode });
     names = regionNames(mapSeed, game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
-    if (!view) { view = createView($('#view'), game, { quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
+    if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
     window.__game = game; window.__openSel = sel => openSel(sel);
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = !game.heroDef.ability;
@@ -532,11 +532,11 @@ export function startApp() {
     if (night || S.over) {
       bell.hidden = true;
       const left = S.queue.length + S.mobs.length;
-      $('#info').innerHTML = S.over ? 'The keep has fallen' : `<em>${left}</em> dead left${S.hero.dead ? ` · you return in ${Math.ceil(S.hero.respawn)}s` : ''}`;
+      $('#info').innerHTML = S.over ? 'The keep has fallen' : `<em>${left}</em> dead left${S.hero.dead ? ` · you return in ${Math.ceil(S.hero.respawn)}s` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     } else {
       bell.hidden = false; bell.textContent = bm ? 'Face the blood moon' : 'Ring the bell';
       const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
-      $('#info').innerHTML = `Tonight <em>~${dead}</em> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}`;
+      $('#info').innerHTML = `Tonight <em>~${dead}</em> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();

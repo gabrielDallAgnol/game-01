@@ -361,7 +361,7 @@ export function createView(canvas, game, opts = {}) {
   look.init(canvas.clientWidth || innerWidth, canvas.clientHeight || innerHeight, opts.quality || (touch ? 'medium' : 'high'));
   function resize() { const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight; look.resize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   resize(); window.addEventListener('resize', resize);
-  let dark = 0, time = 0, lightT = 0;
+  let dark = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
 
   // which warm lights matter: the keep fire, lanterns on towers, lit homes; the nearest win the pool
   function lightSources() {
@@ -391,7 +391,8 @@ export function createView(canvas, game, opts = {}) {
     const narrow = camera.aspect < 1, vf = narrow ? 40 : 28;
     if (camera.fov !== vf) { camera.fov = vf; camera.updateProjectionMatrix(); }
     const vh = Math.tan(vf * Math.PI / 360), hh = vh * camera.aspect, R = (narrow ? 8.5 : 13) * zoomCur, dist = Math.max(R / hh, R / vh * 0.8);
-    scene.fog.near = dist + 14; scene.fog.far = dist + 95;
+    const wx = S.weather, fogK = (wx === 'fog' ? 1 : 0) * dark; wxFog += (fogK - wxFog) * Math.min(1, dt * 0.8);
+    scene.fog.near = dist + 14 - wxFog * (dist + 8); scene.fog.far = dist + 95 - wxFog * 70;
     const h = S.hero;
     if (orbit > 0) {
       orbit += dt * 0.12; camTarget.lerp(W(C, C), Math.min(1, dt * 1.5));
@@ -402,6 +403,10 @@ export function createView(canvas, game, opts = {}) {
     }
     camera.lookAt(camTarget); camera.updateMatrixWorld();
     look.blend(dark, S.phase === 'night' && game.isBloodMoon(S.night), camTarget, Math.max(22, R * 1.7));
+    // weather: fog thickens the night air; a storm throws lightning
+    if (wxFog > 0.01) { scene.fog.color.lerp(fogCol, wxFog * 0.35); scene.background.copy(scene.fog.color); }
+    if (S.weather === 'storm' && S.phase === 'night') { nextFlash -= dt; if (nextFlash <= 0) { flash = 1; flashN = 1; nextFlash = 3 + vis() * 8; if (opts.onFlash) opts.onFlash(); } }
+    if (flash > 0.01) { look.hemi.intensity += flash * 1.4; look.sun.intensity += flash * 2.2; flash *= Math.exp(-dt * (flash > 0.5 ? 9 : 4)); if (flash < 0.33 && flashN > 0) { flashN--; flash = 0.8; } }
 
     // night: windows, lenses, the light pool, the hero's lantern, the searchlight
     for (const sp of lampGlow) sp.material.opacity = dark * 0.9;

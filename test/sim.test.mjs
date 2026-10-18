@@ -285,3 +285,23 @@ test('scavenging is deterministic and never touches the main random stream', () 
   assert.equal(a.gold, b.gold);
   assert.equal(a.kills, c.kills);
 });
+
+test('weather: rolled at dawn from night 3, never on a blood moon, and it changes the night', () => {
+  const seen = new Set();
+  for (let seed = 1; seed <= 8; seed++) {
+    const g = createGame({ seed, hero: 'archer' }), S = g.state;
+    for (let n = 0; n < 9 && !S.over; n++) {
+      readyDay(g);
+      if (S.night < 3 || S.night % 5 === 0) assert.equal(S.weather, 'clear');
+      seen.add(S.weather);
+      S.gold += 40; for (let k = 0; k < 4; k++) { const s = g.map.slots.find(q => S.claimed.has(q.region) && g.canPlace('tower', q.x, q.y).ok); if (s) g.build('tower', s.x, s.y); }
+      nextDawn(g);
+    }
+  }
+  assert.ok(seen.size >= 3, `only saw ${[...seen]}`);
+  const g = createGame({ seed: 2 }), S = g.state;
+  S.night = 6; const base = g.forecast().reduce((a, r) => a + r.count, 0);
+  S.weather = 'still'; const still = g.forecast().reduce((a, r) => a + r.count, 0);
+  S.weather = 'storm'; const storm = g.forecast().reduce((a, r) => a + r.count, 0);
+  assert.ok(still < base && storm > base, `${still} ${base} ${storm}`);
+});
