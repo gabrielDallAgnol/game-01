@@ -78,7 +78,7 @@ Smarter hero pathing helped the fighters more than the Merchant (median 28–29 
 | UI | Barlow Condensed / Barlow / Plex Mono, dark glass pills; Brawler, Ranger, Scavver; Home, Barricade; hives; city map names |
 | Quality | HQ (SSAO + bloom), MQ (bloom, phone default), LQ (grade only); button on the right, remembered |
 
-## Scavenge runs v1 (Oct 18, evening)
+## Scavenge runs v1 (Oct 18, late)
 The first part of the agreed next drop: the ruins hold supplies, and survivors go out to get them.
 
 | Rule | Detail |
@@ -93,10 +93,10 @@ The first part of the agreed next drop: the ruins hold supplies, and survivors g
 | Traits | Scout (run half as deadly), Medic (no bites on their run), Mule (double food), Tinker (more free buildings), Marksman (at home at night: towers +6%), Cook (at home at night: +2 food at dawn), Coward (never dies, half loot). Sending a Marksman or Cook costs their home bonus that night. |
 | Sim | `src/sim/scavenge.js`, own random stream: a run without scavenging plays out exactly as before. Bots scavenge only with `node tools/balance.mjs --scav 1`. |
 
-## Clearing rubble (Oct 18, evening)
+## Clearing rubble (Oct 18, late)
 Rubble (the old forest cells) on your land blocks homes, farms and towers but slows the dead (×1.4 slower). Tap it by day to clear a 3×3 patch for 1 gold per cell: it becomes paved, buildable ground, and the dead cross it at full speed. A trade between room to build and a natural slow zone. The placement hint says "Rubble in the way. Tap it to clear it first." Bots don't clear yet.
 
-## Weather and sound (Oct 18, evening)
+## Weather and sound (Oct 18, late)
 | Weather | Odds | Effect |
 |---|---|---|
 | Clear | 70% | — |
@@ -110,7 +110,7 @@ Sound is synthesised with WebAudio (no files): a cracked bell at nightfall, a da
 
 Also this evening: auto graphics (steps HQ → MQ → LQ after ~6 s under 30 fps, unless you picked a level), calmer town ground, closer desktop camera, balance bots pack buildings on a 3-cell grid.
 
-## Balance finding: dense towns snowball (Oct 18, evening)
+## Balance finding: dense towns snowball (Oct 18, late)
 The balance bots used to build only on the map's suggested lots (up to 9 per region, a 4-cell grid). Now they pack buildings on a 3-cell grid, like a player can with the new 2×2 homes and 1-cell towers.
 
 | Measure | Lots-only bots (afternoon) | Dense bots (tonight) |
@@ -130,5 +130,6 @@ Late game, gold piles up either way; the real limit on defence is how much land 
 - **Infection and noise as natural events,** not tied to buildings. For example: a scavenger comes back bitten (treat, quarantine or exile), or a storm whose thunder draws a horde from one side.
 
 ## Known balance issues (from `npm run balance`)
-- Late game (night 25+) has a gold surplus with nothing left to buy. Scavenging and survivors should become the sink.
+- Late game (night 25+) has a gold surplus with nothing left to buy. Scavenging supplies and treating bites are a small sink; not enough yet.
+- Dense towns outgrow the waves (see the finding above); balance gates fail with the dense bots until this is fixed.
 - The economy and walls bots are weak strategies; partly bot quality, partly real: walls need towers behind them.
