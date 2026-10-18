@@ -1,0 +1,38 @@
+// Generations: every citizen is a person with a name, an age and a trait.
+// One "year" passes each dawn.
+
+export const AGES = { adult: 3, elder: 12, oldAge: 14 }; // child < 3, adult 3..11, elder 12+
+
+export const TRAITS = {
+  brave:      { name: 'Brave',       desc: 'Tower worker deals +30% damage', weight: 3 },
+  greenthumb: { name: 'Green thumb', desc: 'Farm worker grows +2 food',      weight: 3 },
+  woodsman:   { name: 'Woodsman',    desc: 'Lumber worker cuts +2 timber',   weight: 3 },
+  devout:     { name: 'Devout',      desc: 'Shrine worker blesses +2 graves',weight: 2 },
+  fertile:    { name: 'Fertile',     desc: 'Their house has more children',  weight: 2 },
+  thrifty:    { name: 'Thrifty',     desc: 'Their house pays +1 gold',       weight: 2 },
+  frail:      { name: 'Frail',       desc: 'Dies of old age 4 years early',  weight: 2 },
+  plain:      { name: 'Plain',       desc: 'No special trait',               weight: 5 },
+};
+
+// Which trait helps which job.
+export const TRAIT_JOB = { brave: 'tower', greenthumb: 'farm', woodsman: 'lumber', devout: 'shrine' };
+
+export const NAMES = [
+  'Ada', 'Bram', 'Cora', 'Dunstan', 'Edda', 'Fen', 'Gisela', 'Hal', 'Ilse', 'Jory', 'Kett', 'Liesel', 'Mara',
+  'Nils', 'Odo', 'Pell', 'Quin', 'Rosa', 'Sten', 'Tilda', 'Ulf', 'Vera', 'Wim', 'Yara', 'Zeno', 'Agnes', 'Bertil',
+  'Clem', 'Dora', 'Elric', 'Freya', 'Gunnar', 'Hedda', 'Ivo', 'Jutta', 'Karl', 'Lotte', 'Matthis', 'Nora', 'Otto',
+  'Petra', 'Ragna', 'Sigrid', 'Theo', 'Uta', 'Viggo', 'Wanda', 'Anselm', 'Birgit', 'Conrad', 'Dagny', 'Emil',
+];
+
+export const GENERATIONS = {
+  birthChance: 0.45,      // per house with 2+ adults, a free bed and spare food
+  fertileBonus: 0.3,
+  settlersPerHouse: 2,    // adults who move in when a house is built
+  settlersPerUpgrade: 1,
+  wisdomPerElder: 1,      // per dawn
+  graveRiseChance: 0.35,  // per unblessed grave per night
+  consecrateCost: { gold: 2 },
+  rerollCost: 2,          // wisdom
+  extraChoiceCost: 3,     // wisdom: 4 blessings to choose from instead of 3
+  houseFallDeathChance: 0.5,
+};

@@ -1,0 +1,46 @@
+10/4820/4830/4840/4848 runs in 42 s
+All runs: 48, median night reached 4, mean 7.9
+By hero
+  warrior    runs  16  median night   4  mean   9.4  regions 3.5
+  archer     runs  16  median night   4  mean   5.7  regions 1.8
+  steward    runs  16  median night   4  mean   8.5  regions 3.5
+By strategy
+  balanced   runs  12  median night   4  mean  10.4  regions 3.9
+  towers     runs  12  median night   4  mean  11.1  regions 4
+  economy    runs  12  median night   4  mean   3.3  regions 1.6
+  walls      runs  12  median night   6  mean   6.6  regions 2.3
+By expansion
+  never      runs  12  median night   4  mean   8.2  regions 1
+  careful    runs  12  median night   4  mean   4.6  regions 1.4
+  bold       runs  12  median night   4  mean     9  regions 4.3
+  reckless   runs  12  median night   4  mean   9.7  regions 5
+By map
+  riverbend  runs  16  median night   4  mean   5.8  regions 2.6
+  highland   runs  16  median night   4  mean   9.9  regions 3.5
+  lakeshore  runs  16  median night   4  mean   7.8  regions 2.8
+
+Threat ratio vs outcome (calibrates Easy/Medium/Hard/Impossible)
+  ratio 0–0.25     nights  197  run ends   0%  keep left  99%  buildings lost 8.7
+  ratio 0.25–0.5   nights  107  run ends   5%  keep left  92%  buildings lost 9.4
+  ratio 0.5–0.75   nights   46  run ends  22%  keep left  69%  buildings lost 2.8
+  ratio 0.75–1.05  nights   50  run ends  36%  keep left  53%  buildings lost 3.3
+  ratio 1.05–1.45  nights   12  run ends  67%  keep left  22%  buildings lost 3.8
+  ratio 1.45–2     nights    8  run ends  50%  keep left  33%  buildings lost 2.3
+  ratio 2–3        nights    5  run ends  60%  keep left  40%  buildings lost 1.8
+
+Per-night curve
+  night  1 runs  48 waveHp    27 towerDps   2.8 ratio  0.26 keep  94% lost  0.1 deaths   1 bank   1 secs 17
+  night  2 runs  47 waveHp    52 towerDps   2.9 ratio  0.36 keep  96% lost  0.4 deaths   0 bank   0 secs 22
+  night  3 runs  47 waveHp    83 towerDps   3.5 ratio  0.51 keep  86% lost  1.1 deaths   3 bank   1 secs 29
+  night  4 runs  44 waveHp   133 towerDps   5.6 ratio   0.5 keep  74% lost  1.9 deaths   6 bank   1 secs 38
+  night  5 runs  38 waveHp   337 towerDps   9.3 ratio  1.03 keep  31% lost  3.6 deaths  25 bank   1 secs 50
+  night  6 runs  13 waveHp   217 towerDps    24 ratio  0.39 keep  97% lost  1.8 deaths   0 bank   1 secs 62
+  night  7 runs  13 waveHp   359 towerDps  36.9 ratio  0.48 keep  86% lost  2.8 deaths   1 bank   1 secs 74
+  night  8 runs  12 waveHp   479 towerDps  51.3 ratio  0.55 keep  71% lost    3 deaths   3 bank   1 secs 50
+  night  9 runs   9 waveHp   591 towerDps  98.7 ratio  0.38 keep  97% lost    2 deaths   0 bank   2 secs 74
+  night 10 runs   9 waveHp  1403 towerDps 147.1 ratio  0.59 keep  83% lost  3.2 deaths   1 bank   1 secs 64
+  night 15 runs   8 waveHp  4177 towerDps 573.8 ratio  0.61 keep  75% lost  5.3 deaths   2 bank  40 secs 71
+  night 20 runs   6 waveHp 13953 towerDps 1849.1 ratio  0.19 keep 100% lost 15.7 deaths   0 bank  70 secs 59
+  night 25 runs   6 waveHp 29425 towerDps 3224.1 ratio  0.28 keep  83% lost 15.8 deaths   1 bank 289 secs 45
+  night 30 runs   5 waveHp 67716 towerDps 4263.5 ratio  0.39 keep  80% lost   46 deaths   1 bank 1508 secs 51
+  night 35 runs   4 waveHp 149619 towerDps  5250 ratio  0.44 keep   0% lost 124.3 deaths   4 bank 4103 secs 47
