@@ -12,9 +12,9 @@ export const HEROES = {
     ability: { id: 'volley', name: 'Volley', cooldown: 20, radius: 2.5, dmg: 6, reach: 10 },
   },
   merchant: {
-    name: 'Scavver', blurb: 'Never fights. Hires sellswords with gold, picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn.',
+    name: 'Scavver', blurb: 'Never fights. Runs the town by hand, picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays gold.',
     hp: 16, speed: 6.6, attack: null, collects: true, discount: 0.1, extraOffer: 1, trader: true,
-    ability: { id: 'hire', name: 'Hire sellswords', cooldown: 6, cost: 10, costStep: 5, count: 3, max: 9 },
+    ability: { id: 'bounty', name: 'Bounty', cooldown: 45, duration: 20, radius: 9, gold: 1, bigGold: 3 },
   },
 };
 export const HERO_ORDER = ['warrior', 'archer', 'merchant'];

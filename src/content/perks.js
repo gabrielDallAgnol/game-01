@@ -61,14 +61,14 @@ export const PERKS = [
   { id: 'nimble',  fam: 'ranger', rarity: R, name: 'Light Feet', desc: 'You run 20% faster and heal 1 per second while running.', max: 1, fx: P => { P.heroSpeed *= 1.2; P.runHeal = 1; } },
   { id: 'sentinel',fam: 'ranger', rarity: L, name: 'Sentinel', desc: 'Standing still, every 3rd bolt also hits two more zombies.', max: 1, fx: P => { P.sentinel = true; } },
   // Scavver
-  { id: 'haggle',  fam: 'scavver', rarity: C, name: 'Haggler', desc: 'Sellswords cost 3 less.', max: 2, fx: P => { P.hireDiscount += 3; } },
-  { id: 'captains',fam: 'scavver', rarity: C, name: 'Captains', desc: 'Sellswords get +6 health and +1 damage.', max: 2, fx: P => { P.mercHp += 6; P.mercDmg += 1; } },
+  { id: 'haggle',  fam: 'scavver', rarity: C, name: 'Open Contract', desc: 'Bounty lasts 8 seconds longer.', max: 2, fx: P => { P.bountyTime += 8; } },
+  { id: 'captains',fam: 'scavver', rarity: C, name: 'Blood Money', desc: 'Bounty kills pay 1 more gold.', max: 2, fx: P => { P.bountyGold += 1; } },
   { id: 'pockets', fam: 'scavver', rarity: C, name: 'Deep Pockets', desc: 'Purses hold 1 more gold.', max: 2, fx: P => { P.purseBonus += 1; } },
   { id: 'nose',    fam: 'scavver', rarity: R, name: 'Nose for Coin', desc: 'The dead drop purses twice as often.', max: 1, fx: P => { P.purseChance *= 2; } },
-  { id: 'band',    fam: 'scavver', rarity: R, name: 'A Bigger Band', desc: 'Each hire brings one more sellsword.', max: 1, fx: P => { P.hireExtra += 1; } },
+  { id: 'band',    fam: 'scavver', rarity: R, name: 'Wide Net', desc: 'Bounty reaches 5 further.', max: 1, fx: P => { P.bountyRadius += 5; } },
   { id: 'deals',   fam: 'scavver', rarity: R, name: 'Wholesale', desc: 'Towers and homes cost 1 less for you.', max: 1, fx: P => { P.defDiscount += 1; P.ecoDiscount += 1; } },
-  { id: 'loyal',   fam: 'scavver', rarity: R, name: 'Loyal Blades', desc: 'Sellswords stay through the day and fight the low tide.', max: 1, fx: P => { P.loyal = true; } },
-  { id: 'kingpin', fam: 'scavver', rarity: L, name: 'Kingpin', desc: 'Every dawn, +1 gold for each sellsword still standing, and they all heal fully.', max: 1, fx: P => { P.kingpin = true; } },
+  { id: 'loyal',   fam: 'scavver', rarity: R, name: 'Quick Contracts', desc: 'Bounty recharges 35% faster.', max: 1, fx: P => { P.abilityCd *= 0.65; } },
+  { id: 'kingpin', fam: 'scavver', rarity: L, name: 'Kingpin', desc: 'While Bounty runs, towers near you shoot 40% faster.', max: 1, fx: P => { P.kingpin = true; } },
   // Pacts: rare, with a real downside
   { id: 'pactBlood', fam: 'bow', rarity: R, pact: true, name: 'Blood Arrows', desc: 'Towers deal 50% more damage.', cost: 'The keep has 30% less health.', max: 1, fx: P => { P.towerDmg += 0.5; P.keepHpMult *= 0.7; } },
   { id: 'pactGreed', fam: 'harvest', rarity: R, pact: true, name: 'Usury', desc: '+12 gold every dawn.', cost: 'Each claimed region adds 25% threat instead of 12%.', max: 1, fx: P => { P.tax += 12; P.greed = true; } },
@@ -95,7 +95,7 @@ export const MASTERIES = {
     { id: 'hail', name: 'Hail', desc: 'Volley recharges twice as fast.' },
   ],
   scavver: [
-    { id: 'warband', name: 'Warband', desc: 'Each hire brings two more sellswords, and you can field six more.' },
+    { id: 'warband', name: 'Headhunter', desc: 'Bounty pays triple for brutes, guardians and Gravelords, and it lasts 10 seconds longer.' },
     { id: 'tycoon', name: 'Tycoon', desc: 'Purses are worth double, and homes pay 1 more gold.' },
   ],
   bow: [
@@ -122,7 +122,7 @@ export const REROLL = { free: 1, base: 5, step: 5 };
 export function freshPerkState() {
   return {
     taken: {}, fam: { hero: 0, ranger: 0, scavver: 0, bow: 0, stone: 0, harvest: 0 }, mastery: {},
-    abilityCd: 1, abilityRadius: 0, abilityDmg: 1, heroSpeed: 1, runHeal: 0, hireDiscount: 0, hireExtra: 0, mercHp: 0, mercDmg: 0, purseBonus: 0, purseChance: 1,
+    abilityCd: 1, bountyTime: 0, bountyGold: 0, bountyRadius: 0, abilityRadius: 0, abilityDmg: 1, heroSpeed: 1, runHeal: 0, hireDiscount: 0, hireExtra: 0, mercHp: 0, mercDmg: 0, purseBonus: 0, purseChance: 1,
     heroDmg: 0, heroDmgMult: 1, heroRate: 1, heroRange: 0, heroHp: 0, heroHpMult: 1, heroRegen: 0, lifesteal: 0,
     towerDmg: 0, towerRange: 0, towerRate: 1, keepDmg: 0, keepRate: 1, keepHpMult: 1,
     wallHp: 0, thorns: 0, allHp: 0, keepHp: 0, defDiscount: 0,

@@ -95,7 +95,8 @@ export function createAudio(store) {
         case 'build': S.build(); break;
         case 'ruin': S.crash(0.8); break;
         case 'explode': S.explode(vol(e.x, e.y)); break;
-        case 'purseTaken': case 'chestOpen': S.coin(); break;
+        case 'purseTaken': case 'chestOpen': case 'bountyGold': S.coin(); break;
+        case 'bounty': S.claim(); break;
         case 'warcry': case 'volley': S.warcry(); break;
         case 'claim': S.claim(); break;
         case 'heroDie': S.bad(); break;

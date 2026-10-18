@@ -179,6 +179,8 @@ export function createView(canvas, game, opts = {}) {
   moveMark.rotation.x = -Math.PI / 2; moveMark.position.y = 0.07; fx.add(moveMark);
   const heroRing = new THREE.Mesh(ringGeo(0.42, 0.5), new THREE.MeshBasicMaterial({ color: lc('#fff1d6'), transparent: true, opacity: 0.75, depthWrite: false }));
   heroRing.rotation.x = -Math.PI / 2; heroRing.renderOrder = 4; fx.add(heroRing);
+  const bountyRing = new THREE.Mesh(ringGeo(0.97, 1), new THREE.MeshBasicMaterial({ color: lc('#f0c050').multiplyScalar(1.4), transparent: true, opacity: 0, depthWrite: false }));
+  bountyRing.rotation.x = -Math.PI / 2; bountyRing.renderOrder = 4; fx.add(bountyRing);
 
   // ---------- tonight's routes: chevrons flowing from each hive to the town ----------
   const chevGeo = new THREE.ConeGeometry(0.28, 0.7, 3); chevGeo.rotateX(Math.PI / 2); chevGeo.scale(1, 0.25, 1);
@@ -416,6 +418,7 @@ export function createView(canvas, game, opts = {}) {
       if (e.t === 'claim') { city.setTerritory(); repaint = true; const h = hives.get(e.region); if (h) { const n = map.regions[e.region].nest; burst(n.x, n.y, 4, '#d9843a'); h.cleared = true; } }
       if (e.t === 'clear') { city.clear(e.cells); for (const i of e.cells) burst((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.5, '#b8ae9c'); }
       if (e.t === 'firstDead') focus = { id: e.id, t: 5 };
+      if (e.t === 'bountyGold') burst(e.x, e.y, 0.6, '#f0c050');
       if (e.t === 'scavGo') sendWalkers(e.site, e.n, false);
       if (e.t === 'scavBack') sendWalkers(e.site, e.n, true);
       if (e.t === 'explode') burst(e.x, e.y, e.r, '#a3c65c');
@@ -544,6 +547,7 @@ export function createView(canvas, game, opts = {}) {
     let df = h.face - heroRig.g.rotation.y; while (df > Math.PI) df -= Math.PI * 2; while (df < -Math.PI) df += Math.PI * 2; heroRig.g.rotation.y += df * Math.min(1, dt * 14);
     heroRig.pose(h.moving, time * 10, h.swing > 0 ? 1 - h.swing / 0.25 : -1);
     heroRing.visible = !h.dead; heroRing.position.copy(W(h.x, h.y, 0.05));
+    { const on = S.bountyT > 0 && !h.dead, R = (game.heroDef.ability && game.heroDef.ability.radius || 9) + S.P.bountyRadius; bountyRing.visible = on; if (on) { bountyRing.position.copy(W(h.x, h.y, 0.06)); bountyRing.scale.setScalar(R); bountyRing.material.opacity = 0.35 + Math.sin(time * 5) * 0.15; } }
     if (!h.dead) setBar(heroBar, h.x, 1.55, h.y, h.hp / h.maxHp); else heroBar.visible = false;
 
     // the dead

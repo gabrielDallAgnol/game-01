@@ -307,6 +307,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     let range = (B.range[l] + S.P.towerRange + (owns('eiffel') ? 1.5 : 0) + (has('watch') && b.paired ? 2 : 0) + (map.high[idx(Math.floor(b.x), Math.floor(b.y))] ? 2 : 0)) * (S.phase === 'night' ? W8().range : 1);
     let dmg = B.dmg[l] * towerMult() * (has('bastion') && b.walled ? 1.4 : 1);
     let rate = B.rate[l] / S.P.towerRate;
+    if (S.P.kingpin && S.bountyT > 0 && !S.hero.dead && Math.hypot(S.hero.x - b.x, S.hero.y - b.y) < 9) rate /= 1.4;
     const h = S.hero, rallyR = combo('rally', 'watch') ? 8 : 5;
     if (has('rally') && !h.dead && (Math.hypot(h.x - b.x, h.y - b.y) < rallyR || (combo('rally', 'watch') && b.paired))) rate /= 1.3;
     return { range, dmg, rate, shots: has('volley') && b.level === 3 ? 2 : 1 };
@@ -429,6 +430,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function killMob(m, src) {
     const i = S.mobs.indexOf(m); if (i < 0) return;
     S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y });
+    if (S.bountyT > 0 && HC.ability && HC.ability.id === 'bounty' && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) <= HC.ability.radius + S.P.bountyRadius) {
+      const big = MOBS[m.kind].size >= BIG, pay = (big ? HC.ability.bigGold * (mastery('warband') ? 3 : 1) : HC.ability.gold) + S.P.bountyGold;
+      earn(pay); S.stats.bountyGold = (S.stats.bountyGold || 0) + pay; ev('bountyGold', { x: m.x, y: m.y, gold: pay });
+    }
     S.stats.killsByKind[m.kind] = (S.stats.killsByKind[m.kind] || 0) + 1;
     if (m.kind === 'guardian' || m.kind === 'gravelord') S.stats.bosses++;
     const D = MOBS[m.kind];
@@ -745,7 +750,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function useAbility(x, y) {
     const A = HC.ability, h = S.hero;
     if (!A || S.over) return false;
-    if (!S.mobs.some(m => !m.roam || Math.hypot(m.x - h.x, m.y - h.y) < 10) && A.id !== 'hire') return fail('No dead nearby.');
+    if (!S.mobs.some(m => !m.roam || Math.hypot(m.x - h.x, m.y - h.y) < 10)) return fail('No dead nearby.');
     if (S.ability.cd > 0 || h.dead) return false;
     if (A.id === 'warcry') {
       const rad = A.radius + S.P.abilityRadius;
@@ -762,6 +767,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       const dmg = A.dmg * S.P.abilityDmg * Math.sqrt(WAVES.hpScale(S.night)), rad = A.radius + S.P.abilityRadius;
       for (const m of [...S.mobs]) if (Math.hypot(m.x - tx, m.y - ty) < rad) hitMob(m, dmg, 'hero');
       ev('volley', { x: tx, y: ty, r: rad });
+    } else if (A.id === 'bounty') {
+      S.bountyT = A.duration + S.P.bountyTime + (mastery('warband') ? 10 : 0);
+      ev('bounty', { t: S.bountyT }); toast('Bounty is on: every kill near you pays gold.', 'good');
     } else if (A.id === 'hire') {
       const cost = abilityCost();
       const count = A.count + S.P.hireExtra + (mastery('warband') ? 2 : 0), max = A.max + (mastery('warband') ? 6 : 0) + S.P.hireExtra * 3;
@@ -1147,6 +1155,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.time += dt;
     refreshFlow();
     if (S.ability.cd > 0) S.ability.cd = Math.max(0, S.ability.cd - dt);
+    if (S.bountyT > 0) S.bountyT = Math.max(0, S.bountyT - dt);
     stepHero(dt);
     if ((S.revealT = (S.revealT || 0) - dt) <= 0) { S.revealT = 0.25; if (!S.hero.dead) reveal(S.hero.x, S.hero.y, 8); }
     if (S.phase === 'day' && S.clock && !S.over) {

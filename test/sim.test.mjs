@@ -201,7 +201,7 @@ test('blessings: rarity by source, pacts, masteries, reroll', () => {
   g.reroll(); assert.equal(S.gold, 100); g.reroll(); assert.equal(S.gold, 95);
 });
 
-test('heroes: abilities work and the merchant hires sellswords', () => {
+test('heroes: abilities work and the Scavver calls a bounty', () => {
   for (const hero of ['warrior', 'archer', 'merchant']) {
     const g = createGame({ mode: 'classic', seed: 6, biome: 'highland', hero, clock: false }); const S = g.state;
     while (S.pendingPicks) g.choosePerk(S.offer[0]);
@@ -210,7 +210,7 @@ test('heroes: abilities work and the merchant hires sellswords', () => {
     const t = g.map.town; S.hero.x = t.x; S.hero.y = t.y + 3.5;
     if (S.mobs[0]) { S.hero.x = S.mobs[0].x; S.hero.y = S.mobs[0].y; }
     const ok = g.useAbility(S.mobs[0]?.x, S.mobs[0]?.y);
-    if (hero === 'merchant') { assert.equal(ok, true); assert.equal(S.allies.length, 3); assert.equal(S.gold, 40); }
+    if (hero === 'merchant') { assert.equal(ok, true); assert.ok(S.bountyT > 0, 'bounty did not start'); assert.equal(S.gold, 50); }
     else assert.ok(S.ability.cd > 0 || !ok, `${hero} ability did nothing`);
     assert.equal(g.useAbility(), false, 'ability ignored its cooldown');
   }

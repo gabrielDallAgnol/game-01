@@ -131,7 +131,8 @@ for (const p of PERKS) { PERK_FAM[p.id] = p.fam; PERK_PACT[p.id] = !!p.pact; }
 function useAbilityBot(g) {
   const S = g.state, h = S.hero, t = g.map.town, A = g.heroDef.ability;
   if (!A || S.phase !== 'night' || S.ability.cd > 0 || h.dead) return;
-  if (A.id === 'hire') { const near = S.mobs.filter(m => Math.hypot(m.x - t.x, m.y - t.y) < 9).length; if (near >= 4 && S.gold >= g.abilityCost() + 6) g.useAbility(); }
+  if (A.id === 'bounty') { if (S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) < 9).length >= 4) g.useAbility(); }
+  else if (A.id === 'hire') { const near = S.mobs.filter(m => Math.hypot(m.x - t.x, m.y - t.y) < 9).length; if (near >= 4 && S.gold >= g.abilityCost() + 6) g.useAbility(); }
   else if (A.id === 'warcry') { if (S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) < 5).length >= 4 && h.hp > h.maxHp * 0.5) g.useAbility(); }
   else if (A.id === 'volley') { if (S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) < 10).length >= 4) g.useAbility(); }
 }
