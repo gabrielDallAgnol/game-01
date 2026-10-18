@@ -142,7 +142,7 @@ export function createStory(ctx) {
     }
     if (enc.kind === 'site') { ST.quests = ST.quests.filter(q => q.site !== enc.site || choiceId === 'leave'); if (choiceId === 'leave') ST.visited[enc.site] = 'left'; }
     if (ctx.gainXp) ctx.gainXp(enc.kind === 'thread' ? 25 : enc.kind === 'street' ? 12 : enc.kind === 'site' ? 0 : 5);
-    const line = enc.aiChron || `${enc.title}: ${c.label}.`;
+    const line = enc.aiChron || `${enc.title}: "${c.label.replace(/[[\]]/g, '')}"`;
     chron(line, enc.kind === 'thread' ? 4 : 2, enc.thread ? [enc.thread] : []);
     ST.encounters.shift(); ev('chosen', { enc: enc.id, choice: choiceId, kind: enc.kind });
     return true;
@@ -157,6 +157,14 @@ export function createStory(ctx) {
     // threads that waited too long fail with a cost
     for (const [tid, th] of Object.entries(ST.threads)) if (th.status === 'waiting' && S.night >= th.failAt) { th.status = 'failed'; toast(`[Quest failed: ${THREADS[tid].title}] Too late.`, 'bad'); chron(`Too late for ${THREADS[tid].title}.`, 3, [tid]); }
     let shown = 0;
+    // after each blood moon: the chapter closes, told back to you
+    if (S.night > 2 && (S.night - 1) % 5 === 0) {
+      const ch = (S.night - 1) / 5, lines = ST.chronicle.filter(c => c.day > S.night - 6 && c.imp >= 3).map(c => `Day ${c.day}: ${c.text}`);
+      const text = lines.length ? lines.slice(-6).join(' · ') : 'Five days of walls, smoke and small mercies.';
+      ST.saga = ST.saga || []; ST.saga.push({ chapter: ch, day: S.night, text });
+      push({ kind: 'chapter', eyebrow: `[Chapter ${ch} complete]`, title: `Chapter ${ch}: ${['First Light', 'The Grid', 'Under the City', 'The Long Road', 'Hollowmere Rising'][Math.min(4, ch - 1)]}`, scene: `The blood moon sets. The System scrolls back through the last five days. ${text}`,
+        choices: [{ id: 'turn', label: 'Turn the page', hint: 'The next chapter begins.', fx: [] }] });
+    }
     if (ST.evoLater && S.heroClass === ST.evoLater.from) { const e = ST.evoLater; ST.evoLater = null; push(e.enc); }   // does not take a story slot
     else if (ST.evoLater) ST.evoLater = null;
     // a new thread starts on its day
