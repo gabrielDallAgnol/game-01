@@ -13,9 +13,9 @@
 | Regions | Voronoi: town + 6 near + 10 far. Each non-town region has a nest and up to 9 build slots. |
 | Nests | Near nests wake on nights 1, 2, 4, 6, 8, 10. A nest only sends the dead if its region touches your land. When the whole valley is yours, the dead come from the dark woods at the edge. |
 | Expansion | Pick a nest next to your land → that night it sends a siege (extra budget + a Nest Guardian) at the end. Survive → region claimed, +6/+12 gold plunder, +1 blessing, neighbours wake next night. Each claimed region adds +12% threat for the rest of the run. |
-| Rating | `threatRatio = expected wave HP / (tower DPS + hero DPS × 0.8) × wave seconds × 1.6`. Thresholds calibrated from bot runs: Easy < 0.3, Medium < 0.6, Hard < 1.1, Impossible ≥ 1.1. |
+| Rating | `threatRatio = expected wave HP / (tower DPS + hero DPS × 0.8) × wave seconds × 1.6`. Thresholds calibrated from bot runs: Easy < 0.3, Medium < 0.55, Hard < 0.8, Impossible ≥ 0.8. |
 | Waves | Budget points per night `6 + 2.6n + 0.42n²` × territory × blood moon. Mobs bought by weight from those unlocked. HP × `1.06^(n−1) × (1 + 0.04(n−1))`. Arrive in surges. |
-| Blood moon | Every 5th night. Night 5: ×1.15 + Nest Guardian. From night 10: ×1.35 + one Gravelord per 10 nights. |
+| Blood moon | Every 5th night. Night 5: normal budget + a Nest Guardian. From night 10: ×1.35 + one Gravelord per 10 nights. |
 | Mobs | Walker, Runner (n3), Crawler (n4, climbs palisades), Brute (n6), Spitter (n6, ranged), Bloater (n7, bursts on death), Screamer (n9, speeds others up). |
 | Pathing | Flow field to the nearest building. Palisades cost 6 extra steps: the dead walk around them when they can and break through when they can't. Crawlers climb them. |
 | Heroes | Warrior (melee 3 dmg), Archer (ranged 2 dmg, 7.5 reach), Steward (never fights; +30% gold, 4 blessings offered, an extra pick every 3rd dawn). |
