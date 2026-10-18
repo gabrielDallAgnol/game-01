@@ -9,8 +9,8 @@ import { K } from './kit.js';
 import { bake, vcMat } from './figures.js';
 
 const GROUND = {
-  open: '#3d3c39', paved: '#615d56', plaza: '#6b675f', rubble: '#45433d', rock: '#2f2e2b', ford: '#8d887d', cliff: '#56534c', voidc: '#262522', bed: '#1c2527',
-  lot: '#57544d', street: '#77726a',
+  open: '#3d3c39', paved: '#4c4a45', plaza: '#54514b', rubble: '#45433d', rock: '#2f2e2b', ford: '#8d887d', cliff: '#56534c', voidc: '#262522', bed: '#1c2527',
+  lot: '#5c5951', street: '#68645c',
 };
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
 

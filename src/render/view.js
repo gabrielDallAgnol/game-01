@@ -320,7 +320,7 @@ export function createView(canvas, game, opts = {}) {
     zoomCur += (zoom - zoomCur) * Math.min(1, dt * 8);
     const narrow = camera.aspect < 1, vf = narrow ? 40 : 28;
     if (camera.fov !== vf) { camera.fov = vf; camera.updateProjectionMatrix(); }
-    const vh = Math.tan(vf * Math.PI / 360), hh = vh * camera.aspect, R = (narrow ? 8.5 : 16) * zoomCur, dist = Math.max(R / hh, R / vh * 0.8);
+    const vh = Math.tan(vf * Math.PI / 360), hh = vh * camera.aspect, R = (narrow ? 8.5 : 13) * zoomCur, dist = Math.max(R / hh, R / vh * 0.8);
     scene.fog.near = dist + 14; scene.fog.far = dist + 95;
     const h = S.hero;
     if (orbit > 0) {

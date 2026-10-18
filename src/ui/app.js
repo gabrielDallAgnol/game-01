@@ -74,7 +74,7 @@ export function startApp() {
     game = createGame({ seed: setup.runSeed, mapSeed, biome, hero: setup.hero, mode: setup.mode });
     names = regionNames(mapSeed, game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
-    if (!view) { view = createView($('#view'), game, { quality: qp || store.get('quality', null) || undefined }); showQuality(); }
+    if (!view) { view = createView($('#view'), game, { quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
     window.__game = game;
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = !game.heroDef.ability;
@@ -420,6 +420,22 @@ export function startApp() {
   const QNAME = { high: 'HQ', medium: 'MQ', low: 'LQ' }, QNEXT = { high: 'medium', medium: 'low', low: 'high' };
   function showQuality() { if (view) { $('#qBtn').textContent = QNAME[view.quality()]; $('#qBtn').setAttribute('aria-label', `Graphics quality: ${view.quality()}`); } }
   $('#qBtn').onclick = () => { if (!view) return; const q = QNEXT[view.quality()]; view.setQuality(q); store.set('quality', q); showQuality(); toast(`Graphics: ${q}.`); };
+  // auto quality: if no choice was made, step down one level when frames are slow for a few seconds
+  const perf = { t: 0, n: 0, slow: 0, wait: 3 };
+  function watchFrames(raw) {
+    if (!view || paused || document.hidden || store.get('quality', null) || new URLSearchParams(location.search).get('q')) return;
+    if (view.quality() === 'low' || raw > 250) return;
+    if (perf.wait > 0) { perf.wait -= raw / 1000; return; }
+    perf.t += raw; perf.n++;
+    if (perf.t < 3000) return;
+    const avg = perf.t / perf.n; perf.t = 0; perf.n = 0;
+    perf.slow = avg > 34 ? perf.slow + 1 : 0;           // under ~30 fps
+    if (perf.slow >= 2) {
+      const q = view.quality() === 'high' ? 'medium' : 'low';
+      view.setQuality(q); store.set('autoq', q); showQuality(); perf.slow = 0; perf.wait = 4;
+      toast(`Graphics lowered to ${QNAME[q]} for a smoother game. Tap ${QNAME[q]} to change.`);
+    }
+  }
   $('#zIn').onclick = () => view && view.setZoom(view.getZoom() * 0.8);
   $('#zOut').onclick = () => view && view.setZoom(view.getZoom() * 1.25);
 
@@ -591,7 +607,7 @@ export function startApp() {
   const toastFor = new Set(['toast', 'fail']);
   function frame(now) {
     requestAnimationFrame(frame);
-    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    const raw = now - last, dt = Math.min(0.1, raw / 1000); last = now;
     if (!game || !view) return;
     const S = game.state;
     const kx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), ky = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
@@ -613,7 +629,7 @@ export function startApp() {
     if (placing && placing.zone.ver !== S.occVersion && S.phase === 'day') { refreshZone(); updateGhost(); }
     if (placing && S.phase !== 'day') stopPlacing();
     view.frame(dt, { events, selected, ghost: placing && placing.ghost, zone: placing && placing.zoneMask });
-    edgeMarks();
+    edgeMarks(); watchFrames(raw);
     hudT -= dt; if (hudT <= 0) { updateHud(); hudT = 0.2; if (selected && !paused) { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } } }
   }
   requestAnimationFrame(frame);
