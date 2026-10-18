@@ -350,6 +350,7 @@ export function createView(canvas, game, opts = {}) {
     for (const e of events) {
       if (e.t === 'claim') { city.setTerritory(); repaint = true; const h = hives.get(e.region); if (h) { const n = map.regions[e.region].nest; burst(n.x, n.y, 4, '#d9843a'); h.cleared = true; } }
       if (e.t === 'clear') { city.clear(e.cells); for (const i of e.cells) burst((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.5, '#b8ae9c'); }
+      if (e.t === 'firstDead') focus = { id: e.id, t: 5 };
       if (e.t === 'scavGo') sendWalkers(e.site, e.n, false);
       if (e.t === 'scavBack') sendWalkers(e.site, e.n, true);
       if (e.t === 'explode') burst(e.x, e.y, e.r, '#a3c65c');
@@ -386,6 +387,7 @@ export function createView(canvas, game, opts = {}) {
     }
     rain.count = n; rain.instanceMatrix.needsUpdate = true;
   }
+  let focus = null;
   let dark = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
 
   // which warm lights matter: the keep fire, lanterns on towers, lit homes; the nearest win the pool
@@ -423,7 +425,9 @@ export function createView(canvas, game, opts = {}) {
       orbit += dt * 0.12; camTarget.lerp(W(C, C), Math.min(1, dt * 1.5));
       const od = dist * 1.1; camera.position.set(camTarget.x + Math.sin(orbit) * od * 0.6, camTarget.y + od * 0.7, camTarget.z + Math.cos(orbit) * od * 0.6);
     } else {
-      if (!h.dead) camTarget.lerp(W(h.x, h.y), Math.min(1, dt * 4));
+      const fm = focus && focus.t > 0 ? S.mobs.find(m => m.id === focus.id) : null;
+      if (fm) { focus.t -= dt; camTarget.lerp(W(fm.x, fm.y), Math.min(1, dt * 1.6)); }
+      else if (!h.dead) camTarget.lerp(W(h.x, h.y), Math.min(1, dt * 4));
       camera.position.set(camTarget.x, camTarget.y + dist * 0.76, camTarget.z + dist * 0.65);
     }
     camera.lookAt(camTarget); camera.updateMatrixWorld();

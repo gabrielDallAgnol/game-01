@@ -173,7 +173,7 @@ export function scavengeTurn(g) {
 }
 export function playRun(createGame, opts) {
   const { seed, biome, hero, strat, path, expansion, heroMode = 'active', maxNights = 40, mapSeed } = opts;
-  const g = createGame({ seed, biome, hero, mapSeed });
+  const g = createGame({ seed, biome, hero, mapSeed, clock: false });
   const S = g.state;
   choosePerks(g, path);
   while (!S.over && S.night <= maxNights) {

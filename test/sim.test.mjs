@@ -204,7 +204,7 @@ test('blessings: rarity by source, pacts, masteries, reroll', () => {
 
 test('heroes: abilities work and the merchant hires sellswords', () => {
   for (const hero of ['warrior', 'archer', 'merchant']) {
-    const g = createGame({ mode: 'classic', seed: 6, biome: 'highland', hero }); const S = g.state;
+    const g = createGame({ mode: 'classic', seed: 6, biome: 'highland', hero, clock: false }); const S = g.state;
     while (S.pendingPicks) g.choosePerk(S.offer[0]);
     S.gold = 50; S.night = 4; g.startNight();
     for (let k = 0; k < 60 * 12; k++) g.step();
@@ -358,4 +358,23 @@ test('blessings: a dawn pick every other day, never more than two picks a dawn',
   const counts = [];
   for (let n = 0; n < 4 && !S.over; n++) { S.chestsHeld = 4; S.keep.hp = S.keep.maxHp = 1e6; nextDawn(g); counts.push(S.pendingPicks); readyDay(g); }
   for (const c of counts) assert.ok(c <= 2, `${c} picks in one dawn`);
+});
+
+test('tides: night 1 is a single tough dead, dusk falls on its own, roamers wander the wild', () => {
+  const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
+  assert.ok(S.mobs.some(m => m.roam), 'no roaming dead at the start');
+  assert.ok(S.mobs.filter(m => m.roam).every(m => !S.claimed.has(m.roam.region)));
+  for (let k = 0; k < 60 * 101 && S.phase === 'day'; k++) g.step();
+  assert.equal(S.phase, 'night', 'dusk did not fall');
+  assert.equal(S.queue.length, 1); assert.ok(S.queue[0].first);
+  for (let k = 0; k < 60 * 6; k++) g.step();
+  const first = S.mobs.find(m => m.first); assert.ok(first, 'the first dead never came');
+  assert.ok(first.maxHp > 3);
+  for (let k = 0; S.phase === 'night' && k < 60 * 300; k++) g.step();
+  assert.equal(S.phase, 'day', 'roamers kept the night from ending');
+});
+
+test('ringing the bell early pays gold', () => {
+  const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
+  const gold = S.gold; assert.ok(g.startNight()); assert.ok(S.gold > gold);
 });

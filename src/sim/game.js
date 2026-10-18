@@ -4,7 +4,7 @@ import { Rng, hashSeed } from './rng.js';
 import { generateMap, N, T, PASSABLE, idx, inside } from './mapgen.js';
 import { computeFlow, computeNext } from './flow.js';
 import { BUILDINGS, KEEP, MAX_LEVEL, START } from '../content/buildings.js';
-import { MOBS, WAVES } from '../content/mobs.js';
+import { MOBS, WAVES, TIDE } from '../content/mobs.js';
 import { HEROES, MERC, PURSE, TRADES } from '../content/heroes.js';
 import { PERKS, FAMILIES, MASTERIES, SYNERGIES, ODDS, REROLL, freshPerkState } from '../content/perks.js';
 import { PACKS, PACK_RULES } from '../content/packs.js';
@@ -32,7 +32,7 @@ const DIRS8 = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, 
 const SIZE = { house: 2, farm: 2, tower: 1, wall: 1 };   // compact footprints; palisades are single posts, laid in lines
 const BIG = 1.6; // mobs at least this size count as "big game"
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'packs' } = {}) {
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'packs', clock = true } = {}) {
   if (hero === 'steward') hero = 'merchant';
   const map = generateMap(mapSeed ?? seed, biome);
   const rng = new Rng(hashSeed(seed, 'run'));
@@ -49,7 +49,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     mobs: [], projectiles: [], chests: [], purses: [], allies: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
     P: freshPerkState(), picks: [], pendingPicks: 0, offer: [], offerSource: null, chestsHeld: 0, dawns: 0,
     reroll: { free: REROLL.free, cost: REROLL.base }, trade: null, halfUpgrade: false,
-    ability: { cd: 0, hires: 0 }, weather: 'clear',
+    ability: { cd: 0, hires: 0 }, weather: 'clear', clock, dayT: 0, dayQueue: [],
     log: [], cur: null, over: false, won: false,
     hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0, guardT: 0, attacks: 0 },
     flow: null, flowNext: null, climb: null, climbNext: null, flowDirty: true,
@@ -252,7 +252,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
   // a bigger town draws more dead: +1% per citizen past the first 15
   const townDraw = () => 1 + Math.max(0, pop() - TOWN_DRAW.free) * TOWN_DRAW.per;
-  function nightBudget(n) { return WAVES.budget(n) * territory() * townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * weatherFor(n).dead; }
+  function nightBudget(n) { return WAVES.budget(n) * (TIDE.opening[n] ?? 1) * territory() * townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * weatherFor(n).dead; }
   function purgeBudget(r, n) { return WAVES.budget(n) * WAVES.purgeShare(map.regions[r].ring); }
   function towerStats(b) {
     const B = BUILDINGS.tower, l = b.level - 1;
@@ -305,6 +305,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- waves ----------
   function makeWave(n) {
     const nests = activeNests(n);
+    if (n === 1 && S.purge === null && nests.length) return [{ kind: 'walker', nest: nests[0], t: 3, first: true }];
     if (!nests.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id)); if (any.length) nests.push(any[0].id); }
     // the whole valley is yours: the dead now come out of the dark woods at the edge
     if (!nests.length) edgeSpawns.forEach((_, k) => nests.push(-1 - k));
@@ -531,8 +532,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   function fail(msg) { ev('fail', { msg }); return false; }
 
-  function startNight() {
+  function startNight(dusk = false) {
     if (S.phase !== 'day' || S.over || S.pendingPicks > 0 || S.packs.length) return false;
+    if (S.clock && !dusk) { const bonus = Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold); if (bonus > 0) { earn(bonus); toast(`You ring the bell early: +${bonus} gold.`, 'good'); } }
+    if (dusk) toast('Dusk falls.');
+    S.dayQueue = [];
     refreshFlow(); cacheNeighbours();
     S.phase = 'night'; crewCache = null; crewing(); S.queue = makeWave(S.night); S.qT = 0; S.nightFlags = {}; S.ability.hires = 0; S.trade = null;
     for (const b of S.buildings) b.fell = false;
@@ -546,6 +550,66 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
     toast(isBloodMoon(S.night) ? `Blood moon. Night ${S.night} begins.` : `The bell rings. Night ${S.night} begins.`, isBloodMoon(S.night) ? 'bad' : undefined);
     return true;
+  }
+
+  // ---------- the low tide: stragglers by day, roaming dead in the wild ----------
+  function planDay(n) {
+    S.dayT = 0; S.dayQueue = [];
+    if (!S.clock) return;
+    const share = TIDE.dayShare(n), nests = activeNests(n); if (!share || !nests.length) return;
+    const u = unlocked(Math.max(1, n - 2)); let budget = nightBudget(n) * share;
+    while (budget > 0.5) {
+      const ok = u.filter(([, m]) => m.cost <= budget + 0.3); if (!ok.length) break;
+      const [kind, m] = ok[rng.weighted(ok.map(([, mm]) => mm.weight))];
+      S.dayQueue.push({ kind, nest: nests[rng.int(nests.length)], t: rng.range(18, TIDE.dayLen - 8) }); budget -= m.cost;
+    }
+    S.dayQueue.sort((a, b) => a.t - b.t);
+  }
+  function spawnRoamers() {
+    if (!S.clock) return;
+    const R = TIDE.roam, have = new Map();
+    for (const m of S.mobs) if (m.roam) have.set(m.roam.region, (have.get(m.roam.region) || 0) + 1);
+    let total = S.mobs.filter(m => m.roam).length;
+    for (const reg of map.regions) {
+      if (S.claimed.has(reg.id) || reg.ring < 1) continue;
+      const ring = Math.min(2, reg.ring), want = R.perRing[ring] + Math.floor(S.night / 8);
+      for (let k = have.get(reg.id) || 0; k < want && total < R.cap; k++) {
+        let spot = null;
+        for (let t = 0; t < 20 && !spot; t++) {
+          const x = reg.x + rng.range(-5, 5), y = reg.y + rng.range(-5, 5), cx = Math.floor(x), cy = Math.floor(y);
+          if (inside(cx, cy) && PASSABLE[map.terrain[idx(cx, cy)]] && map.region[idx(cx, cy)] === reg.id && S.occ[idx(cx, cy)] < 0) spot = { x, y };
+        }
+        if (!spot) break;
+        const kind = ring >= 2 ? rng.pick(S.night >= 6 ? ['walker', 'runner', 'brute'] : ['walker', 'runner']) : 'walker';
+        const m = spawnMob(kind, spot.x, spot.y, { instant: true });
+        const tough = 1 + 0.6 * (ring - 1); m.hp = m.maxHp = Math.ceil(m.maxHp * tough);
+        m.roam = { x: spot.x, y: spot.y, region: reg.id }; total++;
+      }
+    }
+  }
+  function clearRoamers(region) {
+    for (const m of S.mobs.filter(q => q.roam && q.roam.region === region)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
+  }
+  /** a roamer wanders near home, chases the hero who comes close, and never walks on the town */
+  function stepRoamer(m, dt, speed) {
+    const R = TIDE.roam, h = S.hero, home = m.roam;
+    const fromHome = Math.hypot(m.x - home.x, m.y - home.y);
+    const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
+    const heroNear = hd < R.sight && Math.hypot(h.x - home.x, h.y - home.y) < R.leash && !S.claimed.has(map.region[idx(Math.floor(h.x), Math.floor(h.y))]);
+    if (heroNear || (m.tauntT > 0 && !h.dead)) {
+      m.face = Math.atan2(h.x - m.x, h.y - m.y);
+      if (hd > 0.9) moveToward(m, h.x, h.y, speed * dt); else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; hurtHero(MOBS[m.kind].dmg); ev('bite', { id: m.id }); } }
+      return;
+    }
+    if (fromHome > R.leash) { m.wp = { x: home.x, y: home.y }; }
+    if (!m.wp || Math.hypot(m.wp.x - m.x, m.wp.y - m.y) < 0.3) {
+      if (m.idleT > 0) { m.idleT -= dt; return; }
+      const a = rng.range(0, Math.PI * 2), d = rng.range(0.5, R.radius), x = home.x + Math.cos(a) * d, y = home.y + Math.sin(a) * d, cx = Math.floor(x), cy = Math.floor(y);
+      m.wp = inside(cx, cy) && PASSABLE[map.terrain[idx(cx, cy)]] && S.occ[idx(cx, cy)] < 0 ? { x, y } : { x: home.x, y: home.y };
+      m.idleT = rng.range(1, 4);
+    }
+    const ox = m.x, oy = m.y; moveToward(m, m.wp.x, m.wp.y, speed * 0.4 * dt);
+    const cx = Math.floor(m.x), cy = Math.floor(m.y); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) { m.x = ox; m.y = oy; m.wp = null; }
   }
 
   function dawn() {
@@ -562,7 +626,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.gold = Math.max(0, S.gold + goldIn); S.stats.goldEarned += Math.max(0, goldIn);
     let claimedNow = null, nestPick = false;
     if (S.purge !== null) {
-      claimedNow = S.purge; S.claimed.add(S.purge); S.nestAlive[S.purge] = false; S.stats.regionsClaimed++;
+      claimedNow = S.purge; clearRoamers(S.purge); S.claimed.add(S.purge); S.nestAlive[S.purge] = false; S.stats.regionsClaimed++;
       for (const nb of map.regions[S.purge].neighbors) if (map.regions[nb].nest && !S.claimed.has(nb) && S.wake[nb] > S.night + 1) S.wake[nb] = S.night + 1;
       const loot = WAVES.plunder(map.regions[S.purge].ring); earn(loot); nestPick = true;
       ev('claim', { region: S.purge }); toast(`The nest burns: +${loot} gold and a rare blessing. The land is yours, but new nests stir beyond it.`, 'good');
@@ -583,6 +647,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     sc.dawn(isBloodMoon(S.night));
     S.night++; newLog();
     S.weather = rollWeather(S.night); if (S.weather !== 'clear') toast(`Tonight: ${W8().name.toLowerCase()}. ${W8().desc}`, W8().kind);
+    planDay(S.night); spawnRoamers();
     S.reroll.cost = REROLL.base;
     const want = [];
     if (S.night % 2 === 0) want.push('dawn');              // S.night is already the coming night: a dawn blessing every other day
@@ -873,6 +938,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       m.cd -= dt; m.attacking = false; m.tauntT = Math.max(0, m.tauntT - dt);
       const ci = idx(Math.floor(m.x), Math.floor(m.y));
       const speed = m.speed * m.boost * W8().speed * (inTar ? 0.6 : 1) / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
+      if (m.roam) { stepRoamer(m, dt, speed); continue; }
       const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
       // nearest sellsword
       let ally = null, ad = Infinity;
@@ -1008,9 +1074,18 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     refreshFlow();
     if (S.ability.cd > 0) S.ability.cd = Math.max(0, S.ability.cd - dt);
     stepHero(dt);
+    if (S.phase === 'day' && S.clock && !S.over) {
+      S.dayT += dt;
+      while (S.dayQueue.length && S.dayQueue[0].t <= S.dayT) { const q = S.dayQueue.shift(); if (nestAlive(q.nest) && !S.claimed.has(q.nest)) spawnAtNest(q.kind, q.nest); }
+      if (S.dayT >= TIDE.dayLen && S.pendingPicks === 0 && !S.packs.length) startNight(true);
+    }
+    if (S.phase === 'day') { stepMobs(dt); stepAllies(dt); stepTowers(dt); }
     if (S.phase === 'night') {
       S.qT += dt;
-      while (S.queue.length && S.queue[0].t <= S.qT) { const q = S.queue.shift(); spawnAtNest(q.kind, q.nest); }
+      while (S.queue.length && S.queue[0].t <= S.qT) {
+        const q = S.queue.shift(), m = spawnAtNest(q.kind, q.nest);
+        if (q.first) { m.hp = m.maxHp = TIDE.first.hp; m.speed *= TIDE.first.speed; m.first = true; ev('firstDead', { id: m.id }); toast('Something crawls out of the dark. It is coming for the town.', 'bad'); }
+      }
       stepMobs(dt);
       stepAllies(dt);
       stepTowers(dt);
@@ -1019,11 +1094,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     }
     stepProjectiles(dt);
     // sunrise: whatever still walks long after the last surge burns away
-    if (S.phase === 'night' && !S.queue.length && S.mobs.length && S.qT > WAVES.duration(S.night) + 90) {
-      for (const m of [...S.mobs]) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
+    if (S.phase === 'night' && !S.queue.length && S.mobs.some(m => !m.roam) && S.qT > WAVES.duration(S.night) + 90) {
+      for (const m of S.mobs.filter(q => !q.roam)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
       toast('The sun rises and the last of the dead burn away.');
     }
-    if (S.phase === 'night' && !S.over && !S.queue.length && !S.mobs.length) dawn();
+    if (S.phase === 'night' && !S.over && !S.queue.length && !S.mobs.some(m => !m.roam)) dawn();
   }
 
   // ---------- forecast: where tonight's dead come from and how they walk ----------
@@ -1039,7 +1114,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (!nests.length) nests = edgeSpawns.map((_, k) => -1 - k);
     const w = nests.map(r => (S.wake[r] === n && n > 1 ? 0.5 : 1)), tw = w.reduce((a, b) => a + b, 0);
     const u = unlocked(n), wsum = u.reduce((a, [, m]) => a + m.weight, 0), avgCost = u.reduce((a, [, m]) => a + m.weight * m.cost, 0) / wsum;
-    const total = nightBudget(n) / avgCost;
+    const total = n === 1 && S.purge === null ? 1 : nightBudget(n) / avgCost;
+    if (n === 1) nests.splice(1);
     const out = nests.map((r, k) => {
       const p = r < 0 ? edgeSpawns[-1 - r] : map.regions[r].nest;
       return { nest: r, x: p.x, y: p.y, count: Math.round(total * w[k] / tw), siege: false, boss: false, path: tracePath(p.x, p.y) };
@@ -1065,7 +1141,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   /** building whose footprint covers the cell under (x, y), or the keep */
   function buildingAt(x, y) { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return null; const o = S.occ[idx(cx, cy)]; return o >= 0 ? S.byId.get(o) : null; }
-  S.picks.push('dawn'); rollOffer(); rollPacks();
+  S.picks.push('dawn'); rollOffer(); rollPacks(); spawnRoamers();
 
   // ---------- scavenging ----------
   sc = createScavenge({ S, map, seed, ev, toast, earn, activeNests, isBloodMoon, spawnMob, fail });
@@ -1082,6 +1158,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     },
     buildLine, upgradeWall, wallRun, wallBudget, lineCells,
     weather: () => ({ id: S.weather, ...W8() }),
+    duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
     crewing, manned, townDraw, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,

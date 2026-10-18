@@ -482,6 +482,8 @@ export function startApp() {
   $('#bell').onclick = ringBell;
   $('#logBtn').onclick = showLog;
   $('#crewBtn').onclick = showCrew;
+  let speed = 1; const SPEEDS = [1, 2, 3];
+  $('#spdBtn').onclick = () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; $('#spdBtn').textContent = `${speed}×`; $('#spdBtn').classList.toggle('fast', speed > 1); };
   const showSound = () => { const b = $('#sndBtn'); b.classList.toggle('off', audio.muted()); b.setAttribute('aria-label', audio.muted() ? 'Sound off' : 'Sound on'); };
   $('#sndBtn').onclick = () => { audio.setMuted(!audio.muted()); showSound(); }; showSound();
   // graphics quality: High (shadows, ambient occlusion, glow), Medium (glow), Low (fastest)
@@ -544,12 +546,13 @@ export function startApp() {
     const bell = $('#bell');
     if (night || S.over) {
       bell.hidden = true;
-      const left = S.queue.length + S.mobs.length;
+      const left = S.queue.length + S.mobs.filter(m => !m.roam).length;
       $('#info').innerHTML = S.over ? 'The keep has fallen' : `<em>${left}</em> dead left${S.hero.dead ? ` · you return in ${Math.ceil(S.hero.respawn)}s` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     } else {
-      bell.hidden = false; bell.textContent = bm ? 'Face the blood moon' : 'Ring the bell';
+      bell.hidden = false; const bonus = game.bellBonus(), dusk = Math.ceil(game.duskIn());
+      bell.textContent = (bm ? 'Face the blood moon' : 'Ring the bell') + (bonus > 0 ? ` · +${bonus}` : '');
       const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
-      $('#info').innerHTML = `Tonight <em>~${dead}</em> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}${game.townDraw() > 1.005 ? ` · <span class="draw">town +${Math.round((game.townDraw() - 1) * 100)}%</span>` : ''}`;
+      $('#info').innerHTML = `<span class="clock${dusk <= 15 ? ' soon' : ''}">Dusk ${Math.floor(dusk / 60)}:${String(dusk % 60).padStart(2, '0')}</span> · Tonight <em>~${dead}</em> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}${game.townDraw() > 1.005 ? ` · <span class="draw">town +${Math.round((game.townDraw() - 1) * 100)}%</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();
@@ -561,6 +564,7 @@ export function startApp() {
   function edgeMarks() {
     const S = game.state, Wd = innerWidth, Hh = innerHeight, m = 22, t = edge.top, bt = Hh - edge.bot, cx = Wd / 2, cy = (t + bt) / 2, buckets = new Map();
     if (S.phase === 'night') for (const z of S.mobs) {
+      if (z.roam) continue;
       const p = view.project(z.x, z.y); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
       const ang = Math.atan2(p.y - cy, p.x - cx), key = Math.round(ang / (Math.PI / 16));
       const b = buckets.get(key) || { ang, n: 0, big: false }; b.n++; if (MOBS[z.kind].size >= 1.6) b.big = true; buckets.set(key, b);
@@ -683,7 +687,7 @@ export function startApp() {
     const S = game.state;
     const kx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), ky = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
     game.setHeroInput(kx || joyIn.x, ky || joyIn.y);
-    if (!paused) { acc += dt; while (acc >= STEP && !paused) { game.step(STEP); acc -= STEP; if (S.over) break; } }
+    if (!paused) { acc += dt * speed; let n = 0; while (acc >= STEP && !paused && n++ < 240) { game.step(STEP); acc -= STEP; if (S.over) break; } if (n >= 240) acc = 0; }
     else acc = 0;
     const events = game.drainEvents();
     audio.onEvents(events, game); audio.tick(game, dt);

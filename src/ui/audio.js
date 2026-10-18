@@ -69,6 +69,10 @@ export function createAudio(store) {
     warcry() { tone('sawtooth', 160, 0.12, 0.5, { to: 120, lp: 1100, a: 0.03 }); hiss('bandpass', 600, 1, 0.06, 0.4); },
     claim() { for (const [f, at] of [[392, 0], [523, 0.15], [659, 0.3], [784, 0.45]]) tone('triangle', f, 0.05, 0.8, { at, a: 0.02 }); },
     thunder() { hiss('bandpass', 2600, 0.8, 0.12, 0.18); hiss('lowpass', 260, 0.7, 0.4, 2.6, { at: 0.12, a: 0.25, rate: 0.5, to: 90 }); },
+    first() { // a low, wrong chord swelling out of nothing
+      for (const [f, at] of [[55, 0], [58.3, 0.1], [82.4, 0.3], [116.5, 0.6]]) tone('sawtooth', f, 0.07, 3.2, { at, a: 1.2, lp: 500 });
+      hiss('lowpass', 300, 0.6, 0.12, 3, { a: 1.5, rate: 0.4 });
+    },
     bad() { tone('sine', 220, 0.06, 0.5, { to: 160, a: 0.02 }); },
   };
 
@@ -95,6 +99,7 @@ export function createAudio(store) {
         case 'warcry': case 'volley': S.warcry(); break;
         case 'claim': S.claim(); break;
         case 'heroDie': S.bad(); break;
+        case 'firstDead': S.first(); break;
       }
     }
   }
