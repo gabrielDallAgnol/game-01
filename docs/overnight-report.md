@@ -49,10 +49,12 @@
 
 | Difficulty | Nights reached (seeds) | Median | Notes |
 |---|---|---|---|
-| Story | 18, 24+, 10, 10, 15, 17 | ~16 | one still alive at the cap |
-| Survivor | 14, 16, 19, 6, 14, 13, 8, 21 | 14 | the Vale map is the hardest start |
-| Veteran | 18, 19, 5, 5, 8, 6 | ~7 | bimodal: strong starts snowball, weak ones fall at the first blood moons |
-| Nightmare | 9, 7, 4, 4, 4, 6 | 5 | as intended: brutal |
+| Story | 19, 15, 23, 10, 19, 20 | 19 | three still alive at the cap |
+| Survivor | 19, 18, 19, 6, 8, 10, 9, 20 | 14 | bimodal: strong starts snowball; the Vale map is the hardest start |
+| Veteran | 10, 13, 10, 4, 7, 10 | 10 | |
+| Nightmare | 8, 7, 6, 4, 4, 6 | 6 | brutal, as intended |
+
+Early game check (Survivor, 16 seeds, first 8 nights): the bot fell in **2 of 16** runs (it was 6 of 16 before the last fairness pass: the Scavver now carries a weak revolver, and roamers fill the open districts gradually).
 
 - Reading: Story is comfortable, Survivor is a real fight that usually ends in the teens for the bot, Veteran and Nightmare end early. The bot's early deaths come from over-expanding (every open district adds roamers and a hive stream). A human who is choosy about districts, builds barricades and manages heat should go further.
 
