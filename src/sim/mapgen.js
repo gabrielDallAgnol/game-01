@@ -13,9 +13,17 @@ export const BIOMES = {
   riverbend: { name: 'River Bend', blurb: 'A river curls around one flank. The dead must wade through the fords.' },
   highland:  { name: 'Highland Hold', blurb: 'The town sits on a plateau. Cliffs leave only a few passes up.' },
   lakeshore: { name: 'Lakeshore', blurb: 'A wide lake guards your back. Good farmland, open front.' },
+  vale:      { name: 'The Vale', blurb: 'You start at the bottom of a V-shaped valley. The dead only come from above, and you push up through it.' },
 };
 
 const R = 30;           // playable radius
+const VALE_HALF = 0.72; // half-opening of the Vale's V (radians), widened by VALE_PAD at the tip
+const VALE_PAD = 6.5;
+/** inside the Vale: the town circle at the tip, then a V opening upward (screen up is −y) */
+export function valeInside(rx, ry, pad = 0) {
+  if (Math.hypot(rx, ry) < 10 + pad) return true;
+  return ry < 0 && Math.abs(rx) <= -ry * Math.tan(VALE_HALF) + VALE_PAD + pad && Math.hypot(rx, ry) < 31 + pad;
+}
 const GRID = 4;         // lot spacing: a 3×3 building plus a one-cell street
 
 export const idx = (x, y) => y * N + x;
@@ -32,7 +40,8 @@ export function generateMap(seed, biome) {
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const d = Math.hypot(x + 0.5 - c, y + 0.5 - c);
     let t = T.GRASS;
-    if (d > R) t = T.VOID;
+    const vale = biome === 'vale';
+    if (vale ? !valeInside(x + 0.5 - c, y + 0.5 - c) : d > R) t = vale && valeInside(x + 0.5 - c, y + 0.5 - c, 1.6) ? T.CLIFF : T.VOID;
     else {
       const f = 0.65 * f1(x, y) + 0.35 * f2(x, y);
       if (f > 0.6 && d > 7) t = T.FOREST;
@@ -92,8 +101,12 @@ export function generateMap(seed, biome) {
   // 4. regions: town + a ring of 6 + an outer ring of 10
   const seeds = [{ x: c, y: c, ring: 0 }];
   const off1 = rng.range(0, Math.PI * 2), off2 = rng.range(0, Math.PI * 2);
-  for (let k = 0; k < 6; k++) { const an = off1 + k * Math.PI / 3 + rng.range(-0.22, 0.22), r = rng.range(14, 16.5); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 1 }); }
-  for (let k = 0; k < 10; k++) { const an = off2 + k * Math.PI / 5 + rng.range(-0.18, 0.18), r = rng.range(21.5, 25); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 2 }); }
+  if (biome === 'vale') {
+    // bands across the V, each wider than the last: 4 near, 5 far
+    const band = (n, r0, r1, ring) => { for (let k = 0; k < n; k++) { const f = (k + 0.5) / n * 2 - 1, an = -Math.PI / 2 + f * (VALE_HALF + 0.12) + rng.range(-0.06, 0.06), r = rng.range(r0, r1); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring }); } };
+    band(4, 14.5, 16.5, 1); band(5, 23.5, 26.5, 2);
+  } else for (let k = 0; k < 6; k++) { const an = off1 + k * Math.PI / 3 + rng.range(-0.22, 0.22), r = rng.range(14, 16.5); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 1 }); }
+  if (biome !== 'vale') for (let k = 0; k < 10; k++) { const an = off2 + k * Math.PI / 5 + rng.range(-0.18, 0.18), r = rng.range(21.5, 25); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 2 }); }
   const region = new Int16Array(N * N).fill(-1);
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     if (terrain[idx(x, y)] === T.VOID) continue;
@@ -211,15 +224,15 @@ export function validateMap(map) {
   if (nests.filter(r => r.ring === 1).length < 4) problems.push('fewer than 4 first-ring nests');
   for (const r of nests) if (!map.reach[idx(Math.floor(r.nest.x), Math.floor(r.nest.y))]) problems.push(`nest ${r.id} unreachable`);
   const total = map.slots.length;
-  if (total < 40) problems.push(`only ${total} slots on the map`);
+  if (total < (map.biome === 'vale' ? 28 : 40)) problems.push(`only ${total} slots on the map`);
   return problems;
 }
 
 /** Two different, valid maps for the start screen. */
 export function mapChoices(seed) {
-  const kinds = Object.keys(BIOMES);
+  // the Vale is always one of the two; the other is drawn from the open lands
   const rng = new Rng(hashSeed(seed, 'choices'));
-  rng.shuffle(kinds);
+  const kinds = ['vale', ...rng.shuffle(Object.keys(BIOMES).filter(k => k !== 'vale'))];
   const out = [];
   for (const biome of kinds) {
     for (let tries = 0; tries < 12 && out.length < 2; tries++) {

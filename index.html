@@ -103,6 +103,54 @@ table.log{border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-n
 .log td{padding:5px 10px 5px 0;border-bottom:1px solid var(--line)} .log td.bad{color:var(--blood)}
 #logJson{width:100%;height:90px;margin-top:10px;background:var(--ink);color:var(--bone);border:1px solid var(--line);border-radius:6px;font:11px ui-monospace,Menlo,monospace}
 .seedrow{display:flex;align-items:center;gap:8px;margin-top:8px}
+/* build tray and placement */
+.tray{display:flex;gap:5px;pointer-events:auto;flex-wrap:wrap;justify-content:center}
+.tb{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 11px 5px 6px;backdrop-filter:blur(6px);font-size:13px}
+.tb i{width:18px;height:18px;border-radius:4px;background:#8b6a46;flex:none}
+.tb.farm i{background:#c9a948} .tb.tower i{background:#a9bccd;border-radius:50%} .tb.wall i{background:#6b5236;height:8px}
+.tb .tn{font-family:var(--display);font-weight:800}
+.tb .tc{font-weight:700;color:var(--rot);font-variant-numeric:tabular-nums}
+.tb.have{border-color:rgba(163,198,92,.55)} .tb.on{background:rgba(234,164,65,.25);border-color:var(--amber)}
+.tb[aria-disabled="true"]{opacity:.45}
+.place{display:flex;align-items:center;gap:6px;pointer-events:auto;background:var(--panel);border:1px solid var(--amber);border-radius:999px;padding:4px 4px 4px 14px;backdrop-filter:blur(6px);font-size:13px;max-width:100%}
+#placeInfo{min-width:0} #placeInfo .warn{color:#f0a090}
+.place .btn:disabled{opacity:.4}
+/* ability */
+.ability{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(74px + env(safe-area-inset-bottom,0px));width:76px;height:76px;border-radius:50%;
+  background:conic-gradient(rgba(10,14,15,.7) calc(var(--cd,0) * 360deg), transparent 0),var(--amber);color:#1d1408;border:2px solid rgba(236,223,198,.5);display:grid;place-content:center;gap:1px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.ability .an{font-family:var(--display);font-weight:800;font-size:12px;line-height:1;padding:0 6px}
+.ability .ac{font-size:12px;font-weight:700;display:inline-flex;gap:3px;align-items:center;justify-content:center}
+.ability.cool{background:conic-gradient(rgba(234,164,65,.35) calc(var(--cd,0) * 360deg), transparent 0),var(--panel-solid);color:var(--bone);border-color:var(--line)}
+/* joystick */
+.joy{position:fixed;left:-44px;top:-44px;width:88px;height:88px;border-radius:50%;border:2px solid rgba(236,223,198,.35);background:rgba(18,26,27,.25);pointer-events:none}
+.joy i{position:absolute;left:28px;top:28px;width:32px;height:32px;border-radius:50%;background:rgba(236,223,198,.55)}
+/* cards: arming, rarities, packs, ending */
+.card.arming button{opacity:.6;transition:opacity .2s}
+.card button{transition:opacity .2s}
+.perk .rar{font-size:10px;letter-spacing:.1em;color:var(--muted);margin-left:auto;padding-left:8px}
+.perk .pips{margin-left:8px}
+.perk.rare{border-color:rgba(122,170,224,.45)} .perk.rare .rar{color:#8ab8e8}
+.perk.legendary{border-color:rgba(234,164,65,.7);background:linear-gradient(160deg,rgba(234,164,65,.14),rgba(236,223,198,.04))} .perk.legendary .rar{color:var(--amber)}
+.perk.pact{border-color:rgba(212,85,63,.6);background:linear-gradient(160deg,rgba(212,85,63,.14),rgba(236,223,198,.03))} .perk.pact .rar{color:var(--blood)}
+.pcost{font-size:13px;color:#f0a090} .pcombo{font-size:13px;color:var(--rot)}
+.combo{font-family:var(--body);font-size:11px;font-weight:700;color:#1d1408;background:var(--rot);border-radius:999px;padding:1px 7px 2px;vertical-align:3px}
+.cardrow.spread{justify-content:space-between}
+.btn.ghost .dot{display:inline-block;vertical-align:0}
+.packs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.pack{text-align:left;display:grid;gap:6px;background:rgba(236,223,198,.05);border:1px solid var(--line);border-radius:10px;padding:12px 12px 14px;align-content:start}
+.pack:hover{background:rgba(236,223,198,.1);border-color:var(--amber)}
+.pack b{font-family:var(--display);font-weight:800;font-size:21px;line-height:1}
+.pack .pf{color:var(--muted)} .pack.def .pf{color:#a9bccd} .pack.eco .pf{color:var(--rot)} .pack.mix .pf{color:var(--amber)}
+.items{display:grid;gap:3px}
+.it{display:flex;align-items:center;gap:7px;font-size:14px}
+.it i{width:14px;height:14px;border-radius:3px;background:#8b6a46} .it.farm i{background:#c9a948} .it.tower i{background:#a9bccd;border-radius:50%} .it.wall i{background:#6b5236;height:6px}
+.opts.two{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.endstats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:4px 0 14px}
+.endstats div{background:rgba(236,223,198,.05);border:1px solid var(--line);border-radius:8px;padding:8px 10px 9px;display:grid;gap:2px}
+.endstats b{font-family:var(--display);font-weight:800;font-size:26px;line-height:1;font-variant-numeric:tabular-nums;color:var(--amber)}
+.endstats span{font-size:12px;color:var(--muted)}
+details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:var(--muted);font-size:13px;margin-bottom:8px}
+@media (max-width:560px){ .ability{width:64px;height:64px;bottom:calc(96px + env(safe-area-inset-bottom,0px))} .tb{padding:3px 9px 4px 5px;font-size:12px} .packs{grid-template-columns:1fr} }
 @media (max-width:560px){ .opts{grid-template-columns:repeat(2,1fr)} .pill{gap:8px;padding:3px 10px 4px} .meter{width:40px} }
 @media (prefers-reduced-motion:reduce){ .toast{animation:none} }
 </style>
@@ -127,9 +175,13 @@ table.log{border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-n
       <div class="phead"><span class="eyebrow" id="pEyebrow"></span><b id="pTitle"></b><button class="x" id="pClose" aria-label="Close panel">&times;</button></div>
       <div id="pBody"></div>
     </div>
+    <div id="place" class="place" hidden><span id="placeInfo"></span><button class="btn ghost" id="pRot" aria-label="Rotate palisade">Rotate</button><button class="btn" id="pOk">Place</button><button class="x" id="pCancel" aria-label="Stop placing">&times;</button></div>
+    <div id="tray" class="tray" hidden></div>
     <div class="bar"><div id="info"></div><button class="btn" id="bell">Ring the bell</button></div>
   </div>
 </div>
+<button id="ability" class="ability" hidden><span class="an"></span><span class="ac"></span></button>
+<div id="joy" class="joy" hidden><i></i></div>
 <div id="edge"></div>
 <div id="toasts" aria-live="polite"></div>
 <div id="overlay"><div class="card wide" id="card"></div></div>

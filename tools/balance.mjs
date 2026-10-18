@@ -19,7 +19,7 @@ if (!isMainThread) {
   }
 } else {
   const runs = +arg('--runs', 2), max = +arg('--max', 40), out = arg('--out', 'reports/balance.json');
-  const HEROES = (arg('--heroes', 'warrior,archer,steward')).split(',');
+  const HEROES = (arg('--heroes', 'warrior,archer,merchant')).split(',');
   const STRATS = (arg('--strats', 'balanced,towers,economy,walls')).split(',');
   const EXP = (arg('--exp', 'never,careful,bold,reckless')).split(',');
   const PATHS = (arg('--paths', 'any')).split(',');

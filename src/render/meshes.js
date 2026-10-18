@@ -141,10 +141,10 @@ export function mobMesh(kind, size, rand) {
 // ---------- heroes ----------
 export function heroMesh(kind) {
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-  const cloth = { warrior: 0x2f5d8a, archer: 0x3d6b3a, steward: 0x5a3a72 }[kind];
-  const trim = { warrior: 0xd99a3a, archer: 0x8a6a3a, steward: 0xd8b04a }[kind];
+  const cloth = { warrior: 0x2f5d8a, archer: 0x3d6b3a, steward: 0x5a3a72, merchant: 0x5a3a72 }[kind];
+  const trim = { warrior: 0xd99a3a, archer: 0x8a6a3a, steward: 0xd8b04a, merchant: 0xd8b04a }[kind];
   body.add(box(0.2, 0.55, 0.22, 0x3b2f26, -0.15, 0.27, 0)); body.add(box(0.2, 0.55, 0.22, 0x3b2f26, 0.15, 0.27, 0));
-  if (kind === 'steward') { body.add(cone(0.48, 1.0, 6, cloth, 0, 0.75, 0)); }
+  if (kind === 'steward' || kind === 'merchant') { body.add(cone(0.48, 1.0, 6, cloth, 0, 0.75, 0)); }
   body.add(box(0.64, 0.72, 0.42, cloth, 0, 0.9, 0));
   body.add(box(0.2, 0.72, 0.44, trim, 0, 0.9, 0));
   body.add(box(0.42, 0.42, 0.42, 0xe2b48c, 0, 1.5, 0));
@@ -174,4 +174,27 @@ export function chestMesh() {
   g.add(box(0.7, 0.45, 0.48, 0x6b4a2c, 0, 0.25, 0)); g.add(box(0.74, 0.12, 0.52, 0xeaa441, 0, 0.42, 0)); g.add(box(0.12, 0.16, 0.06, 0xeaa441, 0, 0.3, 0.26));
   const l = new THREE.PointLight(0xffc35a, 1.2, 4, 2); l.position.y = 1; g.add(l);
   return g;
+}
+
+// ---------- sellswords, purses ----------
+export function mercMesh() {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  body.add(box(0.2, 0.55, 0.22, 0x3b2f26, -0.15, 0.27, 0)); body.add(box(0.2, 0.55, 0.22, 0x3b2f26, 0.15, 0.27, 0));
+  body.add(box(0.64, 0.72, 0.42, 0x7a5a3a, 0, 0.9, 0));
+  body.add(box(0.66, 0.16, 0.44, 0x4a3a2a, 0, 0.72, 0));
+  body.add(box(0.42, 0.42, 0.42, 0xd8a882, 0, 1.5, 0));
+  body.add(cone(0.34, 0.36, 6, 0x8a8f94, 0, 1.86, 0));
+  const spear = new THREE.Group(); spear.position.set(0.42, 0.9, 0.1);
+  spear.add(cyl(0.035, 0.035, 1.8, 4, 0x6b4a2c, 0, 0.3, 0)); spear.add(cone(0.08, 0.28, 4, 0xd8dde0, 0, 1.33, 0));
+  body.add(spear); body.scale.setScalar(0.62);
+  return { g, body, weapon: spear };
+}
+export function purseMesh() {
+  const g = new THREE.Group();
+  g.add(cyl(0.22, 0.26, 0.3, 7, 0x8a6a3a, 0, 0.18, 0)); g.add(cyl(0.1, 0.16, 0.1, 6, 0x6b4a2c, 0, 0.38, 0));
+  const coin = cyl(0.13, 0.13, 0.04, 10, new THREE.MeshStandardMaterial({ color: 0xeaa441, emissive: 0xb8781a, emissiveIntensity: 0.6, flatShading: true }), 0.2, 0.42, 0); coin.rotation.z = 1.2; g.add(coin);
+  return g;
+}
+export function flameMesh() {
+  return new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.42, 5), new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 0.85 }));
 }

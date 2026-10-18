@@ -25,16 +25,18 @@ function pickPurge(g, n, ok) {
   if (!opts.length) return null;
   opts.sort((a, b) => a.ratio - b.ratio || b.slots - a.slots);
   // only expand when the town is mostly built
-  const free = g.map.slots.filter(s => S.claimed.has(s.region) && S.slotB[s.id] < 0).length;
+  const free = g.map.slots.filter(s => S.claimed.has(s.region) && g.canPlace('house', s.x, s.y).ok).length;
   return free <= 3 ? opts[0].id : null;
 }
 
 function nestPoints(g) { return g.activeNests(g.state.night + 1).concat(g.activeNests()).map(r => g.map.regions[r].nest); }
 
-function slotFor(g, kind) {
+// candidate spots = the map's suggested lots (a tidy street grid); keep the ones that fit right now
+function spotFor(g, kind) {
   const S = g.state, map = g.map;
   const def = kind === 'tower' || kind === 'wall';
-  const free = map.slots.filter(s => S.claimed.has(s.region) && S.slotB[s.id] < 0 && (def || !s.gate));
+  const fits = s => { if (!S.claimed.has(s.region) || (s.gate && !def)) return null; for (const rot of kind === 'wall' ? [gateRot(g, s), 0, 1, 2, 3] : [0]) { const p = g.canPlace(kind, s.x, s.y, rot); if (p.ok) return { x: s.x, y: s.y, rot, gate: s.gate, nearWater: s.nearWater }; } return null; };
+  const free = map.slots.map(fits).filter(Boolean);
   if (!free.length) return null;
   if (kind === 'wall') { const gate = free.find(s => s.gate); if (gate) return gate; }
   const nests = nestPoints(g);
@@ -47,10 +49,14 @@ function slotFor(g, kind) {
   else order = free.sort((a, b) => near(b) - near(a));
   return order[0];
 }
+function gateRot(g, s) { const a = Math.atan2(s.y - g.map.town.y, s.x - g.map.town.x), q = ((Math.round(a / (Math.PI / 4)) % 4) + 4) % 4; return [1, 3, 0, 2][q]; }
+const place = (g, kind) => { const s = spotFor(g, kind); return !!(s && g.build(kind, s.x, s.y, s.rot)); };
 
 export function dayTurn(g, strat) {
+  choosePack(g, strat);
   // walk the shopping list round-robin, so every item gets its turn instead of the first one eating all the gold
   const S = g.state, list = STRATEGIES[strat](S.night);
+  for (const t of ['tower', 'wall', 'farm', 'house']) for (let k = 0; k < 6 && (S.stock[t] || 0) > 0; k++) if (!place(g, t)) break;
   let k = 0, misses = 0;
   while (misses < list.length + 2) {
     const act = list[k % list.length]; k++;
@@ -59,45 +65,67 @@ export function dayTurn(g, strat) {
   // leftovers: upgrade towers and houses, then the keep
   for (let guard = 0; guard < 20; guard++) {
     const b = S.buildings.filter(x => (x.type === 'tower' || x.type === 'house') && x.level < 3).sort((a, c) => a.level - c.level)[0];
-    if (!(b && g.upgrade(b.slot)) && !(S.night >= 3 && g.upgradeKeep())) break;
+    if (!(b && g.upgrade(b.id)) && !(S.night >= 3 && g.upgradeKeep())) break;
   }
 }
 function tryAct(g, act) {
   const S = g.state, foodNet = g.foodPerDawn() - g.foodNeed();
-  if (act === 'food') { if (foodNet < 1 && S.food < 6) { const s = slotFor(g, 'farm'); return !!(s && g.build(s.id, 'farm')); } return false; }
+  if (act === 'food') { if (foodNet < 1 && S.food < 6) return place(g, 'farm'); return false; }
   if (act === 'keep') return S.night >= 3 && g.upgradeKeep();
   if (act.startsWith('up')) {
     const t = act.slice(2).toLowerCase();
     const b = S.buildings.filter(x => x.type === t && x.level < 3).sort((a, c) => a.level - c.level)[0];
-    return !!(b && g.upgrade(b.slot));
+    return !!(b && g.upgrade(b.id));
   }
   if (act === 'farm' && foodNet > 3) return false;
   if (act === 'house' && foodNet < 0) return false; // do not add mouths you cannot feed
-  const s = slotFor(g, act);
-  return !!(s && g.build(s.id, act));
+  return place(g, act);
 }
 
+import { PACKS } from '../src/content/packs.js';
+export function choosePack(g, strat) {
+  const S = g.state; if (!S.packs.length) return;
+  const want = { towers: 'def', walls: 'def', economy: 'eco', balanced: g.foodPerDawn() < g.foodNeed() + 2 || S.buildings.filter(b => b.type === 'tower').length > S.buildings.filter(b => b.type === 'house').length ? 'eco' : 'def' }[strat] || 'def';
+  const ps = S.packs.map(id => PACKS.find(p => p.id === id));
+  const pick = ps.find(p => p.kind === want) || ps.find(p => p.kind === 'mix') || ps[0];
+  g.choosePack(pick.id);
+}
 export function choosePerks(g, path) {
   const S = g.state;
   while (S.pendingPicks > 0 && S.offer.length) {
-    let pick = S.offer.find(id => PERK_FAM[id] === path);
-    if (!pick) pick = S.offer[0];
+    let pick = S.offer.find(id => PERK_FAM[id] === path && !PERK_PACT[id]);
+    if (!pick) pick = S.offer.find(id => !PERK_PACT[id]) || S.offer[0];
     g.choosePerk(pick);
   }
 }
 const PERK_FAM = {};
 import { PERKS } from '../src/content/perks.js';
-for (const p of PERKS) PERK_FAM[p.id] = p.fam;
+const PERK_PACT = {};
+for (const p of PERKS) { PERK_FAM[p.id] = p.fam; PERK_PACT[p.id] = !!p.pact; }
 
 /** steer the hero for one decision tick: fight what threatens the town, else rest at the keep */
+function useAbilityBot(g) {
+  const S = g.state, h = S.hero, t = g.map.town, A = g.heroDef.ability;
+  if (!A || S.phase !== 'night' || S.ability.cd > 0 || h.dead) return;
+  if (A.id === 'hire') { const near = S.mobs.filter(m => Math.hypot(m.x - t.x, m.y - t.y) < 9).length; if (near >= 4 && S.gold >= g.abilityCost() + 6) g.useAbility(); }
+  else if (A.id === 'warcry') { if (S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) < 5).length >= 4 && h.hp > h.maxHp * 0.5) g.useAbility(); }
+  else if (A.id === 'volley') { if (S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) < 10).length >= 4) g.useAbility(); }
+}
 export function heroTick(g, mode) {
   const S = g.state, h = S.hero, t = g.map.town;
   if (h.dead) return;
+  if (g.heroDef.collects && mode !== 'idle') {
+    useAbilityBot(g);
+    const p = S.purses.filter(q => Math.hypot(q.x - t.x, q.y - t.y) < 12).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+    if (p) g.heroTo(p.x, p.y); else if (S.chests.length) g.heroTo(S.chests[0].x, S.chests[0].y); else g.heroTo(t.x, t.y + 3.5);
+    return;
+  }
   if (mode === 'idle' || !g.heroDef.attack) {
     // non-fighters still walk over chests
     if (S.chests.length) { const ch = S.chests[0]; g.heroTo(ch.x, ch.y); } else g.heroTo(t.x, t.y + 3.5);
     return;
   }
+  useAbilityBot(g);
   const lowHp = h.hp < h.maxHp * 0.3;
   const threats = S.mobs.filter(m => m.rise >= 1 && Math.hypot(m.x - t.x, m.y - t.y) < 16).sort((a, b) => Math.hypot(a.x - t.x, a.y - t.y) - Math.hypot(b.x - t.x, b.y - t.y));
   if (lowHp) { g.heroTo(t.x, t.y + 3.5); return; }

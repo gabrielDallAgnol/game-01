@@ -22,7 +22,7 @@ test('map choice offers two different biomes', () => {
 
 test('every nest can walk to the town', () => {
   for (const biome of Object.keys(BIOMES)) {
-    const g = createGame({ seed: 5, biome });
+    const g = createGame({ mode: 'classic', seed: 5, biome });
     while (g.state.pendingPicks) g.choosePerk(g.state.offer[0]);
     assert.equal(g.startNight(), true);
     for (const r of g.map.regions) if (r.nest) {
@@ -39,7 +39,7 @@ test('the same seed and inputs replay the same run', () => {
 });
 
 test('palisades reroute the dead instead of being ignored', () => {
-  const g = createGame({ seed: 3, biome: 'highland' });
+  const g = createGame({ mode: 'classic', seed: 3, biome: 'highland' });
   const S = g.state;
   while (S.pendingPicks) g.choosePerk(S.offer[0]);
   g.startNight();
@@ -53,7 +53,7 @@ test('palisades reroute the dead instead of being ignored', () => {
 });
 
 test('day actions respect gold, phase and claimed land', () => {
-  const g = createGame({ seed: 2, biome: 'lakeshore' });
+  const g = createGame({ mode: 'classic', seed: 2, biome: 'lakeshore' });
   const S = g.state, core = g.map.regions[0].slots;
   const outside = g.map.slots.find(s => s.region !== 0);
   assert.equal(g.build(outside.id, 'house'), false, 'built outside claimed land');
@@ -65,7 +65,7 @@ test('day actions respect gold, phase and claimed land', () => {
 });
 
 test('a survived siege claims the region and wakes the nests behind it', () => {
-  const g = createGame({ seed: 9, biome: 'riverbend', hero: 'archer' });
+  const g = createGame({ mode: 'classic', seed: 9, biome: 'riverbend', hero: 'archer' });
   const S = g.state;
   while (S.pendingPicks) g.choosePerk(S.offer[0]);
   const target = g.map.regions.find(r => g.canPurge(r.id));
@@ -79,19 +79,19 @@ test('a survived siege claims the region and wakes the nests behind it', () => {
   for (const nb of target.neighbors) if (g.map.regions[nb].nest && !S.claimed.has(nb)) assert.ok(S.wake[nb] <= S.night, `neighbour ${nb} did not wake`);
 });
 
-test('heroes: the steward never attacks, warriors and archers do', () => {
-  for (const hero of ['warrior', 'archer', 'steward']) {
-    const g = createGame({ seed: 4, biome: 'highland', hero }); const S = g.state;
+test('heroes: the merchant never attacks, warriors and archers do', () => {
+  for (const hero of ['warrior', 'archer', 'merchant']) {
+    const g = createGame({ mode: 'classic', seed: 4, biome: 'highland', hero }); const S = g.state;
     while (S.pendingPicks) g.choosePerk(S.offer[0]);
     g.startNight();
     for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) { const m = S.mobs[0]; if (m) g.heroTo(m.x, m.y); g.step(); }
     const kills = S.log[0].kills.hero || 0;
-    if (hero === 'steward') assert.equal(kills, 0); else assert.ok(kills > 0, `${hero} killed nothing`);
+    if (hero === 'merchant') assert.equal(kills, 0); else assert.ok(kills > 0, `${hero} killed nothing`);
   }
 });
 
 test('the dead never end up inside walls or water', () => {
-  const g = createGame({ seed: 21, biome: 'riverbend' }); const S = g.state;
+  const g = createGame({ mode: 'classic', seed: 21, biome: 'riverbend' }); const S = g.state;
   S.night = 9; while (S.pendingPicks) g.choosePerk(S.offer[0]);
   g.startNight();
   for (let k = 0; k < 60 * 60; k++) {
@@ -102,6 +102,7 @@ test('the dead never end up inside walls or water', () => {
 });
 
 import { spaceStats } from '../tools/space.mjs';
+import { PERKS } from '../src/content/perks.js';
 test('towns use their space: enough lots, little dead land, a street around every building', () => {
   for (const biome of Object.keys(BIOMES)) for (let s = 1; s <= 20; s++) {
     const m = generateMap(s, biome), st = spaceStats(m);
@@ -112,17 +113,91 @@ test('towns use their space: enough lots, little dead land, a street around ever
   }
 });
 
-test('rivers and passes get gate lots, which only take towers and palisades', () => {
-  const g = createGame({ seed: 3, biome: 'highland' });
-  const gate = g.map.slots.find(s => s.gate);
-  assert.ok(gate, 'no gate lot on a highland map');
-  assert.equal(g.build(gate.id, 'house'), false);
-  assert.equal(g.build(gate.id, 'wall'), true);
+test('free placement: no overlaps, a street between buildings, palisades chain and rotate', () => {
+  const g = createGame({ mode: 'classic', seed: 3, biome: 'highland' }); const S = g.state; S.gold = 999;
+  const t = g.map.town, spots = [];
+  for (let y = t.y - 10; y <= t.y + 10; y++) for (let x = t.x - 10; x <= t.x + 10; x++) spots.push([x + 0.5, y + 0.5]);
+  const find = (type, rot = 0) => spots.find(([x, y]) => g.canPlace(type, x, y, rot).ok);
+  const [hx, hy] = find('house');
+  assert.equal(g.build('house', hx, hy), true);
+  assert.equal(g.canPlace('house', hx + 1, hy).ok, false, 'overlapping house allowed');
+  const touching = [[3, 0], [-3, 0], [0, 3], [0, -3]].map(([dx, dy]) => g.canPlace('house', hx + dx, hy + dy));
+  assert.ok(touching.every(p => !p.ok), 'a touching house was allowed');
+  assert.ok(touching.some(p => /street/.test(p.reason)), 'the street rule never triggered');
+  for (const rot of [0, 1, 2, 3]) assert.ok(find('wall', rot), `no spot fits a palisade with rotation ${rot}`);
+  const [wx, wy] = find('wall', 0); assert.equal(g.build('wall', wx, wy, 0), true);
+  assert.doesNotMatch(g.canPlace('wall', wx + 5, wy, 0).reason, /street/, 'palisades should chain end to end');
+  const outside = g.map.slots.find(sl => sl.region !== 0);
+  assert.equal(g.canPlace('house', outside.x, outside.y).ok, false, 'built outside your land');
+});
+
+test('the hero can always walk between buildings', () => {
+  const g = createGame({ mode: 'classic', seed: 4, biome: 'riverbend' }); const S = g.state; S.gold = 999;
+  for (const s of g.map.regions[0].slots) g.build(s, 'house');
+  // every free cell of the town that touches a building must reach the keep through free cells
+  const { N, idx, PASSABLE } = { N: 64, idx: (x, y) => y * 64 + x, PASSABLE: [true, true, false, false, false, true, true, false] };
+  const seen = new Uint8Array(N * N), q = [idx(Math.floor(S.hero.x), Math.floor(S.hero.y))]; seen[q[0]] = 1;
+  while (q.length) { const i = q.pop(), x = i % N, y = (i / N) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const j = idx(x + dx, y + dy); if (!seen[j] && PASSABLE[g.map.terrain[j]] && S.occ[j] < 0) { seen[j] = 1; q.push(j); } } }
+  for (const b of S.buildings) {
+    const ok = b.cells.some(i => { const x = i % N, y = (i / N) | 0; return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen[idx(x + dx, y + dy)]); });
+    assert.ok(ok, `${b.type} at ${b.x},${b.y} cannot be reached on foot`);
+  }
+});
+
+test('blessings: rarity by source, pacts, masteries, reroll', () => {
+  const g = createGame({ mode: 'classic', seed: 12, biome: 'lakeshore', hero: 'warrior' }); const S = g.state;
+  S.picks = ['nest']; g.choosePerk; // a nest offer must hold a legendary
+  S.picks = ['nest']; S.pendingPicks = 1;
+  g.reroll(); // free reroll rolls the nest offer
+  
+  assert.ok(S.offer.some(id => PERKS.find(p => p.id === id).rarity === 'legendary'), 'nest offer without a legendary');
+  // three of a family → mastery choice next
+  S.picks = ['dawn', 'dawn', 'dawn']; S.pendingPicks = 3; S.offer = ['steel']; S.offerSource = 'dawn';
+  for (let k = 0; k < 3; k++) { S.offer = ['steel', 'hymn', 'skin']; S.offerSource = 'dawn'; g.choosePerk(['steel', 'hymn', 'skin'][k]); }
+  assert.ok(S.offer.every(id => id.startsWith('m:')), 'no mastery offered after 3 Hero blessings');
+  g.choosePerk(S.offer[0]);
+  assert.ok(g.mastered('hero'));
+  // pacts carry a downside
+  const before = g.keepMaxHp(); S.offer = ['pactBlood']; S.offerSource = 'dawn'; S.picks = ['dawn']; g.choosePerk('pactBlood');
+  assert.ok(g.keepMaxHp() < before, 'Blood Arrows did not cost keep health');
+  // rerolls: first free, then cost gold
+  S.picks = ['dawn']; S.pendingPicks = 1; S.gold = 100; S.reroll.free = 1; g.state.offer = ['tax']; S.offerSource = 'dawn';
+  g.reroll(); assert.equal(S.gold, 100); g.reroll(); assert.equal(S.gold, 95);
+});
+
+test('heroes: abilities work and the merchant hires sellswords', () => {
+  for (const hero of ['warrior', 'archer', 'merchant']) {
+    const g = createGame({ mode: 'classic', seed: 6, biome: 'highland', hero }); const S = g.state;
+    while (S.pendingPicks) g.choosePerk(S.offer[0]);
+    S.gold = 50; S.night = 4; g.startNight();
+    for (let k = 0; k < 60 * 12; k++) g.step();
+    const t = g.map.town; S.hero.x = t.x; S.hero.y = t.y + 3.5;
+    if (S.mobs[0]) { S.hero.x = S.mobs[0].x; S.hero.y = S.mobs[0].y; }
+    const ok = g.useAbility(S.mobs[0]?.x, S.mobs[0]?.y);
+    if (hero === 'merchant') { assert.equal(ok, true); assert.equal(S.allies.length, 2); assert.equal(S.gold, 40); }
+    else assert.ok(S.ability.cd > 0 || !ok, `${hero} ability did nothing`);
+    assert.equal(g.useAbility(), false, 'ability ignored its cooldown');
+  }
 });
 
 test('the forecast traces every attacking nest to the town', () => {
   for (const biome of Object.keys(BIOMES)) {
-    const g = createGame({ seed: 8, biome }); g.state.night = 6;
+    const g = createGame({ mode: 'classic', seed: 8, biome }); g.state.night = 6;
     for (const f of g.forecast()) { assert.ok(f.count > 0); assert.ok(f.path.length > 3, `${biome} nest ${f.nest} has no route`); }
   }
+});
+
+test('packs: a choice of 2 each dawn, pack buildings are free, extra ones cost double gold', () => {
+  const g = createGame({ seed: 5, biome: 'highland', mode: 'packs' }); const S = g.state;
+  while (S.pendingPicks) g.choosePerk(S.offer[0]);
+  assert.equal(S.packs.length, 2);
+  assert.equal(g.startNight(), false, 'night started before choosing a pack');
+  const before = { ...S.stock }; g.choosePack(S.packs[0]);
+  assert.ok(Object.keys(S.stock).some(t => S.stock[t] > (before[t] || 0)), 'pack added nothing');
+  const t = g.map.town, spots = [];
+  for (let y = t.y - 9; y <= t.y + 9; y++) for (let x = t.x - 9; x <= t.x + 9; x++) spots.push([x + 0.5, y + 0.5]);
+  const gold = S.gold; const [x, y] = spots.find(([a, b]) => g.canPlace('tower', a, b).ok);
+  assert.equal(g.build('tower', x, y), true); assert.equal(S.gold, gold, 'a pack tower cost gold');
+  S.stock.house = 0; S.gold = 100; const [hx, hy] = spots.find(([a, b]) => g.canPlace('house', a, b).ok);
+  assert.equal(g.build('house', hx, hy), true); assert.equal(S.gold, 100 - g.costOf('house') * 2);
 });

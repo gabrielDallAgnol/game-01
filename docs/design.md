@@ -33,6 +33,22 @@
 | Tower blessings are % (was +1 flat on a 1-damage tower) | Bow blessings replaced building towers | Paths now median 12–23 (was Bow far ahead) |
 | Ratings recalibrated: Easy < 0.3, Medium < 0.55, Hard < 0.8 | Monotonic table after bot fixes | Easy 1–3% of nights end the run, Impossible 59%+ |
 
+## Packs, free placement & the Vale (Oct 18, afternoon)
+
+| Area | What changed |
+|---|---|
+| Building | Free placement: any spot on claimed open ground, a one-cell street around every building (palisades and towers may chain). Palisades rotate in 4 directions. Pull down refunds half. |
+| Packs mode (default) | Islanders-style: each dawn pick 1 of 2 packs (town / defence / mixed) and place them free. Extra buildings cost double gold. Classic mode keeps gold-only buying. |
+| Blessings v2 | Common / rare / legendary, pacts with a real downside, 5 combos, masteries after 3 of a family (choice of 2), rerolls (first free, then 5g +5). Chests guarantee a rare, nests a legendary. See `docs/blessings-v2.md`. |
+| Heroes | Every hero has one button: War Cry (taunt + guard), Volley (area arrows), Hire sellswords. The Merchant collects purses, gets 10% off, a 4th blessing card and a dawn trader. |
+| Phone | Drag anywhere = joystick; a tap selects or walks. Cards ignore taps for 0.7 s, and dawn waits 1.2 s after the last kill. |
+| Town life | Villagers walk between homes, farms and the keep by day. |
+| Nests | Only nests that will send dead tonight are drawn in full; sleeping nests next to your land show as a faint scar (still marchable); far nests are hidden. |
+| The Vale | New V-shaped map: the town sits at the bottom tip; 4 near and 5 far regions widen up the valley. Always one of the two start choices for now. |
+| Ending | The camera circles the fallen keep, then a stat card counts up: nights, kills by kind, gold, buildings, peak citizens, land, blessings, bosses, hero or merchant numbers, plus the ledger. |
+
+Balance (96 bot runs, packs mode): median night warrior 24, archer 27, merchant 24. Vale bots 19–29. Rating calibration unchanged (Easy ends 1% of runs, 0.5+ ends half).
+
 ## Next drop: town stats (agreed direction)
 - **Main system: scavenge runs** (Dying Light / State of Decay / Project Zomboid): ruins in unclaimed regions hold loot. Send survivors out by day; the further out, the better the loot and the risk. Survivors arrive with traits (Medic, Carpenter, Coward…).
 - **Infection and noise as natural events,** not tied to buildings. For example: a scavenger comes back bitten (treat, quarantine or exile), or a storm whose thunder draws a horde from one side.

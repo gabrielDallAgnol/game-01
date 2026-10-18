@@ -2,18 +2,22 @@
 // `game.state.events`; bots and tests drive the same API headlessly.
 import { Rng, hashSeed } from './rng.js';
 import { generateMap, N, T, PASSABLE, idx, inside } from './mapgen.js';
-import { computeFlow, computeNext, DIRS } from './flow.js';
+import { computeFlow, computeNext } from './flow.js';
 import { BUILDINGS, KEEP, MAX_LEVEL, START } from '../content/buildings.js';
 import { MOBS, WAVES } from '../content/mobs.js';
-import { HEROES } from '../content/heroes.js';
-import { PERKS, FAMILIES, freshPerkState } from '../content/perks.js';
+import { HEROES, MERC, PURSE, TRADES } from '../content/heroes.js';
+import { PERKS, FAMILIES, MASTERIES, SYNERGIES, ODDS, REROLL, freshPerkState } from '../content/perks.js';
+import { PACKS, PACK_RULES } from '../content/packs.js';
 
 export const STEP = 1 / 60;
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
 export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
+const SIZE = { house: 3, farm: 3, tower: 2, wall: 5 };
+const BIG = 1.6; // mobs at least this size count as "big game"
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed } = {}) {
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'packs' } = {}) {
+  if (hero === 'steward') hero = 'merchant';
   const map = generateMap(mapSeed ?? seed, biome);
   const rng = new Rng(hashSeed(seed, 'run'));
   const perkRng = new Rng(hashSeed(seed, 'perks'));
@@ -21,15 +25,20 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const c = map.town.x;
 
   const S = {
-    seed, biome, map, heroClass: hero, night: 1, phase: 'day', time: 0,
+    seed, biome, map, heroClass: hero, mode, night: 1, phase: 'day', time: 0,
+    stock: mode === 'packs' ? { ...PACK_RULES.start } : {}, packs: [],
     gold: START.gold, food: START.food, kills: 0, events: [],
-    buildings: [], slotB: new Int32Array(map.slots.length).fill(-1), occ: new Int32Array(N * N).fill(-1),
+    buildings: [], occ: new Int32Array(N * N).fill(-1),
     claimed: new Set([0]), nestAlive: map.regions.map(r => !!r.nest), wake: map.regions.map(() => Infinity),
-    mobs: [], projectiles: [], chests: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
-    P: freshPerkState(), pendingPicks: 0, offer: [], chestsHeld: 0, dawns: 0,
+    mobs: [], projectiles: [], chests: [], purses: [], allies: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
+    P: freshPerkState(), picks: [], pendingPicks: 0, offer: [], offerSource: null, chestsHeld: 0, dawns: 0,
+    reroll: { free: REROLL.free, cost: REROLL.base }, trade: null, halfUpgrade: false,
+    ability: { cd: 0, hires: 0 },
     log: [], cur: null, over: false, won: false,
-    hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0 },
+    hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0, guardT: 0, attacks: 0 },
     flow: null, flowNext: null, climb: null, climbNext: null, flowDirty: true,
+    stats: { goldEarned: 0, goldSpent: 0, built: 0, upgraded: 0, killsByKind: {}, killsBy: {}, peakPop: 0, buildingsLost: 0, housesLost: 0, risen: 0,
+      regionsClaimed: 0, blessings: 0, chests: 0, bosses: 0, mercsHired: 0, pursesGold: 0, heroDeaths: 0 },
   };
 
   // first-ring nests wake up one after another
@@ -41,51 +50,109 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- helpers ----------
   const ev = (t, o = {}) => S.events.push({ t, ...o });
   const toast = (msg, kind) => ev('toast', { msg, kind });
-  const mastered = f => S.P.fam[f] >= 3;
+  const has = id => (S.P.taken[id] || 0) > 0;
+  const combo = (a, b) => has(a) && has(b);
+  const mastery = id => Object.values(S.P.mastery).includes(id);
+  const mastered = f => !!S.P.mastery[f];
   const isDef = t => t === 'tower' || t === 'wall';
-  const costOf = (type, level = 1) => Math.max(1, BUILDINGS[type].cost[level - 1] - (isDef(type) ? S.P.defDiscount : S.P.ecoDiscount));
+  const earn = g => { S.gold += g; S.stats.goldEarned += Math.max(0, g); };
+  const costOf = (type, level = 1) => Math.max(1, Math.floor(BUILDINGS[type].cost[level - 1] * (1 - (HC.discount || 0))) - (isDef(type) ? S.P.defDiscount : S.P.ecoDiscount));
+  const buyCost = type => costOf(type) * (S.mode === 'packs' ? PACK_RULES.premium : 1);
+  const upCostOf = (b) => { const c0 = costOf(b.type, b.level + 1); return S.halfUpgrade ? Math.max(1, Math.ceil(c0 / 2)) : c0; };
   const maxHpOf = (type, level) => Math.round(BUILDINGS[type].hp[level - 1] * (1 + S.P.allHp + (type === 'wall' ? S.P.wallHp : 0)));
-  const keepMaxHp = () => KEEP.hp[keep.level - 1] + S.P.keepHp;
+  const keepMaxHp = () => Math.round((KEEP.hp[keep.level - 1] + S.P.keepHp) * S.P.keepHpMult);
   const pop = () => S.buildings.reduce((s, b) => s + (b.type === 'house' ? BUILDINGS.house.pop[b.level - 1] : 0), 0);
-  const houseGold = b => BUILDINGS.house.gold[b.level - 1] + S.P.houseGold;
-  const farmFood = b => BUILDINGS.farm.food[b.level - 1] + S.P.farmFood + (map.slots[b.slot].nearWater ? 1 : 0);
-  const incomeMult = () => (mastered('harvest') ? 1.3 : 1) * (HC.goldMult || 1);
+  const near = (b, type, r) => S.buildings.some(o => o !== b && o.type === type && !o.ruined && Math.hypot(o.x - b.x, o.y - b.y) <= r);
+  const houseGold = b => BUILDINGS.house.gold[b.level - 1] + S.P.houseGold + (has('guarded') && near(b, 'tower', 6) ? 2 : 0) + (combo('guarded', 'bastion') && near(b, 'wall', 3) ? 1 : 0);
+  const farmFood = b => BUILDINGS.farm.food[b.level - 1] + S.P.farmFood + (b.nearWater ? 1 : 0);
+  const prosper = () => (mastery('prosperity') ? 1.3 : 1);
   const claimedCount = () => S.claimed.size;
   const isBloodMoon = n => n % WAVES.bloodMoonEvery === 0;
   let liveCache = null, liveTick = -1;
   const live = () => { if (liveTick !== S.time) { liveCache = S.buildings.filter(b => !b.ruined); liveTick = S.time; } return liveCache; };
-  const heroMax = () => HC.hp + S.P.heroHp;
-  const towerMult = () => (1 + S.P.towerDmg) * (mastered('bow') ? 1.5 : 1);
-  const keepMult = () => (1 + S.P.keepDmg) * (mastered('bow') ? 1.5 : 1);
+  const heroMax = () => Math.round((HC.hp + S.P.heroHp + (mastery('champion') ? 25 : 0)) * S.P.heroHpMult);
+  const towerMult = () => (1 + S.P.towerDmg) * (mastery('deadeye') ? 1.4 : 1);
+  const keepMult = () => (1 + S.P.keepDmg) * (mastery('deadeye') ? 1.4 : 1);
   const upkeep = () => Math.max(0, S.buildings.reduce((a, b) => a + ((BUILDINGS[b.type].upkeep || [])[b.level - 1] || 0), 0) - S.P.upkeepCut * 2);
   const foodNeed = () => Math.ceil(pop() * START.foodPerCitizen);
+  const syncPicks = () => { S.pendingPicks = S.picks.length; };
 
   // ---------- buildings & footprints ----------
-  function footprint(type, x, y) {
-    const cells = [], cx = Math.floor(x), cy = Math.floor(y);
-    if (type === 'keep') { for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (dx * dx + dy * dy <= 5) cells.push([cx + dx, cy + dy]); }
-    else if (type === 'wall') {
-      const ang = Math.atan2(y - c, x - c), tx = -Math.sin(ang), ty = Math.cos(ang);
-      for (let k = -2; k <= 2; k++) cells.push([Math.floor(x + tx * k), Math.floor(y + ty * k)]);
-    } else { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) cells.push([cx + dx, cy + dy]); }
-    return cells.filter(([a, b]) => inside(a, b) && PASSABLE[map.terrain[idx(a, b)]]).map(([a, b]) => idx(a, b));
+  // Buildings go anywhere on your land. Footprints are whole cells; every building keeps a
+  // one-cell street around it so people (and you) can walk between them. Palisades may chain
+  // to other palisades and to towers. Palisades have four orientations: 0 —, 1 |, 2 \, 3 /.
+  function shape(type, x, y, rot = 0) {
+    const n = SIZE[type], ax = Math.round(x - n / 2), ay = Math.round(y - n / 2), cells = [];
+    if (type === 'wall') {
+      for (let k = 0; k < n; k++) {
+        if (rot === 0) cells.push([ax + k, Math.floor(y)]);
+        else if (rot === 1) cells.push([Math.floor(x), ay + k]);
+        else if (rot === 2) cells.push([ax + k, ay + k]);
+        else cells.push([ax + k, ay + n - 1 - k]);
+      }
+    } else for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) cells.push([ax + dx, ay + dy]);
+    const xs = cells.map(q => q[0]), ys = cells.map(q => q[1]);
+    return { cells, cx: (Math.min(...xs) + Math.max(...xs) + 1) / 2, cy: (Math.min(...ys) + Math.max(...ys) + 1) / 2 };
   }
-  function occupy(b) { b.cells = footprint(b.type, b.x, b.y).filter(i => S.occ[i] < 0); for (const i of b.cells) S.occ[i] = b.id; S.flowDirty = true; }
+  function footprint(type, x, y, rot) {
+    if (type === 'keep') {
+      const cells = [], cx = Math.floor(x), cy = Math.floor(y);
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (dx * dx + dy * dy <= 5) cells.push(idx(cx + dx, cy + dy));
+      return cells;
+    }
+    return shape(type, x, y, rot).cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b));
+  }
+  const nestAlive = r => map.regions[r] && map.regions[r].nest && S.nestAlive[r];
+  /** Can `type` go here? x, y: wanted centre (snapped to cells); rot for palisades. */
+  function canPlace(type, x, y, rot = 0) {
+    if (!SIZE[type]) return { ok: false, reason: 'Unknown building.', cells: [] };
+    const { cells, cx, cy } = shape(type, x, y, rot);
+    const out = { ok: false, x: cx, y: cy, rot, cells: cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), reason: '' };
+    if (out.cells.length !== cells.length) { out.reason = 'Too close to the edge.'; return out; }
+    const own = new Set(out.cells);
+    for (const i of out.cells) {
+      const t = map.terrain[i], r = map.region[i];
+      if (r < 0 || !S.claimed.has(r)) { out.reason = 'Claim this land first.'; return out; }
+      if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Palisades need open ground or a ford.' : 'Needs open ground.'; return out; }
+      if (S.occ[i] >= 0) { out.reason = 'Something is already built here.'; return out; }
+    }
+    for (const i of out.cells) {
+      const x0 = i % N, y0 = (i / N) | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x0 + dx, yy = y0 + dy; if (!inside(xx, yy)) continue;
+        const j = idx(xx, yy); if (own.has(j)) continue;
+        const o = S.occ[j]; if (o < 0) continue;
+        const other = S.byId.get(o);
+        const chain = other && ((type === 'wall' && (other.type === 'wall' || other.type === 'tower')) || (type === 'tower' && other.type === 'wall'));
+        if (!chain) { out.reason = 'Leave a street: buildings cannot touch.'; return out; }
+      }
+    }
+    for (const reg of map.regions) if (nestAlive(reg.id) && Math.hypot(reg.nest.x - cx, reg.nest.y - cy) < 4) { out.reason = 'Too close to a nest.'; return out; }
+    out.ok = true; return out;
+  }
+  function nearWaterAt(x, y) {
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const xx = Math.floor(x) + dx, yy = Math.floor(y) + dy; if (!inside(xx, yy)) continue;
+      const t = map.terrain[idx(xx, yy)]; if (t === T.WATER || t === T.FORD) return true;
+    }
+    return false;
+  }
+  function occupy(b) { b.cells = footprint(b.type, b.x, b.y, b.rot).filter(i => S.occ[i] < 0); for (const i of b.cells) S.occ[i] = b.id; S.flowDirty = true; }
   function vacate(b) { for (const i of b.cells) if (S.occ[i] === b.id) S.occ[i] = -1; S.flowDirty = true; }
 
   const mobById = new Map();
-  const keep = { id: 0, type: 'keep', x: c, y: c, r: 2.3, level: 1, hp: KEEP.hp[0], maxHp: KEEP.hp[0], cd: 0, ruined: false, cells: [] };
+  const keep = { id: 0, type: 'keep', x: c, y: c, r: 2.3, level: 1, hp: KEEP.hp[0], maxHp: KEEP.hp[0], cd: 0, ruined: false, cells: [], boltT: 3 };
   S.keep = keep; S.byId = new Map([[0, keep]]);
   occupy(keep);
 
-  function placeBuilding(slotId, type, level) {
-    const s = map.slots[slotId];
-    const b = { id: S.nextId++, type, level, slot: slotId, x: s.x, y: s.y, r: type === 'wall' ? 1.7 : 1.2, hp: maxHpOf(type, level), maxHp: maxHpOf(type, level), cd: 0, ruined: false, fell: false };
-    S.buildings.push(b); S.byId.set(b.id, b); S.slotB[slotId] = b.id; occupy(b);
+  function placeBuilding(type, x, y, rot, level, id) {
+    const b = { id: id ?? S.nextId++, type, level, x, y, rot: type === 'wall' ? rot : 0, r: type === 'wall' ? 1 : type === 'tower' ? 0.9 : 1.3,
+      hp: maxHpOf(type, level), maxHp: maxHpOf(type, level), cd: 0, ruined: false, fell: false, nearWater: nearWaterAt(x, y), shotN: 0, rainT: 0 };
+    S.buildings.push(b); S.byId.set(b.id, b); occupy(b); liveTick = -1;
     ev('build', { id: b.id });
     return b;
   }
-  function removeBuilding(b) { vacate(b); S.buildings.splice(S.buildings.indexOf(b), 1); S.byId.delete(b.id); S.slotB[b.slot] = -1; ev('remove', { id: b.id }); }
+  function removeBuilding(b) { vacate(b); S.buildings.splice(S.buildings.indexOf(b), 1); S.byId.delete(b.id); liveTick = -1; ev('remove', { id: b.id }); }
 
   // ---------- flow fields ----------
   const isWall = id => { const b = S.byId.get(id); return !!b && b.type === 'wall'; };
@@ -105,6 +172,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       if (map.reach[i]) { edgeSpawns.push({ x, y }); break; }
     }
   }
+  S.edgeSpawns = edgeSpawns;
   const adjacentToClaimed = r => map.regions[r].neighbors.some(n => S.claimed.has(n));
   function activeNests(n = S.night) {
     return map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && adjacentToClaimed(r.id) && S.wake[r.id] <= n).map(r => r.id);
@@ -123,18 +191,33 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   // first blood moon brings a nest guardian; from night 10 the Gravelord walks, one more every 10 nights
   function bossesFor(n) { return n < 10 ? ['guardian'] : Array.from({ length: Math.floor(n / 10) }, () => 'gravelord'); }
-  function nightBudget(n) { return WAVES.budget(n) * WAVES.territory(claimedCount()) * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1); }
+  const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
+  function nightBudget(n) { return WAVES.budget(n) * territory() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1); }
   function purgeBudget(r, n) { return WAVES.budget(n) * WAVES.purgeShare(map.regions[r].ring); }
-  S.edgeSpawns = edgeSpawns;
+  function towerStats(b) {
+    const B = BUILDINGS.tower, l = b.level - 1;
+    let range = B.range[l] + S.P.towerRange + (has('watch') && b.paired ? 2 : 0);
+    let dmg = B.dmg[l] * towerMult() * (has('bastion') && b.walled ? 1.4 : 1);
+    let rate = B.rate[l] / S.P.towerRate;
+    const h = S.hero, rallyR = combo('rally', 'watch') ? 8 : 5;
+    if (has('rally') && !h.dead && (Math.hypot(h.x - b.x, h.y - b.y) < rallyR || (combo('rally', 'watch') && b.paired))) rate /= 1.3;
+    return { range, dmg, rate, shots: has('volley') && b.level === 3 ? 2 : 1 };
+  }
+  function cacheNeighbours() {
+    for (const b of S.buildings) if (b.type === 'tower') { b.paired = near(b, 'tower', 4); b.walled = near(b, 'wall', 3); }
+  }
   function defenceDps() {
+    cacheNeighbours();
     let d = 0;
-    for (const b of live()) if (b.type === 'tower') { const B = BUILDINGS.tower; d += B.dmg[b.level - 1] * towerMult() / (B.rate[b.level - 1] / S.P.towerRate); }
-    if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * KEEP.shots[keep.level - 1];
+    for (const b of live()) if (b.type === 'tower') { const t = towerStats(b); d += t.dmg * t.shots / t.rate; }
+    if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * KEEP.shots[keep.level - 1] + (has('ballista') ? 8 / 3 * 2 : 0);
     return d;
   }
+  function heroDmg() { return HC.attack ? (HC.attack.dmg + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult : 0; }
+  function heroRate() { return HC.attack ? HC.attack.rate / S.P.heroRate / (mastery('champion') ? 1.3 : 1) : 1; }
   function heroDps() {
-    if (!HC.attack) return 0;
-    return (HC.attack.dmg + S.P.heroDmg + (mastered('hero') ? 1 : 0)) / (HC.attack.rate / S.P.heroRate) * (mastered('hero') ? 1.6 : 1);
+    if (!HC.attack) return HC.ability && HC.ability.id === 'hire' ? Math.min(4, Math.floor(S.gold / 15)) * MERC.dmg / MERC.rate : 0;
+    return heroDmg() / heroRate() * (mastery('whirlwind') ? 1.6 : has('wardance') ? 1.25 : 1);
   }
   /** expected wave HP divided by what the town can deal over the wave window */
   function threatRatio(n = S.night, purgeRegion = S.purge) {
@@ -176,7 +259,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function spawnMob(kind, x, y, opts = {}) {
     const m = MOBS[kind], hs = WAVES.hpScale(S.night);
     const hp = m.fixedHp ? m.hp : Math.ceil(m.hp * hs);
-    const mob = { id: S.nextId++, kind, x, y, hp, maxHp: hp, cd: rng.range(0, 0.5), speed: m.speed * rng.range(0.9, 1.1), boost: 1, rise: opts.instant ? 1 : 0, face: 0, attacking: false, summonT: m.summon ? m.summon.every : 0 };
+    const mob = { id: S.nextId++, kind, x, y, hp, maxHp: hp, cd: rng.range(0, 0.5), speed: m.speed * rng.range(0.9, 1.1), boost: 1, rise: opts.instant ? 1 : 0, face: 0, attacking: false, summonT: m.summon ? m.summon.every : 0, tauntT: 0, burn: null };
     S.mobs.push(mob); mobById.set(mob.id, mob); ev('spawn', { id: mob.id, kind });
     return mob;
   }
@@ -190,79 +273,115 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
 
   // ---------- combat ----------
-  function damageBuilding(b, d) {
+  function damageBuilding(b, d, by) {
     if (b.ruined || d <= 0) return;
     S.cur.taken[b.type] = (S.cur.taken[b.type] || 0) + Math.min(d, b.hp);
     b.hp -= d; ev('hitB', { id: b.id });
+    if (b.type === 'wall' && by && mastery('fortress')) hitMob(by, d * 0.5, 'thorns');
     if (b.hp <= 0) ruin(b);
   }
   function ruin(b) {
+    if (b.type === 'keep' && has('bell') && !S.P.bellUsed) {
+      S.P.bellUsed = true; b.hp = Math.round(b.maxHp * 0.3);
+      for (const m of [...S.mobs]) if (Math.hypot(m.x - b.x, m.y - b.y) < 8) hitMob(m, 20, 'keep');
+      ev('bell'); toast('The Bell of Last Light rings. The keep holds.', 'good'); return;
+    }
     b.ruined = true; b.fell = true; b.hp = 0; vacate(b); liveTick = -1; ev('ruin', { id: b.id });
     if (b.type === 'keep') { endRun(false); return; }
-    S.cur.lost.push(b.type);
+    S.cur.lost.push(b.type); S.stats.buildingsLost++;
+    if (has('salvage')) earn(combo('salvage', 'mortar') ? 4 : 2);
     if (b.type === 'house') {
-      const n = BUILDINGS.house.pop[b.level - 1] / 2; S.cur.risen += n;
+      const n = BUILDINGS.house.pop[b.level - 1] / 2; S.cur.risen += n; S.stats.risen += n; S.stats.housesLost++;
       for (let k = 0; k < n; k++) { const m = spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1), { instant: false }); m.rise = 0.4; }
       toast(`A house fell. ${n === 1 ? 'Its family rises' : 'Its families rise'} with the dead.`, 'bad');
     } else toast(`${BUILDINGS[b.type].name} destroyed. It will be rebuilt at dawn.`, 'bad');
   }
   function hitMob(m, d, src) {
     if (m.hp <= 0) return;
+    if (src === 'hero' && has('execute') && (m.hp - d) / m.maxHp < 0.25) d = m.hp;
     S.cur.dmg[src] = (S.cur.dmg[src] || 0) + Math.min(d, m.hp);
     m.hp -= d; ev('hitM', { id: m.id });
-    if (m.hp <= 0) { S.cur.kills[src] = (S.cur.kills[src] || 0) + 1; killMob(m); }
+    if (m.hp <= 0) { S.cur.kills[src] = (S.cur.kills[src] || 0) + 1; S.stats.killsBy[src] = (S.stats.killsBy[src] || 0) + 1; killMob(m, src); }
   }
-  function killMob(m) {
+  function killMob(m, src) {
     const i = S.mobs.indexOf(m); if (i < 0) return;
     S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y });
+    S.stats.killsByKind[m.kind] = (S.stats.killsByKind[m.kind] || 0) + 1;
+    if (m.kind === 'guardian' || m.kind === 'gravelord') S.stats.bosses++;
     const D = MOBS[m.kind];
     if (S.P.lifesteal && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 6) S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + S.P.lifesteal);
-    if (S.P.bounty && S.kills % 3 === 0) S.gold++;
+    if (S.P.bounty && S.kills % 3 === 0) earn(1);
+    if (src === 'hero' && combo('blood', 'bounty')) earn(1);
     if (D.burst) { liveTick = -1; explode(m.x, m.y, D.burst); }
     if (D.dropsChest && rng.chance(D.dropsChest)) { const ch = { id: S.nextId++, x: m.x, y: m.y }; S.chests.push(ch); ev('chest', { id: ch.id }); toast('Something dropped a chest. Walk over it.', 'good'); }
+    if (HC.collects && m.kind !== 'risen') {
+      const big = PURSE.value[m.kind];
+      if (big || rng.chance(PURSE.chance)) { const p = { id: S.nextId++, x: m.x, y: m.y, life: PURSE.life, value: big || PURSE.value.default }; S.purses.push(p); ev('purse', { id: p.id }); }
+    }
   }
   function explode(x, y, burst) {
     ev('explode', { x, y, r: burst.radius });
     const dmg = burst.dmg * Math.sqrt(WAVES.hpScale(S.night));
     for (const b of live().concat(keep.ruined ? [] : [keep])) if (Math.hypot(b.x - x, b.y - y) < burst.radius + b.r) damageBuilding(b, dmg);
     if (!S.hero.dead && Math.hypot(S.hero.x - x, S.hero.y - y) < burst.radius) hurtHero(dmg * 0.5);
+    for (const a of S.allies) if (Math.hypot(a.x - x, a.y - y) < burst.radius) a.hp -= dmg;
   }
   function hurtHero(d) {
     const h = S.hero; if (h.dead) return;
+    if (h.guardT > 0) d *= 1 - HC.ability.guard;
+    if (has('last') && !S.nightFlags.lastUsed && h.hp - d < h.maxHp * 0.3) { S.nightFlags.lastUsed = true; S.nightFlags.lastT = 4; ev('lastStand'); toast('Last Stand!', 'good'); }
     S.cur.taken.hero = (S.cur.taken.hero || 0) + d; h.hp -= d; ev('hitH');
-    if (h.hp <= 0) { h.dead = true; h.respawn = 6; h.target = null; S.cur.heroDeaths++; ev('heroDie'); toast('You fell. Back at the keep in 6 seconds.', 'bad'); }
+    if (S.nightFlags.lastT > 0 && h.hp < 1) h.hp = 1;
+    if (h.hp <= 0) { h.dead = true; h.respawn = 6; h.target = null; S.cur.heroDeaths++; S.stats.heroDeaths++; ev('heroDie'); toast('You fell. Back at the keep in 6 seconds.', 'bad'); }
   }
-  function fire(from, x0, y0, target, dmg, src, speed = 18) {
-    const p = { id: S.nextId++, x: x0, y: y0, z: from, target: target.id, tx: target.x, ty: target.y, dmg, src, speed, life: 2, enemy: false };
+  function fire(from, x0, y0, target, dmg, src, speed = 18, extra = {}) {
+    if (src !== 'hero' && has('hunter') && MOBS[target.kind] && MOBS[target.kind].size >= BIG) dmg *= 1.6;
+    const p = { id: S.nextId++, x: x0, y: y0, z: from, target: target.id, tx: target.x, ty: target.y, dmg, src, speed, life: 2, enemy: false, ...extra };
     S.projectiles.push(p); ev('shot', { id: p.id, src });
   }
   function spit(m, target) {
-    const p = { id: S.nextId++, x: m.x, y: m.y, z: 1, target: target === S.hero ? 'hero' : target.id, tx: target.x, ty: target.y, dmg: MOBS.spitter.dmg, src: 'spit', speed: 9, life: 2, enemy: true };
+    const tid = target === S.hero ? 'hero' : target.ally ? `a${target.id}` : target.id;
+    const p = { id: S.nextId++, x: m.x, y: m.y, z: 1, target: tid, tx: target.x, ty: target.y, dmg: MOBS.spitter.dmg, src: 'spit', speed: 9, life: 2, enemy: true };
     S.projectiles.push(p); ev('shot', { id: p.id, src: 'spit' });
   }
 
   // ---------- day actions ----------
-  function build(slotId, type) {
+  /** build(type, x, y, rot) — or the older form build(lotId, type) using a suggested lot from the map */
+  function build(a, b, c2, rot) {
+    let type, x, y;
+    if (typeof a === 'number' && typeof b === 'string') { const lot = map.slots[a]; if (!lot) return fail('No such lot.'); type = b; x = lot.x; y = lot.y; rot = rot ?? lotRot(lot, type); }
+    else { type = a; x = b; y = c2; }
     if (S.phase !== 'day' || S.over) return fail('Build during the day.');
-    const s = map.slots[slotId]; if (!s) return fail('No such slot.');
-    if (!S.claimed.has(s.region)) return fail('Claim this region first.');
-    if (S.slotB[slotId] >= 0) return fail('Something is already built here.');
-    if (s.gate && !isDef(type)) return fail('Gate lots only take palisades and towers.');
-    const cost = costOf(type); if (S.gold < cost) return fail('Not enough gold.');
-    S.gold -= cost; S.cur.spent += cost; S.cur.built.push(type);
-    placeBuilding(slotId, type, 1); return true;
+    const p = canPlace(type, x, y, rot || 0); if (!p.ok) return fail(p.reason);
+    if ((S.stock[type] || 0) > 0) S.stock[type]--;
+    else {
+      const cost = buyCost(type); if (S.gold < cost) return fail(S.mode === 'packs' ? `None left in your packs. Buying one costs ${cost} gold.` : 'Not enough gold.');
+      S.gold -= cost; S.cur.spent += cost; S.stats.goldSpent += cost;
+    }
+    S.cur.built.push(type); S.stats.built++;
+    placeBuilding(type, p.x, p.y, p.rot, 1);
+    unstickHero();
+    return true;
   }
-  function upgrade(slotId) {
+  // a palisade on a suggested lot runs across the way to the keep
+  function lotRot(lot, type) { if (type !== 'wall') return 0; const a = Math.atan2(lot.y - c, lot.x - c), q = ((Math.round(a / (Math.PI / 4)) % 4) + 4) % 4; return [1, 3, 0, 2][q]; }
+  function upgrade(id) {
     if (S.phase !== 'day' || S.over) return fail('Upgrade during the day.');
-    const b = S.byId.get(S.slotB[slotId]); if (!b || b.level >= MAX_LEVEL) return fail('Cannot upgrade.');
-    const cost = costOf(b.type, b.level + 1); if (S.gold < cost) return fail('Not enough gold.');
-    S.gold -= cost; S.cur.spent += cost; S.cur.upgraded.push(`${b.type}${b.level + 1}`);
-    removeBuilding(b); const nb = placeBuilding(slotId, b.type, b.level + 1); nb.hp = Math.min(nb.maxHp, nb.hp); return true;
+    const b = S.byId.get(id); if (!b || b.type === 'keep' || b.level >= MAX_LEVEL) return fail('Cannot upgrade.');
+    const cost = upCostOf(b); if (S.gold < cost) return fail('Not enough gold.');
+    S.gold -= cost; S.halfUpgrade = false; S.cur.spent += cost; S.cur.upgraded.push(`${b.type}${b.level + 1}`); S.stats.upgraded++; S.stats.goldSpent += cost;
+    raise(b); return true;
+  }
+  function raise(b) { removeBuilding(b); const nb = placeBuilding(b.type, b.x, b.y, b.rot, b.level + 1, b.id); nb.hp = Math.min(nb.maxHp, nb.hp); return nb; }
+  function demolish(id) {
+    if (S.phase !== 'day' || S.over) return fail('Demolish during the day.');
+    const b = S.byId.get(id); if (!b || b.type === 'keep') return fail('Cannot demolish that.');
+    earn(Math.floor(costOf(b.type) / 2)); removeBuilding(b); return true;
   }
   function upgradeKeep() {
     if (S.phase !== 'day' || keep.level >= 3) return fail('Cannot raise the keep.');
     const cost = KEEP.cost[keep.level]; if (S.gold < cost) return fail('Not enough gold.');
-    S.gold -= cost; S.cur.spent += cost; S.cur.upgraded.push(`keep${keep.level + 1}`);
+    S.gold -= cost; S.cur.spent += cost; S.cur.upgraded.push(`keep${keep.level + 1}`); S.stats.goldSpent += cost;
     keep.level++; const m = keepMaxHp(); keep.hp += m - keep.maxHp; keep.maxHp = m; keep.r = 2.3 * (1 + 0.12 * (keep.level - 1));
     ev('keepUp'); return true;
   }
@@ -274,9 +393,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function fail(msg) { ev('fail', { msg }); return false; }
 
   function startNight() {
-    if (S.phase !== 'day' || S.over || S.pendingPicks > 0) return false;
-    refreshFlow();
-    S.phase = 'night'; S.queue = makeWave(S.night); S.qT = 0;
+    if (S.phase !== 'day' || S.over || S.pendingPicks > 0 || S.packs.length) return false;
+    refreshFlow(); cacheNeighbours();
+    S.phase = 'night'; S.queue = makeWave(S.night); S.qT = 0; S.nightFlags = {}; S.ability.hires = 0; S.trade = null;
     for (const b of S.buildings) b.fell = false;
     const purgeReg = S.purge;
     Object.assign(S.cur, {
@@ -293,58 +412,177 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.phase = 'day'; S.dawns++;
     let foodIn = 0, hg = 0;
     for (const b of S.buildings) { if (b.fell) continue; if (b.type === 'farm') foodIn += farmFood(b); if (b.type === 'house') hg += houseGold(b); }
-    foodIn = Math.round(foodIn * (mastered('harvest') ? 1.3 : 1));
+    foodIn = Math.round(foodIn * prosper());
     S.food += foodIn;
     const need = foodNeed(), fed = need === 0 ? 1 : Math.min(1, S.food / need);
     S.food = Math.max(0, S.food - need);
-    const upk = upkeep(), goldIn = Math.round((START.baseIncome + S.P.tax + hg * fed) * incomeMult()) - upk;
-    S.gold = Math.max(0, S.gold + goldIn);
-    let claimedNow = null;
+    const upk = upkeep();
+    let goldIn = Math.round((START.baseIncome + S.P.tax + hg * fed) * prosper()) - upk;
+    if (has('granary')) goldIn += Math.floor(S.food / 5);
+    S.gold = Math.max(0, S.gold + goldIn); S.stats.goldEarned += Math.max(0, goldIn);
+    let claimedNow = null, nestPick = false;
     if (S.purge !== null) {
-      claimedNow = S.purge; S.claimed.add(S.purge); S.nestAlive[S.purge] = false;
+      claimedNow = S.purge; S.claimed.add(S.purge); S.nestAlive[S.purge] = false; S.stats.regionsClaimed++;
       for (const nb of map.regions[S.purge].neighbors) if (map.regions[nb].nest && !S.claimed.has(nb) && S.wake[nb] > S.night + 1) S.wake[nb] = S.night + 1;
-      const loot = WAVES.plunder(map.regions[S.purge].ring); S.gold += loot; S.chestsHeld++;
-      ev('claim', { region: S.purge }); toast(`The nest burns: +${loot} gold and a blessing. The land is yours, but new nests stir beyond it.`, 'good');
+      const loot = WAVES.plunder(map.regions[S.purge].ring); earn(loot); nestPick = true;
+      ev('claim', { region: S.purge }); toast(`The nest burns: +${loot} gold and a rare blessing. The land is yours, but new nests stir beyond it.`, 'good');
       S.purge = null;
+    }
+    // Merchant Guild: free tower upgrades
+    if (has('guild')) {
+      let free = Math.floor(S.buildings.filter(b => b.type === 'house').length / 4);
+      while (free-- > 0) { const t = S.buildings.filter(b => b.type === 'tower' && b.level < MAX_LEVEL).sort((a, b) => a.level - b.level)[0]; if (!t) break; raise(t); toast('The guild raises a tower for free.', 'good'); }
     }
     closeLog({ goldIn, foodIn, foodNeed: need, fed: +fed.toFixed(2), claimedNow });
     for (const b of [...S.buildings]) { if (b.ruined) { b.ruined = false; b.hp = b.maxHp; occupy(b); ev('rebuild', { id: b.id }); } b.hp = b.maxHp; b.fell = false; }
+    liveTick = -1;
     keep.hp = Math.min(keep.maxHp, keep.hp + keep.maxHp * 0.25);
-    S.hero.hp = S.hero.maxHp;
+    S.hero.hp = S.hero.maxHp; S.hero.guardT = 0;
+    if (S.allies.length) { for (const a of S.allies) ev('allyGone', { id: a.id }); S.allies = []; }
+    S.purses = []; S.ability.cd = 0;
     S.night++; newLog();
-    let picks = 1 + S.chestsHeld; S.chestsHeld = 0;
-    if (HC.bonusPickEvery && S.dawns % HC.bonusPickEvery === 0) picks++;
-    S.pendingPicks += picks; rollOffer();
+    S.reroll.cost = REROLL.base;
+    S.picks.push('dawn'); for (let k = 0; k < S.chestsHeld; k++) S.picks.push('chest'); S.chestsHeld = 0;
+    if (nestPick) S.picks.push('nest');
+    syncPicks(); rollOffer();
+    rollPacks();
+    if (HC.trader) S.trade = { deals: rng.shuffle([...TRADES]).slice(0, 3).map(t => t.id), done: false };
+    S.stats.peakPop = Math.max(S.stats.peakPop, pop());
     ev('dawn', { goldIn, foodIn, need, fed });
     toast(`Dawn. ${goldIn >= 0 ? '+' : ''}${goldIn} gold${upk ? ` after ${upk} tower upkeep` : ''}, +${foodIn} food. Citizens ate ${need}.`, 'good');
     if (fed < 1) toast(`Not enough food. Houses earned ${Math.round(fed * 100)}% of their gold.`, 'bad');
   }
 
   function endRun(won) {
-    S.over = true; S.won = won; S.phase = 'over'; closeLog({ result: won ? 'won' : 'lost' }); ev('over', { won, night: S.night });
+    S.over = true; S.won = won; S.phase = 'over'; closeLog({ result: won ? 'won' : 'lost' });
+    S.stats.nights = S.night - 1; S.stats.peakPop = Math.max(S.stats.peakPop, pop());
+    ev('over', { won, night: S.night });
+  }
+
+  // ---------- abilities ----------
+  function abilityCost() { const A = HC.ability; return A.cost ? A.cost + A.costStep * S.ability.hires : 0; }
+  function useAbility(x, y) {
+    const A = HC.ability, h = S.hero;
+    if (!A || S.over) return false;
+    if (A.nightOnly && S.phase !== 'night') return fail(`${A.name} works at night.`);
+    if (S.ability.cd > 0 || h.dead) return false;
+    if (A.id === 'warcry') {
+      for (const m of S.mobs) if (Math.hypot(m.x - h.x, m.y - h.y) < A.radius && m.kind !== 'gravelord') m.tauntT = A.taunt;
+      h.guardT = A.taunt; ev('warcry', { x: h.x, y: h.y, r: A.radius });
+    } else if (A.id === 'volley') {
+      let tx = x, ty = y;
+      if (tx === undefined || Math.hypot(tx - h.x, ty - h.y) > A.reach) {
+        let best = null, bn = 0;
+        for (const m of S.mobs) { if (Math.hypot(m.x - h.x, m.y - h.y) > A.reach) continue; const n = S.mobs.filter(o => Math.hypot(o.x - m.x, o.y - m.y) < A.radius).length; if (n > bn) { bn = n; best = m; } }
+        if (!best) return fail('No dead in range.');
+        tx = best.x; ty = best.y;
+      }
+      const dmg = A.dmg * Math.sqrt(WAVES.hpScale(S.night));
+      for (const m of [...S.mobs]) if (Math.hypot(m.x - tx, m.y - ty) < A.radius) hitMob(m, dmg, 'hero');
+      ev('volley', { x: tx, y: ty, r: A.radius });
+    } else if (A.id === 'hire') {
+      const cost = abilityCost();
+      if (S.allies.length + A.count > A.max) return fail('You cannot pay more sellswords tonight.');
+      if (S.gold < cost) return fail(`Sellswords cost ${cost} gold.`);
+      S.gold -= cost; S.stats.goldSpent += cost; S.ability.hires++; S.stats.mercsHired += A.count;
+      for (let k = 0; k < A.count; k++) {
+        const a = { id: S.nextId++, ally: true, x: h.x + rng.range(-0.8, 0.8), y: h.y + rng.range(-0.8, 0.8), hp: MERC.hp, maxHp: MERC.hp, cd: 0, face: 0, attacking: false };
+        S.allies.push(a); ev('ally', { id: a.id });
+      }
+    }
+    S.ability.cd = A.cooldown; return true;
   }
 
   // ---------- blessings ----------
   function rollOffer() {
-    if (S.pendingPicks <= 0) { S.offer = []; return; }
+    syncPicks();
+    if (!S.picks.length) { S.offer = []; S.offerSource = null; return; }
+    const source = S.picks[0];
+    S.offerSource = source;
+    if (source.startsWith('mastery:')) { const fam = source.split(':')[1]; S.offer = MASTERIES[fam].map(m => `m:${m.id}`); return; }
     const pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && !(p.fam === 'hero' && !HC.attack));
-    const out = [], n = 3 + (HC.extraOffer || 0);
-    while (out.length < n && pool.length) {
-      const i = perkRng.weighted(pool.map(p => 1 + S.P.fam[p.fam] * 0.6));
-      out.push(pool.splice(i, 1)[0].id);
+    const n = 3 + (source === 'dawn' ? (HC.extraOffer || 0) : 0);
+    const odds = ODDS[source] || ODDS.dawn, out = [];
+    const want = [];
+    for (let k = 0; k < n; k++) {
+      let r = perkRng.weighted(odds);
+      if (r === 2 && source === 'dawn' && S.night < 10) r = 1;
+      want.push(['common', 'rare', 'legendary'][r]);
+    }
+    if (source === 'chest' && !want.some(r => r !== 'common')) want[0] = 'rare';
+    if (source === 'nest' && !want.includes('legendary')) want[0] = 'legendary';
+    if (mastery('patronage') && !want.some(r => r !== 'common')) want[0] = 'rare';
+    let pacts = 0;
+    for (const rar of want) {
+      let cands = pool.filter(p => !out.includes(p.id) && p.rarity === rar && !(p.pact && pacts));
+      if (!cands.length) cands = pool.filter(p => !out.includes(p.id) && !(p.pact && pacts));
+      if (!cands.length) break;
+      const pk = cands[perkRng.weighted(cands.map(p => 1 + S.P.fam[p.fam] * 0.6))];
+      if (pk.pact) pacts++;
+      out.push(pk.id);
     }
     S.offer = out;
-    if (!out.length) S.pendingPicks = 0; // every blessing taken: nothing left to offer
+    if (!out.length) { S.picks.shift(); rollOffer(); }
+  }
+  function reroll() {
+    if (!S.offer.length || S.offerSource.startsWith('mastery:')) return false;
+    const cost = S.reroll.free > 0 ? 0 : S.reroll.cost;
+    if (S.gold < cost) return fail(`A reroll costs ${cost} gold.`);
+    if (S.reroll.free > 0) S.reroll.free--; else { S.gold -= cost; S.reroll.cost += REROLL.step; }
+    rollOffer(); return true;
   }
   function choosePerk(id) {
     if (!S.offer.includes(id)) return fail('That blessing is not on offer.');
-    const pk = PERKS.find(p => p.id === id);
-    pk.fx(S.P); S.P.taken[id] = (S.P.taken[id] || 0) + 1; S.P.fam[pk.fam]++; S.cur.perks.push(id);
-    if (S.P.fam[pk.fam] === 3) toast(FAMILIES[pk.fam].mastery, 'good');
+    if (id.startsWith('m:')) {
+      const mid = id.slice(2), fam = S.offerSource.split(':')[1];
+      S.P.mastery[fam] = mid; S.cur.perks.push(id);
+      if (mid === 'champion') S.P.heroRate *= 1;
+      toast(`${MASTERIES[fam].find(m => m.id === mid).name}!`, 'good');
+    } else {
+      const pk = PERKS.find(p => p.id === id);
+      pk.fx(S.P); S.P.taken[id] = (S.P.taken[id] || 0) + 1; S.P.fam[pk.fam]++; S.cur.perks.push(id); S.stats.blessings++;
+      for (const sy of SYNERGIES) if ((sy.a === id && has(sy.b)) || (sy.b === id && has(sy.a))) toast(`Combo! ${sy.text}`, 'good');
+      if (S.P.fam[pk.fam] === 3 && !S.P.mastery[pk.fam] && !(pk.fam === 'hero' && !HC.attack)) S.picks.splice(1, 0, `mastery:${pk.fam}`);
+    }
     for (const b of S.buildings) { const m = maxHpOf(b.type, b.level); if (!b.ruined) b.hp += m - b.maxHp; b.maxHp = m; }
-    const km = keepMaxHp(); keep.hp += km - keep.maxHp; keep.maxHp = km;
-    const hm = heroMax(); S.hero.hp += hm - S.hero.maxHp; S.hero.maxHp = hm;
-    S.pendingPicks--; rollOffer(); return true;
+    const km = keepMaxHp(); keep.hp = Math.min(km, keep.hp + Math.max(0, km - keep.maxHp)); keep.maxHp = km;
+    const hm = heroMax(); S.hero.hp = Math.min(hm, S.hero.hp + Math.max(0, hm - S.hero.maxHp)); S.hero.maxHp = hm;
+    S.picks.shift(); rollOffer(); return true;
+  }
+  function trade(id) {
+    if (!S.trade || S.trade.done || !S.trade.deals.includes(id) || S.phase !== 'day') return false;
+    const t = TRADES.find(x => x.id === id);
+    if (t.gold && S.gold < t.gold) return fail(`That costs ${t.gold} gold.`);
+    if (t.food && S.food < t.food) return fail(`You need ${t.food} food.`);
+    if (t.gold) { S.gold -= t.gold; S.stats.goldSpent += t.gold; }
+    if (id === 'reroll') S.reroll.free++;
+    if (id === 'pick') { S.picks.push('dawn'); syncPicks(); if (S.picks.length === 1) rollOffer(); }
+    if (id === 'sellfood') { S.food -= t.food; earn(t.give); }
+    if (id === 'halfup') S.halfUpgrade = true;
+    if (id === 'mend') keep.hp = Math.min(keep.maxHp, keep.hp + keep.maxHp * 0.25);
+    S.trade.done = true; toast(`Deal: ${t.name.toLowerCase()}.`, 'good'); return true;
+  }
+
+  // ---------- building packs ----------
+  function rollPacks() {
+    if (S.mode !== 'packs') { S.packs = []; return; }
+    const pool = PACKS.filter(p => p.from <= S.night);
+    const pick = list => list[rng.weighted(list.map(p => p.weight))];
+    const eco = pool.filter(p => p.kind !== 'def'), def = pool.filter(p => p.kind !== 'eco');
+    let a = pick(eco), b = pick(def.filter(p => p.id !== a.id));
+    if (rng.chance(0.25)) { const other = pool.filter(p => p.id !== a.id); b = pick(other); }
+    S.packs = [a.id, b.id];
+  }
+  function choosePack(id) {
+    if (!S.packs.includes(id)) return fail('That pack is not on offer.');
+    const pk = PACKS.find(p => p.id === id);
+    for (const [t, n] of Object.entries(pk.items)) S.stock[t] = (S.stock[t] || 0) + n;
+    S.packs = []; S.cur.pack = id; ev('pack', { id }); return true;
+  }
+  function rerollPacks() {
+    if (!S.packs.length) return false;
+    if (S.gold < PACK_RULES.reroll) return fail(`Other packs cost ${PACK_RULES.reroll} gold.`);
+    S.gold -= PACK_RULES.reroll; S.stats.goldSpent += PACK_RULES.reroll; rollPacks(); return true;
   }
 
   // ---------- run log ----------
@@ -358,43 +596,75 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   newLog();
 
   // ---------- simulation step ----------
+  const walkable = (x, y) => { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return false; const i = idx(cx, cy); return PASSABLE[map.terrain[i]] && S.occ[i] < 0; };
+  function unstickHero() {
+    const h = S.hero; if (walkable(h.x, h.y)) return;
+    for (let r = 1; r <= 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const x = Math.floor(h.x) + dx + 0.5, y = Math.floor(h.y) + dy + 0.5; if (walkable(x, y)) { h.x = x; h.y = y; return; }
+    }
+  }
   function stepHero(dt) {
     const h = S.hero;
-    if (h.dead) { h.respawn -= dt; if (h.respawn <= 0) { h.dead = false; h.hp = h.maxHp; h.x = c; h.y = c + 3.5; ev('heroBack'); } return; }
+    if (h.dead) { h.respawn -= dt; if (h.respawn <= 0) { h.dead = false; h.hp = h.maxHp; h.x = c; h.y = c + 3.5; unstickHero(); ev('heroBack'); } return; }
+    h.guardT = Math.max(0, h.guardT - dt);
+    if (S.nightFlags.lastT > 0) S.nightFlags.lastT -= dt;
     let dx = h.input.x, dy = h.input.y, moving = false;
     if (dx || dy) { h.target = null; const l = Math.hypot(dx, dy); dx /= l; dy /= l; moving = true; }
     else if (h.target) { dx = h.target.x - h.x; dy = h.target.y - h.y; const l = Math.hypot(dx, dy); if (l < 0.15) { h.target = null; dx = dy = 0; } else { dx /= l; dy /= l; moving = true; } }
     if (moving) {
       const sp = HC.speed * dt;
-      const tryMove = (nx, ny) => { const i = idx(Math.floor(nx), Math.floor(ny)); if (!inside(Math.floor(nx), Math.floor(ny)) || !PASSABLE[map.terrain[i]]) return false; h.x = nx; h.y = ny; return true; };
-      if (!tryMove(h.x + dx * sp, h.y + dy * sp)) { if (!tryMove(h.x + dx * sp, h.y)) tryMove(h.x, h.y + dy * sp); }
+      const tryMove = (nx, ny) => { if (!walkable(nx, ny)) return false; h.x = nx; h.y = ny; return true; };
+      if (!tryMove(h.x + dx * sp, h.y + dy * sp)) { if (!tryMove(h.x + dx * sp, h.y)) if (!tryMove(h.x, h.y + dy * sp)) h.target = null; }
       h.face = Math.atan2(dx, dy); h.moving = true;
     } else h.moving = false;
-    for (const b of live().concat(keep.ruined ? [] : [keep])) { const ddx = h.x - b.x, ddy = h.y - b.y, d = Math.hypot(ddx, ddy), m = b.r + h.r * 0.5; if (d < m && d > 1e-4) { h.x = b.x + ddx / d * m; h.y = b.y + ddy / d * m; } }
     h.cd -= dt; h.swing = Math.max(0, h.swing - dt);
     const A = HC.attack;
     if (A && h.cd <= 0) {
-      const reach = A.reach + S.P.heroRange, dmg = A.dmg + S.P.heroDmg + (mastered('hero') ? 1 : 0);
+      const reach = A.reach + S.P.heroRange, dmg = heroDmg() * (S.nightFlags.lastT > 0 ? 2 : 1);
       let best = null, bd = reach;
       for (const m of S.mobs) { if (m.rise < 1) continue; const d = Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size; if (d < bd) { bd = d; best = m; } }
       if (best) {
-        h.cd = A.rate / S.P.heroRate; h.swing = 0.25; if (!moving) h.face = Math.atan2(best.x - h.x, best.y - h.y);
+        h.cd = heroRate(); h.swing = 0.25; h.attacks++; if (!moving) h.face = Math.atan2(best.x - h.x, best.y - h.y);
+        const cleave = mastery('whirlwind') || (has('wardance') && h.attacks % 3 === 0);
         if (A.kind === 'melee') {
-          if (mastered('hero')) S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size < reach).forEach(m => hitMob(m, dmg, 'hero'));
+          if (cleave) S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size < reach).forEach(m => hitMob(m, dmg, 'hero'));
           else hitMob(best, dmg, 'hero');
           ev('swing');
         } else {
           fire(1.4, h.x, h.y, best, dmg, 'hero', 24);
-          if (mastered('hero')) { const second = S.mobs.find(m => m !== best && Math.hypot(m.x - h.x, m.y - h.y) < reach); if (second) fire(1.4, h.x, h.y, second, dmg, 'hero', 24); }
+          if (cleave) for (const m of S.mobs.filter(o => o !== best && Math.hypot(o.x - h.x, o.y - h.y) < reach).slice(0, 2)) fire(1.4, h.x, h.y, m, dmg, 'hero', 24);
         }
       }
     }
-    h.hp = Math.min(h.maxHp, h.hp + dt * (S.phase === 'day' ? 3 : S.P.heroRegen));
+    h.hp = Math.min(h.maxHp, h.hp + dt * (S.phase === 'day' ? (S.P.noDayHeal ? 0 : 3) : S.P.heroRegen));
     for (const ch of [...S.chests]) {
       if (Math.hypot(ch.x - h.x, ch.y - h.y) > 1.3) continue;
-      S.chests.splice(S.chests.indexOf(ch), 1); ev('chestOpen', { id: ch.id });
-      if (S.phase === 'day') { S.pendingPicks++; rollOffer(); } else { S.chestsHeld++; toast('Chest opened. Extra blessing at dawn.', 'good'); }
+      S.chests.splice(S.chests.indexOf(ch), 1); ev('chestOpen', { id: ch.id }); S.stats.chests++;
+      if (S.phase === 'day') { S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) rollOffer(); } else { S.chestsHeld++; toast('Chest opened. Extra blessing at dawn.', 'good'); }
     }
+    if (HC.collects) for (const p of [...S.purses]) {
+      if (Math.hypot(p.x - h.x, p.y - h.y) > 1.2) continue;
+      S.purses.splice(S.purses.indexOf(p), 1); earn(p.value); S.stats.pursesGold += p.value; ev('purseTaken', { id: p.id, value: p.value });
+    }
+  }
+  function stepAllies(dt) {
+    const h = S.hero;
+    for (const a of [...S.allies]) {
+      if (a.hp <= 0) { S.allies.splice(S.allies.indexOf(a), 1); ev('allyGone', { id: a.id, died: true }); continue; }
+      a.cd -= dt; a.attacking = false;
+      let best = null, bd = Infinity;
+      for (const m of S.mobs) { if (m.rise < 1) continue; if (Math.hypot(m.x - h.x, m.y - h.y) > MERC.leash + 2) continue; const d = Math.hypot(m.x - a.x, m.y - a.y); if (d < bd) { bd = d; best = m; } }
+      if (best) {
+        if (bd > MERC.reach) moveAlly(a, best.x, best.y, MERC.speed * dt);
+        else { a.attacking = true; a.face = Math.atan2(best.x - a.x, best.y - a.y); if (a.cd <= 0) { a.cd = MERC.rate; hitMob(best, MERC.dmg, 'merc'); ev('swingAlly', { id: a.id }); } }
+      } else if (Math.hypot(h.x - a.x, h.y - a.y) > 2) moveAlly(a, h.x, h.y, MERC.speed * dt);
+    }
+  }
+  function moveAlly(a, tx, ty, s) {
+    const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy); if (d < 1e-4) return;
+    const nx = a.x + dx / d * Math.min(s, d), ny = a.y + dy / d * Math.min(s, d);
+    if (walkable(nx, ny)) { a.x = nx; a.y = ny; } else if (walkable(nx, a.y)) a.x = nx; else if (walkable(a.x, ny)) a.y = ny;
+    a.face = Math.atan2(dx, dy);
   }
 
   // spatial hash for mob separation and auras
@@ -409,39 +679,50 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       for (let ox = -rr; ox <= rr; ox++) for (let oy = -rr; oy <= rr; oy++) { const a = bucket.get(((bx + ox) << 8) | (by + oy)); if (a) for (const m of a) if (m !== s && Math.abs(m.x - s.x) < au.radius && Math.abs(m.y - s.y) < au.radius) m.boost = au.speed; }
     }
     const targets = live().concat(keep.ruined ? [] : [keep]);
+    const walls = has('tar') ? live().filter(b => b.type === 'wall') : [];
+    const climbOk = !mastery('fortress');
     for (const m of [...S.mobs]) {
       if (m.hp <= 0) continue;
       const D = MOBS[m.kind];
       if (m.rise < 1) { m.rise = Math.min(1, m.rise + dt * 1.2); continue; }
+      const inTar = walls.length && walls.some(w => Math.hypot(w.x - m.x, w.y - m.y) < 3.2);
+      if (m.burn) { m.burn.t -= dt; hitMob(m, m.burn.dps * dt * (inTar && combo('tar', 'fire') ? 2 : 1), 'fire'); if (m.burn && m.burn.t <= 0) m.burn = null; if (m.hp <= 0) continue; }
       if (D.summon) { m.summonT -= dt; if (m.summonT <= 0) { m.summonT = D.summon.every; for (let k = 0; k < D.summon.count; k++) spawnMob(D.summon.kind, m.x + rng.range(-1.5, 1.5), m.y + rng.range(-1.5, 1.5)); ev('summon', { id: m.id }); } }
-      m.cd -= dt; m.attacking = false;
+      m.cd -= dt; m.attacking = false; m.tauntT = Math.max(0, m.tauntT - dt);
       const ci = idx(Math.floor(m.x), Math.floor(m.y));
-      const speed = m.speed * m.boost / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
+      const speed = m.speed * m.boost * (inTar ? 0.6 : 1) / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
       const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
+      // nearest sellsword
+      let ally = null, ad = Infinity;
+      for (const a of S.allies) { const d = Math.hypot(a.x - m.x, a.y - m.y); if (d < ad) { ad = d; ally = a; } }
       // spitters stop and spit at the first thing in range
       if (D.range) {
         let tgt = null, td = D.range;
         if (hd < td) { tgt = h; td = hd; }
+        if (ad < td) { tgt = ally; td = ad; }
         for (const b of targets) { if (b.ruined) continue; const d = Math.hypot(b.x - m.x, b.y - m.y) - b.r; if (d < td) { td = d; tgt = b; } }
         if (tgt) { m.attacking = true; m.face = Math.atan2(tgt.x - m.x, tgt.y - m.y); if (m.cd <= 0) { m.cd = D.rate; spit(m, tgt); } continue; }
       }
-      // anything close to the hero turns on them
-      if (hd < 3 && !D.burst && m.kind !== 'gravelord') {
-        m.face = Math.atan2(h.x - m.x, h.y - m.y);
-        if (hd > 0.9) { moveToward(m, h.x, h.y, speed * dt); }
-        else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; hurtHero(D.dmg); ev('bite', { id: m.id }); } }
+      // taunted, or close to the hero or a sellsword: turn on them
+      const foe = (m.tauntT > 0 && !h.dead) || (hd < 3 && hd <= ad) ? (h.dead ? null : h) : ad < 2.5 ? ally : null;
+      if (foe && !D.burst && m.kind !== 'gravelord') {
+        const fd = Math.hypot(foe.x - m.x, foe.y - m.y);
+        m.face = Math.atan2(foe.x - m.x, foe.y - m.y);
+        if (fd > 0.9) moveToward(m, foe.x, foe.y, speed * dt);
+        else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; if (foe === h) hurtHero(D.dmg); else foe.hp -= D.dmg; ev('bite', { id: m.id }); } }
         continue;
       }
-      const field = D.climbs ? S.climb : S.flow, next = D.climbs ? S.climbNext : S.flowNext;
+      const climbs = D.climbs && climbOk;
+      const field = climbs ? S.climb : S.flow, next = climbs ? S.climbNext : S.flowNext;
       let attackB = null;
       if (field[ci] === 0 || !Number.isFinite(field[ci])) attackB = adjacentBuilding(m);
       const nj = next[ci];
-      if (!attackB && nj >= 0 && S.occ[nj] >= 0 && !D.climbs) attackB = S.byId.get(S.occ[nj]); // a palisade stands in the way
+      if (!attackB && nj >= 0 && S.occ[nj] >= 0 && !climbs) attackB = S.byId.get(S.occ[nj]); // a palisade stands in the way
       if (attackB && !attackB.ruined) {
         m.attacking = true; m.face = Math.atan2(attackB.x - m.x, attackB.y - m.y);
         if (D.burst) { m.hp = 0; killMob(m); continue; }
         if (m.cd <= 0) {
-          m.cd = 1; damageBuilding(attackB, D.dmg); ev('bite', { id: m.id });
+          m.cd = 1; damageBuilding(attackB, D.dmg, m); ev('bite', { id: m.id });
           if (attackB.type === 'wall' && S.P.thorns) hitMob(m, S.P.thorns, 'thorns');
         }
         continue;
@@ -466,7 +747,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function standable(m, x, y) {
     const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return false;
     const i = idx(cx, cy);
-    return PASSABLE[map.terrain[i]] && (S.occ[i] < 0 || (MOBS[m.kind].climbs && isWall(S.occ[i])));
+    return PASSABLE[map.terrain[i]] && (S.occ[i] < 0 || (MOBS[m.kind].climbs && !mastery('fortress') && isWall(S.occ[i])));
   }
   function unstick(m) {
     const cx = Math.floor(m.x), cy = Math.floor(m.y);
@@ -485,33 +766,53 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     return best;
   }
 
+  function nearestMobs(x, y, range, k) {
+    const out = [];
+    for (const m of S.mobs) { if (m.rise < 1) continue; const d = Math.hypot(m.x - x, m.y - y); if (d < range) out.push([d, m]); }
+    out.sort((a, b) => a[0] - b[0]); return out.slice(0, k).map(q => q[1]);
+  }
   function stepTowers(dt) {
-    const shooters = live().filter(b => b.type === 'tower'); if (!keep.ruined) shooters.push(keep);
-    for (const b of shooters) {
-      let range, dmg, rate, shots = 1;
-      if (b.type === 'tower') { const B = BUILDINGS.tower, l = b.level - 1; range = B.range[l] + S.P.towerRange; dmg = B.dmg[l] * towerMult(); rate = B.rate[l] / S.P.towerRate; }
-      else { const l = keep.level - 1; range = KEEP.range[l] + S.P.towerRange; dmg = KEEP.dmg[l] * keepMult(); rate = KEEP.rate / S.P.keepRate; shots = KEEP.shots[l]; }
+    for (const b of live()) {
+      if (b.type !== 'tower') continue;
+      const t = towerStats(b);
+      if (mastery('rain')) { b.rainT += dt; if (b.rainT >= 6) { b.rainT = 0; for (const m of nearestMobs(b.x, b.y, t.range, 3)) fire(3, b.x, b.y, m, t.dmg, 'tower'); } }
       b.cd -= dt; if (b.cd > 0) continue;
-      let n1 = null, n2 = null, d1 = range * range, d2 = range * range;
-      for (const m of S.mobs) {
-        if (m.rise < 1) continue; const dx = m.x - b.x, dy = m.y - b.y, d = dx * dx + dy * dy;
-        if (d < d1) { n2 = n1; d2 = d1; n1 = m; d1 = d; } else if (d < d2) { n2 = m; d2 = d; }
+      const near2 = nearestMobs(b.x, b.y, t.range, 2); if (!near2.length) continue;
+      for (let k = 0; k < t.shots; k++) {
+        b.shotN++;
+        fire(3, b.x, b.y, near2[k % near2.length], t.dmg, 'tower', 18, has('fire') && b.shotN % 5 === 0 ? { burn: true } : {});
       }
-      if (!n1) continue;
-      const near = n2 ? [n1, n2] : [n1];
-      for (let k = 0; k < shots; k++) fire(b.type === 'keep' ? 4 : 3, b.x, b.y, near[k % near.length], dmg, b.type === 'keep' ? 'keep' : 'tower');
-      b.cd = rate;
+      b.cd = t.rate;
+    }
+    if (!keep.ruined) {
+      const l = keep.level - 1, range = KEEP.range[l] + S.P.towerRange, dmg = KEEP.dmg[l] * keepMult();
+      keep.cd -= dt;
+      if (keep.cd <= 0) { const ms = nearestMobs(c, c, range, 2); if (ms.length) { for (let k = 0; k < KEEP.shots[l]; k++) fire(4, c, c, ms[k % ms.length], dmg, 'keep'); keep.cd = KEEP.rate / S.P.keepRate; } }
+      if (has('ballista')) {
+        keep.boltT -= dt;
+        if (keep.boltT <= 0) {
+          const tgt = nearestMobs(c, c, 12, 1)[0];
+          if (tgt) {
+            keep.boltT = 3; const dx = tgt.x - c, dy = tgt.y - c, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, ex = c + ux * 12, ey = c + uy * 12;
+            for (const m of [...S.mobs]) { const px = m.x - c, py = m.y - c, along = px * ux + py * uy; if (along < 0 || along > 12) continue; if (Math.abs(px * uy - py * ux) < 0.6) hitMob(m, 8, 'keep'); }
+            ev('bolt', { x0: c, y0: c, x1: ex, y1: ey });
+          }
+        }
+      }
     }
   }
   function stepProjectiles(dt) {
     for (const p of [...S.projectiles]) {
-      const tgt = p.target === 'hero' ? (S.hero.dead ? null : S.hero) : (p.enemy ? S.byId.get(p.target) : mobById.get(p.target));
+      let tgt;
+      if (p.target === 'hero') tgt = S.hero.dead ? null : S.hero;
+      else if (typeof p.target === 'string' && p.target[0] === 'a') tgt = S.allies.find(a => `a${a.id}` === p.target) || null;
+      else tgt = p.enemy ? S.byId.get(p.target) : mobById.get(p.target);
       if (tgt) { p.tx = tgt.x; p.ty = tgt.y; }
       const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy); p.life -= dt;
       if (d < 0.4 || p.life <= 0) {
         if (tgt && d < 0.8) {
-          if (p.enemy) { if (tgt === S.hero) hurtHero(p.dmg); else damageBuilding(tgt, p.dmg); }
-          else hitMob(tgt, p.dmg, p.src);
+          if (p.enemy) { if (tgt === S.hero) hurtHero(p.dmg); else if (tgt.ally) tgt.hp -= p.dmg; else damageBuilding(tgt, p.dmg); }
+          else { if (p.burn) tgt.burn = { t: 4, dps: 1 }; hitMob(tgt, p.dmg, p.src); }
         }
         S.projectiles.splice(S.projectiles.indexOf(p), 1); ev('shotEnd', { id: p.id }); continue;
       }
@@ -523,13 +824,16 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.over) return;
     S.time += dt;
     refreshFlow();
+    if (S.ability.cd > 0) S.ability.cd = Math.max(0, S.ability.cd - dt);
     stepHero(dt);
     if (S.phase === 'night') {
       S.qT += dt;
       while (S.queue.length && S.queue[0].t <= S.qT) { const q = S.queue.shift(); spawnAtNest(q.kind, q.nest); }
       stepMobs(dt);
+      stepAllies(dt);
       stepTowers(dt);
-      if (mastered('stone')) for (const b of live()) if (b.hp < b.maxHp) b.hp = Math.min(b.maxHp, b.hp + dt * 0.3);
+      if (mastery('mending')) for (const b of live()) if (b.hp < b.maxHp) b.hp = Math.min(b.maxHp, b.hp + dt * 0.3);
+      for (const p of [...S.purses]) { p.life -= dt; if (p.life <= 0) { S.purses.splice(S.purses.indexOf(p), 1); ev('purseGone', { id: p.id }); } }
     }
     stepProjectiles(dt);
     // sunrise: whatever still walks long after the last surge burns away
@@ -577,17 +881,20 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       wakes: reg.neighbors.filter(n => map.regions[n].nest && !S.claimed.has(n) && S.wake[n] > S.night).length,
     };
   }
-  rollOffer(); S.pendingPicks = 1; rollOffer();
+  /** building whose footprint covers the cell under (x, y), or the keep */
+  function buildingAt(x, y) { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return null; const o = S.occ[idx(cx, cy)]; return o >= 0 ? S.byId.get(o) : null; }
+  S.picks.push('dawn'); rollOffer(); rollPacks();
 
   return {
-    state: S, map, heroDef: HC, step, build, upgrade, upgradeKeep, startNight, choosePerk, planPurge,
+    state: S, map, heroDef: HC, step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, choosePerk, reroll, trade, planPurge, useAbility,
     setHeroInput: (x, y) => { S.hero.input.x = x; S.hero.input.y = y; },
     heroTo: (x, y) => { S.hero.target = { x, y }; },
-    costOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
-    foodPerDawn: () => Math.round(S.buildings.reduce((a, b) => a + (b.type === 'farm' ? farmFood(b) : 0), 0) * (mastered('harvest') ? 1.3 : 1)),
-    goldPerDawn: () => Math.round((START.baseIncome + S.P.tax + S.buildings.reduce((a, b) => a + (b.type === 'house' ? houseGold(b) : 0), 0)) * incomeMult()) - upkeep(),
-    upkeep, foodNeed,
-    forecast, mastered, isBloodMoon, drainEvents: () => S.events.splice(0),
+    canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
+    abilityCost, towerStats: b => towerStats(b), has,
+    foodPerDawn: () => Math.round(S.buildings.reduce((a, b) => a + (b.type === 'farm' ? farmFood(b) : 0), 0) * prosper()),
+    goldPerDawn: () => Math.round((START.baseIncome + S.P.tax + S.buildings.reduce((a, b) => a + (b.type === 'house' ? houseGold(b) : 0), 0)) * prosper()) - upkeep(),
+    upkeep, foodNeed, rerollCost: () => (S.reroll.free > 0 ? 0 : S.reroll.cost),
+    forecast, mastered, mastery, isBloodMoon, drainEvents: () => S.events.splice(0),
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
   };
 }

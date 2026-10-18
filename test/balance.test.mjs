@@ -15,7 +15,7 @@ test('a solid tower build survives roughly 15–35 nights', () => {
 });
 
 test('a town with no defences falls early', () => {
-  const r = runs({ hero: 'steward', strat: 'economy', expansion: 'never', heroMode: 'idle' }, [1, 2, 3, 4]);
+  const r = runs({ hero: 'merchant', strat: 'economy', expansion: 'never', heroMode: 'idle' }, [1, 2, 3, 4]);
   assert.ok(median(r.map(x => x.nights)) <= 10);
 });
 

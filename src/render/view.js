@@ -3,7 +3,8 @@
 import { N, T, idx } from '../sim/mapgen.js';
 import { mulberry32 } from '../sim/rng.js';
 import { MOBS } from '../content/mobs.js';
-import { mat, box, cyl, cone, buildingMesh, keepMesh, nestMesh, mobMesh, heroMesh, chestMesh, windowMat, torchMat } from './meshes.js';
+import { mat, box, cyl, cone, buildingMesh, keepMesh, nestMesh, mobMesh, heroMesh, chestMesh, windowMat, torchMat, mercMesh, purseMesh, flameMesh } from './meshes.js';
+import { createVillagers } from './villagers.js';
 
 // Few colours on purpose: your town is warm and bright, the wild is muted, the dead's routes are the only accent.
 const TERRAIN_COLOR = {
@@ -49,10 +50,9 @@ export function createView(canvas, game) {
   ground.receiveShadow = true; world.add(ground);
   const under = new THREE.Mesh(new THREE.CircleGeometry(60, 40), mat(0x1f2b1f)); under.rotation.x = -Math.PI / 2; under.position.y = -0.3; world.add(under);
   const tmpC = new THREE.Color();
-  // which cells are lots and streets of the town (claimed land only)
-  const lotCell = new Int16Array(N * N).fill(-1);
-  for (const sl of map.slots) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) lotCell[idx(Math.floor(sl.x) + dx, Math.floor(sl.y) + dy)] = sl.id;
+  // streets: the ring of cells around every building (and the keep) is paved
   const fog = new THREE.Color(WILD_FOG);
+  const tmpC2 = new THREE.Color();
   function paintTerrain() {
     const ca = tgeo.attributes.color;
     cellOf.forEach((i, q) => {
@@ -60,11 +60,9 @@ export function createView(canvas, game) {
       const town = r >= 0 && S.claimed.has(r);
       tmpC.setHex(TERRAIN_COLOR[t]);
       if (town && (t === T.GRASS || t === T.DIRT)) {
-        if (lotCell[i] >= 0) tmpC.setHex(LOT);
-        else { // a street: any open cell touching a lot
-          let st = false; for (let dy = -1; dy <= 1 && !st; dy++) for (let dx = -1; dx <= 1; dx++) { const j = idx(x + dx, y + dy); if (j >= 0 && j < N * N && lotCell[j] >= 0) { st = true; break; } }
-          if (st || t === T.DIRT) tmpC.setHex(STREET);
-        }
+        if (t === T.DIRT) tmpC.setHex(TERRAIN_COLOR[T.GRASS]).lerp(tmpC2.setHex(STREET), 0.22);
+        if (S.occ[i] >= 0) tmpC.setHex(LOT);
+        else { let st = false; for (let dy = -1; dy <= 1 && !st; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < N && yy < N && S.occ[idx(xx, yy)] >= 0) { st = true; break; } } if (st) tmpC.setHex(STREET); }
       }
       if (!town && r >= 0) tmpC.lerp(fog, 0.55);
       for (let v = 0; v < 6; v++) ca.setXYZ(q * 6 + v, tmpC.r, tmpC.g, tmpC.b);
@@ -106,17 +104,8 @@ export function createView(canvas, game) {
   instanced(new THREE.BoxGeometry(1, 1, 1), mat(0x8a8072), cells(T.CLIFF), (i, o) => { const x = i % N, y = (i / N) | 0; o.position.set(x + 0.5 - C, 0.8, y + 0.5 - C); o.scale.set(1.02, 1.6 + vis() * 0.6, 1.02); o.rotation.set(0, 0, 0); });
 
   // ---------- nests ----------
-  const nests = new Map();
+  const nests = new Map(); let nestKey = '', nearNests = new Set();
   for (const r of map.regions) if (r.nest) { const g = nestMesh(vis); g.position.copy(W(r.nest.x, r.nest.y)); world.add(g); nests.set(r.id, g); }
-
-  // ---------- slots ----------
-  const slotTiles = map.slots.map(s => {
-    const t = new THREE.Mesh(new THREE.BoxGeometry(s.gate ? 2.6 : 2.0, 0.06, s.gate ? 1.2 : 2.0), new THREE.MeshStandardMaterial({ color: s.gate ? 0x8a8a84 : LOT, flatShading: true, roughness: 1 }));
-    if (s.gate) t.rotation.y = -Math.atan2(Math.cos(Math.atan2(s.y - C, s.x - C)), -Math.sin(Math.atan2(s.y - C, s.x - C)));
-    t.position.copy(W(s.x, s.y, 0.04)); t.receiveShadow = true;
-    for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) t.add(box(0.1, 0.28, 0.1, 0x5a4030, a * 0.95, 0.14, b * 0.95));
-    world.add(t); return t;
-  });
 
   // ---------- markers ----------
   const ringGeo = (a, b) => new THREE.RingGeometry(a, b, 48);
@@ -188,9 +177,9 @@ export function createView(canvas, game) {
       if (!e || e.level !== b.level) {
         if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); }
         const g = buildingMesh(b.type, b.level); g.position.copy(W(b.x, b.y));
-        if (b.type === 'wall') { const a = Math.atan2(b.y - C, b.x - C); g.rotation.y = -Math.atan2(Math.cos(a), -Math.sin(a)); }
+        if (b.type === 'wall') { g.rotation.y = [0, -Math.PI / 2, -Math.PI / 4, Math.PI / 4][b.rot || 0]; g.userData.stretch = b.rot >= 2 ? 1.414 : 1; }
         else g.rotation.y = -Math.atan2(b.y - C, b.x - C) - Math.PI / 2;
-        g.userData.full = b.type === 'wall' ? 1 : 0.82; g.scale.setScalar(0.05); world.add(g);
+        g.userData.full = b.type === 'wall' ? 1 : b.type === 'tower' ? 0.72 : 0.82; g.scale.setScalar(0.05); world.add(g);
         e = { g, bar: makeBar('b', 1.4), level: b.level, rubble: null }; bMeshes.set(b.id, e);
       }
       if (b.ruined && !e.rubble) { e.g.visible = false; e.rubble = rubble(b.r); e.rubble.position.copy(W(b.x, b.y)); world.add(e.rubble); }
@@ -230,11 +219,56 @@ export function createView(canvas, game) {
     m.rotation.x = -Math.PI / 2; m.position.copy(W(x, y, 0.12)); fx.add(m); effects.push({ m, t: 0, r });
   }
 
+  const aMeshes = new Map(), puMeshes = new Map();
+  function syncAllies() {
+    const seen = new Set();
+    for (const a of S.allies) { seen.add(a.id); if (!aMeshes.has(a.id)) { const m = mercMesh(); world.add(m.g); aMeshes.set(a.id, { ...m, bar: makeBar('h', 0.7), phase: vis() * 6 }); burst(a.x, a.y, 0.8, 0xeaa441); } }
+    for (const [id, e] of aMeshes) if (!seen.has(id)) { fx.remove(e.bar); dying.push({ g: e.g, t: 0 }); aMeshes.delete(id); }
+  }
+  function syncPurses() {
+    const seen = new Set();
+    for (const p of S.purses) { seen.add(p.id); if (!puMeshes.has(p.id)) { const g = purseMesh(); g.position.copy(W(p.x, p.y)); world.add(g); puMeshes.set(p.id, g); } }
+    for (const [id, g] of puMeshes) if (!seen.has(id)) { world.remove(g); puMeshes.delete(id); }
+  }
+  function bolt(e) {
+    const len = Math.hypot(e.x1 - e.x0, e.y1 - e.y0), m = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, len), new THREE.MeshBasicMaterial({ color: 0xffe0a0, transparent: true, opacity: 0.95 }));
+    m.position.copy(W((e.x0 + e.x1) / 2, (e.y0 + e.y1) / 2, 2.5)); m.lookAt(W(e.x1, e.y1, 2.5)); fx.add(m); effects.push({ m, t: 0, r: 0, line: true });
+  }
+  const flames = []; const flameFor = new Map();
+  // placement ghost: footprint cells (green = fits, red = not) and a see-through building
+  const ghostCells = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false }), 30);
+  ghostCells.renderOrder = 6; ghostCells.visible = false; fx.add(ghostCells);
+  let ghostMesh = null, ghostKey = '';
+  function setGhost(gh) {
+    if (!gh) { ghostCells.visible = false; if (ghostMesh) ghostMesh.visible = false; return; }
+    const d = new THREE.Object3D();
+    gh.cells.slice(0, 30).forEach((i, k) => { d.position.copy(W((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.12)); d.updateMatrix(); ghostCells.setMatrixAt(k, d.matrix); ghostCells.setColorAt(k, tmpC.setHex(gh.ok ? 0x8ad06a : 0xe0604a)); });
+    ghostCells.count = Math.min(30, gh.cells.length); ghostCells.instanceMatrix.needsUpdate = true; if (ghostCells.instanceColor) ghostCells.instanceColor.needsUpdate = true; ghostCells.visible = true;
+    const key = gh.type;
+    if (key !== ghostKey) {
+      if (ghostMesh) fx.remove(ghostMesh);
+      ghostMesh = buildingMesh(gh.type, 1); ghostMesh.traverse(o => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.5; o.castShadow = false; } });
+      fx.add(ghostMesh); ghostKey = key;
+    }
+    ghostMesh.visible = true; ghostMesh.position.copy(W(gh.x, gh.y));
+    ghostMesh.rotation.y = gh.type === 'wall' ? [0, -Math.PI / 2, -Math.PI / 4, Math.PI / 4][gh.rot || 0] : 0;
+    const sc = gh.type === 'tower' ? 0.72 : gh.type === 'wall' ? 1 : 0.82; ghostMesh.scale.set(sc * (gh.type === 'wall' && gh.rot >= 2 ? 1.414 : 1), sc, sc);
+  }
+  const villagers = createVillagers({ THREE, world, game, W, map });
+  let orbit = 0;
+
   // ---------- events ----------
+  let repaint = false;
   function handleEvents(events) {
     for (const e of events) {
       if (e.t === 'claim') { paintTerrain(); const g = nests.get(e.region); if (g) { burst(map.regions[e.region].nest.x, map.regions[e.region].nest.y, 4, 0xeaa441); world.remove(g); nests.delete(e.region); } }
       if (e.t === 'explode') burst(e.x, e.y, e.r, 0xa3c65c);
+      if (e.t === 'build' || e.t === 'remove' || e.t === 'ruin' || e.t === 'rebuild') repaint = true;
+      if (e.t === 'volley') burst(e.x, e.y, e.r, 0xeaa441);
+      if (e.t === 'warcry') burst(e.x, e.y, e.r, 0xd4553f);
+      if (e.t === 'bell') { burst(C, C, 8, 0xffd27a); burst(C, C, 5, 0xffd27a); }
+      if (e.t === 'bolt') bolt(e);
+      if (e.t === 'purseTaken') burst(S.hero.x, S.hero.y, 0.8, 0xeaa441);
       if (e.t === 'keepUp') { const s = 1 + 0.12 * (S.keep.level - 1); keepG.scale.setScalar(s); }
     }
   }
@@ -257,7 +291,8 @@ export function createView(canvas, game) {
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
-    syncBuildings(); syncMobs(); syncProjectiles(); syncChests();
+    syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses();
+    if (repaint) { repaint = false; paintTerrain(); }
     const night = S.phase === 'night' || S.phase === 'over';
     dark += ((night ? 1 : 0) - dark) * Math.min(1, dt * 1.4);
     lerpPalette(dark, S.phase === 'night' && game.isBloodMoon(S.night));
@@ -269,8 +304,30 @@ export function createView(canvas, game) {
     const vh = Math.tan(vf * Math.PI / 360), hh = vh * camera.aspect, R = 20 * zoomCur, dist = Math.max(R / hh, R / vh * 0.8);
     scene.fog.near = dist + 20; scene.fog.far = dist + 110;
     const h = S.hero;
-    if (!h.dead) camTarget.lerp(W(h.x, h.y), Math.min(1, dt * 4));
-    camera.position.set(camTarget.x, camTarget.y + dist * 0.8, camTarget.z + dist * 0.6); camera.lookAt(camTarget); camera.updateMatrixWorld();
+    if (orbit > 0) {
+      // the end: circle slowly around the fallen keep
+      orbit += dt * 0.12; camTarget.lerp(W(C, C), Math.min(1, dt * 1.5));
+      const od = dist * 1.1; camera.position.set(camTarget.x + Math.sin(orbit) * od * 0.6, camTarget.y + od * 0.7, camTarget.z + Math.cos(orbit) * od * 0.6);
+    } else {
+      if (!h.dead) camTarget.lerp(W(h.x, h.y), Math.min(1, dt * 4));
+      camera.position.set(camTarget.x, camTarget.y + dist * 0.8, camTarget.z + dist * 0.6);
+    }
+    camera.lookAt(camTarget); camera.updateMatrixWorld();
+    villagers.update(dt, time, dark);
+    for (const a of S.allies) {
+      const e = aMeshes.get(a.id); if (!e) continue;
+      e.g.position.copy(W(a.x, a.y)); e.g.rotation.y = a.face || 0;
+      e.phase += dt * 8; e.body.position.y = a.attacking ? 0 : Math.abs(Math.sin(e.phase)) * 0.06; e.weapon.rotation.x = a.attacking ? Math.sin(time * 12) * 0.6 : 0;
+      setBar(e.bar, a.x, 1.35, a.y, a.hp / a.maxHp);
+    }
+    for (const g of puMeshes.values()) { g.rotation.y += dt * 2; g.position.y = 0.05 + Math.abs(Math.sin(time * 4)) * 0.12; }
+    // burning dead carry a small flame
+    for (const m of S.mobs) {
+      let f = flameFor.get(m.id);
+      if (m.burn && !f) { f = flames.pop() || flameMesh(); fx.add(f); flameFor.set(m.id, f); }
+      if (f) { if (!m.burn) { fx.remove(f); flames.push(f); flameFor.delete(m.id); } else { f.position.copy(W(m.x, m.y, 1.5 + Math.sin(time * 20) * 0.05)); f.scale.setScalar(0.9 + Math.sin(time * 17 + m.id) * 0.2); } }
+    }
+    for (const [id, f] of flameFor) if (!S.mobs.some(m => m.id === id)) { fx.remove(f); flames.push(f); flameFor.delete(id); }
 
     // hero
     H.g.visible = !h.dead; H.g.position.copy(W(h.x, h.y));
@@ -290,27 +347,28 @@ export function createView(canvas, game) {
       setBar(e.bar, m.x, 1.45 * e.size, m.y, m.hp / m.maxHp);
     }
     for (const d of [...dying]) { d.t += dt; d.g.rotation.x = -Math.min(1.4, d.t * 4); d.g.position.y = -Math.max(0, d.t - 0.35) * 2; if (d.t > 1) { world.remove(d.g); dying.splice(dying.indexOf(d), 1); } }
-    for (const f of [...effects]) { f.t += dt; const s = 0.5 + f.t * f.r * 2.2; f.m.scale.set(s, s, s); f.m.material.opacity = Math.max(0, 0.9 - f.t * 1.4); if (f.t > 0.7) { fx.remove(f.m); effects.splice(effects.indexOf(f), 1); } }
+    for (const f of [...effects]) { f.t += dt; if (!f.line) { const s = 0.5 + f.t * f.r * 2.2; f.m.scale.set(s, s, s); } f.m.material.opacity = Math.max(0, 0.9 - f.t * 1.4); if (f.t > 0.7) { fx.remove(f.m); effects.splice(effects.indexOf(f), 1); } }
     for (const g of cMeshes.values()) { g.rotation.y += dt; g.position.y = 0.1 + Math.abs(Math.sin(time * 3)) * 0.15; }
 
     // buildings
     for (const b of S.buildings) {
       const e = bMeshes.get(b.id); if (!e) continue;
-      const full = e.g.userData.full || 1, sc = e.g.scale.x; if (sc < full) e.g.scale.setScalar(Math.min(full, sc + dt * 3.2));
+      const full = e.g.userData.full || 1, sc = e.g.scale.y; if (sc < full) { const v = Math.min(full, sc + dt * 3.2); e.g.scale.set(v * (e.g.userData.stretch || 1), v, v); }
       if (!b.ruined) setBar(e.bar, b.x, b.type === 'tower' ? 4.6 : 2.8, b.y, b.hp / b.maxHp); else e.bar.visible = false;
     }
     keepG.visible = !S.keep.ruined;
     setBar(keepBar, C, 7.4, C, S.keep.hp / S.keep.maxHp);
 
-    // slots, nests
-    map.slots.forEach((s, i) => {
-      const t = slotTiles[i];
-      t.visible = S.claimed.has(s.region) && S.slotB[i] < 0;
-      if (t.visible) t.material.color.setHex(ui.hoverSlot === i && S.phase === 'day' ? 0xd8c08a : s.gate ? 0x8a8a84 : 0x9c8560);
-    });
+    // nests
     const active = new Set(S.phase === 'night' ? game.activeNests() : game.activeNests(S.night));
+    // only nests that send the dead tonight are drawn in full; sleeping nests next to your land show as a faint scar you can still march on
+    const nk = `${S.claimed.size}|${S.night}|${S.phase}`;
+    if (nk !== nestKey) { nestKey = nk; nearNests = new Set(S.phase === 'day' ? [...nests.keys()].filter(r => game.canPurge(r)) : []); }
     for (const [r, g] of nests) {
-      const p = g.userData.pillar; p.visible = active.has(r) || S.purge === r;
+      const live = active.has(r) || S.purge === r, near = nearNests.has(r);
+      g.visible = live || near || S.over;
+      const sc = live || S.over ? 1 : 0.55; g.scale.setScalar(g.scale.x + (sc - g.scale.x) * Math.min(1, dt * 4));
+      const p = g.userData.pillar; p.visible = live;
       p.material.color.setHex(S.purge === r ? 0xeaa441 : 0xa8d65c);
       p.material.opacity = 0.08 + 0.05 * Math.sin(time * 2 + r) + (S.phase === 'night' ? 0.05 : 0);
     }
@@ -325,13 +383,14 @@ export function createView(canvas, game) {
     selRing.visible = !!sel; rangeRing.visible = false;
     if (sel) {
       let x, y, s = 1;
-      if (sel.type === 'slot') { x = map.slots[sel.id].x; y = map.slots[sel.id].y; }
+      if (sel.type === 'building') { const b = S.byId.get(sel.id); if (b) { x = b.x; y = b.y; s = b.type === 'tower' ? 0.9 : b.type === 'wall' ? 1.8 : 1.2; } else { x = C; y = C; } }
       else if (sel.type === 'keep') { x = C; y = C; s = 1.9; }
       else if (sel.type === 'region') { const n = map.regions[sel.id].nest; x = n.x; y = n.y; s = 1.8; }
       selRing.position.copy(W(x, y, 0.1)); const k = s + Math.sin(time * 4) * 0.04; selRing.scale.set(k, k, k);
       if (sel.range) { rangeRing.visible = true; rangeRing.position.copy(W(x, y, 0.09)); rangeRing.scale.set(sel.range, sel.range, sel.range); }
     }
     if (moveMark.material.opacity > 0) { moveMark.material.opacity = Math.max(0, moveMark.material.opacity - dt * 1.5); moveMark.scale.multiplyScalar(1 + dt * 0.8); }
+    setGhost(ui.ghost || null);
     renderer.render(scene, camera);
   }
 
@@ -344,10 +403,9 @@ export function createView(canvas, game) {
   }
   function pick(cx, cy) {
     const p = groundAt(cx, cy); if (!p) return null;
-    if (Math.hypot(p.x - C, p.y - C) < 2.6) return { type: 'keep', ...p };
-    let best = null, bd = 1.6;
-    map.slots.forEach((s, i) => { if (!S.claimed.has(s.region)) return; const d = Math.hypot(s.x - p.x, s.y - p.y); if (d < bd) { bd = d; best = i; } });
-    if (best !== null) return { type: 'slot', id: best, ...p };
+    const b = game.buildingAt(p.x, p.y);
+    if (b && b.type === 'keep') return { type: 'keep', ...p };
+    if (b) return { type: 'building', id: b.id, ...p };
     const cx2 = Math.floor(p.x), cy2 = Math.floor(p.y);
     if (cx2 >= 0 && cy2 >= 0 && cx2 < N && cy2 < N) { const r = map.region[idx(cx2, cy2)]; if (r >= 0 && !S.claimed.has(r)) return { type: 'region', id: r, ...p }; }
     return { type: 'ground', ...p };
@@ -356,7 +414,7 @@ export function createView(canvas, game) {
   function project(x, y, h = 0.6) { const v = W(x, y, h).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, behind: v.z > 1 }; }
 
   return {
-    frame, pick, project, showMove, resize, routes: () => routes,
+    frame, pick, project, showMove, resize, routes: () => routes, groundAt, startOrbit: () => { orbit = 0.001; },
     setZoom: z => { zoom = Math.max(0.45, Math.min(1.8, z)); }, getZoom: () => zoom,
   };
 }
