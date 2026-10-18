@@ -44,7 +44,7 @@
 
 ## Tests and balance
 - `npm test`: **41 passing** (new: districts, hands/power/heat, foreman, evolution incl. Heart, saves, and 4 Chronicler safety tests with a fake Claude).
-- A separate reviewer agent hunted bugs in the new systems; it found 8 (a softlock after a failed AI rewrite, save gaps, quests sent to empty districts, evolution cards blocking the story, a "Not now" loop, double charges…). **All fixed**, its repro scripts re-run clean. I also found and fixed a softlock (blessings earned mid-day) and an unreachable Status button on phones.
+- A separate reviewer agent hunted bugs in the new systems; it found 8 (a softlock after a failed AI rewrite, save gaps, quests sent to empty districts, evolution cards blocking the story, a "Not now" loop, double charges…). **All fixed**, its repro scripts re-run clean. I also found and fixed a softlock (blessings earned mid-day) and an unreachable Status button on phones. A second reviewer drove the built page at phone size and found 4 more (tapping a sealed district froze the view, cloud saves used an invalid path, a travelling companion vanished after Continue, a stale Place bar): all fixed and re-checked.
 - Balance bot (`tools/clockbot.mjs`): a mediocre player on **Auto** from a Survivor that **answers every call and opens every district it is offered**. Nights reached:
 
 | Difficulty | Nights reached (seeds) | Median | Notes |
