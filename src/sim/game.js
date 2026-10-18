@@ -23,7 +23,7 @@ export const TOWN_DRAW = { free: 12, per: 0.012 };
 export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/3
 // Heat: how much attention the town draws. It rests on a floor set by your noise (people, homes, guns, generators)
 // and spikes with gunfire and fighting. Past `stir` the dead nearby drift in; at `erupt` a hive bursts (with a warning).
-export const HEAT = { floorPer: 1.6, floorMax: 70, decay: 0.035, rise: 2.5, shot: 0.05, kill: 0.25, stir: 50, erupt: 80, warn: 40, after: -35, cool: 70, burst: 9 };
+export const HEAT = { floorPer: 1.4, floorMax: 60, decay: 0.04, rise: 2.5, shot: 0.04, kill: 0.2, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Difficulty: threat (how many dead), economy (what homes and farms give), heat (how fast attention builds).
 export const DIFFICULTY = {
   story:     { name: 'Story', blurb: 'For the story and the city. Fewer dead, richer homes.', threat: 0.7, eco: 1.25, heat: 0.75 },
