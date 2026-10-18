@@ -628,6 +628,7 @@ export function startApp() {
   $('#bell').onclick = ringBell;
   $('#logBtn').onclick = showLog;
   $('#crewBtn').onclick = () => { if (game) showStatus(); };
+  $('#dayPill').onclick = () => { if (game && !card && !game.state.over) showStatus(); };
   document.addEventListener('visibilitychange', () => { if (document.hidden && game && !game.state.over) { const snap = game.snapshot(); if (snap) saves.save(snap); } });
   $('#autoBtn').onclick = () => { if (!game) return; const on = !game.state.autopilot; game.setAutopilot(on); $('#autoBtn').setAttribute('aria-pressed', on); $('#autoTag').hidden = !on; toast(on ? '[Autopilot on] Your hero defends the town and your people build. You still choose blessings and story moments.' : '[Autopilot off] Your hands again.', 'sys'); };
   let speed = 1; const SPEEDS = [1, 2, 3];

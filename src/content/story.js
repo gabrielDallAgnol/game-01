@@ -269,6 +269,7 @@ export const TIPS = [
   { id: 'street', when: S => S.story.spots.length > 0 && S.phase === 'day', text: '[Tip: Encounters] Blue beacons in the open districts are people and places worth a look. A few dead guard each one.' },
   { id: 'district', when: S => S.story.quests.length > 0, text: '[Tip: Quests] A blue arrow points to your quest. Walk there yourself: the town will hold for a while.' },
   { id: 'evolve', when: S => S.P.fam.hero + S.P.fam.ranger + S.P.fam.scavver + (S.P.fam.heart || 0) >= 1, text: '[Tip: Evolution] Two blessings of one hero family (Brawn, Aim, Wits, Heart) unlock its Calling. A second family later makes your final class.' },
+  { id: 'status', when: S => S.story.npcs.some(n => n.joined) || S.story.titles.length >= 2, text: '[Tip: Status] Tap the day counter (top left) for your status: titles, companions to talk to or take with you, and the chronicle.' },
   { id: 'foreman', when: S => S.foreman, text: '[Tip: Foreman] Your people now build on their own. Set their focus in the build menu, or turn on Auto in the ⋯ menu and just make the big choices.' },
 ];
 

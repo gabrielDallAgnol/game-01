@@ -171,7 +171,8 @@ details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:v
 #buildBtn{display:none;gap:6px;align-items:center;padding:6px 12px 7px 10px}
 body.compact #menuBtn{display:grid;place-items:center;font-size:20px}
 body.compact .side button:not(#menuBtn){display:none}
-body.compact .side.open button:not(#crewBtn){display:grid;place-items:center}
+body.compact .side.open button{display:grid;place-items:center}
+#dayPill{pointer-events:auto;cursor:pointer}
 body.compact .side{top:auto;bottom:calc(var(--dockH,140px) + 90px);transform:none}
 body.compact #buildBtn{display:inline-flex}
 body.compact #buildBtn[aria-expanded=true]{background:var(--amber);color:#1d1408;border-color:var(--amber)}
@@ -267,7 +268,7 @@ body.compact .tray .hands{grid-column:1/-1}
 <canvas id="view" tabindex="0" aria-label="Map of Hollowmere"></canvas>
 <div id="hud" hidden>
   <div class="top">
-    <div class="pill">
+    <div class="pill" id="dayPill" role="button" aria-label="Open your status: titles, companions, chronicle">
       <span class="nt"><span class="lbl" id="phaseLbl">Day</span><b id="nightNum">1</b></span>
       <span class="moon" id="moon" hidden>Blood moon</span>
       <span class="lv" id="lvTag" title="Hero level: put down the dead, open districts, finish quests">Lv 1</span>
