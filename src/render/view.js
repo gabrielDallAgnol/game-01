@@ -816,7 +816,7 @@ export function createView(canvas, game, opts = {}) {
       let x, y, s = 1;
       if (sel.type === 'building') { const b = S.byId.get(sel.id); if (b) { x = b.x; y = b.y; s = b.type === 'tower' ? 0.6 : b.type === 'wall' ? 0.55 : 1.0; } else { x = C; y = C; } }
       else if (sel.type === 'keep') { x = C; y = C; s = 1.9; }
-      else if (sel.type === 'region') { const n = map.regions[sel.id].nest; x = n.x; y = n.y; s = 1.8; }
+      else if (sel.type === 'region') { const reg = map.regions[sel.id], n = reg.nest || reg; x = n.x; y = n.y; s = reg.nest ? 1.8 : 3; }
       else if (sel.type === 'rubble') { x = Math.floor(sel.x) + 0.5; y = Math.floor(sel.y) + 0.5; s = 1.0; }
       else if (sel.type === 'landmark') { const l = S.landmarks[sel.id]; x = l.x; y = l.y; s = l.size * 0.6; }
       else if (sel.type === 'site') { const st = S.scav.sites[sel.id]; x = st.x; y = st.y; s = 0.6; }

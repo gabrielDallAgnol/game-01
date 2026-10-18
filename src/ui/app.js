@@ -126,7 +126,7 @@ export function startApp() {
     if (!game) return;
     const S = game.state;
     if (S.over || S.phase !== 'day') return;
-    paused = true; placing = null; closePanel();
+    paused = true; if (placing) stopPlacing(); closePanel();
     if (S.pendingPicks > 0 && S.offer.length) return showPerks();
     if (S.story.encounters.length) return showEncounter();
     if (S.packs.length) return showPacks();
@@ -177,7 +177,7 @@ export function startApp() {
   const esc = t => String(t ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   function showEncounter() {
     const S = game.state, enc = S.story.encounters[0]; if (!enc) return dawnFlow();
-    paused = true; placing = null; closePanel();
+    paused = true; if (placing) stopPlacing(); closePanel();
     if (enc.ai === 'pending' && !aiBusy.has(enc.id)) enc.ai = null;   // a request lost to a reload
     const P = enc.ai && typeof enc.ai === 'object' ? enc.ai : null;
     const title = P ? P.title : enc.title, scene = P ? P.scene : enc.scene, line = P && P.line ? P.line : enc.speaker && enc.speaker.line;
@@ -212,7 +212,7 @@ export function startApp() {
 
   function showStatus() {
     const S = game.state, ST = S.story, comp = ST.npcs.filter(n => n.joined && n.alive);
-    paused = true; placing = null; closePanel();
+    paused = true; if (placing) stopPlacing(); closePanel();
     const hero = game.heroDef;
     showCard('status', `<div class="enc sysw"><div class="eyebrow sysline">[Status]</div>
       <h1 class="sm">${esc(hero.name)} · day ${S.night}</h1>
@@ -284,7 +284,7 @@ export function startApp() {
   }
   function showLog() {
     if (!game || paused) return;
-    paused = true; closePanel(); placing = null;
+    paused = true; closePanel(); if (placing) stopPlacing();
     showCard('log', `<div class="eyebrow">Run log · night ${game.state.night}</div><h1 class="sm">The town ledger</h1>${logTable()}
       <div class="cardrow"><button class="btn" id="logCopy">Copy log</button><button class="btn ghost" id="logClose">Back to town</button></div><textarea id="logJson" hidden readonly aria-label="Run log data"></textarea>`, true, false);
     $('#logCopy').onclick = e => copyLog(e.currentTarget);

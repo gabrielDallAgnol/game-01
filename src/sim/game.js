@@ -1592,6 +1592,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, R.heroAt[0]); S.hero.x = R.heroAt[1]; S.hero.y = R.heroAt[2]; unstickHero();
     for (const m of S.mobs) mobById.delete(m.id); S.mobs.length = 0; S.projectiles.length = 0; S.drops = []; S.chests = []; S.purses = [];
     S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; liveTick = -1; crewCache = null;
+    for (const n of S.story.npcs) if (n.withHero && n.alive && n.joined) spawnCompanion(n);   // a travelling companion comes back with you
     spawnRoamers(); syncPicks(); rollOffer(); newLog(); S.events.length = 0; S.restored = true;
   }
   let planner = null;

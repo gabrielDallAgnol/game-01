@@ -12,7 +12,7 @@ export function createSaves() {
       db = uid ? d : null;
     } catch { db = null; }
   })();
-  const ref = () => db.doc(`data/users/${uid}/runs/current`);
+  const ref = () => db.doc(`data/users/${uid}/hollowmere`);   // a document path has an even number of segments (4)
   const local = () => { try { const t = localStorage.getItem(KEY); return t ? JSON.parse(t) : null; } catch { return null; } };
 
   async function save(snap) {
