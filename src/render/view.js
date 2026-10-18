@@ -11,7 +11,8 @@ import { buildCity } from './city.js';
 import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE } from './figures.js';
 
 const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
-const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1 };   // world units per metre of each kit model
+const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
+const FOOT = { house: 2, farm: 2, tower: 1, workshop: 3, market: 3, generator: 2 };   // cells each building covers   // world units per metre of each kit model
 const HERO_RIG = { warrior: 'brawler', archer: 'ranger', merchant: 'scavver', steward: 'scavver' };
 const HOUSE_COLORS = ['sand', 'bone', 'stone', 'pale'];
 const HIVES = ['metro', 'petrol', 'hospital'];
@@ -270,6 +271,15 @@ export function createView(canvas, game, opts = {}) {
         for (const s2 of [-0.45, 0.45]) B.box('metal', 0.04, 0.9, 0.04, x + Math.cos(-a) * s2, 0.08, z + Math.sin(-a) * s2); }
       B.cbox('amberDeep', 0.35, 0.3, 0.35, 0.2, 0.08, 0.2, { r: 0.03 }); B.cbox('canvas', 0.3, 0.25, 0.3, -0.25, 0.08, -0.1, { r: 0.03, ry: 0.5 });
       m = B.build();
+    } else if (type === 'generator') {   // a diesel genset on skids: a red housing, fuel tank, exhaust stacks, cables
+      const B = new K.B(), L2 = level >= 2;
+      B.cbox('dark', 1.7, 0.12, 1.1, 0, 0, 0, { r: 0.02 });
+      B.cbox('danger', 1.4, 0.75, 0.85, 0, 0.12, 0, { r: 0.05 }); B.cbox('amber', 1.42, 0.08, 0.87, 0, 0.62, 0, { r: 0.01 });
+      for (let k = 0; k < 5; k++) B.box('dark', 0.05, 0.4, 0.02, -0.5 + k * 0.18, 0.25, 0.44);
+      B.cyl('steel', 0.24, 0.24, 1.3, 0, 0.32, -0.75, { rz: Math.PI / 2, seg: 12 });
+      B.cyl('dark', 0.06, 0.07, 0.6, 0.45, 0.87, -0.2, { seg: 8 }); if (L2) { B.cyl('dark', 0.06, 0.07, 0.75, 0.25, 0.87, -0.2, { seg: 8 }); B.cbox('danger', 1.0, 0.6, 0.7, -0.15, 0.12, 0.85, { r: 0.05 }); }
+      B.cbox('lit', 0.12, 0.08, 0.04, -0.55, 0.5, 0.44, { r: 0.01 });
+      m = B.build();
     }
     m.scale.setScalar(BSCALE[type]);
     return m;
@@ -302,6 +312,25 @@ export function createView(canvas, game, opts = {}) {
     return { e: l[0], w: l[1], s: l[2], n: l[3], key: l.map(v => (v ? 1 : 0)).join('') };
   }
   const noCrewMat = new THREE.SpriteMaterial({ map: K.textTex('NO CREW', { w: 256, h: 64, size: 40, bg: '#2a1512', fg: '#f0a090', spacing: '2px' }), transparent: true, depthTest: false });
+  // your buildings stand on a concrete pad with amber corner marks: nothing else in the city has them
+  const padGeo = {}, padMat = new THREE.MeshStandardMaterial({ color: lc('#9c968a'), roughness: 0.95 }), markMat = new THREE.MeshBasicMaterial({ color: lc('#e08a3c').multiplyScalar(1.25) });
+  function padFor(n) {
+    if (!padGeo[n]) {
+      const s2 = n - 0.12, parts = [];
+      const slab = new THREE.BoxGeometry(s2, 0.06, s2); slab.translate(0, 0.03, 0); parts.push(slab);
+      padGeo[n] = { slab, marks: [] };
+      const L = Math.min(0.5, n * 0.22), t = 0.07;
+      for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) for (const along of ['x', 'z']) {
+        const gm = new THREE.BoxGeometry(along === 'x' ? L : t, 0.02, along === 'x' ? t : L);
+        gm.translate(sx * (s2 / 2 - (along === 'x' ? L / 2 : t / 2)), 0.07, sz * (s2 / 2 - (along === 'x' ? t / 2 : L / 2))); padGeo[n].marks.push(gm);
+      }
+      padGeo[n].mark = THREE.BufferGeometryUtils ? THREE.BufferGeometryUtils.mergeBufferGeometries(padGeo[n].marks) : null;
+    }
+    const g = new THREE.Group(), sl = new THREE.Mesh(padGeo[n].slab, padMat); sl.receiveShadow = true; g.add(sl);
+    if (padGeo[n].mark) g.add(new THREE.Mesh(padGeo[n].mark, markMat)); else for (const gm of padGeo[n].marks) g.add(new THREE.Mesh(gm, markMat));
+    return g;
+  }
+  const noPowerMat = new THREE.SpriteMaterial({ map: K.textTex('NO POWER', { w: 256, h: 64, size: 40, bg: '#3a0d08', fg: '#ff6a50', spacing: '2px' }), transparent: true, depthTest: false });
   function syncBuildings() {
     const seen = new Set();
     for (const b of S.buildings) {
@@ -312,6 +341,7 @@ export function createView(canvas, game, opts = {}) {
         const relink = e && e.level === b.level;
         if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); }
         const g = new THREE.Group(), m = model(b.type, b.level, { id: b.id, links }); g.add(m);
+        if (FOOT[b.type]) g.add(padFor(FOOT[b.type]));
         g.position.copy(W(b.x, b.y)); if (b.type === 'house' || b.type === 'farm') g.rotation.y = faceKeep(b.x, b.y);
         g.scale.setScalar(relink ? 1 : 0.05); world.add(g);
         e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type }; bMeshes.set(b.id, e);
@@ -320,7 +350,9 @@ export function createView(canvas, game, opts = {}) {
       if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.g.scale.setScalar(1); burst(b.x, b.y, 1.2, '#d9843a'); }
       if (b.type === 'tower') {
         if (!e.nc) { e.nc = new THREE.Sprite(noCrewMat); e.nc.scale.set(1.0, 0.25, 1); e.nc.renderOrder = 9; fx.add(e.nc); }
-        e.nc.visible = !b.ruined && !game.manned(b); if (e.nc.visible) e.nc.position.copy(W(b.x, b.y, 2.1 + Math.sin(time * 3) * 0.05));
+        const unpowered = !b.ruined && !game.powered(b), uncrewed = !b.ruined && !game.manned(b);
+        e.nc.material = unpowered ? noPowerMat : noCrewMat;
+        e.nc.visible = unpowered ? Math.sin(time * 8) > -0.3 : uncrewed; if (e.nc.visible) e.nc.position.copy(W(b.x, b.y, 2.1 + Math.sin(time * 3) * 0.05));
       }
       if (b.ruined && !e.rubble) { e.g.visible = false; e.rubble = rubbleModel(b.id); e.rubble.position.copy(W(b.x, b.y)); e.rubble.scale.multiplyScalar(b.type === 'wall' ? 0.4 : 0.8); world.add(e.rubble); }
       if (!b.ruined && e.rubble) { world.remove(e.rubble); e.rubble = null; e.g.visible = true; e.g.scale.setScalar(0.4); }
@@ -517,6 +549,7 @@ export function createView(canvas, game, opts = {}) {
     pool.forEach((l, k) => { const s = src[k]; if (!s) { l.userData.i = 0; return; } l.position.copy(W(s.x, s.y, s.h)); l.userData.i = s.i; l.distance = s.d; });
   }
 
+  let boK = 0;
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
@@ -552,13 +585,16 @@ export function createView(canvas, game, opts = {}) {
     if (flash > 0.01) { look.hemi.intensity += flash * 1.4; look.sun.intensity += flash * 2.2; flash *= Math.exp(-dt * (flash > 0.5 ? 9 : 4)); if (flash < 0.33 && flashN > 0) { flashN--; flash = 0.8; } }
 
     // night: windows, lenses, the light pool, the hero's lantern, the searchlight
-    for (const sp of lampGlow) sp.material.opacity = dark * 0.9;
-    K.WIN.emissiveIntensity = dark * 2.4; K.LENS.emissiveIntensity = 0.2 + dark * 6;
+    // a blackout kills the town's lights, with a dying flicker
+    const boT = S.blackout ? 1 : 0; boK += (boT - boK) * Math.min(1, dt * (S.blackout ? 2.5 : 1.2));
+    const lit = (1 - boK) * (boK > 0.05 && boK < 0.95 ? (Math.sin(time * 37) > 0 ? 1 : 0.3) : 1);
+    for (const sp of lampGlow) sp.material.opacity = dark * 0.9 * lit;
+    K.WIN.emissiveIntensity = dark * 2.4 * (0.25 + 0.75 * lit); K.LENS.emissiveIntensity = 0.2 + dark * 6 * lit;
     lightT -= dt; if (lightT <= 0) { placeLights(); lightT = 0.5; }
-    for (const l of pool) l.intensity = (l.userData.i || 0) * dark;
+    for (const l of pool) l.intensity = (l.userData.i || 0) * dark * lit;
     heroLight.intensity = dark * 2.0; heroLight.position.copy(W(h.x, h.y, 1.6));
     let searching = false;
-    if (dark > 0.3) {
+    if (dark > 0.3 && !S.blackout) {
       const t3 = S.buildings.filter(b => b.type === 'tower' && b.level >= 3 && !b.ruined).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
       if (t3) {
         let tgt = null, bd = 13; for (const m of S.mobs) { const d = Math.hypot(m.x - t3.x, m.y - t3.y); if (d < bd) { bd = d; tgt = m; } }

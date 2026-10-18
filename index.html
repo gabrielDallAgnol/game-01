@@ -193,6 +193,34 @@ body.compact .place{width:100%;justify-content:space-between}
 body.compact .place .btn{padding:10px 16px;font-size:15px}
 body.compact .pill{font-size:13px}
 @media (prefers-reduced-motion:reduce){ .toast{animation:none} }
+/* hands, power, heat */
+.hand,.bolt{font-size:12px;line-height:1;filter:grayscale(.2)}
+#hands.none{color:var(--blood)}
+.pw.off b{color:var(--blood)} .pw.off .bolt{animation:flick 0.9s steps(2) infinite}
+@keyframes flick{50%{opacity:.25}}
+.heat{display:flex;align-items:center;gap:6px}.heat .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.heat b{font-family:var(--display);font-size:15px;min-width:2ch;text-align:right}
+.hm{position:relative;width:70px;height:6px;border-radius:3px;background:rgba(236,223,198,.14);overflow:visible}
+.hm i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#9fd06a,#d9a04a 50%,#d5513d 80%);background-size:70px 100%;transition:width .3s}
+.hm::before,.hm::after{content:"";position:absolute;top:-2px;bottom:-2px;width:2px;background:rgba(236,223,198,.55)}
+.hm::before{left:50%}.hm::after{left:80%;background:var(--blood)}
+.heat.hot b{color:var(--blood)} .heat.stir b{color:var(--amber)}
+.heat.hot .hm{animation:pulse 1.2s ease-in-out infinite}
+#info .erupt{color:#fff;background:var(--blood);border-radius:999px;padding:0 6px;font-weight:700}
+/* blackout banner */
+#blackout{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 92px);transform:translateX(-50%);display:flex;gap:10px;align-items:baseline;background:rgba(40,8,6,.9);border:1px solid var(--blood);color:#ffd2c8;border-radius:6px;padding:5px 14px 6px;pointer-events:none;box-shadow:0 0 24px rgba(213,81,61,.45);animation:bo 1.6s ease-in-out infinite}
+#blackout b{font-family:var(--display);font-size:18px;letter-spacing:.14em;color:#ff6a50}#blackout span{font-family:var(--mono);font-size:12px}
+@keyframes bo{50%{box-shadow:0 0 6px rgba(213,81,61,.2);opacity:.85}}
+/* System windows: the isekai voice of the world */
+.toast.sys{background:linear-gradient(180deg,rgba(20,32,44,.94),rgba(12,20,30,.94));border:1px solid rgba(120,200,255,.55);border-radius:3px;color:#d8f0ff;font-family:var(--mono);font-size:12.5px;text-align:left;padding:7px 12px 8px;box-shadow:0 0 0 1px rgba(120,200,255,.12) inset,0 0 18px rgba(80,170,255,.25);position:relative}
+.toast.sys .sh{display:block;color:#7fd4ff;font-weight:600;letter-spacing:.06em;margin-bottom:2px}
+.toast.sys::before{content:"";position:absolute;left:-1px;top:-1px;width:10px;height:10px;border-left:2px solid #7fd4ff;border-top:2px solid #7fd4ff}
+.toast.sys::after{content:"";position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-right:2px solid #7fd4ff;border-bottom:2px solid #7fd4ff}
+.toast.sys.bad{border-color:rgba(255,110,90,.65);background:linear-gradient(180deg,rgba(48,16,14,.95),rgba(28,10,10,.95));color:#ffd8d0}.toast.sys.bad .sh{color:#ff7a62}.toast.sys.bad::before,.toast.sys.bad::after{border-color:#ff7a62}
+body.compact #threatPill{order:3}
+.tray .hands{flex-basis:100%;text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted)}.tray .hands.none{color:var(--blood)}
+body.compact .tray .hands{grid-column:1/-1}
+.tb.generator i{background:#c94a3a;border-radius:3px;box-shadow:inset 0 -4px 0 #f0c050}
 /* city theme: condensed signage type, dark glass, amber = yours, toxic green = theirs */
 .card h1,.card h2,.choice b,.perk b,.pack b,.phead b,.opt .nm,.endstats b{text-transform:uppercase;letter-spacing:.01em}
 .card h1{font-weight:700}
@@ -216,9 +244,14 @@ body.compact .pill{font-size:13px}
       <span class="kp" title="Keep health"><span class="meter"><i id="keepFill"></i></span><span class="tiny" id="keepTxt">80</span></span>
     </div>
     <div class="pill" id="resPill">
-      <span class="r" title="Gold"><span class="dot gold"></span><b id="gold">12</b><span class="tiny" id="goldNote">+3</span></span>
+      <span class="r" title="Scrap"><span class="dot gold"></span><b id="gold">12</b><span class="tiny" id="goldNote">+3</span></span>
       <span class="r" title="Food"><span class="dot food"></span><b id="food">4</b><span class="tiny" id="foodNote">+0</span></span>
       <span class="r" title="People · free to man towers"><span class="dot pop"></span><b id="pop">0</b><span class="tiny" id="popNote"></span></span>
+      <span class="r" title="Free hands today: every build or upgrade takes one"><span class="hand" aria-hidden="true">✋</span><b id="hands">3</b></span>
+    </div>
+    <div class="pill" id="threatPill">
+      <span class="r pw" id="pwr" title="Power made / needed"><span class="bolt" aria-hidden="true">⚡</span><b id="pwrTxt">3/0</b></span>
+      <span class="heat" title="Heat: how much attention the town draws. Past the first mark the dead drift in; at the second a hive bursts."><span class="lbl">Heat</span><span class="hm"><i id="heatFill"></i></span><b id="heatTxt">0</b></span>
     </div>
   </div>
   <div class="side"><button id="menuBtn" class="txt" aria-label="More controls" aria-expanded="false">&#8943;</button><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">&minus;</button><button id="logBtn" class="txt" aria-label="Open run log">Log</button><button id="crewBtn" class="txt" aria-label="Your crew of survivors" hidden>Crew</button><button id="spdBtn" class="txt" aria-label="Game speed">1×</button><button id="qBtn" class="txt" aria-label="Graphics quality">HQ</button><button id="sndBtn" aria-label="Sound on"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="w" d="M16.5 8.5a5 5 0 0 1 0 7"/><path class="x" d="M17 9l5 6M22 9l-5 6"/></svg></button></div>
@@ -236,6 +269,7 @@ body.compact .pill{font-size:13px}
 <div id="joy" class="joy" hidden><i></i></div>
 <div id="edge"></div>
 <div id="toasts" aria-live="polite"></div>
+<div id="blackout" hidden><b>POWER DOWN</b><span id="boTxt"></span></div>
 <div id="overlay"><div class="card wide" id="card"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

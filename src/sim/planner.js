@@ -33,6 +33,7 @@ export function createPlanner(g) {
     let score;
     if (type === 'tower') score = p => dRoute(p, pts) * 1.0 + Math.abs(dKeep(p) - 6) * 0.35;           // on the way in, not too far out
     else if (type === 'farm') score = p => dKeep(p) * 0.5 - Math.min(dRoute(p, pts), 8) * 0.6;          // out of the dead's way
+    else if (type === 'generator') score = p => dKeep(p) * 0.6 - Math.min(dRoute(p, pts), 8) * 0.4;   // loud: behind the town, off the routes
     else score = p => dKeep(p) - Math.min(dRoute(p, pts), 6) * 0.5;                                     // homes: a compact town
     cands.sort((a, b) => score(a) - score(b));
     for (const p of cands.slice(0, 6)) if (g.build(type, p.x, p.y)) return true;
@@ -54,6 +55,7 @@ export function createPlanner(g) {
     const b = S.buildings.filter(x => x.type === type && !x.ruined && x.level < cap).sort((a, c) => a.level - c.level || a.id - c.id)[0];
     if (!b || S.gold < g.upCostOf(b) + RESERVE) return false;
     if (type === 'tower' && g.crewing().free < 1) return false;
+    if (type === 'tower' && g.powerIn() - g.powerOut() < 1) return ACT.power();   // never upgrade into a blackout
     return g.upgrade(b.id);
   }
   function keepUp() { return g.keepLevel() < 3 && S.buildings.some(b => b.level >= g.keepLevel()) && g.upgradeKeep(); }
@@ -66,18 +68,24 @@ export function createPlanner(g) {
     upTower: () => upgradeOne('tower'),
     upHouse: () => upgradeOne('house'),
     keep: () => keepUp(),
+    power: () => can('generator') && place('generator'),
     workshop: () => tech('workshop'),
     market: () => tech('market'),
   };
+  // the keep comes first once the town needs it (level 2 from night 3, level 3 from night 7);
+  // towers: enough of them for the night, then make them better instead of more
+  ACT.keepEarly = () => ((g.keepLevel() < 2 && S.night >= 3) || (g.keepLevel() < 3 && S.night >= 7)) && ACT.keep();
+  ACT.defend = () => { const n = S.buildings.filter(b => b.type === 'tower').length, want = Math.min(12, 2 + Math.ceil(S.night * 0.6)); return n < want ? ACT.tower() || ACT.upTower() : ACT.upTower() || ACT.tower(); };
   const PLAN = {
-    defence: ['tower', 'wall', 'upTower', 'workshop', 'house', 'keep', 'upHouse'],
-    growth: ['house', 'upHouse', 'keep', 'market', 'tower', 'upTower', 'wall'],
+    defence: ['keepEarly', 'defend', 'workshop', 'wall', 'house', 'upHouse'],
+    growth: ['keepEarly', 'house', 'upHouse', 'market', 'defend', 'wall'],
   };
 
   function stepOnce() {
     const focus = S.builders; if (!focus || focus === 'off') return false;
     const net = g.foodPerDawn() - g.foodNeed();
     if ((net < 0 || (net < 1 && S.food < 4)) && ACT.farm()) return true;
+    if (S.blackout && ACT.power()) return true;
     const list = focus === 'balanced' ? PLAN[(flip = !flip) ? 'defence' : 'growth'] : PLAN[focus];
     for (const a of list) if (ACT[a]()) return true;
     return false;

@@ -54,7 +54,7 @@ test('palisades reroute the dead instead of being ignored', () => {
 
 test('day actions respect gold, phase and claimed land', () => {
   const g = createGame({ mode: 'classic', seed: 2, biome: 'lakeshore' });
-  const S = g.state, core = g.map.regions[0].slots;
+  const S = g.state, core = g.map.regions[0].slots; S.stock = {};
   const outside = g.map.slots.find(s => s.region !== 0);
   assert.equal(g.build(outside.id, 'house'), false, 'built outside claimed land');
   assert.equal(g.build(core[0], 'tower'), true);
@@ -241,7 +241,7 @@ test('packs: a choice of 2 each dawn, pack buildings are free, extra ones cost d
 });
 
 // ---------- scavenging ----------
-const readyDay = g => { const S = g.state; while (S.pendingPicks) g.choosePerk(S.offer[0]); while (S.packs.length) g.choosePack(S.packs[0]); };
+const readyDay = g => { const S = g.state; S.handsExtra = 99; while (S.pendingPicks) g.choosePerk(S.offer[0]); while (S.packs.length) g.choosePack(S.packs[0]); };
 const nextDawn = g => { const S = g.state; g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step(); };
 const firstSite = (g, hops) => g.state.scav.sites.map(s => g.scavenge.siteInfo(s.id)).find(i => i.visible && i.hops === hops);
 
@@ -296,7 +296,7 @@ test('nothing grows past the keep', () => {
 });
 
 test('towers need crew from homes; a bigger town draws more dead', () => {
-  const g = createGame({ mode: 'classic', seed: 3 }); readyDay(g); const S = g.state; S.gold = 300;
+  const g = createGame({ mode: 'classic', seed: 3 }); readyDay(g); const S = g.state; S.gold = 300; S.survivors = 0;
   const spot = t => g.map.slots.find(q => S.claimed.has(q.region) && !q.gate && g.canPlace(t, q.x, q.y).ok);
   let s = spot('tower'); g.build('tower', s.x, s.y);
   const t = S.buildings.find(x => x.type === 'tower');
@@ -340,16 +340,44 @@ test('ringing the bell early pays gold', () => {
   const gold = S.gold; assert.ok(g.startNight()); assert.ok(S.gold > gold);
 });
 
-test('builders: fighters get a town that grows by itself; the Scavver builds by hand', () => {
+test('foreman: the town learns to build by itself once it is established, for every hero', () => {
   for (const hero of ['warrior', 'merchant']) {
-    const g = createGame({ seed: 12, hero }); const S = g.state; readyDay(g); S.gold = 60;
-    for (let k = 0; k < 60 * 60 && S.phase === 'day'; k++) g.step();
-    if (hero === 'warrior') { assert.equal(S.builders, 'balanced'); assert.ok(S.buildings.length >= 3, `builders placed ${S.buildings.length}`); }
-    else { assert.equal(S.builders, null); assert.equal(S.buildings.length, 0); }
+    const g = createGame({ seed: 12, hero }); const S = g.state; readyDay(g); S.gold = 400;
+    for (let k = 0; k < 60 * 5; k++) g.step();
+    assert.equal(S.builders, null, 'builders before the town is established');
+    const t = g.map.town; let placed = 0;
+    for (let r = 4; r < 12 && placed < 6; r++) for (let a = 0; a < 24 && placed < 6; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) placed++; }
+    g.upgradeKeep();
+    for (let k = 0; k < 60; k++) g.step();
+    assert.equal(S.builders, 'balanced', `${hero}: no foreman with ${S.buildings.length} buildings`);
+    const n0 = S.buildings.length; for (let k = 0; k < 60 * 30 && S.phase === 'day'; k++) g.step();
+    assert.ok(S.buildings.length > n0 || S.buildings.some(b => b.level > 1), 'the foreman did nothing');
+    g.setBuilders('off'); const n1 = S.buildings.length + S.buildings.reduce((a, b) => a + b.level, 0);
+    for (let k = 0; k < 60 * 20 && S.phase === 'day'; k++) g.step();
+    assert.equal(S.buildings.length + S.buildings.reduce((a, b) => a + b.level, 0), n1, 'builders worked while off');
   }
-  const g = createGame({ seed: 12, hero: 'archer' }); readyDay(g); g.setBuilders('off'); g.state.gold = 60;
-  for (let k = 0; k < 60 * 30; k++) g.step();
-  assert.equal(g.state.buildings.length, 0, 'builders worked while off');
+});
+
+test('hands, rising costs, power and heat', () => {
+  const g = createGame({ seed: 4 }); const S = g.state; readyDay(g); S.handsExtra = 0; S.gold = 500; S.stock = {};
+  const t = g.map.town, spot = type => { for (let r = 3; r < 12; r++) for (let a = 0; a < 24; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace(type, x, y).ok) return { x, y }; } return null; };
+  const c1 = g.buyCost('house'); let p = spot('house'); g.build('house', p.x, p.y);
+  assert.ok(g.buyCost('house') > c1, 'the second home costs the same');
+  while (g.handsFree() > 0) { p = spot('farm'); assert.ok(g.build('farm', p.x, p.y)); }
+  p = spot('tower'); assert.equal(g.build('tower', p.x, p.y), false, 'built with no free hands');
+  S.handsExtra = 99;
+  // power: two level 2 towers draw more than the keep makes → blackout; a generator fixes it
+  for (let k = 0; k < 3; k++) { p = spot('tower'); g.build('tower', p.x, p.y); }
+  S.survivors = 30; g.upgradeKeep();
+  for (const b of S.buildings.filter(x => x.type === 'tower')) g.upgrade(b.id);
+  g.step(); g.step(); for (let k = 0; k < 20; k++) g.step();
+  assert.ok(g.powerOut() > g.powerIn() ? S.blackout : !S.blackout, 'blackout flag out of step');
+  if (S.blackout) { const tw = S.buildings.find(b => b.type === 'tower'); assert.equal(g.powered(tw), false); p = spot('generator'); assert.ok(g.build('generator', p.x, p.y)); for (let k = 0; k < 20; k++) g.step(); assert.equal(S.blackout, false, 'a generator did not end the blackout'); }
+  // heat climbs toward the town's noise; past the limit a hive bursts after a warning
+  S.night = 3; S.heat = 95; S.heatCool = 0; for (let k = 0; k < 10; k++) g.step();
+  assert.ok(S.eruption, 'no eruption warning at heat 95');
+  const before = S.mobs.length; for (let k = 0; k < 60 * 41; k++) g.step();
+  assert.ok(S.mobs.length > before, 'the hive did not burst');
 });
 
 test('blessings: each hero only sees their own family plus the shared ones', () => {

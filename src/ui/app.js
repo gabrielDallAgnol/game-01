@@ -1,5 +1,5 @@
 // Screens, HUD, panels and input. Talks to the game only through its public API.
-import { createGame, STEP, CREW_NEED } from '../sim/game.js';
+import { createGame, STEP, CREW_NEED, DIFFICULTY, HEAT } from '../sim/game.js';
 import { mapChoices, generateMap, N, T, idx, BIOMES, LANDMARKS } from '../sim/mapgen.js';
 import { createView } from '../render/view.js';
 import { BUILDINGS, BUILD_ORDER, TECH_ORDER, UNLOCKS, KEEP, MAX_LEVEL } from '../content/buildings.js';
@@ -23,15 +23,15 @@ const RINGS = ['Town', 'Near lands', 'Far lands'];
 const ARM_MS = 700;          // cards ignore taps this long after they appear
 const DAWN_DELAY = 1.2;      // seconds between the last kill and the first card
 const JOY_PX = 14;           // a touch that moves further than this is a joystick drag, not a tap
-const SHORT = { house: 'Home', farm: 'Farm', tower: 'Tower', wall: 'Barricade', workshop: 'Workshop', market: 'Market' };
-const PLURAL = { house: 'Homes', farm: 'Farms', tower: 'Towers', wall: 'barricade posts', workshop: 'Workshops', market: 'Markets' };
+const SHORT = { house: 'Home', farm: 'Farm', tower: 'Tower', wall: 'Barricade', workshop: 'Workshop', market: 'Market', generator: 'Generator' };
+const PLURAL = { house: 'Homes', farm: 'Farms', tower: 'Towers', wall: 'barricade posts', workshop: 'Workshops', market: 'Markets', generator: 'Generators' };
 
 export function startApp() {
   let game = null, view = null, names = [], selected = null, placing = null, paused = true, acc = 0, last = performance.now(), hudT = 0;
   let card = null;             // which card is open: 'start' | 'perk' | 'pack' | 'trade' | 'log' | 'end'
   let dawnT = 0, traderSeen = false, endT = -1;
   const keys = {};
-  let setup = { hero: store.get('hero', 'warrior'), mode: store.get('mode', 'packs'), runSeed: Math.floor(Math.random() * 1e6), pick: 0 };
+  let setup = { hero: store.get('hero', 'warrior'), mode: 'classic', difficulty: store.get('difficulty', 'survivor'), runSeed: Math.floor(Math.random() * 1e6), pick: 0 };
   if (setup.hero === 'steward') setup.hero = 'merchant';
 
   // ---------- start screen ----------
@@ -57,11 +57,8 @@ export function startApp() {
       <p class="tiny">Build out from the keep: every building widens your zone · claim landmarks for a forward base · after big nights, supply drops land in the wild: go get them yourself.</p>
       <h2>Your hero</h2>
       <div class="choices">${HERO_ORDER.map(h => `<button class="choice" data-hero="${h}" aria-pressed="${setup.hero === h}"><b>${HEROES[h].name}</b><span>${HEROES[h].blurb}</span><span class="tiny">Ability: ${HEROES[h].ability.name}</span></button>`).join('')}</div>
-      <h2>How you build</h2>
-      <div class="choices">
-        <button class="choice" data-mode="packs" aria-pressed="${setup.mode === 'packs'}"><b>Packs</b><span>Each dawn, choose one of two packs of buildings and place them for free. Extra buildings cost double gold.</span></button>
-        <button class="choice" data-mode="classic" aria-pressed="${setup.mode === 'classic'}"><b>Classic</b><span>Buy any building with gold, whenever you like.</span></button>
-      </div>
+      <h2>Difficulty</h2>
+      <div class="choices">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="choice" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><b>${d.name}</b><span>${d.blurb}</span></button>`).join('')}</div>
       <h2>Your land</h2>
       <div class="choices">${opts.map((o, k) => `<button class="choice" data-map="${k}" aria-pressed="${setup.pick === k}"><canvas id="mm${k}" aria-hidden="true"></canvas><b>${o.name}</b><span>${BIOMES[o.biome].blurb}</span><span class="tiny">Seed ${o.seed}</span></button>`).join('')}</div>
       <div class="seedrow"><button class="btn ghost" id="reroll">Show other lands</button></div>
@@ -69,21 +66,21 @@ export function startApp() {
     opts.forEach((o, k) => drawMinimap($(`#mm${k}`), generateMap(o.seed, o.biome)));
     const press = (sel, b) => $$(sel).forEach(x => x.setAttribute('aria-pressed', x === b));
     $$('[data-hero]').forEach(b => b.onclick = () => { setup.hero = b.dataset.hero; store.set('hero', setup.hero); press('[data-hero]', b); });
-    $$('[data-mode]').forEach(b => b.onclick = () => { setup.mode = b.dataset.mode; store.set('mode', setup.mode); press('[data-mode]', b); });
+    $$('[data-diff]').forEach(b => b.onclick = () => { setup.difficulty = b.dataset.diff; store.set('difficulty', setup.difficulty); press('[data-diff]', b); });
     $$('[data-map]').forEach(b => b.onclick = () => { setup.pick = +b.dataset.map; press('[data-map]', b); });
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); };
     $('#begin').onclick = () => { const o = opts[setup.pick]; begin(o.seed, o.biome); };
   }
 
   function begin(mapSeed, biome) {
-    game = createGame({ seed: setup.runSeed, mapSeed, biome, hero: setup.hero, mode: setup.mode });
+    game = createGame({ seed: setup.runSeed, mapSeed, biome, hero: setup.hero, mode: 'classic', difficulty: setup.difficulty });
     names = regionNames(mapSeed, game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
     if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
     window.__game = game; window.__openSel = sel => openSel(sel);
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = !game.heroDef.ability;
-    toast(setup.mode === 'packs' ? `Day 1 in ${game.map.name}. Pick a pack, then place your buildings.` : `Day 1 in ${game.map.name}. You have ${game.state.gold} gold. A tower and a house is a good start.`);
+    toast(`[Day 1 · ${game.map.name}] Your survivors carry plans for a home, a farm and a tower. Every build takes a free pair of hands.`, 'sys');
     traderSeen = true; dawnT = 0.3;
   }
 
@@ -145,7 +142,7 @@ export function startApp() {
     const kindName = { eco: 'Town', def: 'Defence', mix: 'Mixed' };
     showCard('pack', `<div class="eyebrow">Night ${S.night} · new buildings</div><h1 class="sm">Choose a pack</h1>
       <div class="packs">${S.packs.map(id => { const p = PACKS.find(q => q.id === id); return `<button class="pack ${p.kind}" data-pack="${id}"><span class="pf">${kindName[p.kind]}</span><b>${p.name}</b><span class="items">${itemsText(p.items)}</span></button>`; }).join('')}</div>
-      <div class="cardrow spread"><span class="tiny">${stockTotal() ? `Still unplaced: ${Object.entries(S.stock).filter(([, n]) => n).map(([t, n]) => `${n} ${n > 1 ? PLURAL[t].toLowerCase() : SHORT[t].toLowerCase()}`).join(', ')}` : 'You place them for free. More cost double gold.'}</span>
+      <div class="cardrow spread"><span class="tiny">${stockTotal() ? `Still unplaced: ${Object.entries(S.stock).filter(([, n]) => n).map(([t, n]) => `${n} ${n > 1 ? PLURAL[t].toLowerCase() : SHORT[t].toLowerCase()}`).join(', ')}` : 'You place them for free. More cost double scrap.'}</span>
       <button class="btn ghost" id="packReroll" ${S.gold < 5 ? 'disabled' : ''}>Other packs · <span class="dot gold"></span> 5</button></div>`);
     $$('[data-pack]').forEach(b => b.onclick = onArmed(() => { game.choosePack(b.dataset.pack); dawnFlow(); }));
     $('#packReroll').onclick = onArmed(() => { if (game.rerollPacks()) showPacks(); });
@@ -164,7 +161,7 @@ export function startApp() {
   function logTable() {
     const rows = game.logRows(); if (!rows.length) return '<p class="tiny">No nights played yet.</p>';
     const pk = id => id.startsWith('m:') ? '★ ' + id.slice(2) : (PERKS.find(p => p.id === id) || { name: id }).name;
-    return `<div class="logwrap"><table class="log"><thead><tr><th>Night</th><th>Keep left</th><th>Threat</th><th>Wave HP</th><th>Tower DPS</th><th>Kills hero·tower·keep</th><th>Lost</th><th>Gold in / spent</th><th>Siege</th><th>Blessings</th></tr></thead><tbody>${rows.map(l => {
+    return `<div class="logwrap"><table class="log"><thead><tr><th>Night</th><th>Keep left</th><th>Threat</th><th>Wave HP</th><th>Tower DPS</th><th>Kills hero·tower·keep</th><th>Lost</th><th>Scrap in / spent</th><th>Siege</th><th>Blessings</th></tr></thead><tbody>${rows.map(l => {
       const kp = l.keepEnd !== undefined ? Math.round(l.keepEnd / l.keepMax * 100) : null;
       return `<tr><td>${l.night}${l.bloodMoon ? ' ☾' : ''}</td><td class="${kp !== null && kp < 50 ? 'bad' : ''}">${kp !== null ? kp + '%' : 'now'}</td><td>${l.ratio ?? '–'}</td><td>${l.waveHp}</td><td>${l.defDps}</td>
       <td>${l.kills.hero || 0} · ${l.kills.tower || 0} · ${l.kills.keep || 0}</td><td class="${l.lost.length > 3 ? 'bad' : ''}">${l.lost.length}${l.risen ? ` (${l.risen} rose)` : ''}</td><td>+${l.goldIn ?? 0} / ${l.spent}</td>
@@ -216,10 +213,14 @@ export function startApp() {
   }
 
   // ---------- toasts ----------
+  // a message that starts with [Something] is the System talking: it gets its own window
   function toast(msg, kind) {
-    const el = document.createElement('div'); el.className = 'toast' + (kind ? ' ' + kind : ''); el.textContent = msg;
+    const el = document.createElement('div'), sys = /^\[[^\]]+\]/.exec(msg);
+    el.className = 'toast' + (sys || kind === 'sys' ? ' sys' : '') + (kind && kind !== 'sys' ? ' ' + kind : '');
+    if (sys) { const h = document.createElement('span'); h.className = 'sh'; h.textContent = sys[0]; el.append(h, document.createTextNode(msg.slice(sys[0].length).trim())); }
+    else el.textContent = msg;
     const box = $('#toasts'); box.appendChild(el); while (box.children.length > 3) box.firstChild.remove();
-    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, 3800);
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, sys ? 6500 : 3800);
   }
 
   // ---------- build tray and placement ----------
@@ -230,16 +231,18 @@ export function startApp() {
     const S = game.state, tray = $('#tray');
     tray.hidden = S.phase !== 'day' || !!card;
     if (tray.hidden) { trayKey = ''; return; }
-    const sig = [S.gold, JSON.stringify(S.stock), placing && placing.type, S.builders, game.keepLevel(), S.buildings.filter(b => b.tech || BUILDINGS[b.type].tech).length].join('|'); if (sig === trayKey) return; trayKey = sig;
+    const hands = game.handsFree();
+    const sig = [S.gold, JSON.stringify(S.stock), placing && placing.type, S.builders, game.keepLevel(), S.buildings.length, hands].join('|'); if (sig === trayKey) return; trayKey = sig;
     const FOCUS = { defence: 'Defence', balanced: 'Balanced', growth: 'Growth', off: 'Off' };
     const bRow = S.builders ? `<div class="builders" role="group" aria-label="What your builders focus on"><span>Builders</span>${Object.entries(FOCUS).map(([k, v]) => `<button data-focus="${k}" aria-pressed="${S.builders === k}">${v}</button>`).join('')}</div>` : '';
-    tray.innerHTML = bRow + BUILD_ORDER.map(t => {
+    const hRow = `<div class="hands${hands ? '' : ' none'}">✋ ${hands ? `${hands} free ${hands === 1 ? 'pair' : 'pairs'} of hands today` : 'No free hands left today: they rest at dawn. More homes, more hands.'}</div>`;
+    tray.innerHTML = bRow + hRow + BUILD_ORDER.map(t => {
       const n = S.stock[t] || 0, cost = n ? 0 : game.buyCost(t), on = placing && placing.type === t;
-      return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${!n && S.gold < cost ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
+      return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${(!n && S.gold < cost) || !hands ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
     }).join('') + TECH_ORDER.map(t => {
       const have = S.buildings.some(b => b.type === t), locked = game.keepLevel() < BUILDINGS[t].keep, cost = game.buyCost(t), on = placing && placing.type === t;
       if (have) return '';
-      return `<button class="tb tech ${t}${on ? ' on' : ''}" data-tray="${t}" ${locked || S.gold < cost ? 'aria-disabled="true"' : ''} title="${BUILDINGS[t].desc[0]}"><i></i><span class="tn">${SHORT[t]}</span>${locked ? '<span class="tc">Keep 2</span>' : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
+      return `<button class="tb tech ${t}${on ? ' on' : ''}" data-tray="${t}" ${locked || S.gold < cost || !hands ? 'aria-disabled="true"' : ''} title="${BUILDINGS[t].desc[0]}"><i></i><span class="tn">${SHORT[t]}</span>${locked ? '<span class="tc">Keep 2</span>' : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
     }).join('');
   }
   // compact layout (phones): a Build button opens the building drawer; a ⋯ button holds the rarely used controls
@@ -254,13 +257,14 @@ export function startApp() {
     const t = b.dataset.tray;
     if (placing && placing.type === t) { stopPlacing(); return; }
     if (BUILDINGS[t].tech && game.keepLevel() < BUILDINGS[t].keep) { toast(`Raise the keep to level ${BUILDINGS[t].keep} to build a ${SHORT[t]}.`, 'bad'); return; }
-    if (!(game.state.stock[t] > 0) && game.state.gold < game.buyCost(t)) { toast(`A ${SHORT[t].toLowerCase()} costs ${game.buyCost(t)} gold.`, 'bad'); return; }
+    if (!(game.state.stock[t] > 0) && game.state.gold < game.buyCost(t)) { toast(`A ${SHORT[t].toLowerCase()} costs ${game.buyCost(t)} scrap.`, 'bad'); return; }
+    if (game.handsFree() < 1) { toast('No free hands left today. They rest at dawn; more homes give more hands.', 'bad'); return; }
     startPlacing(t);
   });
   // Placement works like a classic RTS: the land you can build on lights up, the building in hand
   // snaps to the nearest spot that fits (preferring spots that line up with a street), and
   // palisades are laid as lines: pick where the line starts, then where it ends.
-  const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3 };
+  const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, generator: 2 };
   const cellOf = (x, y) => [Math.floor(x), Math.floor(y)];
   function computeZone(type) {
     const S = game.state, n = SIZE[type], off = n % 2 ? 0.5 : 0, mask = new Uint8Array(N * N), spots = [];
@@ -345,7 +349,7 @@ export function startApp() {
     placing.lineN = n; placing.end = [ex, ey];
     placing.ghost = { type: 'wall', x: ex + 0.5, y: ey + 0.5, ok: n > 0, cells, okCells };
     const inHand = Math.min(n, S.stock.wall || 0), paid = n - inHand;
-    $('#placeInfo').innerHTML = n ? `${n} ${n === 1 ? 'post' : 'posts'}${inHand ? ` · ${inHand} from your packs` : ''}${paid ? ` · <span class="dot gold"></span> ${paid * game.buyCost('wall')}` : ''}` : `<span class="warn">${budget ? 'Nothing fits along this line.' : `Out of posts. One costs ${game.buyCost('wall')} gold.`}</span>`;
+    $('#placeInfo').innerHTML = n ? `${n} ${n === 1 ? 'post' : 'posts'}${inHand ? ` · ${inHand} from your packs` : ''}${paid ? ` · <span class="dot gold"></span> ${paid * game.buyCost('wall')}` : ''}` : `<span class="warn">${budget ? 'Nothing fits along this line.' : `Out of posts. One costs ${game.buyCost('wall')} scrap.`}</span>`;
     $('#pOk').textContent = n ? `Lay ${n}` : 'Lay'; $('#pOk').disabled = !n;
   }
   function placeNow() {
@@ -388,7 +392,7 @@ export function startApp() {
     const R = info.R;
     $('#pEyebrow').textContent = `${info.label} · ${names[info.site.region]}`;
     $('#pTitle').textContent = siteName(selected.id);
-    let html = `<div class="stat"><span>Searches left <b>${Math.max(0, info.left)}</b></span><span>Each survivor brings about <b>${R.gold[0]}–${R.gold[1]}</b> gold and <b>${R.food[0]}–${R.food[1]}</b> food. Maybe free buildings, a new survivor${R.relic ? ', a rare blessing' : ''}.</span></div>`;
+    let html = `<div class="stat"><span>Searches left <b>${Math.max(0, info.left)}</b></span><span>Each survivor brings about <b>${R.gold[0]}–${R.gold[1]}</b> scrap and <b>${R.food[0]}–${R.food[1]}</b> food. Maybe free buildings, a new survivor${R.relic ? ', a rare blessing' : ''}.</span></div>`;
     html += `<div class="stat"><span>Risk each <b class="${info.die > 0.15 ? 'bad' : ''}">${pct(info.die)}</b> death · <b>${pct(info.bite)}</b> bite${info.awake ? ' · <b class="bad">hive awake</b>' : ''}</span><span>Gone tonight, back at dawn.</span></div>`;
     if (info.run) {
       const who = info.run.ids.map(id => (sc.crew.find(c => c.id === id) || {}).name).filter(Boolean).join(', ');
@@ -409,7 +413,7 @@ export function startApp() {
     const row = c => {
       const site = c.out !== null ? siteName(c.out) : null;
       const status = c.bitten ? '<span class="bad">Bitten · turns at nightfall</span>' : site ? `Out at the ${site.toLowerCase()}` : 'Home';
-      const acts = c.bitten ? `<button class="btn sm" data-treat="${c.id}" data-how="food" ${S.food < TREAT.food ? 'disabled' : ''}>Treat · ${TREAT.food} food</button><button class="btn sm" data-treat="${c.id}" data-how="gold" ${S.gold < TREAT.gold ? 'disabled' : ''}>Treat · ${TREAT.gold} gold</button><button class="btn sm ghost" data-exile="${c.id}">Turn out</button>` : '';
+      const acts = c.bitten ? `<button class="btn sm" data-treat="${c.id}" data-how="food" ${S.food < TREAT.food ? 'disabled' : ''}>Treat · ${TREAT.food} food</button><button class="btn sm" data-treat="${c.id}" data-how="gold" ${S.gold < TREAT.gold ? 'disabled' : ''}>Treat · ${TREAT.gold} scrap</button><button class="btn sm ghost" data-exile="${c.id}">Turn out</button>` : '';
       return `<div class="crewrow"><div><b>${c.name}</b> <span class="tag">${TRAITS[c.trait].name}</span><div class="tiny">${TRAITS[c.trait].desc}</div></div><div class="st">${status}</div><div class="acts">${acts}</div></div>`;
     };
     showCard('crew', `<div class="eyebrow">Survivors · ${sc.crew.length} · ${sc.trips} runs · ${sc.lost} lost</div><h1 class="sm">The crew</h1>
@@ -472,15 +476,15 @@ export function startApp() {
     let html = `<div class="stat"><span>Health <b>${Math.ceil(b.hp)} / ${b.maxHp}</b></span><span>${B.desc[b.level - 1]}</span></div><div class="opts two">`;
     if (b.type === 'wall') {
       const run = game.wallRun(b.id), total = run.reduce((a, w) => a + game.upCostOf(w), 0);
-      if (b.level < MAX_LEVEL) { const capped = b.level >= game.keepLevel(); html += opt('opt-upw', 'data-upw="1"', capped ? 'Raise the keep first' : `Upgrade this barricade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, capped ? null : total, capped ? `Nothing grows past the keep (level ${game.keepLevel()}).` : `${B.desc[b.level]} each. Short of gold? The nearest posts go first.`, capped || S.gold < game.upCostOf(b) || !day); }
+      if (b.level < MAX_LEVEL) { const capped = b.level >= game.keepLevel(); html += opt('opt-upw', 'data-upw="1"', capped ? 'Raise the keep first' : `Upgrade this barricade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, capped ? null : total, capped ? `Nothing grows past the keep (level ${game.keepLevel()}).` : `${B.desc[b.level]} each. Short of scrap? The nearest posts go first.`, capped || S.gold < game.upCostOf(b) || !day); }
       html += opt('opt-demo', 'data-demo="1"', 'Pull down this post', null, 'Opens a gap you can build a gate tower in.', !day);
       body.innerHTML = html + '</div>'; selected.range = null; return;
     }
     const capped = b.level >= game.keepLevel(), maxL = B.maxLevel || MAX_LEVEL, needTech = b.level + 1 === 3 && UNLOCKS[b.type] && !game.hasTech(UNLOCKS[b.type]);
-    if (B.tech) { body.innerHTML = `<div class="stat"><span>${b.built < 1 ? `Under construction <b>${Math.floor(b.built * 100)}%</b>` : 'Working'}</span><span>${B.desc[0]}</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} gold back.`, !day)}</div>`; selected.range = null; return; }
+    if (B.tech) { body.innerHTML = `<div class="stat"><span>${b.built < 1 ? `Under construction <b>${Math.floor(b.built * 100)}%</b>` : 'Working'}</span><span>${B.desc[0]}</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} scrap back.`, !day)}</div>`; selected.range = null; return; }
     if (b.type === 'tower') { const on = game.manned(b), need = CREW_NEED[b.level - 1]; html = html.replace('</div><div class="opts two">', `<span>${on ? `Crew <b>${need}</b> on watch` : `<b class="bad">No crew</b>: needs ${need} people. Build or upgrade homes.`}</span></div><div class="opts two">`); }
     if (b.level < maxL) { const c = game.upCostOf(b); html += opt('opt-up', 'data-up="1"', capped ? `Raise the keep first` : needTech ? `Needs a ${SHORT[UNLOCKS[b.type]]}` : `Upgrade to level ${b.level + 1}`, capped || needTech ? null : c, capped ? `Nothing grows past the keep (level ${game.keepLevel()}).` : needTech ? `Build a ${SHORT[UNLOCKS[b.type]]} to unlock level 3.` : `${B.desc[b.level]} · ${game.maxHpOf(b.type, b.level + 1)} hp${b.type === 'tower' ? ` · needs ${CREW_NEED[b.level]} crew` : ''}${S.halfUpgrade ? ' · half price' : ''}`, capped || needTech || S.gold < c || !day); }
-    html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} gold back and free the space.`, !day);
+    html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} scrap back and free the space.`, !day);
     body.innerHTML = html + '</div>' + (b.level >= MAX_LEVEL ? '<div class="tiny">Fully upgraded.</div>' : '');
     selected.range = b.type === 'tower' ? game.towerStats(b).range : null;
   }
@@ -570,18 +574,23 @@ export function startApp() {
     $('#gold').textContent = S.gold; $('#goldNote').textContent = `+${game.goldPerDawn()}`;
     $('#food').textContent = S.food; $('#foodNote').textContent = `+${game.foodPerDawn()} −${game.foodNeed()}`;
     $('#foodNote').classList.toggle('warn', game.foodPerDawn() + S.food < game.foodNeed());
+    const hf = game.handsFree(); $('#hands').textContent = `${hf}/${game.handsMax()}`; $('#hands').classList.toggle('none', hf < 1);
+    const pin = game.powerIn(), pout = game.powerOut(); $('#pwrTxt').textContent = `${pin}/${pout}`; $('#pwr').classList.toggle('off', S.blackout);
+    $('#blackout').hidden = !S.blackout; if (S.blackout) $('#boTxt').textContent = `${pout} needed · ${pin} made`;
+    const ht = Math.round(S.heat); $('#heatFill').style.width = Math.min(100, S.heat) + '%'; $('#heatTxt').textContent = ht;
+    const hel = $('.heat'); hel.classList.toggle('hot', S.heat >= HEAT.erupt || !!S.eruption); hel.classList.toggle('stir', S.heat >= HEAT.stir && S.heat < HEAT.erupt);
     const cw = game.crewing(); $('#pop').textContent = game.pop(); $('#popNote').textContent = cw.need ? `${cw.free} free` : ''; $('#popNote').classList.toggle('warn', cw.need > cw.people);
     const bell = $('#bell');
     if (night || S.over) {
       bell.hidden = true;
       const left = S.queue.length + S.mobs.filter(m => !m.roam && m.stream === undefined).length;
-      $('#info').innerHTML = S.over ? 'The keep has fallen' : `<em>${left}</em> dead left${S.hero.dead ? ` · you return in ${Math.ceil(S.hero.respawn)}s` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
+      $('#info').innerHTML = S.over ? 'The keep has fallen' : `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}<em>${left}</em> dead left${S.hero.dead ? ` · you return in ${Math.ceil(S.hero.respawn)}s` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     } else {
       bell.hidden = false; const bonus = game.bellBonus(), dusk = Math.ceil(game.duskIn());
       bell.textContent = (bm ? 'Face the blood moon' : 'Ring the bell') + (bonus > 0 ? ` · +${bonus}` : '');
       const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
       const loose = S.mobs.filter(m => !m.roam).length;
-      $('#info').innerHTML = `<span class="clock${dusk <= 15 ? ' soon' : ''}">Dusk ${Math.floor(dusk / 60)}:${String(dusk % 60).padStart(2, '0')}</span>${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · Tonight <em>~${dead}</em><span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}${game.townDraw() > 1.005 ? ` · <span class="draw" title="Your town's noise draws more dead">noise +${Math.round((game.townDraw() - 1) * 100)}%</span>` : ''}`;
+      $('#info').innerHTML = `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}<span class="clock${dusk <= 15 ? ' soon' : ''}">Dusk ${Math.floor(dusk / 60)}:${String(dusk % 60).padStart(2, '0')}</span>${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · Tonight <em>~${dead}</em><span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();

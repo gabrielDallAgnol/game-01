@@ -29,9 +29,9 @@ export function valeInside(rx, ry, pad = 0) {
 export const LANDMARKS = {
   police:  { name: 'Police Station', size: 3, cost: 10, desc: 'The armory: your towers deal 15% more damage.' },
   clinic:  { name: 'Clinic', size: 3, cost: 10, desc: 'Field medics: you heal 2 health a second, day and night.' },
-  fuel:    { name: 'Fuel Station', size: 3, cost: 10, desc: 'Fuel to trade: +4 gold every dawn.' },
+  fuel:    { name: 'Fuel Station', size: 3, cost: 10, desc: 'Fuel to trade: +4 scrap every dawn.' },
   eiffel:  { name: 'Eiffel Tower', size: 5, cost: 20, signature: true, desc: 'A lookout over the city: reveals all around it, and every tower reaches 1.5 further.' },
-  tvtower: { name: 'Fernsehturm', size: 4, cost: 20, signature: true, desc: 'The broadcast reaches everyone: reveals the whole city, and +3 gold every dawn.' },
+  tvtower: { name: 'Fernsehturm', size: 4, cost: 20, signature: true, desc: 'The broadcast reaches everyone: reveals the whole city, and +3 scrap every dawn.' },
   christ:  { name: 'Christ the Redeemer', size: 4, cost: 20, signature: true, desc: 'Hope from the cliff top: a blessing every dawn, not every other.' },
 };
 const GRID = 4;         // lot spacing: a 3×3 building plus a one-cell street
