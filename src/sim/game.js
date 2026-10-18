@@ -561,7 +561,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     while (budget > 0.5) {
       const ok = u.filter(([, m]) => m.cost <= budget + 0.3); if (!ok.length) break;
       const [kind, m] = ok[rng.weighted(ok.map(([, mm]) => mm.weight))];
-      S.dayQueue.push({ kind, nest: nests[rng.int(nests.length)], t: rng.range(18, TIDE.dayLen - 8) }); budget -= m.cost;
+      S.dayQueue.push({ kind, nest: nests[rng.int(nests.length)], t: rng.range(6, TIDE.dayLen - 4) }); budget -= m.cost;
     }
     S.dayQueue.sort((a, b) => a.t - b.t);
   }
@@ -593,6 +593,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   /** a roamer wanders near home, chases the hero who comes close, and never walks on the town */
   function stepRoamer(m, dt, speed) {
     const R = TIDE.roam, h = S.hero, home = m.roam;
+    // now and then a roamer next to your land drifts in and walks on the town
+    if (S.clock && S.night >= 2 && adjacentToClaimed(home.region) && rng.next() < TIDE.drift * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
     const fromHome = Math.hypot(m.x - home.x, m.y - home.y);
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
     const heroNear = hd < R.sight && Math.hypot(h.x - home.x, h.y - home.y) < R.leash && !S.claimed.has(map.region[idx(Math.floor(h.x), Math.floor(h.y))]);

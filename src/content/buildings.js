@@ -10,7 +10,7 @@ export const BUILDINGS = {
     desc: ['+3 food', '+6 food', '+9 food'],
   },
   tower: {
-    name: 'Tower', cost: [6, 8, 14], upkeep: [0, 1, 2], hp: [24, 36, 50], range: [7, 8.5, 10], dmg: [1, 2, 3], rate: [0.9, 0.75, 0.6],
+    name: 'Tower', cost: [6, 8, 14], upkeep: [0, 1, 2], hp: [24, 36, 50], range: [7, 8.5, 10], dmg: [0.8, 1.6, 2.4], rate: [0.9, 0.75, 0.6],
     desc: ['Shoots · range 7', 'Faster · range 8.5 · upkeep 1', 'Heavy bolts · range 10 · upkeep 2'],
   },
   wall: {

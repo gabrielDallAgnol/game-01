@@ -32,7 +32,8 @@ export const WAVES = {
 export const TIDE = {
   dayLen: 100,                 // seconds of day before dusk falls on its own (at 1× speed)
   bellGold: 10,                // ringing early pays 1 gold per this many seconds left
-  dayShare: n => (n < 3 ? 0 : 0.22),   // share of tonight's budget that trickles in by day
+  dayShare: n => (n < 2 ? 0 : 0.3),    // share of tonight's budget that trickles in by day (day 1 is the calm before)
+  drift: 0.006,                        // per second: chance a roamer next to your land wanders in toward the town
   opening: [0, 0.45, 0.65, 0.85],      // nights 1–3 budget ramp (night 1 is a single dead)
   first: { hp: 5, speed: 0.7 },        // the first dead: slow, tough, unforgettable
   roam: { perRing: [0, 2, 4], radius: 3.5, sight: 5, leash: 9, cap: 40 },
