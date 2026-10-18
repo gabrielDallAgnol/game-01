@@ -209,13 +209,14 @@ export function startApp() {
       <h1 class="sm">${esc(hero.name)} · day ${S.night}</h1>
       <div class="statgrid"><span>Health <b>${Math.ceil(S.hero.hp)}/${S.hero.maxHp}</b></span><span>Kills <b>${S.kills}</b></span><span>People <b>${game.pop()}</b></span><span>Districts <b>${game.map.regions.filter(r => !S.sealed[r.id]).length}/${game.map.regions.length}</b></span><span>Heat <b>${Math.round(S.heat)}</b></span><span>Power <b>${game.powerIn()}/${game.powerOut()}</b></span></div>
       <h2>Titles</h2><div class="titles">${ST.titles.length ? ST.titles.map(t => `<span class="title" title="${esc(TITLES[t].desc)}">${esc(TITLES[t].name)}</span>`).join('') : '<span class="tiny">None yet. The System is watching.</span>'}</div>
-      <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<button class="comp" data-chat="${n.id}"><b>${esc(n.name)}</b><span>${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}</span><span class="bond">${'♥'.repeat(Math.max(0, n.bond))}${'♡'.repeat(Math.max(0, 5 - n.bond))}</span><span class="talk">Talk</span></button>`).join('') : '<span class="tiny">Nobody yet. Answer the calls: people are out there.</span>'}</div>
+      <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<div class="comp"><b>${esc(n.name)}</b><span>${n.withHero ? 'Travels with you · post empty' : `${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}`}</span><span class="bond">${'♥'.repeat(Math.max(0, n.bond))}${'♡'.repeat(Math.max(0, 5 - n.bond))}</span><span class="acts"><button class="btn sm" data-chat="${n.id}">Talk</button><button class="btn sm ghost" data-follow="${n.id}" data-on="${n.withHero ? 0 : 1}">${n.withHero ? 'Back to post' : 'With me'}</button></span></div>`).join('') : '<span class="tiny">Nobody yet. Answer the calls: people are out there.</span>'}</div>
       <h2>Chronicle</h2><ol class="chron">${ST.chronicle.slice().reverse().slice(0, 14).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
       <div class="tiny" style="margin:6px 0;white-space:normal">${lastSave ? `Saved at dawn of day ${lastSave.day} (${lastSave.where === 'cloud' ? 'your account: any device' : 'this device'})` : 'The run saves itself every dawn.'}</div>
       <div class="cardrow spread"><label class="tiny aitog"><input type="checkbox" id="aiTog" ${chronicler.enabled() ? 'checked' : ''}> Chronicler (Claude writes the story) · ${({ on: 'on', off: 'off', denied: 'not allowed', absent: 'not available here' })[chronicler.status()]}</label><button class="btn" id="stClose">Back</button></div></div>`, true, false);
     $('#stClose').onclick = () => { hideCard(); paused = false; };
     $('#aiTog').onchange = e => { chronicler.setEnabled(e.target.checked); };
     $$('[data-chat]').forEach(b => b.onclick = () => showChat(b.dataset.chat));
+    $$('[data-follow]').forEach(b => b.onclick = () => { game.companionFollow(b.dataset.follow, b.dataset.on === '1'); showStatus(); });
   }
   const chats = {};
   function showChat(id) {

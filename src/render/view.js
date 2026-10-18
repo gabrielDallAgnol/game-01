@@ -497,8 +497,16 @@ export function createView(canvas, game, opts = {}) {
   const mercRig = () => K.figure({ outfit: { top: 'cloth3', sleeve: 'cloth3', legs: 'dark', vest: 'amberDeep', cap: 'grey', boots: 'tyre' }, bw: 1.05, pose: { sR: [-0.5, 0, 0.15], eR: -1.0, sL: [-0.3, 0, 0.1], eL: -0.8 }, props: p => { const g = new THREE.Group(); const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.75, 0.05), K.M('steel')); m.position.y = -0.3; g.add(m); g.rotation.x = -1.1; p.hand.add(g); } });
   function syncAllies() {
     const seen = new Set();
-    for (const a of S.allies) { seen.add(a.id); if (!aMeshes.has(a.id)) { const r = liveRig(mercRig()); world.add(r.g); aMeshes.set(a.id, { ...r, bar: makeBar('h', 0.6), phase: vis() * 6 }); burst(a.x, a.y, 0.8, '#d9843a'); } }
-    for (const [id, e] of aMeshes) if (!seen.has(id)) { fx.remove(e.bar); world.remove(e.g); aMeshes.delete(id); }
+    for (const a of S.allies) {
+      seen.add(a.id);
+      if (!aMeshes.has(a.id)) {
+        const r = liveRig(mercRig()); world.add(r.g); const e = { ...r, bar: makeBar('h', 0.6), phase: vis() * 6 };
+        if (a.comp) { e.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(a.name.toUpperCase(), { w: 256, h: 64, size: 36, bg: '#2a1a0c', fg: '#f0b060', spacing: '2px' }), transparent: true, depthTest: false })); e.tag.scale.set(1.3, 0.32, 1); e.tag.renderOrder = 21; fx.add(e.tag); }
+        aMeshes.set(a.id, e); burst(a.x, a.y, 0.8, a.comp ? '#f0b060' : '#d9843a');
+      }
+      const e = aMeshes.get(a.id); if (e.tag) e.tag.position.copy(W(a.x, a.y, 1.9));
+    }
+    for (const [id, e] of aMeshes) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) fx.remove(e.tag); world.remove(e.g); aMeshes.delete(id); }
   }
   function syncPurses() {
     const seen = new Set();

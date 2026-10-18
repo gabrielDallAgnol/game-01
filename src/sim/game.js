@@ -920,7 +920,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     keep.hp = Math.min(keep.maxHp, keep.hp + keep.maxHp * 0.25);
     S.hero.hp = S.hero.maxHp; S.hero.guardT = 0;
     if (S.P.kingpin && S.allies.length) { earn(S.allies.length); for (const a of S.allies) a.hp = a.maxHp; }
-    if (S.allies.length && !S.P.loyal) { for (const a of S.allies) ev('allyGone', { id: a.id }); S.allies = []; }
+    if (S.allies.length && !S.P.loyal) { for (const a of S.allies.filter(q => !q.comp)) ev('allyGone', { id: a.id }); S.allies = S.allies.filter(q => q.comp); }
+    for (const a of S.allies) if (a.comp) a.hp = a.maxHp;
+    if (story) for (const n of S.story.npcs) if (n.withHero && n.alive && n.joined && !S.allies.some(a => a.comp === n.id)) spawnCompanion(n);
     S.purses = []; S.ability.cd = 0;
     sc.dawn(isBloodMoon(S.night));
     S.night++; newLog();
@@ -1161,6 +1163,18 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (best === goal && heroOk(goal)) path[path.length - 1] = { x: tx, y: ty };
     return path;
   }
+  // ---------- companions at your side: one at a time, and their post stands empty while they travel with you ----------
+  function spawnCompanion(n) {
+    const h = S.hero, hp = 24 + n.bond * 4 + (n.named ? 14 : 0);
+    const a = { id: S.nextId++, ally: true, comp: n.id, name: n.name.split(' ')[0], x: h.x + 0.6, y: h.y + 0.6, hp, maxHp: hp, dmg: 2.5 + n.bond * 0.4 + (n.named ? 2 : 0), cd: 0, face: 0, attacking: false };
+    S.allies.push(a); ev('ally', { id: a.id });
+  }
+  function companionFollow(id, on) {
+    const n = S.story.npcs.find(q => q.id === id); if (!n || !n.alive || !n.joined) return false;
+    if (on) { for (const o of S.story.npcs) if (o !== n && o.withHero) companionFollow(o.id, false); n.withHero = true; if (!S.allies.some(a => a.comp === n.id)) spawnCompanion(n); toast(`${n.name} travels with you. Their post stands empty until they return.`, 'good'); }
+    else { n.withHero = false; for (const a of S.allies.filter(q => q.comp === n.id)) { S.allies.splice(S.allies.indexOf(a), 1); ev('allyGone', { id: a.id }); } }
+    return true;
+  }
   // ---------- autopilot: the hero plays by itself (defends the town, fetches crates, rests when hurt) ----------
   let autoT = 0, handT = 0;
   function autoHero(dt) {
@@ -1246,13 +1260,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function stepAllies(dt) {
     const h = S.hero;
     for (const a of [...S.allies]) {
-      if (a.hp <= 0) { S.allies.splice(S.allies.indexOf(a), 1); ev('allyGone', { id: a.id, died: true }); continue; }
+      if (a.hp <= 0) { S.allies.splice(S.allies.indexOf(a), 1); ev('allyGone', { id: a.id, died: true }); if (a.comp) toast(`${a.name} is down. They will be back on their feet at dawn.`, 'bad'); continue; }
       a.cd -= dt; a.attacking = false;
       let best = null, bd = Infinity;
       for (const m of S.mobs) { if (m.rise < 1) continue; if (Math.hypot(m.x - h.x, m.y - h.y) > MERC.leash + 2) continue; const d = Math.hypot(m.x - a.x, m.y - a.y); if (d < bd) { bd = d; best = m; } }
       if (best) {
         if (bd > MERC.reach) moveAlly(a, best.x, best.y, MERC.speed * dt);
-        else { a.attacking = true; a.face = Math.atan2(best.x - a.x, best.y - a.y); if (a.cd <= 0) { a.cd = MERC.rate; hitMob(best, MERC.dmg + S.P.mercDmg, 'merc'); ev('swingAlly', { id: a.id }); } }
+        else { a.attacking = true; a.face = Math.atan2(best.x - a.x, best.y - a.y); if (a.cd <= 0) { a.cd = MERC.rate; hitMob(best, (a.dmg || MERC.dmg) + S.P.mercDmg, 'merc'); ev('swingAlly', { id: a.id }); } }
       } else if (Math.hypot(h.x - a.x, h.y - a.y) > 2) moveAlly(a, h.x, h.y, MERC.speed * dt);
     }
   }
@@ -1573,7 +1587,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     hiveHealth, hitHive,
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
     dropSupply,
-    snapshot, frontier, districtOffer, openDistrict, kitFor, siteOf, story: () => story, choose: id => story.choose(id),
+    companionFollow, snapshot, frontier, districtOffer, openDistrict, kitFor, siteOf, story: () => story, choose: id => story.choose(id),
     hasTech, crewing, manned, handsMax, handsFree, powerIn, powerOut, powered, heatFloor, addHeat, difficulty: () => DIFF, newCost, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,

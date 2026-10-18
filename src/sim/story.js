@@ -64,7 +64,7 @@ export function createStory(ctx) {
       }
       case 'open': ctx.openDistrict(f.region, f.why); ST.lastOpen = S.night; { const l = ctx.siteOf(f.region); if (l && !l.owned) addQuest(l, null); } break;
       case 'recruit': { const n = castFor(enc.thread, f.role); n.joined = true; toast(`[${n.name} joined] ${ROLES[n.role].post}: ${ROLES[n.role].bonus}.`, 'good'); chron(`${n.name} joined the town as its ${ROLES[n.role].post.toLowerCase()}.`, 4, [n.id]); ev('recruit', { id: n.id }); break; }
-      case 'lose': { const n = th && npc(th.cast[f.role]); if (n) { n.alive = false; n.joined = false; chron(`${n.name} left the town.`, 4, [n.id]); } break; }
+      case 'lose': { const n = th && npc(th.cast[f.role]); if (n) { n.alive = false; n.joined = false; n.withHero = false; chron(`${n.name} left the town.`, 4, [n.id]); } break; }
       case 'bond': { const n = th && npc(th.cast[f.role]); if (n) n.bond = Math.max(-3, Math.min(5, n.bond + f.n)); break; }
       case 'name': { const n = th && npc(th.cast[f.role]); if (n) { n.named = true; n.name = ctx.reviveName ? ctx.reviveName() : n.name; S.drained = S.night; toast(`[Naming complete] It answers to a name now. It feels stronger. You feel weaker tonight.`, 'good'); chron(`Named one of the dead: ${n.name}.`, 5, [n.id]); } break; }
       case 'claimHere': { const l = th && th.region !== undefined && ctx.siteOf(th.region); if (l && !l.owned) ctx.claimFree(l.id); break; }
@@ -219,10 +219,10 @@ export function createStory(ctx) {
   }
   /** bonuses companions and story give the town */
   const bonus = {
-    power: () => ST.power + ST.npcs.reduce((a, n) => a + (n.alive && n.joined && ROLES[n.role].power || 0), 0),
-    hands: () => ST.hands + ST.npcs.reduce((a, n) => a + (n.alive && n.joined && ROLES[n.role].hands || 0), 0),
-    towers: () => ST.npcs.reduce((a, n) => a + (n.alive && n.joined && ROLES[n.role].towers || 0), 0),
-    lullaby: () => { const n = npcByRole('revenant'); return n && n.joined ? (n.named ? 0.65 : ROLES.revenant.lullaby) : 1; },
+    power: () => ST.power + ST.npcs.reduce((a, n) => a + (n.alive && n.joined && !n.withHero && ROLES[n.role].power || 0), 0),
+    hands: () => ST.hands + ST.npcs.reduce((a, n) => a + (n.alive && n.joined && !n.withHero && ROLES[n.role].hands || 0), 0),
+    towers: () => ST.npcs.reduce((a, n) => a + (n.alive && n.joined && !n.withHero && ROLES[n.role].towers || 0), 0),
+    lullaby: () => { const n = npcByRole('revenant'); return n && n.joined && !n.withHero ? (n.named ? 0.65 : ROLES.revenant.lullaby) : 1; },
     heat: () => (ST.flags.quiet ? 0.85 : 1),
   };
   // what the AI needs to write an encounter in this run's voice
