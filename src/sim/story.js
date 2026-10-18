@@ -3,7 +3,7 @@
 //
 // S.story = { day, encounters (queue shown as cards), threads {id: {stage, status, cast, region, failAt}},
 //   npcs [], titles [], chronicle [], flags {}, quests [], power, hands, visited {} }
-import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET } from '../content/story.js';
+import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET, STREET_GEN } from '../content/story.js';
 import { RARITY } from '../content/districts.js';
 
 export function createStory(ctx) {
@@ -179,19 +179,32 @@ export function createStory(ctx) {
     ST.streetUsed = ST.streetUsed || [];
     const want = Math.min(2, map.regions.filter(r => r.ring > 0 && !S.sealed[r.id]).length);
     for (let k = ST.spots.length; k < want; k++) {
-      const pool = STREET.filter(e => !ST.streetUsed.includes(e.id)); if (!pool.length) return;
+      const pool = STREET.filter(e => !ST.streetUsed.includes(e.id));
       const spot = ctx.findSpot(); if (!spot) return;
-      const e = pool[rng.int(pool.length)]; ST.streetUsed.push(e.id);
-      ST.spots.push({ id: ST.nextId++, kind: e.id, x: spot.x, y: spot.y, day: S.night });
+      let kind;
+      if (pool.length) { const e = pool[rng.int(pool.length)]; ST.streetUsed.push(e.id); kind = e.id; }
+      else { kind = `gen${ST.nextId}`; ST.gen = ST.gen || {}; ST.gen[kind] = genStreet(); }
+      ST.spots.push({ id: ST.nextId++, kind, x: spot.x, y: spot.y, day: S.night });
       ctx.guard(spot.x, spot.y, Math.min(5, 2 + Math.floor(S.night / 4)));
     }
+  }
+  // a made-up find: who, where, and what they need (numbers scale a little with the day)
+  function genStreet() {
+    const G = STREET_GEN, who = G.who[rng.int(G.who.length)], where = G.where[rng.int(G.where.length)], ask = G.ask[rng.int(G.ask.length)];
+    const v = { n: 1 + rng.int(3), f: 2 + rng.int(3), g: 4 + rng.int(4) + Math.floor(S.night / 4), h: 5 + rng.int(4), h2: 2 + rng.int(3) };
+    const sub = x => (typeof x === 'string' ? x.replace(/\{(\w+)\}/g, (_, k) => v[k]) : x);
+    const num = x => (typeof x === 'string' && /^-?\{/.test(x) ? Number(sub(x)) : x);
+    const Who = who.name[0].toUpperCase() + who.name.slice(1);
+    return { eyebrow: '[Survivor detected]', title: `${Who} ${where[1]}`, scene: `${Who}, ${where[0]}. ${who.trait[0].toUpperCase() + who.trait.slice(1)}. ${ask.line}`,
+      choices: ask.choices.map(c => ({ id: c.id, label: c.label, hint: sub(c.hint), cost: c.cost ? { gold: num(c.cost.gold) } : undefined, fx: c.fx.map(f => ({ ...f, n: num(f.n) })) })) };
   }
   function spotTick() {
     const h = S.hero;
     for (const sp of ST.spots) if (Math.hypot(h.x - sp.x, h.y - sp.y) < 1.8) {
       ST.spots.splice(ST.spots.indexOf(sp), 1);
-      const e = STREET.find(x => x.id === sp.kind);
+      const e = STREET.find(x => x.id === sp.kind) || (ST.gen && ST.gen[sp.kind]); if (!e) return false;
       push({ kind: 'street', eyebrow: e.eyebrow, title: e.title, scene: e.scene, choices: e.choices.map(c => ({ ...c })) });
+      if (ST.gen) delete ST.gen[sp.kind];
       return true;
     }
     return false;

@@ -300,3 +300,29 @@ export const STREET = [
     scene: 'A bronze statue in the square, a general on a horse. You are sure its head faced north this morning. [Something in the System hums. A blessing is near.]',
     choices: [{ id: 'touch', label: 'Touch the plinth', hint: 'A rare blessing at once.', fx: [{ op: 'blessing' }] }, { id: 'walk', label: 'Walk on, fast', hint: 'Some windows are better left closed.', fx: [] }] },
 ];
+
+// When the hand-written street finds run out, the city keeps making them: people, places, and a reason to care.
+// Slots are filled from these lists; the Chronicler (if on) rewrites the result in your run's voice.
+export const STREET_GEN = {
+  who: [
+    { name: 'a bus driver', trait: 'still wears the cap' }, { name: 'two sisters', trait: 'finish each other\'s sentences' }, { name: 'a retired boxer', trait: 'has a broken hand and a good one' },
+    { name: 'a nurse', trait: 'counts everyone twice' }, { name: 'a chef', trait: 'carries his knives in a roll' }, { name: 'a street musician', trait: 'won\'t leave the guitar' },
+    { name: 'an electrician', trait: 'talks to cables' }, { name: 'a postwoman', trait: 'still delivers letters nobody will read' }, { name: 'a teenager', trait: 'filmed everything on a dead phone' },
+    { name: 'a priest', trait: 'lost his faith and kept his collar' }, { name: 'a gardener', trait: 'has seeds sewn into his coat' }, { name: 'a taxi driver', trait: 'knows every back road' },
+  ],
+  where: [['on the roof of a laundromat', 'on the laundromat roof'], ['in a bank vault with the door wedged', 'in the bank vault'], ['up a scaffold on a half-built block', 'up the scaffold'], ['in the back of an ice-cream van', 'in the ice-cream van'], ['behind the counter of a kebab shop', 'in the kebab shop'], ['in a stalled tram', 'in the stalled tram'], ['in a church bell tower', 'in the bell tower'], ['on a footbridge with both ends full of dead', 'on the footbridge']],
+  ask: [
+    { id: 'rescue', line: 'They wave a sheet: they cannot get down on their own.', choices: [
+      { id: 'bring', label: 'Get them down and bring them home', hint: '+{n} people (they were not alone). -{f} food.', fx: [{ op: 'survivors', n: '{n}' }, { op: 'food', n: '-{f}' }] },
+      { id: 'supplies', label: 'Toss up supplies and a map', hint: '-2 food. They will find their own way to you (+1 person at dawn).', fx: [{ op: 'food', n: -2 }, { op: 'flag', key: 'beacon' }] } ] },
+    { id: 'trade', line: 'They have something to trade, and they want something back.', choices: [
+      { id: 'buy', label: 'Trade scrap for what they carry', hint: '-{g} scrap, +{h} food.', cost: { gold: '{g}' }, fx: [{ op: 'gold', n: '-{g}' }, { op: 'food', n: '{h}' }] },
+      { id: 'invite', label: 'Offer them a place instead', hint: '+1 person, and what they carry (+{h2} food).', fx: [{ op: 'survivors', n: 1 }, { op: 'food', n: '{h2}' }] } ] },
+    { id: 'skill', line: 'They know a trade the town could use.', choices: [
+      { id: 'hire', label: 'Put them to work', hint: '+1 person and +1 pair of hands for good.', fx: [{ op: 'survivors', n: 1 }, { op: 'hands', n: 1 }] },
+      { id: 'learn', label: 'Ask them to teach your people', hint: 'Your hero learns something: +0.4 damage.', fx: [{ op: 'perk', key: 'heroDmg', add: 0.4 }] } ] },
+    { id: 'warning', line: 'They have seen something you should know about.', choices: [
+      { id: 'listen', label: 'Listen, and bring them in', hint: '+1 person. Your scouts get a better route at the next call.', fx: [{ op: 'survivors', n: 1 }, { op: 'flag', key: 'scout' }] },
+      { id: 'pay', label: 'Pay for the information and part ways', hint: '-4 scrap. Heat -10: you know which streets to keep quiet.', cost: { gold: 4 }, fx: [{ op: 'gold', n: -4 }, { op: 'heat', n: -10 }] } ] },
+  ],
+};
