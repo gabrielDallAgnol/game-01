@@ -1427,6 +1427,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.autopilot) autoHero(dt);
     stepHero(dt);
     if ((S.revealT = (S.revealT || 0) - dt) <= 0) { S.revealT = 0.25; if (!S.hero.dead) reveal(S.hero.x, S.hero.y, 8); }
+    if (S.phase === 'day' && S.picks.length && !S.offer.length) rollOffer();   // a pick added mid-day (a crate, a story reward) gets its cards
     if (S.phase === 'day' && S.clock && !S.over) {
       S.dayT += dt;
       while (S.dayQueue.length && S.dayQueue[0].t <= S.dayT) { const q = S.dayQueue.shift(); if (nestAlive(q.nest) && !S.claimed.has(q.nest)) spawnAtNest(q.kind, q.nest); }
