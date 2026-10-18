@@ -1,37 +1,23 @@
-# A third resource? Options for Hollowmere
+# Resources: the final set (decided Oct 18, night)
 
-Today the game runs on **gold** (build and upgrade), **food** (feeds people) and **people** (from homes; they crew towers and make noise).
-Red Alert 2 keeps every faction on the same three ideas — **money**, **power** and **units** — and only changes the buildings that produce and spend them. The lesson: few resources, each with one clear job and a visible failure state.
+**Four resources and one meter.** Red Alert 2 runs every faction on money, power and units; Frostpunk on one core (heat) plus one social meter. Hollowmere does the same: few numbers, each with one job and a failure you can see.
 
-## Principles
-- **At most one new resource.** Every resource is another number to watch; more than four starts to feel like spreadsheet work.
-- **It must change where you build or when you fight**, not just be another price tag.
-- **A clear failure state you can see**: lights go out, people leave, towers fall silent.
-- **It should belong to the story**: a city that has just fallen, nights getting worse.
+| | Job | Comes from | Spent on | When it runs out | Story hook |
+|---|---|---|---|---|---|
+| **Scrap** | Build and upgrade | Homes at dawn, the dead you put down (salvage), sites, stripping buildings | Every building, upgrade, keep level, site claim | You cannot build | A fallen city is a scrapyard |
+| **Food** | Keep people alive | Farms, Allotments, a garden title | People eat each dawn; story choices (rescues, cures) | Homes pay less, people get sick | Every rescue is another mouth |
+| **People** | Hands, crews, noise | Homes, rescues, sites, story | Towers need crews; hands per day come from people | Silent towers, no hands | Named people become companions |
+| **Power** | Run the best defences | The keep, generators (loud), Substation (quiet), Fuel Depot (loud), the Engineer | Level 2–3 towers, Workshop, Market | **Hard blackout**: every powered building switches off | Restoring the grid is the first big quest |
+| **Heat** (meter) | How much attention the town draws | Noise: people, homes, guns, generators, kills | It decays on its own | 50: the dead drift in · 80: a hive bursts | The loudest town in the city |
 
-## Candidates
+## Why these four
+- **Each one changes where you go or build**: power pulls you out to the Substation; food and people pull you to the Allotments and the School; scrap pulls you into the high street. Heat pushes back: every growth choice is also noise.
+- **Two loops pull against each other**: grow (people, generators) → louder (heat) → hive bursts. Quiet power and quiet growth exist, but they are far away, behind the fences.
+- **Each has a visible failure**: lights out, towers silent, the dead drifting in.
 
-| Resource | Its one job | Made by | Spent by | When it runs out | Fits the story | Verdict |
-|---|---|---|---|---|---|---|
-| **Power** | Runs the advanced defences | Generators (noisy), the Fuel Station landmark, solar on roofs (quiet, weak) | Level 3 towers, searchlights, Workshop, the keep at level 3 | **Blackout**: powered towers slow down, lights go out, the night gets darker | Strong: searchlights and lit windows are already the night look | **Best pick** |
-| **Hope** (faith) | Keeps people working and staying | Clinic, Christ the Redeemer, Market, surviving nights, blessings | Lost when homes fall, people die, hives wake | People desert, homes pay less, builders slow | Strong (Frostpunk-like), but a soft meter is harder to read | Good second |
-| **Water** | Second food | Wells, the river (Paris), rain on storm nights | People, farms | Thirst: people get sick | Medium; overlaps food | Skip |
-| **Fuel** | Feeds generators and vehicles | Fuel Station, drops | Generators | Generators stop | Merge into Power | Skip |
-| **Ammo** | Feeds towers | Workshop, drops | Every tower shot | Towers fall silent | Very readable, but micro-management every night | Skip |
-| **Medicine** | Heals the hero and bites | Clinic, drops | Healing, the infection idea | Bites turn | Narrow; better as a drop reward | Skip |
-
-## Recommendation: Power, and later Hope
-
-**Power** turns the night look into gameplay:
-- A **Generator** (2×2, loud: +3 noise) gives +6 power.
-- A level 3 tower draws 2 power, a searchlight 1, the Workshop 2, and a level 3 keep 2.
-- Short on power, everything powered works at half speed and the lights go out (the night gets visibly darker in your town).
-- It creates the decision Red Alert 2 has: more defence means more generators, which means more noise, which means more dead.
-- Claiming the Fuel Station landmark would give +4 power instead of gold.
-
-**Hope** could come after it, as the "story" resource tied to landmarks (Christ the Redeemer), the Clinic and how well nights go.
-
-## Questions for Gabriel
-1. Power first, or Hope first?
-2. Should power shortages be soft (slower) or hard (switched off)?
-3. Generators as a building you place, or only from landmarks (fewer buildings to manage)?
+## Rejected (for now)
+| Idea | Why not |
+|---|---|
+| Hope / morale | Good for story, but a soft meter is hard to read on a phone. The story's bonds, titles and companions carry this instead. |
+| Water, fuel, ammo, medicine | Overlap with food or power, or turn into micro-management every night. Medicine lives on as story costs (curing the infected). |
+| Influence (Humankind) | Districts open through the story instead of a currency. |

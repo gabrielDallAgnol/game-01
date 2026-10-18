@@ -812,7 +812,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const reg = map.regions[r];
     if (keep.level < keepForRing(reg.ring)) { if (!S.nightFlags.keepWarn) { S.nightFlags.keepWarn = true; fail(`This hive is too strong: raise the keep to level ${keepForRing(reg.ring)} first.`); } return false; }
     if (!hiveDmg[r]) { toast('You strike the hive. It wakes and pours out its dead!', 'bad'); if (S.wake[r] > S.night) S.wake[r] = S.night; }
-    hiveDmg[r] = (hiveDmg[r] || 0) + d; rage[r] = STREAM.rageTime;
+    hiveDmg[r] = (hiveDmg[r] || 0) + d * (S.story && S.story.flags.hiveTip ? 1.15 : 1); rage[r] = STREAM.rageTime;
     ev('hitHive', { region: r, hp: Math.max(0, 1 - hiveDmg[r] / hiveMax(r)) });
     if (hiveDmg[r] >= hiveMax(r)) { burnHive(r); S.picks.push('nest'); syncPicks(); if (S.picks.length === 1 && S.phase === 'day') rollOffer(); dropSupply('The hive is ash.'); delete hiveDmg[r]; delete rage[r]; }
     return true;
@@ -1516,6 +1516,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const hm = heroMax(); S.hero.hp = Math.min(hm, S.hero.hp + Math.max(0, hm - S.hero.maxHp)); S.hero.maxHp = hm;
   };
   story = createStory({ api: () => api, heroes: HEROES, evolve: cls => evolve(cls), S, map, rng: new Rng(hashSeed(seed, 'story')), ev, toast, earn, addHeat, openDistrict, frontier, districtOffer, siteOf, LANDMARKS, pop, refreshMax, syncPicks,
+    hurtHero: n => hurtHero(n),
+    findSpot: () => { for (let t = 0; t < 80; t++) { const reg = map.regions[rng.int(map.regions.length)]; if (reg.ring < 1 || S.sealed[reg.id]) continue; const x = reg.x + rng.range(-7, 7), y = reg.y + rng.range(-7, 7), cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) continue; const i = idx(cx, cy); if (map.region[i] !== reg.id || !PASSABLE[map.terrain[i]] || !map.reach[i] || S.occ[i] >= 0 || inZone(i) || baseDist(x, y) < 6) continue; return { x: cx + 0.5, y: cy + 0.5 }; } return null; },
+    guard: (x, y, n) => { for (let k = 0, tries = 0; k < n && tries < 40; tries++) { const a = rng.range(0, Math.PI * 2), gx = x + Math.cos(a) * rng.range(1, 2.8), gy = y + Math.sin(a) * rng.range(1, 2.8), cx = Math.floor(gx), cy = Math.floor(gy); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue; k++; const m = spawnMob(rng.pick(S.night >= 4 ? ['walker', 'runner'] : ['walker']), gx, gy, { instant: true }); m.roam = { x, y, region: -1 }; } },
     landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) takeSite(l); }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
     risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the dead.', 'bad'); } });
   story.start();

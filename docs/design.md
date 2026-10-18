@@ -149,3 +149,29 @@ Not yet re-balanced since the bigger map and the build zone: the bots still need
 - Late game (night 25+) has a gold surplus with nothing left to buy. Scavenging supplies and treating bites are a small sink; not enough yet.
 - Dense towns outgrow the waves (see the finding above); balance gates fail with the dense bots until this is fixed.
 - The economy and walls bots are weak strategies; partly bot quality, partly real: walls need towers behind them.
+
+## Overnight v2: pacing, story, districts, evolution (Oct 18–19, night)
+Decisions with Gabriel are in `docs/decisions-2026-10-18.md`; research in `docs/research/`.
+
+| System | How it works now |
+|---|---|
+| Resources | **Scrap** (was gold), **Food**, **People**, **Power**. Packs are gone: everything costs scrap. |
+| Hands | Every build, upgrade or barricade line takes a free pair of hands for the day: 2 + 1 per 4 people (+ School, + the Teacher). They rest at dawn. |
+| Rising cost | Each extra copy of a building costs more (home +20%, farm +15%, tower +25%, generator +50%). |
+| Power | The keep makes 3/4/5. Generator (+6/+10, loud). Substation and Fuel Depot sites. Level 2–3 towers, Workshop and Market draw power. Short = **hard blackout**: every powered building switches off, lights die with a flicker, a red POWER DOWN banner, NO POWER tags. |
+| Heat | 0–100, rests on a floor set by noise (people, homes, towers, generators, the Fuel Depot) and spikes with gunfire and kills. 50: the dead drift in from 20 cells. 80: a hive swells and **bursts after 40 s** (red countdown). |
+| Difficulty | Story / Survivor / Veteran / Nightmare = threat × (0.7–1.65), economy × (1.25–0.8), heat × (0.75–1.4). |
+| Districts | The city is ~16 sealed districts behind quarantine fences. Every other dawn the scouts offer 2–3 routes (rarity common → legendary); story calls open specific ones. A district's identity is decided when first offered. You cannot walk into a sealed district; the dead can. |
+| Nests | About half the districts have one, at a building's door (Red Line Station, St. Agnes's Hospital…). Sealed nests still send night waves; only open ones stream by day. |
+| Sites | One per district (Tower Block, Allotments, High Street, Police, Clinic, Substation, Fuel Depot, School, Radio Station, the city's landmark). Walk up: claim it, strip it for scrap, or leave it. |
+| Story | Threads that come back (Channel 9, The One Who Hums, Drawings on the Glass, The Bridge Crew, the Lantern-Eater), one-shot moments, titles, a chronicle. Quests show as blue arrows. |
+| Companions | Mara (engineer, +3 power), Ines (teacher, +1 hands), the Revenant (dead slow near the keep; naming makes it stronger), the Bridge Crew boss (towers +10%). Talk to them: Claude plays them in character, or topic buttons offline. |
+| The Chronicler | With the artifact `sample` capability Claude rewrites each encounter's words from the run's chronicle; choices and effects stay engine-owned. Off or unavailable = the scripted text. |
+| Evolution | Start as a **Survivor** (pipe, Shove). 2 blessings of Brawn/Aim/Wits → its Calling (Brawler/Ranger/Scavver). 2 of a second family → Vanguard, Warlord or Deadeye. |
+| Foreman | The town builds by itself once it has 6 buildings and a level 2 keep (no longer a class trait). |
+| Autopilot | ⋯ → Auto: the hero defends, fetches crates and rests; builders work. Cards still pause for your choices. |
+| Saves | A dawn snapshot to your private folder in the artifact's store (any device) plus a local copy. Continue from the start screen. |
+| HQ | The keep is now a town hall with a clock tower, banners and a flag; one more floor per level. Your buildings stand on concrete pads with amber corner marks. |
+
+### Balance (clock-mode bot, `node tools/clockbot.mjs <difficulty> <days> <seeds> [hero] [auto]`)
+See the overnight report for the latest table. The bot is a mediocre player (no walls, no manual hero tricks), so a human should go further.

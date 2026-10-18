@@ -3,12 +3,12 @@
 //
 // S.story = { day, encounters (queue shown as cards), threads {id: {stage, status, cast, region, failAt}},
 //   npcs [], titles [], chronicle [], flags {}, quests [], power, hands, visited {} }
-import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS } from '../content/story.js';
+import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET } from '../content/story.js';
 import { RARITY } from '../content/districts.js';
 
 export function createStory(ctx) {
   const { S, map, rng, toast, ev } = ctx;
-  const ST = S.story = { day: 1, encounters: [], threads: {}, npcs: [], titles: [], chronicle: [], flags: {}, quests: [], power: 0, hands: 0, visited: {}, nextId: 1, lastOpen: 0 };
+  const ST = S.story = { spots: [], day: 1, encounters: [], threads: {}, npcs: [], titles: [], chronicle: [], flags: {}, quests: [], power: 0, hands: 0, visited: {}, nextId: 1, lastOpen: 0 };
   const LM = ctx.LANDMARKS;
 
   // ---------- chronicle: everything that matters, in one line each (feeds the AI and the end screen) ----------
@@ -69,7 +69,8 @@ export function createStory(ctx) {
       case 'name': { const n = th && npc(th.cast[f.role]); if (n) { n.named = true; n.name = ctx.reviveName ? ctx.reviveName() : n.name; S.drained = S.night; toast(`[Naming complete] It answers to a name now. It feels stronger. You feel weaker tonight.`, 'good'); chron(`Named one of the dead: ${n.name}.`, 5, [n.id]); } break; }
       case 'claimHere': { const l = th && th.region !== undefined && ctx.siteOf(th.region); if (l && !l.owned) ctx.claimFree(l.id); break; }
       case 'risen': ctx.risen(f.n); break;
-      case 'gamble': if (rng.next() >= f.p) for (const b of f.bad) apply(b, enc); else toast('The fever broke at dawn. He lives.', 'good'); break;
+      case 'gamble': if (rng.next() >= f.p) { for (const b of f.bad) apply(b, enc); } else if (f.good) { for (const b of f.good) apply(b, enc); } else toast('The fever broke at dawn. He lives.', 'good'); break;
+      case 'hurt': ctx.hurtHero(f.n); break;
       case 'unique': S.unique = { name: f.name, mult: f.mult, night: S.night + (f.later || 0) - (S.night % 5 === 0 && !f.later ? 0 : 0), thread: enc && enc.thread }; if (f.later) S.unique.night = nextMoon(S.night + 1); else S.unique.night = nextMoon(S.night); break;
       case 'evolve': ctx.evolve(f.cls); chron(`Became a ${ctx.heroes[f.cls].name}.`, 5, ['hero']); break;
       case 'evolveLater': ST.evoLater = { cls: f.cls, from: f.from }; break;
@@ -110,7 +111,8 @@ export function createStory(ctx) {
   function districtEncounter() {
     const front = ctx.frontier().filter(r => S.kits[r] !== 'signature' || S.night >= 6); if (!front.length) return null;
     // two or three routes: prefer variety in rarity, nearest rings first
-    const offers = rng.shuffle(front.map(r => ctx.districtOffer(r))).sort((a, b) => a.ring - b.ring).slice(0, Math.min(3, front.length));
+    const extra = ST.flags.scout ? 1 : 0; ST.flags.scout = false;
+    const offers = rng.shuffle(front.map(r => ctx.districtOffer(r))).sort((a, b) => a.ring - b.ring).slice(0, Math.min(3 + extra, front.length));
     return { kind: 'district', eyebrow: DISTRICT_CALL.eyebrow, title: DISTRICT_CALL.title, scene: DISTRICT_CALL.scene, offers,
       choices: offers.map(o => ({ id: `d${o.region}`, label: o.name, rarity: o.rarity, hint: `${o.call} · ${o.dir}${o.nest ? ' · a hive nests there' : ''}`, fx: [{ op: 'open', region: o.region, why: '' }] })).concat([{ id: 'later', label: DISTRICT_CALL.later.label, hint: DISTRICT_CALL.later.hint, fx: DISTRICT_CALL.later.fx }]) };
   }
@@ -162,7 +164,8 @@ export function createStory(ctx) {
       if (st.needs === 'uniqueDone' && !(S.unique && S.unique.slain)) { if (S.unique && S.unique.escaped) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[Unique Monster: ${S.unique.name}] It got away. It will be back on the next blood moon.`, 'bad'); } continue; }
       push(threadEncounter(tid, th.stage)); shown++;
     }
-    if (ST.flags.beacon && !ST.flags.beaconDone) { ST.flags.beaconDone = true; S.survivors += 2; toast('Two strangers walked in under your flag. +2 people.', 'good'); }
+    if (ST.flags.beacon) { ST.flags.beacon = false; S.survivors += 2; toast('Strangers walked in under your flag. +2 people.', 'good'); }
+    placeSpots();
     // quiet dawns: a small moment, once each
     if (!shown && S.night >= 3 && rng.next() < 0.6) { ST.ambient = ST.ambient || []; const pool = AMBIENT.filter(a => !ST.ambient.includes(a.id) && a.when(S)); if (pool.length) { const a = pool[rng.int(pool.length)]; ST.ambient.push(a.id); push({ kind: 'ambient', eyebrow: a.eyebrow, title: a.title, scene: a.scene, choices: a.choices.map(c => ({ ...c })) }); shown++; } }
     // a route out of the fences every other day (and whenever none opened for three days)
@@ -170,6 +173,29 @@ export function createStory(ctx) {
     if (front.length && S.night >= 2 && shown < 2 && (S.night % 2 === 0 || S.night - ST.lastOpen >= 3)) { const e = districtEncounter(); if (e) { push(e); shown++; } }
   }
   /** the hero walks up to a site: its story (or the thread waiting there) plays */
+  // ---------- street encounters: markers in the open districts, found by walking there ----------
+  function placeSpots() {
+    ST.spots = ST.spots.filter(sp => S.night - sp.day < 3);
+    ST.streetUsed = ST.streetUsed || [];
+    const want = Math.min(2, map.regions.filter(r => r.ring > 0 && !S.sealed[r.id]).length);
+    for (let k = ST.spots.length; k < want; k++) {
+      const pool = STREET.filter(e => !ST.streetUsed.includes(e.id)); if (!pool.length) return;
+      const spot = ctx.findSpot(); if (!spot) return;
+      const e = pool[rng.int(pool.length)]; ST.streetUsed.push(e.id);
+      ST.spots.push({ id: ST.nextId++, kind: e.id, x: spot.x, y: spot.y, day: S.night });
+      ctx.guard(spot.x, spot.y, Math.min(5, 2 + Math.floor(S.night / 4)));
+    }
+  }
+  function spotTick() {
+    const h = S.hero;
+    for (const sp of ST.spots) if (Math.hypot(h.x - sp.x, h.y - sp.y) < 1.8) {
+      ST.spots.splice(ST.spots.indexOf(sp), 1);
+      const e = STREET.find(x => x.id === sp.kind);
+      push({ kind: 'street', eyebrow: e.eyebrow, title: e.title, scene: e.scene, choices: e.choices.map(c => ({ ...c })) });
+      return true;
+    }
+    return false;
+  }
   let tipT = 0;
   function tips() {
     if ((tipT -= 0.25) > 0) return; ST.tips = ST.tips || [];
@@ -178,6 +204,7 @@ export function createStory(ctx) {
   function tick() {
     tips();
     if (S.phase !== 'day' || ST.encounters.length || S.hero.dead) return;
+    if (spotTick()) return;
     for (const l of S.landmarks) {
       if (l.owned || l.stripped || l.kind === 'unknown' || S.sealed[l.region] || ST.visited[l.id] || !ctx.landmarkReach(l)) continue;
       ST.visited[l.id] = true;

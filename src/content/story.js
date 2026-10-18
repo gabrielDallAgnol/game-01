@@ -266,7 +266,37 @@ export const TIPS = [
   { id: 'heat', when: S => S.heat >= 30, text: '[Tip: Heat] Your town makes noise: people, guns, generators. Past the first mark the dead drift in; at the red mark a hive bursts.' },
   { id: 'power', when: (S, g) => g.powerOut() > 0, text: '[Tip: Power] Upgraded towers and tech need power. Short of it, they all switch off. Generators are loud; substations out in the city are quiet.' },
   { id: 'stream', when: S => S.mobs.some(m => m.stream !== undefined && !m.roam), text: '[Tip: The stream] Awake hives never stop sending their dead, day or night. Burn a hive to stop it, but hitting one makes it rage.' },
+  { id: 'street', when: S => S.story.spots.length > 0 && S.phase === 'day', text: '[Tip: Encounters] Blue beacons in the open districts are people and places worth a look. A few dead guard each one.' },
   { id: 'district', when: S => S.story.quests.length > 0, text: '[Tip: Quests] A blue arrow points to your quest. Walk there yourself: the town will hold for a while.' },
   { id: 'evolve', when: S => S.P.fam.hero + S.P.fam.ranger + S.P.fam.scavver >= 1, text: '[Tip: Evolution] Two blessings of one hero family (Brawn, Aim, Wits) unlock its Calling. A second family later makes your final class.' },
   { id: 'foreman', when: S => S.foreman, text: '[Tip: Foreman] Your people now build on their own. Set their focus in the build menu, or turn on Auto in the ⋯ menu and just make the big choices.' },
+];
+
+// Out in the open districts: people and places you stumble on. A marker appears; walk there to see what it is.
+// They are guarded by a few dead. Each happens once per run; the Chronicler rewrites them to fit your story.
+export const STREET = [
+  { id: 'carroof', eyebrow: '[Survivor detected]', title: 'On the roof of a bus',
+    scene: 'A man in a delivery uniform on the roof of a burnt-out bus, the dead you just cut down still under him. He has been up there two days. He has a crowbar and a very dry throat.',
+    choices: [{ id: 'take', label: 'Bring him home', hint: '+1 person. He knows the streets: the next route your scouts offer shows one more option.', fx: [{ op: 'survivors', n: 1 }, { op: 'flag', key: 'scout' }] }, { id: 'water', label: 'Give him water and directions', hint: '-2 food. He goes his own way, and tells others about you (+8 heat, +1 person at dawn).', fx: [{ op: 'food', n: -2 }, { op: 'heat', n: 8 }, { op: 'flag', key: 'beacon' }] }] },
+  { id: 'pharmacy', eyebrow: '[Location discovered]', title: 'The pharmacy with the shutter down',
+    scene: 'The shutter is jammed half-open. Inside: shelves mostly bare, but the back room is locked, and something behind the door is breathing.',
+    choices: [{ id: 'open', label: 'Force the door', hint: 'A coin toss: +12 scrap of medicine, or a dead that was a pharmacist (your hero takes a hit).', fx: [{ op: 'gamble', p: 0.5, good: [{ op: 'gold', n: 12 }], bad: [{ op: 'hurt', n: 10 }, { op: 'gold', n: 4 }] }] }, { id: 'front', label: 'Take what is out front', hint: '+5 scrap, no risk.', fx: [{ op: 'gold', n: 5 }] }] },
+  { id: 'radio', eyebrow: '[Signal]', title: 'A walkie-talkie in a dead hand',
+    scene: 'It crackles as you pick it up. A child\'s voice, calm, practised: "Base, this is Sparrow. Still nobody. Over." Then silence.',
+    choices: [{ id: 'answer', label: 'Answer Sparrow', hint: 'Sparrow and two others find their way to you over the next dawns (+3 people). +10 heat.', fx: [{ op: 'heat', n: 10 }, { op: 'survivors', n: 3 }] }, { id: 'keep', label: 'Keep it and listen', hint: 'You learn their patrol routes: +1 pair of hands for good.', fx: [{ op: 'hands', n: 1 }] }] },
+  { id: 'church', eyebrow: '[Location discovered]', title: 'Candles in the chapel',
+    scene: 'Fresh candles on the altar of a tiny chapel, and forty names written on the wall in marker. The last one is dated yesterday.',
+    choices: [{ id: 'add', label: 'Add the names of your dead', hint: 'Your people take heart: heat -15 and +1 food each dawn.', fx: [{ op: 'heat', n: -15 }, { op: 'flag', key: 'garden' }] }, { id: 'take', label: 'Take the candles', hint: '+4 scrap. Light is light.', fx: [{ op: 'gold', n: 4 }] }] },
+  { id: 'market', eyebrow: '[Encounter]', title: 'A trader with a shopping trolley',
+    scene: 'An old woman pushing a trolley full of tins and batteries, a rifle laid across the top. "I trade. I don\'t give. What have you got?"',
+    choices: [{ id: 'food', label: 'Scrap for food', hint: '-6 scrap, +8 food.', cost: { gold: 6 }, fx: [{ op: 'gold', n: -6 }, { op: 'food', n: 8 }] }, { id: 'tip', label: 'Ask what she has seen', hint: 'Free. She tells you where a hive is weak: your hero deals +15% damage to hives.', fx: [{ op: 'flag', key: 'hiveTip' }] }] },
+  { id: 'dog2', eyebrow: '[Encounter]', title: 'The dog that guards a door',
+    scene: 'A big dog, ribs showing, guarding a basement door. It growls at you, then at the dead, then at you again. Someone is behind that door.',
+    choices: [{ id: 'food', label: 'Throw it some food', hint: '-2 food. The dog lets you in: a family of three comes home with you (+3 people).', cost: { food: 2 }, fx: [{ op: 'food', n: -2 }, { op: 'survivors', n: 3 }] }, { id: 'leave', label: 'Leave them be', hint: 'Not everyone wants to be found.', fx: [] }] },
+  { id: 'cache', eyebrow: '[Location discovered]', title: 'A prepper\'s cache',
+    scene: 'A hatch under a skip, padlocked from the inside. Somebody planned for this. Somebody did not make it back to use it.',
+    choices: [{ id: 'all', label: 'Take everything', hint: '+10 scrap, +5 food.', fx: [{ op: 'gold', n: 10 }, { op: 'food', n: 5 }] }, { id: 'half', label: 'Take half, leave a note', hint: '+5 scrap. Whoever finds the rest may come looking for the writer (+1 person at dawn).', fx: [{ op: 'gold', n: 5 }, { op: 'flag', key: 'beacon' }] }] },
+  { id: 'statue', eyebrow: '[Hidden scenario]', title: 'The statue that turned its head',
+    scene: 'A bronze statue in the square, a general on a horse. You are sure its head faced north this morning. [Something in the System hums. A blessing is near.]',
+    choices: [{ id: 'touch', label: 'Touch the plinth', hint: 'A rare blessing at once.', fx: [{ op: 'blessing' }] }, { id: 'walk', label: 'Walk on, fast', hint: 'Some windows are better left closed.', fx: [] }] },
 ];

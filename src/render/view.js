@@ -213,6 +213,25 @@ export function createView(canvas, game, opts = {}) {
     const ring = new THREE.Mesh(ringGeo(1.55, 1.75), new THREE.MeshBasicMaterial({ color: lc('#f0c050').multiplyScalar(1.4), transparent: true, opacity: 0.9, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; g.add(ring);
     return { g, smoke, ring };
   }
+  // street encounters: a blue beacon you can see from far away
+  const spotViews = new Map(), beamTex = glowTex;
+  const bangMat = new THREE.SpriteMaterial({ map: K.textTex('!', { w: 64, h: 64, size: 54, bg: '#0e2230', fg: '#7fd4ff' }), transparent: true, depthTest: false });
+  function syncSpots(t) {
+    const list = (S.story && S.story.spots) || [], seenIds = new Set();
+    for (const sp of list) {
+      seenIds.add(sp.id); let v = spotViews.get(sp.id);
+      if (!v) {
+        const g = new THREE.Group(); g.position.copy(W(sp.x, sp.y));
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.5, 7, 12, 1, true), new THREE.MeshBasicMaterial({ color: lc('#7fd4ff').multiplyScalar(0.8), transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        col.position.y = 3.5; g.add(col);
+        const bang = new THREE.Sprite(bangMat); bang.scale.set(0.8, 0.8, 1); bang.renderOrder = 9; g.add(bang);
+        const ring = new THREE.Mesh(ringGeo(0.9, 1.05), new THREE.MeshBasicMaterial({ color: lc('#7fd4ff').multiplyScalar(1.4), transparent: true, opacity: 0.8, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; g.add(ring);
+        world.add(g); v = { g, bang, ring, col }; spotViews.set(sp.id, v);
+      }
+      v.g.visible = S.phase === 'day'; v.bang.position.y = 2.2 + Math.sin(t * 3 + sp.id) * 0.15; v.ring.scale.setScalar(1 + (t * 0.8 % 1) * 0.6); v.ring.material.opacity = 0.8 * (1 - (t * 0.8 % 1));
+    }
+    for (const [id, v] of spotViews) if (!seenIds.has(id)) { world.remove(v.g); spotViews.delete(id); }
+  }
   function syncDrops(t) {
     const seen = new Set();
     for (const d of S.drops) {
@@ -617,7 +636,7 @@ export function createView(canvas, game, opts = {}) {
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
-    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time); syncDrops(time); syncFences();
+    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time); syncDrops(time); syncSpots(time); syncFences();
     game.zone();
     if ((S.seenVersion !== seenV || S.zoneVersion !== zoneV) && (shroudT -= dt) <= 0) { shroudT = 0.3; if (S.zoneVersion !== zoneV) repaint = true; seenV = S.seenVersion; zoneV = S.zoneVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }
