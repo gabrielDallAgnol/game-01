@@ -156,7 +156,7 @@ Decisions with Gabriel are in `docs/decisions-2026-10-18.md`; research in `docs/
 | System | How it works now |
 |---|---|
 | Resources | **Scrap** (was gold), **Food**, **People**, **Power**. Packs are gone: everything costs scrap. |
-| Hands | Every build, upgrade or barricade line takes a free pair of hands for the day: 2 + 1 per 4 people (+ School, + the Teacher). They rest at dawn. |
+| Hands | Every build, upgrade or barricade line takes a free pair of hands for the day: 1 + √people (+ School, + the Teacher, + legacy). They rest at dawn. |
 | Rising cost | Each extra copy of a building costs more (home +20%, farm +15%, tower +25%, generator +50%). |
 | Power | The keep makes 3/4/5. Generator (+6/+10, loud). Substation and Fuel Depot sites. Level 2–3 towers, Workshop and Market draw power. Short = **hard blackout**: every powered building switches off, lights die with a flicker, a red POWER DOWN banner, NO POWER tags. |
 | Heat | 0–100, rests on a floor set by noise (people, homes, towers, generators, the Fuel Depot) and spikes with gunfire and kills. 50: the dead drift in from 20 cells. 80: a hive swells and **bursts after 40 s** (red countdown). |
@@ -169,6 +169,13 @@ Decisions with Gabriel are in `docs/decisions-2026-10-18.md`; research in `docs/
 | The Chronicler | With the artifact `sample` capability Claude rewrites each encounter's words from the run's chronicle; choices and effects stay engine-owned. Off or unavailable = the scripted text. |
 | Evolution | Start as a **Survivor** (pipe, Shove). 2 blessings of Brawn/Aim/Wits → its Calling (Brawler/Ranger/Scavver). 2 of a second family → Vanguard, Warlord or Deadeye. |
 | Foreman | The town builds by itself once it has 6 buildings and a level 2 keep (no longer a class trait). |
+| Levels | XP from your own kills, districts, sites, quests and hives; +5% damage and +3 health per level. |
+| Heart family | The Medic (Patch Up heals buildings around you); finals Warden (buildings near you take 30% less), Marshal (towers near you +25% rate), Quartermaster (+4 scrap +2 food a dawn, Patch Up heals the whole town). |
+| Companions at your side | One companion can travel with you and fight; their post stands empty meanwhile. |
+| Street finds | Blue beacons in open districts, guarded; 8 hand-written, then generated ones. |
+| Chapters | After each blood moon the last five days are retold. |
+| Legacy | Fame from a finished run buys small permanent edges (start screen). |
+| Salvage | Kills give scrap at dawn, capped at 10 + night so big towns do not snowball. |
 | Autopilot | ⋯ → Auto: the hero defends, fetches crates and rests; builders work. Cards still pause for your choices. |
 | Saves | A dawn snapshot to your private folder in the artifact's store (any device) plus a local copy. Continue from the start screen. |
 | HQ | The keep is now a town hall with a clock tower, banners and a flag; one more floor per level. Your buildings stand on concrete pads with amber corner marks. |

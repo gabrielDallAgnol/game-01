@@ -101,7 +101,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const newCost = type => Math.max(1, Math.round(costOf(type) * (1 + (RISE[type] || 0) * copies(type))));
   const buyCost = type => newCost(type) * (S.mode === 'packs' && !BUILDINGS[type].tech ? PACK_RULES.premium : 1);
   // hands: every build or upgrade takes a free pair of hands for the rest of the day
-  const handsMax = () => HANDS.base + Math.ceil(pop() / HANDS.perPeople) + S.handsExtra + (S.legacy.hands || 0) + (S.landmarks || []).reduce((a, l) => a + (l.owned && LANDMARKS[l.kind].hands || 0), 0) + (story ? story.bonus.hands() : 0);
+  const handsMax = () => HANDS.base + Math.ceil(Math.sqrt(pop())) + S.handsExtra + (S.legacy.hands || 0) + (S.landmarks || []).reduce((a, l) => a + (l.owned && LANDMARKS[l.kind].hands || 0), 0) + (story ? story.bonus.hands() : 0);
   const handsFree = () => Math.max(0, handsMax() - S.handsUsed);
   const useHand = () => { if (handsFree() < 1) return fail('No free hands today. More people (homes) means more hands; they rest at dawn.'); S.handsUsed++; return true; };
   const upCostOf = (b) => { const c0 = costOf(b.type, b.level + 1); return S.halfUpgrade ? Math.max(1, Math.ceil(c0 / 2)) : c0; };
@@ -913,7 +913,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const need = foodNeed(), fed = need === 0 ? 1 : Math.min(1, S.food / need);
     S.food = Math.max(0, S.food - need);
     const upk = upkeep();
-    const salv = Math.floor(S.salvage || 0); S.salvage = (S.salvage || 0) - salv;
+    const salv = Math.min(10 + S.night, Math.floor(S.salvage || 0)); S.salvage = 0;   // what the town can haul in a morning
     let goldIn = Math.round((START.baseIncome * DIFF.eco + S.P.tax + hg * fed) * prosper()) - upk + salv;
     if (has('granary')) goldIn += Math.floor(S.food / 5);
     for (const l of S.landmarks) if (l.owned) { const L = LANDMARKS[l.kind]; goldIn += L.gold || 0; S.food += L.food || 0; if (L.reveal && S.night % 2 === 0) { S.survivors++; toast('A survivor followed the broadcast to your gates.', 'good'); } }
