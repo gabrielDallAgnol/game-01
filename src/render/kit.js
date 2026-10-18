@@ -680,7 +680,7 @@ export const K = (() => {
     b.box('curb', 22.4, 0.08, 18.4, 0, 0, 0, { r: 0.04 });
     for (let k = -9; k <= 9; k += 3) b.cbox('paint', 0.12, 0.01, 3.5, k, 0.125, 6.5, { r: 0.001 });
     // the hall: a pale civic block with a portico, one more floor per keep level
-    const floors = 2 + lvl, fh = 3.1, H = floors * fh, hw = 12, hd = 7, hz = -4.2;
+    const floors = 3 + lvl, fh = 3.1, H = floors * fh, hw = 14, hd = 8, hz = -3.8;
     const hall = apartment({ w: hw, d: hd, floors, fh, color: 'pale', trim: 'stone', shop: false, seed: 91, ruin: 0 });
     hall.position.set(0, 0.12, hz); g.add(hall);
     // portico: columns and a pediment over the door

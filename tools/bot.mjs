@@ -114,7 +114,9 @@ export function choosePack(g, strat) {
   const pick = ps.find(p => p.kind === want) || ps.find(p => p.kind === 'mix') || ps[0];
   g.choosePack(pick.id);
 }
+export function chooseStory(g) { const S = g.state; for (let k = 0; k < 9 && S.story && S.story.encounters.length; k++) { const e = S.story.encounters[0]; const c = e.choices.find(x => g.story().can(x)) || e.choices[e.choices.length - 1]; g.choose(c.id); } }
 export function choosePerks(g, path) {
+  chooseStory(g);
   const S = g.state;
   while (S.pendingPicks > 0 && S.offer.length) {
     let pick = S.offer.find(id => PERK_FAM[id] === path && !PERK_PACT[id]);

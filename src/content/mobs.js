@@ -36,6 +36,6 @@ export const TIDE = {
   drift: 0.012,                        // per second: chance a roamer next to your land wanders in toward the town
   opening: [0, 0.45, 0.65, 0.85],      // nights 1–3 budget ramp (night 1 is a single dead)
   first: { hp: 5, speed: 0.7 },        // the first dead: slow, tough, unforgettable
-  roam: { perRing: [0, 2, 4], radius: 3.5, sight: 5, leash: 9, cap: 40 },
+  roam: { perRing: [0, 4, 6], radius: 4.5, sight: 5, leash: 10, cap: 60 },
 };
 

@@ -2,7 +2,7 @@
 // A competent player: builders on from day 1 (balanced), the hero defends the town, first blessing offered.
 // usage: node tools/clockbot.mjs [difficulty] [days] [seeds] [hero]
 import { createGame } from '../src/sim/game.js';
-import { heroTick } from './bot.mjs';
+import { heroTick, chooseStory } from './bot.mjs';
 
 const diff = process.argv[2] || 'survivor', DAYS = +(process.argv[3] || 14), SEEDS = +(process.argv[4] || 4), hero = process.argv[5] || 'warrior';
 const biomes = ['riverbend', 'highland', 'lakeshore', 'vale'];
@@ -15,6 +15,7 @@ for (let s = 0; s < SEEDS; s++) {
   const nightLog = [];
   while (!S.over && S.night <= DAYS && steps < 60 * 60 * 60) {
     while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]);
+    if (S.story.encounters.length) chooseStory(g);
     if (steps % 15 === 0) heroTick(g, 'active');
     const n = S.night, ph = S.phase;
     g.step(); steps++;

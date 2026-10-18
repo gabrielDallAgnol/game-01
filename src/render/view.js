@@ -68,7 +68,7 @@ export function createView(canvas, game, opts = {}) {
   }
   const hives = new Map(); let nestKey = '', nearNests = new Set();
   for (const r of map.regions) if (r.nest) {
-    const kind = HIVES[r.id % HIVES.length], g = new THREE.Group(); g.position.copy(W(r.nest.x, r.nest.y)); g.rotation.y = Math.atan2(C - r.nest.x, C - r.nest.y);
+    const kind = HIVES[r.id % HIVES.length], g = new THREE.Group(); g.position.copy(W(r.nest.x, r.nest.y)); g.rotation.y = r.nest.back ? Math.atan2(-r.nest.back[0], -r.nest.back[1]) : Math.atan2(C - r.nest.x, C - r.nest.y);
     g.add(hiveModel(kind));
     const decal = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshBasicMaterial({ map: glowTex, color: lc('#8fff3a'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
     decal.rotation.x = -Math.PI / 2; decal.position.y = 0.05; decal.renderOrder = 3; g.add(decal);
@@ -156,16 +156,47 @@ export function createView(canvas, game, opts = {}) {
   }
   const fitTo = (m, size) => { const b = new THREE.Box3().setFromObject(m), w = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) || 1; m.scale.multiplyScalar(size * 0.92 / w); return m; };
   const flagGeo = new THREE.PlaneGeometry(0.7, 0.42), flagMat = new THREE.MeshBasicMaterial({ color: lc('#d9843a').multiplyScalar(1.3), side: THREE.DoubleSide });
+  // district sites: what they look like depends on what the story made them
+  function siteModel(kind, size, seed) {
+    let m;
+    CFG.hiveGlow = 0;
+    if (kind === 'police') m = K.police({});
+    else if (kind === 'clinic') m = K.hospital({});
+    else if (kind === 'fuel') m = K.petrol({});
+    else if (kind === 'flats') m = K.apartment({ w: 10, d: 9, floors: 8, color: 'bone', trim: 'stone', seed: seed + 5, shop: true });
+    else if (kind === 'allotment') m = K.farm({ level: 3, seed });
+    else if (kind === 'market') { m = new THREE.Group(); const a = K.apartment({ w: 12, d: 7, floors: 2, color: 'sand', trim: 'stone', seed: seed + 9, shop: true }); m.add(a); const sg = K.sign('HIGH STREET', 6, 0.9, { bg: '#2c3a40', fg: '#f0c050', size: 80 }); sg.position.set(0, 4.6, 3.6); m.add(sg); }
+    else if (kind === 'school') { m = new THREE.Group(); const a = K.apartment({ w: 13, d: 8, floors: 3, color: 'sand', trim: 'pale', seed: seed + 3, shop: false }); m.add(a); const sg = K.sign('SCHOOL', 4.5, 1, { bg: '#e7e1d3', fg: '#9e5426', size: 84 }); sg.position.set(0, 7.2, 4.06); m.add(sg); }
+    else if (kind === 'substation') {   // a fenced transformer yard and a control hut
+      const b = new K.B();
+      b.box('gravel', 12, 0.1, 10, 0, 0, 0, { r: 0.02 });
+      for (const x of [-3.2, 0, 3.2]) { b.cbox('grey', 2.2, 2.4, 1.8, x, 0.1, -1.5, { r: 0.06 }); for (const z of [-2, -1, 0]) b.cyl('pale', 0.12, 0.16, 0.9, x - 0.6 + (z + 2) * 0.6, 2.5, -1.5, { seg: 8 }); }
+      b.cbox('stone', 3.5, 2.6, 2.6, -3, 0.1, 3, { r: 0.05 }); b.cbox('dark', 0.9, 1.9, 0.08, -3, 0.1, 4.32, { r: 0.02 });
+      for (let k = -5.5; k <= 5.5; k += 1.1) { b.box('metal', 0.05, 2, 0.05, k, 0.1, -4.8); b.box('metal', 0.05, 2, 0.05, k, 0.1, 4.8); }
+      b.box('metal', 11.2, 0.05, 0.05, 0, 2, -4.8); b.box('metal', 11.2, 0.05, 0.05, 0, 2, 4.8);
+      b.cbox('amber', 1.2, 0.8, 0.05, 2, 1.0, 4.85, { r: 0.01 });
+      m = b.build();
+    } else if (kind === 'radio') {
+      const b = new K.B(), H = 22;
+      b.cbox('stone', 7, 3.2, 5, 0, 0, 2, { r: 0.05 }); b.cbox('danger', 2.4, 0.5, 0.1, 0, 2.2, 4.55, { r: 0.02 });
+      for (const [a, c2] of [[-0.8, -0.8], [0.8, -0.8], [0, 0.8]]) b.box('steel', 0.14, H, 0.14, a, 0, -3 + c2, { r: 0.02 });
+      for (let y = 1.5; y < H; y += 2) b.cbox('steel', 1.7, 0.06, 0.06, 0, y, -3.4, { r: 0.01, ry: y % 4 > 2 ? 0.5 : -0.5 });
+      b.cbox('danger', 0.4, 0.4, 0.4, 0, H, -3, { r: 0.05 });
+      m = b.build();
+    } else m = K.apartment({ w: 10, d: 10, floors: 4, color: 'grey', trim: 'stone', seed: seed + 1, ruin: 0.2, shop: false });
+    CFG.hiveGlow = 1;
+    return fitTo(m, size);
+  }
   const lmViews = S.landmarks.map(l => {
     const g = new THREE.Group(); g.position.copy(W(l.x, l.y)); g.rotation.y = Math.atan2(C - l.x, C - l.y);
     let m;
     if (l.kind === 'eiffel') m = eiffel(); else if (l.kind === 'tvtower') m = tvtower(); else if (l.kind === 'christ') m = christ();
-    else { CFG.hiveGlow = 0; m = l.kind === 'police' ? K.police({}) : l.kind === 'clinic' ? K.hospital({}) : K.petrol({}); CFG.hiveGlow = 1; fitTo(m, l.size); }
+    else m = siteModel(l.kind, l.size, l.id * 7);
     g.add(m);
     const pole = new THREE.Group(); pole.add(part(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), LMAT.iron, 0, 0.8, 0)); const flag = new THREE.Mesh(flagGeo, flagMat); flag.position.set(0.36, 1.35, 0); pole.add(flag);
     pole.position.set(l.size / 2 + 0.3, 0, 0); pole.visible = false; g.add(pole);
     const mark = new THREE.Mesh(diaGeoL, diaWhite); mark.position.y = l.kind === 'eiffel' || l.kind === 'tvtower' ? 2.5 : l.kind === 'christ' ? 6 : 3.2; g.add(mark);
-    world.add(g); return { l, g, pole, flag, mark };
+    world.add(g); return { l, g, pole, flag, mark, m, kind: l.kind };
   });
   // ---------- supply drops: a crate under a canopy, red smoke you can see from afar, a ring while you open it ----------
   const dropViews = new Map();
@@ -191,8 +222,39 @@ export function createView(canvas, game, opts = {}) {
     }
     for (const [id, v] of dropViews) if (!seen.has(id)) { world.remove(v.g); dropViews.delete(id); burst(v.g.position.x + C, v.g.position.z + C, 1.5, '#f0c050'); }
   }
+  const questMat = new THREE.MeshBasicMaterial({ color: lc('#7fd4ff').multiplyScalar(1.8) });
   function updateLandmarks(t) {
-    for (const v of lmViews) { v.g.visible = LANDMARKS[v.l.kind].signature || seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned; v.mark.visible = !v.l.owned && S.phase === 'day'; if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3; }
+    for (const v of lmViews) {
+      if (v.kind !== v.l.kind) { v.g.remove(v.m); v.m = siteModel(v.l.kind, v.l.size, v.l.id * 7); v.g.add(v.m); v.kind = v.l.kind; }
+      const quest = S.story && S.story.quests.some(q => q.site === v.l.id);
+      v.g.visible = LANDMARKS[v.l.kind].signature || seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned;
+      v.mark.visible = !v.l.owned && !v.l.stripped && v.l.kind !== 'unknown' && S.phase === 'day' && !S.sealed[v.l.region];
+      v.mark.material = quest ? questMat : diaWhite; v.mark.scale.setScalar(quest ? 1.4 + Math.sin(t * 4) * 0.12 : 1);
+      if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3;
+      if (v.l.stripped && !v.gutted) { v.gutted = true; v.m.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.45); } }); }
+    }
+  }
+  // ---------- quarantine fences: where a district you hold meets a sealed one, the streets are fenced off ----------
+  let fenceMesh = null, fenceV = -1;
+  // a chain-link panel with a red-and-white barrier in front: reads as QUARANTINE from any zoom
+  const fenceGeo = (() => { const b = new K.B(); b.box('metal', 0.06, 1.5, 0.06, -0.5, 0, -0.15); b.box('metal', 0.06, 1.5, 0.06, 0.5, 0, -0.15); b.box('steel', 1.0, 1.25, 0.02, 0, 0.2, -0.15); b.cbox('pale', 1.0, 0.5, 0.16, 0, 0.1, 0.12, { r: 0.04 }); b.cbox('danger', 0.3, 0.51, 0.17, -0.3, 0.1, 0.12, { r: 0.01 }); b.cbox('danger', 0.3, 0.51, 0.17, 0.3, 0.1, 0.12, { r: 0.01 }); return b.build(); })();
+  function syncFences() {
+    if (S.sealVersion === fenceV) return; fenceV = S.sealVersion;
+    if (fenceMesh) { world.remove(fenceMesh); fenceMesh = null; }
+    const spots = [];
+    for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+      const i = idx(x, y), r = map.region[i]; if (r < 0 || S.sealed[r] || !PASSABLE[map.terrain[i]]) continue;
+      for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) { const j = idx(x + dx, y + dy), r2 = map.region[j]; if (r2 >= 0 && S.sealed[r2] && PASSABLE[map.terrain[j]]) { spots.push([x + 0.5 + dx * 0.5, y + 0.5 + dy * 0.5, dx ? Math.PI / 2 : 0]); break; } }
+    }
+    if (!spots.length) return;
+    fenceMesh = new THREE.Group();
+    const meshes = []; fenceGeo.traverse(o => { if (o.isMesh) meshes.push(o); });
+    for (const src of meshes) {
+      const im = new THREE.InstancedMesh(src.geometry, src.material, spots.length); im.castShadow = true;
+      spots.forEach(([x, y, ry], k) => { rd.position.copy(W(x, y)); rd.rotation.set(0, ry, 0); rd.scale.setScalar(1); rd.updateMatrix(); im.setMatrixAt(k, rd.matrix); });
+      fenceMesh.add(im);
+    }
+    world.add(fenceMesh);
   }
 
   // ---------- markers ----------
@@ -291,7 +353,7 @@ export function createView(canvas, game, opts = {}) {
   function syncKeep() {
     if (keepLevel === S.keep.level && keepG) return;
     if (keepG) world.remove(keepG); lampGlow.length = 0;
-    keepLevel = S.keep.level; keepG = K.keep({ level: keepLevel, game: true }); keepG.scale.setScalar(0.24); keepG.position.copy(W(C, C)); keepG.rotation.y = Math.PI; world.add(keepG);
+    keepLevel = S.keep.level; keepG = K.keep({ level: keepLevel, game: true }); keepG.scale.setScalar(0.27); keepG.position.copy(W(C, C)); keepG.rotation.y = Math.PI; world.add(keepG);
     for (const [x, z, ry] of [[-11.5, 9.5, Math.PI / 2], [11.5, 9.5, Math.PI / 2], [-11.5, -9.5, -Math.PI / 2], [11.5, -9.5, -Math.PI / 2]]) { const l = K.lamp({}); l.position.set(x, 0, z); l.rotation.y = ry; l.traverse(o => { if (o.isMesh && o.material.emissive === undefined) return; }); keepG.add(l); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: lc('#ffd9a0'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); sp.position.set(x + (ry > 0 ? 0 : 0), 5.8, z + (ry > 0 ? -1.3 : 1.3)); sp.scale.setScalar(3.5); keepG.add(sp); lampGlow.push(sp); }
   }
   syncKeep();
@@ -553,7 +615,7 @@ export function createView(canvas, game, opts = {}) {
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
-    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time); syncDrops(time);
+    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time); syncDrops(time); syncFences();
     game.zone();
     if ((S.seenVersion !== seenV || S.zoneVersion !== zoneV) && (shroudT -= dt) <= 0) { shroudT = 0.3; if (S.zoneVersion !== zoneV) repaint = true; seenV = S.seenVersion; zoneV = S.zoneVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }

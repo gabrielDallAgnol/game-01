@@ -10,6 +10,9 @@ import { MOBS } from '../content/mobs.js';
 import { regionNames } from '../content/names.js';
 import { TRAITS, TREAT, RUN } from '../content/scavenge.js';
 import { createAudio } from './audio.js';
+import { createChronicler } from './story-ai.js';
+import { TITLES, ROLES, BARKS } from '../content/story.js';
+import { RARITY } from '../content/districts.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -18,6 +21,7 @@ const store = {
   set(k, v) { try { localStorage.setItem('hollowmere.' + k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
 };
 const audio = createAudio(store);
+const chronicler = createChronicler(store);
 for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => audio.unlock(), { capture: true });
 const RINGS = ['Town', 'Near lands', 'Far lands'];
 const ARM_MS = 700;          // cards ignore taps this long after they appear
@@ -62,12 +66,14 @@ export function startApp() {
       <h2>Your land</h2>
       <div class="choices">${opts.map((o, k) => `<button class="choice" data-map="${k}" aria-pressed="${setup.pick === k}"><canvas id="mm${k}" aria-hidden="true"></canvas><b>${o.name}</b><span>${BIOMES[o.biome].blurb}</span><span class="tiny">Seed ${o.seed}</span></button>`).join('')}</div>
       <div class="seedrow"><button class="btn ghost" id="reroll">Show other lands</button></div>
+      <label class="tiny aitog" style="display:block;margin-top:12px"><input type="checkbox" id="aiStart" ${chronicler.enabled() ? 'checked' : ''}> ✦ Let the Chronicler (Claude) write your story and play your companions. Uses your Claude account; it asks first. Off = the scripted story.</label>
       <div class="cardrow" style="margin-top:16px"><button class="btn big" id="begin">Raise the town</button><span class="tiny">WASD or drag to walk · scroll or pinch to zoom</span></div>`, true, false);
     opts.forEach((o, k) => drawMinimap($(`#mm${k}`), generateMap(o.seed, o.biome)));
     const press = (sel, b) => $$(sel).forEach(x => x.setAttribute('aria-pressed', x === b));
     $$('[data-hero]').forEach(b => b.onclick = () => { setup.hero = b.dataset.hero; store.set('hero', setup.hero); press('[data-hero]', b); });
     $$('[data-diff]').forEach(b => b.onclick = () => { setup.difficulty = b.dataset.diff; store.set('difficulty', setup.difficulty); press('[data-diff]', b); });
     $$('[data-map]').forEach(b => b.onclick = () => { setup.pick = +b.dataset.map; press('[data-map]', b); });
+    $('#aiStart').onchange = e => chronicler.setEnabled(e.target.checked);
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); };
     $('#begin').onclick = () => { const o = opts[setup.pick]; begin(o.seed, o.biome); };
   }
@@ -103,12 +109,13 @@ export function startApp() {
     if (S.over || S.phase !== 'day') return;
     paused = true; placing = null; closePanel();
     if (S.pendingPicks > 0 && S.offer.length) return showPerks();
+    if (S.story.encounters.length) return showEncounter();
     if (S.packs.length) return showPacks();
     if (S.trade && !S.trade.done && !traderSeen) { traderSeen = true; return showTrader(); }
     hideCard(); paused = false;
     if (S.mode === 'packs' && stockTotal() > 0) toast('Pick a building in the tray to place it.');
   }
-  const needsDawn = () => { const S = game.state; return S.phase === 'day' && !S.over && ((S.pendingPicks > 0 && S.offer.length) || S.packs.length || (S.trade && !S.trade.done && !traderSeen)); };
+  const needsDawn = () => { const S = game.state; return S.phase === 'day' && !S.over && ((S.pendingPicks > 0 && S.offer.length) || S.story.encounters.length || S.packs.length || (S.trade && !S.trade.done && !traderSeen)); };
 
   const sourceLabel = { dawn: 'Dawn blessing', chest: 'From a chest', nest: 'Spoils of the nest' };
   function showPerks() {
@@ -147,6 +154,84 @@ export function startApp() {
     $$('[data-pack]').forEach(b => b.onclick = onArmed(() => { game.choosePack(b.dataset.pack); dawnFlow(); }));
     $('#packReroll').onclick = onArmed(() => { if (game.rerollPacks()) showPacks(); });
   }
+  // ---------- story: encounters, the status window, companions ----------
+  const esc = t => String(t ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  function showEncounter() {
+    const S = game.state, enc = S.story.encounters[0]; if (!enc) return dawnFlow();
+    paused = true; placing = null; closePanel();
+    const P = enc.ai && enc.ai !== 'pending' ? enc.ai : null;
+    const title = P ? P.title : enc.title, scene = P ? P.scene : enc.scene, line = P && P.line ? P.line : enc.speaker && enc.speaker.line;
+    const costTxt = c => !c.cost ? '' : [c.cost.gold ? `<span class="dot gold"></span>${c.cost.gold}` : '', c.cost.food ? `<span class="dot food"></span>${c.cost.food}` : ''].filter(Boolean).join(' ');
+    const sys = enc.kind === 'gift' || enc.kind === 'thread' && /^\[/.test(enc.eyebrow);
+    showCard('enc', `<div class="enc ${enc.kind}${sys ? ' sysw' : ''}"><div class="eyebrow sysline">${esc(enc.eyebrow || '')}${chronicler.available() ? `<span class="chr${enc.ai === 'pending' ? ' busy' : ''}" title="The Chronicler (Claude) writes this run's story">✦ ${enc.ai === 'pending' ? 'writing…' : 'Chronicler'}</span>` : ''}</div>
+      <h1 class="sm" id="encTitle">${esc(title)}</h1>
+      ${enc.speaker ? `<div class="speaker"><b>${esc(enc.speaker.name)}</b><span id="encLine">${esc(line || '')}</span></div>` : ''}
+      <p class="scene" id="encScene">${esc(scene).replace(/\n/g, '<br><br>')}</p>
+      <div class="opts one encopts">${enc.choices.map(c => { const ok = !c.cost || game.story().can(c); const rar = c.rarity ? RARITY[c.rarity] : null;
+        return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span data-lbl="${c.id}">${esc(P && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}<span class="cost">${costTxt(c)}</span></span><span class="ds">${esc(c.hint || '')}</span></button>`; }).join('')}</div></div>`, true);
+    $$('[data-choice]').forEach(b => b.onclick = onArmed(() => { if (P && P.chronicle) enc.aiChron = P.chronicle; if (game.choose(b.dataset.choice)) { audio.play('claim'); afterEncounter(); } }));
+    if (enc.ai == null && chronicler.available() && enc.kind !== 'gift') {
+      enc.ai = 'pending'; const id = enc.id;
+      chronicler.rewrite(enc, game.story().context()).then(patch => {
+        enc.ai = patch || 'none';
+        if (patch && card === 'enc' && game.state.story.encounters[0] && game.state.story.encounters[0].id === id) showEncounterText(patch);
+      });
+    }
+  }
+  function showEncounterText(P) {
+    const c = $('#card'); c.classList.add('rewrite');
+    setTimeout(() => {
+      if ($('#encTitle')) $('#encTitle').textContent = P.title; if ($('#encScene')) $('#encScene').textContent = P.scene; if (P.line && $('#encLine')) $('#encLine').textContent = P.line;
+      for (const [id, l] of Object.entries(P.labels)) { const el = c.querySelector(`[data-lbl="${id}"]`); if (el) el.textContent = l; }
+      const ch = c.querySelector('.chr'); if (ch) { ch.classList.remove('busy'); ch.textContent = '✦ Chronicler'; }
+      c.classList.remove('rewrite');
+    }, 220);
+  }
+  function afterEncounter() { if (game.state.story.encounters.length) showEncounter(); else if (game.state.phase === 'day') dawnFlow(); else { hideCard(); paused = false; } }
+
+  function showStatus() {
+    const S = game.state, ST = S.story, comp = ST.npcs.filter(n => n.joined && n.alive);
+    paused = true; placing = null; closePanel();
+    const hero = game.heroDef;
+    showCard('status', `<div class="enc sysw"><div class="eyebrow sysline">[Status]</div>
+      <h1 class="sm">${esc(hero.name)} · day ${S.night}</h1>
+      <div class="statgrid"><span>Health <b>${Math.ceil(S.hero.hp)}/${S.hero.maxHp}</b></span><span>Kills <b>${S.kills}</b></span><span>People <b>${game.pop()}</b></span><span>Districts <b>${game.map.regions.filter(r => !S.sealed[r.id]).length}/${game.map.regions.length}</b></span><span>Heat <b>${Math.round(S.heat)}</b></span><span>Power <b>${game.powerIn()}/${game.powerOut()}</b></span></div>
+      <h2>Titles</h2><div class="titles">${ST.titles.length ? ST.titles.map(t => `<span class="title" title="${esc(TITLES[t].desc)}">${esc(TITLES[t].name)}</span>`).join('') : '<span class="tiny">None yet. The System is watching.</span>'}</div>
+      <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<button class="comp" data-chat="${n.id}"><b>${esc(n.name)}</b><span>${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}</span><span class="bond">${'♥'.repeat(Math.max(0, n.bond))}${'♡'.repeat(Math.max(0, 5 - n.bond))}</span><span class="talk">Talk</span></button>`).join('') : '<span class="tiny">Nobody yet. Answer the calls: people are out there.</span>'}</div>
+      <h2>Chronicle</h2><ol class="chron">${ST.chronicle.slice().reverse().slice(0, 14).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
+      <div class="cardrow spread"><label class="tiny aitog"><input type="checkbox" id="aiTog" ${chronicler.enabled() ? 'checked' : ''}> Chronicler (Claude writes the story) · ${({ on: 'on', off: 'off', denied: 'not allowed', absent: 'not available here' })[chronicler.status()]}</label><button class="btn" id="stClose">Back</button></div></div>`, true, false);
+    $('#stClose').onclick = () => { hideCard(); paused = false; };
+    $('#aiTog').onchange = e => { chronicler.setEnabled(e.target.checked); };
+    $$('[data-chat]').forEach(b => b.onclick = () => showChat(b.dataset.chat));
+  }
+  const chats = {};
+  function showChat(id) {
+    const S = game.state, n = game.story().npc(id); if (!n) return;
+    const hist = chats[id] || (chats[id] = []);
+    const ai = chronicler.available(), left = Math.max(0, 6 - n.chatToday);
+    const bark = k => { const L = BARKS[k]; const t = L[(n.chatToday + hist.length + n.id.length) % L.length]; const open = S.landmarks.filter(l => !S.sealed[l.region] && l.kind !== 'unknown'); return t.replace('{want}', n.persona.want).replace('{fear}', n.persona.fear).replace('{heat}', Math.round(S.heat)).replace('{pop}', game.pop()).replace('{district}', open.length ? 'The street by the ' + open[open.length - 1].kind : 'The fence'); };
+    showCard('chat', `<div class="enc chat"><div class="eyebrow">${esc(ROLES[n.role].post)} · bond ${n.bond}/5${n.named ? ' · named' : ''}</div><h1 class="sm">${esc(n.name)}</h1>
+      <p class="tiny">${esc(n.persona.traits.join(', '))} · ${esc(n.persona.quirk)}</p>
+      <div class="msgs" id="msgs">${hist.map(m => `<div class="msg ${m.role}">${esc(m.content)}</div>`).join('') || `<div class="msg assistant">${esc(bark('you'))}</div>`}</div>
+      ${ai ? `<form class="say" id="sayForm"><input id="sayIn" maxlength="160" autocomplete="off" placeholder="${left ? 'Say something…' : `${n.name.split(' ')[0]} has work to do. Tomorrow.`}" ${left ? '' : 'disabled'}><button class="btn" ${left ? '' : 'disabled'}>Say</button></form><div class="tiny">${left} more ${left === 1 ? 'talk' : 'talks'} today</div>`
+        : `<div class="topics"><button class="btn ghost" data-topic="self">About you</button><button class="btn ghost" data-topic="city">The city</button><button class="btn ghost" data-topic="you">About me</button></div>`}
+      <div class="cardrow" style="margin-top:10px"><button class="btn ghost" id="chatBack">Back</button></div></div>`, true, false);
+    const box = $('#msgs'); box.scrollTop = box.scrollHeight;
+    $('#chatBack').onclick = () => showStatus();
+    $$('[data-topic]').forEach(b => b.onclick = () => { hist.push({ role: 'user', content: b.textContent }, { role: 'assistant', content: bark(b.dataset.topic) }); showChat(id); });
+    const form = $('#sayForm');
+    if (form) form.onsubmit = async e => {
+      e.preventDefault(); const t = $('#sayIn').value.trim(); if (!t || n.chatToday >= 6) return;
+      n.chatToday++; hist.push({ role: 'user', content: t }); showChat(id); const b = $('#msgs'); b.insertAdjacentHTML('beforeend', '<div class="msg assistant typing">…</div>'); b.scrollTop = b.scrollHeight;
+      const r = await chronicler.chat({ ...n, roleName: ROLES[n.role].post }, hist.slice(-8), game.story().context());
+      hist.push({ role: 'assistant', content: r ? r.say : `(${n.name.split(' ')[0]} looks at you for a long moment and says nothing.)` });
+      if (r && r.remember) { n.memory.push(r.remember); if (n.memory.length > 8) n.memory.shift(); }
+      if (r && r.mood === 'warm' && !n.bondedToday) { n.bondedToday = S.night; if (n.bond < 3) n.bond++; }
+      if (card === 'chat') showChat(id);
+    };
+    if (form) setTimeout(() => $('#sayIn') && $('#sayIn').focus(), 50);
+  }
+
   function showTrader() {
     const S = game.state;
     showCard('trade', `<div class="eyebrow">A caravan at the gate</div><h1 class="sm">The trader</h1><p>One deal per dawn. You can also come back to it from the keep.</p>
@@ -511,7 +596,7 @@ export function startApp() {
   const ringBell = () => { if (game && !paused && game.startNight()) { closePanel(); stopPlacing(); } };
   $('#bell').onclick = ringBell;
   $('#logBtn').onclick = showLog;
-  $('#crewBtn').onclick = showCrew;
+  $('#crewBtn').onclick = () => { if (game) showStatus(); };
   let speed = 1; const SPEEDS = [1, 2, 3];
   $('#spdBtn').onclick = () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; $('#spdBtn').textContent = `${speed}×`; $('#spdBtn').classList.toggle('fast', speed > 1); };
   const showSound = () => { const b = $('#sndBtn'); b.classList.toggle('off', audio.muted()); b.setAttribute('aria-label', audio.muted() ? 'Sound off' : 'Sound on'); };
@@ -562,7 +647,7 @@ export function startApp() {
   function dockH() { const db = $('#dock').getBoundingClientRect(); document.body.style.setProperty('--dockH', `${Math.max(60, innerHeight - db.top)}px`); }
   function updateHud() {
     dockH();
-    if (game) { const sc = game.state.scav, bit = sc.crew.some(c => c.bitten), out = sc.crew.filter(c => c.out !== null).length; const cb = $('#crewBtn'); cb.classList.toggle('alert', bit); cb.textContent = out ? `Crew ${sc.crew.length - out}/${sc.crew.length}` : `Crew ${sc.crew.length}`; }
+    if (game) { const cb = $('#crewBtn'); cb.hidden = false; const q = game.state.story.quests.length; cb.textContent = q ? `Status · ${q}` : 'Status'; cb.classList.toggle('alert', false); }
     if (!game) return;
     const S = game.state, night = S.phase === 'night', bm = game.isBloodMoon(S.night);
     $('#phaseLbl').textContent = S.over ? 'Fell on' : night ? 'Night' : 'Day';
@@ -623,14 +708,18 @@ export function startApp() {
       const p = view.project(d.x, d.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
       buckets.set(3000 + d.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, drop: true });
     }
+    if (S.phase === 'day') for (const q of S.story.quests) {
+      const p = view.project(q.x, q.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
+      buckets.set(5000 + q.site, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, quest: true });
+    }
     for (let k = tagN; k < edge.tags.length; k++) edge.tags[k].hidden = true;
     let i = 0;
     for (const b of buckets.values()) {
       let el = edge.pool[i]; if (!el) { el = document.createElement('div'); el.className = 'ar'; el.innerHTML = '<i></i><span></span>'; $('#edge').appendChild(el); edge.pool[i] = el; }
       const c = Math.cos(b.ang), s = Math.sin(b.ang), hx = Wd / 2 - m, hy = Math.max(10, (bt - t) / 2 - m * 0.5), k = Math.min(Math.abs(hx / (c || 1e-6)), Math.abs(hy / (s || 1e-6)));
       el.style.transform = `translate(${cx + c * k}px, ${cy + s * k}px) rotate(${b.ang}rad)`;
-      const sp = el.lastChild; sp.textContent = b.drop ? 'Drop' : b.day ? `~${b.n}` : b.n > 1 ? b.n : ''; sp.style.transform = `rotate(${-b.ang}rad)`;
-      el.classList.toggle('big', b.big); el.classList.toggle('drop', !!b.drop); el.hidden = false; i++;
+      const sp = el.lastChild; sp.textContent = b.quest ? 'Quest' : b.drop ? 'Drop' : b.day ? `~${b.n}` : b.n > 1 ? b.n : ''; sp.style.transform = `rotate(${-b.ang}rad)`;
+      el.classList.toggle('big', b.big); el.classList.toggle('drop', !!b.drop); el.classList.toggle('quest', !!b.quest); el.hidden = false; i++;
     }
     for (; i < edge.pool.length; i++) edge.pool[i].hidden = true;
     if (S.over) for (const el of [...edge.pool, ...edge.tags]) el.hidden = true;
@@ -744,6 +833,7 @@ export function startApp() {
     // the dawn cards wait a moment so a last tap at night can't land on them
     if (dawnT > 0) dawnT -= dt;
     if (!card && dawnT <= 0 && needsDawn()) dawnFlow();
+    if (!card && !paused && S.phase === 'day' && S.story.encounters.length) showEncounter();
     if (endT > 0 && now >= endT) { endT = -1; paused = true; showEnd(); }
     if (placing && placing.zone.ver !== S.occVersion && S.phase === 'day') { refreshZone(); updateGhost(); }
     if (placing && S.phase !== 'day') stopPlacing();

@@ -26,10 +26,19 @@ export function valeInside(rx, ry, pad = 0) {
   return ry < 0 && Math.abs(rx) <= -ry * Math.tan(VALE_HALF) + VALE_PAD + pad && Math.hypot(rx, ry) < 31 * K + pad;
 }
 // Landmarks: intact buildings you can claim for a bonus and a forward build zone. One signature per city.
+// Sites start as 'unknown': what a district is gets decided when the story opens it (see content/districts.js).
+// power: silent power · gold/food: per dawn · noise: adds to the town's heat · survivors: join when claimed
 export const LANDMARKS = {
+  unknown: { name: 'Sealed building', size: 3, cost: 0, desc: 'Behind the quarantine fence. Open the district to find out what it is.' },
+  flats:   { name: 'Tower Block', size: 3, cost: 6, survivors: 3, gold: 1, desc: 'Families holed up on the top floors: +3 people now, +1 scrap every dawn.' },
+  allotment: { name: 'Allotments', size: 3, cost: 6, food: 4, desc: 'Vegetable plots behind a fence: +4 food every dawn.' },
+  market:  { name: 'High Street', size: 3, cost: 8, gold: 4, desc: 'Shops to strip and a market to run: +4 scrap every dawn.' },
   police:  { name: 'Police Station', size: 3, cost: 10, desc: 'The armory: your towers deal 15% more damage.' },
-  clinic:  { name: 'Clinic', size: 3, cost: 10, desc: 'Field medics: you heal 2 health a second, day and night.' },
-  fuel:    { name: 'Fuel Station', size: 3, cost: 10, desc: 'Fuel to trade: +4 scrap every dawn.' },
+  clinic:  { name: 'Clinic', size: 3, cost: 10, desc: 'Field medics: you heal 2 health a second, day and night. The infected can be treated here.' },
+  substation: { name: 'Substation', size: 3, cost: 10, power: 6, desc: 'The grid, quiet: +6 power with no noise at all.' },
+  fuel:    { name: 'Fuel Depot', size: 3, cost: 8, power: 5, gold: 3, noise: 5, desc: 'Diesel: +5 power and +3 scrap every dawn, but the pumps are loud (+heat).' },
+  school:  { name: 'School', size: 3, cost: 6, survivors: 4, hands: 1, desc: 'A teacher kept them alive: +4 people now and one more pair of hands every day.' },
+  radio:   { name: 'Radio Station', size: 3, cost: 14, reveal: true, desc: 'Broadcasts reach every block: reveals the whole city and draws a survivor every other dawn.' },
   eiffel:  { name: 'Eiffel Tower', size: 5, cost: 20, signature: true, desc: 'A lookout over the city: reveals all around it, and every tower reaches 1.5 further.' },
   tvtower: { name: 'Fernsehturm', size: 4, cost: 20, signature: true, desc: 'The broadcast reaches everyone: reveals the whole city, and +3 scrap every dawn.' },
   christ:  { name: 'Christ the Redeemer', size: 4, cost: 20, signature: true, desc: 'Hope from the cliff top: a blessing every dawn, not every other.' },
@@ -191,17 +200,28 @@ export function generateMap(seed, biome) {
     reach[idx(x, y)] = 1; qx.push(x); qy.push(y);
   }
 
-  // 6. nests: the reachable grass/forest cell closest to each region's heart
+  // 6. nests: fewer, and each one is a building that went bad. About half the districts have one;
+  //    the hive sits at a building's door (solid block behind it), facing the street.
+  const want = biome === 'vale' ? { 1: 2, 2: 3 } : { 1: 3, 2: 5 };
+  const hasNest = new Set();
+  for (const ring of [1, 2]) rng.shuffle(regions.filter(r => r.ring === ring)).slice(0, want[ring]).forEach(r => hasNest.add(r.id));
   for (const reg of regions) {
-    if (reg.ring === 0) continue;
+    if (reg.ring === 0 || !hasNest.has(reg.id)) continue;
     let best = null, bd = Infinity;
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    for (let y = 2; y < N - 2; y++) for (let x = 2; x < N - 2; x++) {
       const i = idx(x, y);
       if (region[i] !== reg.id || !reach[i]) continue;
       const t = terrain[i]; if (t !== T.GRASS && t !== T.FOREST) continue;
       if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 17 || high[i]) continue;
-      const d = (x + 0.5 - reg.x) ** 2 + (y + 0.5 - reg.y) ** 2;
-      if (d < bd) { bd = d; best = { x: x + 0.5, y: y + 0.5 }; }
+      // a solid block right behind (two cells deep, three wide) in some direction
+      let face = null;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        let solid = true;
+        for (let k = 1; k <= 2 && solid; k++) for (let s2 = -1; s2 <= 1 && solid; s2++) { const xx = x + dx * k + dy * s2, yy = y + dy * k + dx * s2; if (!inside(xx, yy) || terrain[idx(xx, yy)] !== T.ROCK) solid = false; }
+        if (solid) { face = [dx, dy]; break; }
+      }
+      const d = (x + 0.5 - reg.x) ** 2 + (y + 0.5 - reg.y) ** 2 + (face ? 0 : 400);
+      if (d < bd) { bd = d; best = { x: x + 0.5, y: y + 0.5, back: face }; }
     }
     reg.nest = best;
   }
@@ -218,8 +238,8 @@ export function generateMap(seed, biome) {
         if (!(t === T.GRASS || t === T.DIRT || t === T.FOREST) || lm[i] >= 0 || ramp[i] || !reach[i]) ok = false;
       }
       if (!ok) continue;
-      if (regions.some(r => r.nest && Math.hypot(r.nest.x - x0, r.nest.y - y0) < 7)) continue;
-      if (landmarks.some(l => Math.hypot(l.x - x0, l.y - y0) < 12)) continue;
+      if (regions.some(r => r.nest && Math.hypot(r.nest.x - x0, r.nest.y - y0) < 6)) continue;
+      if (landmarks.some(l => Math.hypot(l.x - x0, l.y - y0) < 9)) continue;
       const id = landmarks.length, cells = [];
       for (let dy = -h; dy < sz - h; dy++) for (let dx = -h; dx < sz - h; dx++) { const i = idx(x0 + dx, y0 + dy); terrain[i] = T.ROCK; lm[i] = id; cells.push(i); }
       landmarks.push({ id, kind, x: x0 - h + sz / 2, y: y0 - h + sz / 2, size: sz, cells, region: region[idx(x0, y0)] });
@@ -237,7 +257,13 @@ export function generateMap(seed, biome) {
     for (let dy = -h; dy < sz - h; dy++) for (let dx = -h; dx < sz - h; dx++) { const i = idx(x0 + dx, y0 + dy); if (!high[i]) continue; terrain[i] = T.ROCK; lm[i] = id; cells.push(i); }
     landmarks.push({ id, kind: 'christ', x: x0 - h + sz / 2, y: y0 - h + sz / 2, size: sz, cells, region: region[idx(x0, y0)], high: true });
   } else if (sig) placeLm(sig, ring(20, 28));
-  for (const k of rng.shuffle(['police', 'clinic', 'fuel'])) placeLm(k, ring(14, 24));
+  // one sealed site per district (its identity comes later, from the story)
+  for (const reg of regions) {
+    if (reg.ring === 0 || landmarks.some(l => l.region === reg.id)) continue;
+    const near = []; for (let y = 2; y < N - 2; y++) for (let x = 2; x < N - 2; x++) { if (region[idx(x, y)] !== reg.id) continue; const d = Math.hypot(x + 0.5 - reg.x, y + 0.5 - reg.y); if (d < 9 && Math.hypot(x + 0.5 - c, y + 0.5 - c) > 13) near.push([x, y, d]); }
+    near.sort((a, b) => a[2] - b[2]);
+    placeLm('unknown', near.map(([x, y]) => [x, y]));
+  }
 
   // 7. build slots on a street grid: every lot is 3×3 cells with a one-cell street around it,
   //    aligned to the keep, so the town reads as blocks and streets as it grows.
@@ -306,7 +332,7 @@ export function validateMap(map) {
   const core = map.regions[0];
   if (core.slots.length < 7) problems.push(`town has only ${core.slots.length} slots`);
   const nests = map.regions.filter(r => r.nest);
-  if (nests.filter(r => r.ring === 1).length < 4) problems.push('fewer than 4 first-ring nests');
+  if (nests.filter(r => r.ring === 1).length < 2) problems.push('fewer than 2 first-ring nests');
   for (const r of nests) if (!map.reach[idx(Math.floor(r.nest.x), Math.floor(r.nest.y))]) problems.push(`nest ${r.id} unreachable`);
   const total = map.slots.length;
   if (total < (map.biome === 'vale' ? 28 : 40)) problems.push(`only ${total} slots on the map`);

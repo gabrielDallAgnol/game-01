@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateMap, validateMap, mapChoices, BIOMES, N, idx, PASSABLE } from '../src/sim/mapgen.js';
-import { createGame } from '../src/sim/game.js';
+import { createGame as newGame } from '../src/sim/game.js';
 import { playRun } from '../tools/bot.mjs';
 
 test('every biome generates valid maps across 40 seeds', () => {
@@ -241,7 +241,9 @@ test('packs: a choice of 2 each dawn, pack buildings are free, extra ones cost d
 });
 
 // ---------- scavenging ----------
-const readyDay = g => { const S = g.state; S.handsExtra = 99; while (S.pendingPicks) g.choosePerk(S.offer[0]); while (S.packs.length) g.choosePack(S.packs[0]); };
+const createGame = o => { const g = newGame(o); clearStory(g); return g; };
+const clearStory = g => { const S = g.state; for (let k = 0; k < 9 && S.story.encounters.length; k++) { const e = S.story.encounters[0]; g.choose(e.choices[e.choices.length - 1].id); } };
+const readyDay = g => { const S = g.state; S.handsExtra = 99; clearStory(g); while (S.pendingPicks) g.choosePerk(S.offer[0]); while (S.packs.length) g.choosePack(S.packs[0]); };
 const nextDawn = g => { const S = g.state; g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step(); };
 const firstSite = (g, hops) => g.state.scav.sites.map(s => g.scavenge.siteInfo(s.id)).find(i => i.visible && i.hops === hops);
 
@@ -323,7 +325,10 @@ test('blessings: a dawn pick every other day, never more than two picks a dawn',
 
 test('tides: night 1 is a single tough dead, dusk falls on its own, roamers wander the wild', () => {
   const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
-  assert.ok(S.mobs.some(m => m.roam), 'no roaming dead at the start');
+  assert.ok(!S.mobs.some(m => m.roam), 'roamers in a sealed city');
+  for (const r of g.frontier()) g.openDistrict(r);
+  assert.ok(S.mobs.some(m => m.roam), 'no roaming dead in the open districts');
+  assert.ok(S.mobs.filter(m => m.roam).every(m => !S.sealed[m.roam.region]), 'roamers in sealed districts');
   assert.ok(S.mobs.filter(m => m.roam).every(m => !S.claimed.has(m.roam.region)));
   for (let k = 0; k < 60 * 101 && S.phase === 'day'; k++) g.step();
   assert.equal(S.phase, 'night', 'dusk did not fall');
@@ -405,6 +410,8 @@ test('build zone: near the keep at first, and every building widens it', () => {
 
 test('supply drops: guarded crates in the wild, opened by standing next to them', () => {
   const g = createGame({ seed: 14 }); const S = g.state; readyDay(g);
+  g.dropSupply('Test.'); assert.equal(S.drops.length, 0, 'a drop landed in a sealed district');
+  for (const r of g.frontier()) g.openDistrict(r);
   g.dropSupply('Test.');
   assert.equal(S.drops.length, 1); const d = S.drops[0];
   assert.ok(!g.inZone(d.x, d.y), 'a drop landed inside the base');
@@ -453,4 +460,20 @@ test('breaking a hive by hand: it rages, then burns', () => {
   for (let k = 0; k < 200 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
   assert.equal(S.nestAlive[reg.id], false, 'the hive never burned');
   assert.ok(S.claimed.has(reg.id));
+});
+
+test('districts: sealed at the start, opened by choice, identity decided when offered', () => {
+  const g = createGame({ seed: 11 }); const S = g.state; readyDay(g);
+  const front = g.frontier(); assert.ok(front.length >= 2, 'no frontier');
+  assert.ok(g.map.regions.every(r => r.ring === 0 || S.sealed[r.id]), 'a district starts open');
+  const off = front.map(r => g.districtOffer(r)); assert.ok(off.every(o => o.name && o.rarity && o.call));
+  assert.equal(g.districtOffer(front[0]).kit, off[0].kit, 'identity changed between looks');
+  const r = front[0], site = g.siteOf(r);
+  // the hero cannot walk into a sealed district
+  const cell = g.map.region.findIndex((v, i) => v === r && g.map.terrain[i] === 0);
+  g.heroTo((cell % g.map.N) + 0.5, Math.floor(cell / g.map.N) + 0.5); for (let k = 0; k < 60 * 20; k++) g.step();
+  assert.notEqual(g.map.region[Math.floor(S.hero.y) * g.map.N + Math.floor(S.hero.x)], r, 'walked into a sealed district');
+  assert.ok(g.openDistrict(r)); assert.equal(S.sealed[r], 0);
+  if (site) assert.notEqual(site.kind, 'unknown', 'the site kept no identity');
+  assert.ok(g.frontier().length >= front.length - 1);
 });
