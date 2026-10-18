@@ -709,7 +709,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     let total = S.mobs.filter(m => m.roam).length;
     for (const reg of map.regions) {
       if (S.claimed.has(reg.id) || reg.ring < 1 || S.sealed[reg.id]) continue;
-      const ring = Math.min(2, reg.ring), want = R.perRing[ring] + Math.floor(S.night / 6);
+      const ring = Math.min(2, reg.ring), want = Math.round(R.perRing[ring] * Math.min(1, 0.4 + S.night / 10)) + Math.floor(S.night / 6);   // the streets fill up as the nights go on
       for (let k = have.get(reg.id) || 0; k < want && total < R.cap; k++) {
         let spot = null;
         for (let t = 0; t < 20 && !spot; t++) {

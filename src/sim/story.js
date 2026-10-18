@@ -268,9 +268,9 @@ export function createStory(ctx) {
     const H = ctx.heroes[cls], F = ctx.heroes[from];
     // one class choice at a time: a second Calling offered while the first waits joins it as another option
     const open = ST.encounters.find(e => e.kind === 'evolve' && e.from === from) || (ST.evoLater && ST.evoLater.from === from ? ST.evoLater.enc : null);
-    if (open) { open.choices.splice(open.choices.length - 1, 0, { id: `evolve-${cls}`, label: `Become a ${H.name}`, hint: `${H.attack ? (H.attack.kind === 'melee' ? 'Fights up close' : 'Fights from range') : 'Never fights'} · ability: ${H.ability.name} · ${H.hp} health.`, fx: [{ op: 'evolve', cls, from }] }); open.title = `${F.name}: choose your Calling`; return; }
+    if (open) { open.choices.splice(open.choices.length - 1, 0, { id: `evolve-${cls}`, label: `Become a ${H.name}`, hint: `${H.attack ? (H.attack.dmg < 1.2 ? 'Fights weakly from range' : H.attack.kind === 'melee' ? 'Fights up close' : 'Fights from range') : 'Never fights'} · ability: ${H.ability.name} · ${H.hp} health.`, fx: [{ op: 'evolve', cls, from }] }); open.title = `${F.name}: choose your Calling`; return; }
     push({ kind: 'evolve', from, eyebrow: '[Class evolution available]', title: `${F.name} → ${H.name}`, scene: `The status window flickers, then rewrites itself. A new line glows where your class used to be: ${H.name.toUpperCase()}. ${H.blurb}`,
-      choices: [{ id: 'evolve', label: `Become a ${H.name}`, hint: `${H.attack ? (H.attack.kind === 'melee' ? 'Fights up close' : 'Fights from range') : 'Never fights'} · ability: ${H.ability.name} · ${H.hp} health.`, fx: [{ op: 'evolve', cls, from }] },
+      choices: [{ id: 'evolve', label: `Become a ${H.name}`, hint: `${H.attack ? (H.attack.dmg < 1.2 ? 'Fights weakly from range' : H.attack.kind === 'melee' ? 'Fights up close' : 'Fights from range') : 'Never fights'} · ability: ${H.ability.name} · ${H.hp} health.`, fx: [{ op: 'evolve', cls, from }] },
         { id: 'wait', label: 'Not yet', hint: 'Stay as you are. The window will wait for you (it comes back at dawn).', fx: [{ op: 'evolveLater', cls, from }] }] });
   }
   return { offerEvolution, start, dawn, tick, choose, can, bonus, context, chron, npc, grant, rarityColor: r => (RARITY[r] || RARITY.common).color };

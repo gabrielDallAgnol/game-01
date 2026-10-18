@@ -17,8 +17,8 @@ export const HEROES = {
     ability: { id: 'volley', name: 'Volley', cooldown: 28, radius: 2.2, dmg: 4, reach: 9 },
   },
   merchant: {
-    name: 'Scavver', blurb: 'Never fights. Runs the town by hand, picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays scrap.',
-    hp: 16, speed: 4.6, attack: null, collects: true, discount: 0.1, extraOffer: 1, trader: true,
+    name: 'Scavver', blurb: 'A poor shot with an old revolver, but runs the town by hand: picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays scrap.',
+    hp: 18, speed: 4.6, attack: { kind: 'ranged', dmg: 0.9, reach: 5, rate: 1.0 }, collects: true, discount: 0.1, extraOffer: 1, trader: true,
     ability: { id: 'bounty', name: 'Bounty', cooldown: 45, duration: 20, radius: 9, gold: 1, bigGold: 3 },
   },
 };

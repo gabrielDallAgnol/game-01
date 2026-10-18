@@ -81,14 +81,14 @@ test('a survived siege claims the region and wakes the nests behind it', () => {
   for (const nb of target.neighbors) if (g.map.regions[nb].nest && !S.claimed.has(nb)) assert.ok(S.wake[nb] <= S.night, `neighbour ${nb} did not wake`);
 });
 
-test('heroes: the merchant never attacks, warriors and archers do', () => {
+test('heroes: every class fights, the Scavver only weakly', () => {
   for (const hero of ['warrior', 'archer', 'merchant']) {
     const g = createGame({ mode: 'classic', seed: 4, biome: 'highland', hero }); const S = g.state;
     while (S.pendingPicks) g.choosePerk(S.offer[0]);
     g.startNight();
     for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) { const m = S.mobs[0]; if (m) g.heroTo(m.x, m.y); g.step(); }
     const kills = S.log[0].kills.hero || 0;
-    if (hero === 'merchant') assert.equal(kills, 0); else assert.ok(kills > 0, `${hero} killed nothing`);
+    assert.ok(kills > 0, `${hero} killed nothing`);
   }
 });
 
