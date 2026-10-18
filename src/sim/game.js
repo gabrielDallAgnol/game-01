@@ -14,6 +14,7 @@ import { WEATHER } from '../content/weather.js';
 
 export const STEP = 1 / 60;
 export const PICKS_PER_DAWN = 2;
+export const DROPS = { channel: 3, reach: 1.7, life: 2 };   // seconds to open, how close, nights it lasts
 export const ZONE = { keep: 10, building: 4.5, landmark: 7, hiveBlock: 6, hiveReach: 14 };
 export const TOWN_DRAW = { free: 12, per: 0.012 };
 export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/3
@@ -51,7 +52,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     mobs: [], projectiles: [], chests: [], purses: [], allies: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
     P: freshPerkState(), picks: [], pendingPicks: 0, offer: [], offerSource: null, chestsHeld: 0, dawns: 0,
     reroll: { free: REROLL.free, cost: REROLL.base }, trade: null, halfUpgrade: false,
-    ability: { cd: 0, hires: 0 }, weather: 'clear', clock, dayT: 0, dayQueue: [], landmarks: map.landmarks.map(l => ({ ...l, owned: false })), seen: new Uint8Array(N * N), seenVersion: 0, builders: clock && HEROES[hero === 'steward' ? 'merchant' : hero].autoBuild ? 'balanced' : null,
+    ability: { cd: 0, hires: 0 }, weather: 'clear', clock, dayT: 0, dayQueue: [], drops: [], survivors: 0, landmarks: map.landmarks.map(l => ({ ...l, owned: false })), seen: new Uint8Array(N * N), seenVersion: 0, builders: clock && HEROES[hero === 'steward' ? 'merchant' : hero].autoBuild ? 'balanced' : null,
     log: [], cur: null, over: false, won: false,
     hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0, guardT: 0, attacks: 0 },
     flow: null, flowNext: null, climb: null, climbNext: null, flowDirty: true,
@@ -80,7 +81,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const upCostOf = (b) => { const c0 = costOf(b.type, b.level + 1); return S.halfUpgrade ? Math.max(1, Math.ceil(c0 / 2)) : c0; };
   const maxHpOf = (type, level) => Math.round(BUILDINGS[type].hp[level - 1] * (1 + S.P.allHp + (type === 'wall' ? S.P.wallHp : 0)));
   const keepMaxHp = () => Math.round((KEEP.hp[keep.level - 1] + S.P.keepHp) * S.P.keepHpMult);
-  const pop = () => S.buildings.reduce((s, b) => s + (b.type === 'house' ? BUILDINGS.house.pop[b.level - 1] : 0), 0);
+  const pop = () => S.survivors + S.buildings.reduce((s, b) => s + (b.type === 'house' ? BUILDINGS.house.pop[b.level - 1] : 0), 0);
   const near = (b, type, r) => S.buildings.some(o => o !== b && o.type === type && !o.ruined && Math.hypot(o.x - b.x, o.y - b.y) <= r);
   const houseGold = b => BUILDINGS.house.gold[b.level - 1] + S.P.houseGold + (mastery('tycoon') ? 1 : 0) + (has('guarded') && near(b, 'tower', 6) ? 2 : 0) + (combo('guarded', 'bastion') && near(b, 'wall', 3) ? 1 : 0);
   const farmFood = b => BUILDINGS.farm.food[b.level - 1] + S.P.farmFood + (b.nearWater ? 1 : 0);
@@ -663,7 +664,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function stepRoamer(m, dt, speed) {
     const R = TIDE.roam, h = S.hero, home = m.roam;
     // now and then a roamer next to your land drifts in and walks on the town
-    if (S.clock && S.night >= 2 && baseDist(home.x, home.y) < 12 && rng.next() < TIDE.drift * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
+    if (S.clock && S.night >= 2 && home.region >= 0 && baseDist(home.x, home.y) < 12 && rng.next() < TIDE.drift * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
     const fromHome = Math.hypot(m.x - home.x, m.y - home.y);
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
     const heroNear = hd < R.sight && Math.hypot(h.x - home.x, h.y - home.y) < R.leash && !inZone(idx(Math.floor(h.x), Math.floor(h.y)));
@@ -681,6 +682,50 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     }
     const ox = m.x, oy = m.y; moveToward(m, m.wp.x, m.wp.y, speed * 0.4 * dt);
     const cx = Math.floor(m.x), cy = Math.floor(m.y); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) { m.x = ox; m.y = oy; m.wp = null; }
+  }
+
+  // ---------- supply drops: after big nights a crate comes down in the wild, guarded ----------
+  const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+  function compass(x, y) { const a = Math.atan2(x - c, -(y - c)); return DIRS[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]; }
+  function dropSupply(why) {
+    if (!S.clock) return;
+    let spot = null;
+    for (let t = 0; t < 60 && !spot; t++) {
+      const a = rng.range(0, Math.PI * 2), d = rng.range(16, 26), x = c + Math.cos(a) * d, y = c + Math.sin(a) * d, cx = Math.floor(x), cy = Math.floor(y);
+      if (!inside(cx, cy)) continue; const i = idx(cx, cy);
+      if (!PASSABLE[map.terrain[i]] || !map.reach[i] || S.occ[i] >= 0 || inZone(i) || baseDist(x, y) < 7) continue;
+      if (map.regions.some(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - x, r.nest.y - y) < 5)) continue;
+      spot = { x: cx + 0.5, y: cy + 0.5 };
+    }
+    if (!spot) return;
+    const n = S.night, kinds = ['blueprint', 'cache', 'blessing', 'survivors'];
+    const d = { id: S.nextId++, x: spot.x, y: spot.y, reward: kinds[rng.int(kinds.length)], ttl: DROPS.life, prog: 0 };
+    S.drops.push(d); reveal(d.x, d.y, 2.5);
+    // its guards: tougher than the roamers around them
+    const guards = Math.min(7, 3 + Math.floor(n / 4));
+    for (let k = 0; k < guards; k++) {
+      const kind = n >= 6 && k === 0 ? 'brute' : rng.pick(n >= 3 ? ['walker', 'runner', 'walker'] : ['walker']);
+      const a = rng.range(0, Math.PI * 2), x = d.x + Math.cos(a) * rng.range(0.8, 2.2), y = d.y + Math.sin(a) * rng.range(0.8, 2.2), cx = Math.floor(x), cy = Math.floor(y);
+      if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]]) continue;
+      const m = spawnMob(kind, x, y, { instant: true }); m.hp = m.maxHp = Math.ceil(m.maxHp * 1.5); m.roam = { x: d.x, y: d.y, region: -1 };
+    }
+    ev('drop', { id: d.id, x: d.x, y: d.y }); toast(`${why} A supply drop came down to the ${compass(d.x, d.y)}. It is guarded. Stand by it for 3 seconds to open it.`, 'good');
+  }
+  function openDrop(d) {
+    S.drops.splice(S.drops.indexOf(d), 1);
+    let msg;
+    if (d.reward === 'blueprint') { S.stock.tower = (S.stock.tower || 0) + 1; S.stock.house = (S.stock.house || 0) + 1; S.stock.wall = (S.stock.wall || 0) + 6; msg = 'Plans and parts: a free tower, a free home and 6 barricade posts.'; }
+    else if (d.reward === 'cache') { const g = 10 + 2 * S.night; earn(g); msg = `A cash box: +${g} gold.`; }
+    else if (d.reward === 'blessing') { if (S.phase === 'day') { S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) rollOffer(); } else S.chestsHeld++; msg = 'A sealed case: a rare blessing.'; }
+    else { S.survivors += 3; msg = 'Three survivors hiding in the crate join your town (+3 people).'; }
+    ev('dropOpen', { id: d.id, x: d.x, y: d.y }); toast(msg, 'good');
+  }
+  function stepDrops(dt) {
+    const h = S.hero;
+    for (const d of [...S.drops]) {
+      if (!h.dead && Math.hypot(h.x - d.x, h.y - d.y) < DROPS.reach) { d.prog += dt; if (d.prog >= DROPS.channel) openDrop(d); }
+      else d.prog = Math.max(0, d.prog - dt * 2);
+    }
   }
 
   function dawn() {
@@ -722,6 +767,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.night++; newLog();
     S.weather = rollWeather(S.night); if (S.weather !== 'clear') toast(`Tonight: ${W8().name.toLowerCase()}. ${W8().desc}`, W8().kind);
     planDay(S.night); spawnRoamers();
+    for (const d of [...S.drops]) if (--d.ttl <= 0) { S.drops.splice(S.drops.indexOf(d), 1); ev('dropGone', { id: d.id }); }
+    { const was = S.night - 1; if (isBloodMoon(was)) dropSupply('The blood moon has set.'); else if (claimedNow !== null) dropSupply('With the hive burned,'); else if (was >= 3 && rng.next() < 0.2) dropSupply('At first light,'); }
     S.reroll.cost = REROLL.base;
     const want = [];
     if (S.night % 2 === 0 || owns('christ')) want.push('dawn');              // S.night is already the coming night: a dawn blessing every other day
@@ -1177,6 +1224,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     }
     for (const p of [...S.purses]) { p.life -= dt; if (p.life <= 0) { S.purses.splice(S.purses.indexOf(p), 1); ev('purseGone', { id: p.id }); } }
     stepProjectiles(dt);
+    if (S.drops.length) stepDrops(dt);
     // sunrise: whatever still walks long after the last surge burns away
     if (S.phase === 'night' && !S.queue.length && S.mobs.some(m => !m.roam) && S.qT > WAVES.duration(S.night) + 90) {
       for (const m of S.mobs.filter(q => !q.roam)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
@@ -1246,6 +1294,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     buildLine, upgradeWall, wallRun, wallBudget, lineCells,
     weather: () => ({ id: S.weather, ...W8() }),
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
+    dropSupply,
     crewing, manned, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,

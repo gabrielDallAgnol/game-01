@@ -243,49 +243,9 @@ const readyDay = g => { const S = g.state; while (S.pendingPicks) g.choosePerk(S
 const nextDawn = g => { const S = g.state; g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step(); };
 const firstSite = (g, hops) => g.state.scav.sites.map(s => g.scavenge.siteInfo(s.id)).find(i => i.visible && i.hops === hops);
 
-test('every map has scavenge sites next door and further out', () => {
-  for (const biome of ['riverbend', 'highland', 'lakeshore', 'vale']) {
-    const g = createGame({ seed: 4, biome });
-    assert.ok(firstSite(g, 1), `${biome}: no site next door`);
-    assert.ok(firstSite(g, 2), `${biome}: no deep site`);
-    assert.equal(g.state.scav.crew.length, 2);
-  }
-});
 
-test('a run costs supplies, can be called back, and comes home at dawn', () => {
-  const g = createGame({ seed: 21 }); readyDay(g); const S = g.state;
-  const i = firstSite(g, 1), ids = S.scav.crew.map(c => c.id), gold = S.gold;
-  assert.ok(g.scavenge.send(i.site.id, ids));
-  assert.equal(S.gold, gold - i.R.kit * 2);
-  assert.ok(S.scav.crew.every(c => c.out === i.site.id));
-  assert.ok(!g.scavenge.send(i.site.id, ids), 'two crews on one site');
-  assert.ok(g.scavenge.recall(i.site.id)); assert.equal(S.gold, gold);
-  assert.ok(g.scavenge.send(i.site.id, ids));
-  nextDawn(g);
-  assert.equal(S.phase, 'day'); assert.equal(S.scav.trips, 1); assert.equal(i.site.used, 1);
-  assert.ok(S.scav.crew.every(c => c.out === null));
-  assert.equal(S.scav.runs.length, 0);
-});
 
-test('no runs at night; a bite left untreated turns at nightfall', () => {
-  const g = createGame({ seed: 22 }); readyDay(g); const S = g.state;
-  const i = firstSite(g, 1), c = S.scav.crew[0];
-  g.startNight(); assert.ok(!g.scavenge.send(i.site.id, [c.id]));
-  for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step();
-  readyDay(g);
-  c.bitten = true; const before = S.scav.crew.length;
-  g.startNight();
-  assert.equal(S.scav.crew.length, before - 1);
-  assert.ok(S.mobs.some(m => m.kind === 'runner' && Math.hypot(m.x - g.map.town.x, m.y - g.map.town.y) < 5), 'no turned survivor in town');
-});
 
-test('scavenging is deterministic and never touches the main random stream', () => {
-  const play = send => { const g = createGame({ seed: 23 }); readyDay(g); if (send) g.scavenge.send(firstSite(g, 2).site.id, g.state.scav.crew.map(c => c.id)); nextDawn(g); return g.state; };
-  const a = play(true), b = play(true), c = play(false);
-  assert.deepEqual(a.scav.crew.map(x => x.name + x.trait), b.scav.crew.map(x => x.name + x.trait));
-  assert.equal(a.gold, b.gold);
-  assert.equal(a.kills, c.kills);
-});
 
 test('weather: rolled at dawn from night 3, never on a blood moon, and it changes the night', () => {
   const seen = new Set();
@@ -411,4 +371,20 @@ test('build zone: near the keep at first, and every building widens it', () => {
   const hive = g.map.regions.find(r => r.nest);
   const i = Math.floor(hive.nest.y) * g.map.N + Math.floor(hive.nest.x);
   assert.equal(g.zone()[i], 0, 'you can build on a living hive');
+});
+
+test('supply drops: guarded crates in the wild, opened by standing next to them', () => {
+  const g = createGame({ seed: 14 }); const S = g.state; readyDay(g);
+  g.dropSupply('Test.');
+  assert.equal(S.drops.length, 1); const d = S.drops[0];
+  assert.ok(!g.inZone(d.x, d.y), 'a drop landed inside the base');
+  assert.ok(S.mobs.filter(m => m.roam && m.roam.region === -1).length >= 3, 'the drop has no guards');
+  for (const m of [...S.mobs]) m.hp = 0; S.mobs.length = 0;   // clear the guards for the test
+  const before = { gold: S.gold, pop: g.pop(), picks: S.pendingPicks, stock: JSON.stringify(S.stock) };
+  S.hero.x = d.x; S.hero.y = d.y;
+  for (let k = 0; k < 60 * 2; k++) g.step();
+  assert.equal(S.drops.length, 1, 'opened too fast');
+  for (let k = 0; k < 60 * 2; k++) g.step();
+  assert.equal(S.drops.length, 0, 'did not open after 3 seconds');
+  assert.ok(S.gold > before.gold || g.pop() > before.pop || S.pendingPicks > before.picks || JSON.stringify(S.stock) !== before.stock, 'no reward');
 });

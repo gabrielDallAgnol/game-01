@@ -2,7 +2,7 @@
 // Runs go out by day and come back at dawn. Distance is counted in regions from your land:
 //   0 = inside your land (safe, thin pickings) · 1 = next door · 2 = deep in the city (rich, deadly)
 
-export const CREW = { start: 2, max: 8 };
+export const CREW = { start: 0, max: 8 };   // scavenging is retired: supply drops replace it
 
 export const TRAITS = {
   scout:    { name: 'Scout',    desc: 'Knows the back alleys. Everyone on their run is half as likely to die.' },

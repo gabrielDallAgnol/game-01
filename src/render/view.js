@@ -80,7 +80,7 @@ export function createView(canvas, game, opts = {}) {
   const diaGeoL = new THREE.OctahedronGeometry(0.4, 0); diaGeoL.scale(1, 1.5, 1); const diaWhite = new THREE.MeshBasicMaterial({ color: lc('#f4efe2').multiplyScalar(1.5) });
   // marker colour by distance: pale = your land, amber = next door, red = deep in the city
   const diaMats = ['#e8dcb0', '#f0a24a', '#e8553a'].map(c => new THREE.MeshBasicMaterial({ color: lc(c).multiplyScalar(1.7) })), diaMat = diaMats[1];
-  const sites = S.scav.sites.map(st => {
+  const sites = [].map(st => {   // scavenging retired (supply drops replace it)
     const g = new THREE.Group(); g.position.copy(W(st.x, st.y)); g.rotation.y = st.face;
     const b = new K.B();
     b.cbox('canvas', 0.42, 0.3, 0.32, -0.12, 0, 0.1, { r: 0.03 }); b.cbox('amberDeep', 0.3, 0.24, 0.3, 0.22, 0, -0.05, { r: 0.03, ry: 0.4 });
@@ -165,6 +165,30 @@ export function createView(canvas, game, opts = {}) {
     const mark = new THREE.Mesh(diaGeoL, diaWhite); mark.position.y = l.kind === 'eiffel' || l.kind === 'tvtower' ? 2.5 : l.kind === 'christ' ? 6 : 3.2; g.add(mark);
     world.add(g); return { l, g, pole, flag, mark };
   });
+  // ---------- supply drops: a crate under a canopy, red smoke you can see from afar, a ring while you open it ----------
+  const dropViews = new Map();
+  const smokeMat = () => new THREE.SpriteMaterial({ map: glowTex, color: lc('#e0603a'), transparent: true, opacity: 0.5, depthWrite: false, depthTest: false });
+  function dropModel() {
+    const g = new THREE.Group(), b = new K.B();
+    b.cbox('amberDeep', 0.9, 0.6, 0.7, 0, 0, 0, { r: 0.04 }); b.cbox('canvas', 0.95, 0.08, 0.75, 0, 0.6, 0, { r: 0.02 });
+    b.box('metal', 0.95, 0.06, 0.06, 0, 0.3, 0.36); b.box('metal', 0.95, 0.06, 0.06, 0, 0.3, -0.36);
+    const crate = b.build(); crate.traverse(o => { if (o.isMesh) o.castShadow = true; }); g.add(crate);
+    const canopy = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2.4), new THREE.MeshStandardMaterial({ color: lc('#d9c9a3'), roughness: 0.9, side: THREE.DoubleSide }));
+    canopy.position.set(0.9, 0.05, 0.4); canopy.rotation.z = 1.35; canopy.scale.y = 0.4; g.add(canopy);
+    const smoke = []; for (let k = 0; k < 7; k++) { const sp = new THREE.Sprite(smokeMat()); sp.position.set(0, 1 + k * 0.9, 0); sp.scale.setScalar(1 + k * 0.35); g.add(sp); smoke.push(sp); }
+    const ring = new THREE.Mesh(ringGeo(1.55, 1.75), new THREE.MeshBasicMaterial({ color: lc('#f0c050').multiplyScalar(1.4), transparent: true, opacity: 0.9, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; g.add(ring);
+    return { g, smoke, ring };
+  }
+  function syncDrops(t) {
+    const seen = new Set();
+    for (const d of S.drops) {
+      seen.add(d.id); let v = dropViews.get(d.id);
+      if (!v) { v = dropModel(); v.g.position.copy(W(d.x, d.y)); world.add(v.g); dropViews.set(d.id, v); }
+      v.smoke.forEach((sp, k) => { const ph = (t * 0.35 + k / v.smoke.length) % 1; sp.position.y = 1 + ph * 6.5; sp.material.opacity = 0.55 * (1 - ph); sp.scale.setScalar(0.8 + ph * 2.6); sp.position.x = Math.sin(ph * 3 + k) * 0.4; });
+      const p = d.prog / 3; v.ring.visible = p > 0.01; v.ring.scale.setScalar(0.3 + p * 0.7);
+    }
+    for (const [id, v] of dropViews) if (!seen.has(id)) { world.remove(v.g); dropViews.delete(id); burst(v.g.position.x + C, v.g.position.z + C, 1.5, '#f0c050'); }
+  }
   function updateLandmarks(t) {
     for (const v of lmViews) { v.pole.visible = v.l.owned; v.mark.visible = !v.l.owned && S.phase === 'day'; if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3; }
   }
@@ -476,7 +500,7 @@ export function createView(canvas, game, opts = {}) {
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
-    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time);
+    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time); syncDrops(time);
     game.zone();
     if ((S.seenVersion !== seenV || S.zoneVersion !== zoneV) && (shroudT -= dt) <= 0) { shroudT = 0.3; if (S.zoneVersion !== zoneV) repaint = true; seenV = S.seenVersion; zoneV = S.zoneVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }

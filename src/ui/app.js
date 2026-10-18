@@ -54,7 +54,7 @@ export function startApp() {
     showCard('start', `<div class="eyebrow">Endless nights${best ? ` · your best: night ${best}` : ''}</div>
       <h1>Hold Hollowmere</h1>
       <p>Build by day. Hold the keep by night. Clear the hives around you to claim more of the city, and see how many nights you last.</p>
-      <p class="tiny">By day: tap a glowing cache to send survivors scavenging · tap rubble on your land to clear room · watch the forecast for fog and storms.</p>
+      <p class="tiny">Build out from the keep: every building widens your zone · claim landmarks for a forward base · after big nights, supply drops land in the wild: go get them yourself.</p>
       <h2>Your hero</h2>
       <div class="choices">${HERO_ORDER.map(h => `<button class="choice" data-hero="${h}" aria-pressed="${setup.hero === h}"><b>${HEROES[h].name}</b><span>${HEROES[h].blurb}</span><span class="tiny">Ability: ${HEROES[h].ability.name}</span></button>`).join('')}</div>
       <h2>How you build</h2>
@@ -594,14 +594,18 @@ export function startApp() {
         const b = buckets.get(key) || { ang, n: 0, big: false, day: true }; b.n += r.count; if (r.siege || r.boss) b.big = true; buckets.set(key, b);
       }
     }
+    for (const d of S.drops) {
+      const p = view.project(d.x, d.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
+      buckets.set(3000 + d.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, drop: true });
+    }
     for (let k = tagN; k < edge.tags.length; k++) edge.tags[k].hidden = true;
     let i = 0;
     for (const b of buckets.values()) {
       let el = edge.pool[i]; if (!el) { el = document.createElement('div'); el.className = 'ar'; el.innerHTML = '<i></i><span></span>'; $('#edge').appendChild(el); edge.pool[i] = el; }
       const c = Math.cos(b.ang), s = Math.sin(b.ang), hx = Wd / 2 - m, hy = Math.max(10, (bt - t) / 2 - m * 0.5), k = Math.min(Math.abs(hx / (c || 1e-6)), Math.abs(hy / (s || 1e-6)));
       el.style.transform = `translate(${cx + c * k}px, ${cy + s * k}px) rotate(${b.ang}rad)`;
-      const sp = el.lastChild; sp.textContent = b.day ? `~${b.n}` : b.n > 1 ? b.n : ''; sp.style.transform = `rotate(${-b.ang}rad)`;
-      el.classList.toggle('big', b.big); el.hidden = false; i++;
+      const sp = el.lastChild; sp.textContent = b.drop ? 'Drop' : b.day ? `~${b.n}` : b.n > 1 ? b.n : ''; sp.style.transform = `rotate(${-b.ang}rad)`;
+      el.classList.toggle('big', b.big); el.classList.toggle('drop', !!b.drop); el.hidden = false; i++;
     }
     for (; i < edge.pool.length; i++) edge.pool[i].hidden = true;
     if (S.over) for (const el of [...edge.pool, ...edge.tags]) el.hidden = true;
@@ -708,7 +712,7 @@ export function startApp() {
     for (const e of events) {
       if (toastFor.has(e.t)) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);
       if (e.t === 'claim' && selected && selected.type === 'region') closePanel();
-      if (e.t === 'dawn') { dawnT = DAWN_DELAY; traderSeen = false; endJoy(); if (S.night === 2 && !S.scav.trips) setTimeout(() => toast('See the glowing caches in the ruins? Tap one to send survivors scavenging.'), 2500); }
+      if (e.t === 'dawn') { dawnT = DAWN_DELAY; traderSeen = false; endJoy();  }
       if (e.t === 'over') { endT = now + 2600; paused = false; closePanel(); stopPlacing(); view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && selected && selected.type === 'building' && !S.byId.get(selected.id)) closePanel();
     }
