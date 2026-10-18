@@ -198,6 +198,8 @@ export function startApp() {
     if (S.heroClass === 'merchant') stats.push(['Sellswords hired', st.mercsHired], ['Gold from purses', st.pursesGold]);
     else stats.push(['Your kills', `${by.hero || 0}`], ['Times you fell', st.heroDeaths]);
     stats.push(['Buildings lost', st.buildingsLost], ['Dead that rose from homes', Math.round(st.risen)]);
+    if (S.scav.trips) stats.push(['Scavenging runs', S.scav.trips], ['Survivors found · lost', `${S.scav.found} · ${S.scav.lost}`]);
+    if (S.cleared) stats.push(['Rubble cleared', S.cleared]);
     const masteries = Object.entries(S.P.mastery).map(([f, id]) => MASTERIES[f].find(m => m.id === id).name);
     showCard('end', `<div class="eyebrow">The keep fell on night ${S.night}${S.night > prev ? ' · a new best' : ` · your best is night ${best}`}</div>
       <h1>Hollowmere is lost</h1>
