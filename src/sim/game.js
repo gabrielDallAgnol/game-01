@@ -421,7 +421,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
 
   function spawnMob(kind, x, y, opts = {}) {
     const m = MOBS[kind], hs = WAVES.hpScale(S.night);
-    const hp = m.fixedHp ? m.hp : Math.ceil(m.hp * hs * (m.weight === 0 && kind !== 'risen' ? DIFF.threat : 1));   // bosses scale with the difficulty too
+    const hp = m.fixedHp ? m.hp : Math.ceil(m.hp * hs * (m.weight === 0 && kind !== 'risen' ? (S.night < 10 ? Math.min(1, DIFF.threat) : DIFF.threat) : 1));   // bosses scale with the difficulty too
     const mob = { id: S.nextId++, kind, x, y, hp, maxHp: hp, cd: rng.range(0, 0.5), speed: m.speed * rng.range(0.9, 1.1), boost: 1, rise: opts.instant ? 1 : 0, face: 0, attacking: false, summonT: m.summon ? m.summon.every : 0, tauntT: 0, burn: null };
     S.mobs.push(mob); mobById.set(mob.id, mob); ev('spawn', { id: mob.id, kind });
     return mob;
