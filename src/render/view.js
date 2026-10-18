@@ -392,12 +392,13 @@ export function createView(canvas, game, opts = {}) {
   function setGhost(gh) {
     if (!gh) { ghostCells.visible = false; if (ghostMesh) ghostMesh.visible = false; return; }
     const d = new THREE.Object3D();
-    gh.cells.slice(0, 64).forEach((i, k) => {
-      const ok = gh.okCells ? gh.okCells[k] : gh.ok;
-      d.position.copy(W((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.08)); d.updateMatrix(); ghostCells.setMatrixAt(k, d.matrix);
-      ghostCells.setColorAt(k, tmpC.copy(lc(ok === 'skip' ? '#b8b0a0' : ok ? '#fff1b8' : '#e0604a')));
+    const all = gh.cells.concat(gh.lot || []);
+    all.slice(0, 64).forEach((i, k) => {
+      const path = k >= gh.cells.length, ok = path ? gh.ok : gh.okCells ? gh.okCells[k] : gh.ok;
+      d.position.copy(W((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.08)); d.scale.setScalar(path ? 0.82 : 1); d.updateMatrix(); ghostCells.setMatrixAt(k, d.matrix);
+      ghostCells.setColorAt(k, tmpC.copy(lc(ok === 'skip' ? '#b8b0a0' : path ? (ok ? '#8fa0b0' : '#7a3a30') : ok ? '#fff1b8' : '#e0604a')));
     });
-    ghostCells.count = Math.min(64, gh.cells.length); ghostCells.instanceMatrix.needsUpdate = true; if (ghostCells.instanceColor) ghostCells.instanceColor.needsUpdate = true; ghostCells.visible = true;
+    ghostCells.count = Math.min(64, all.length); ghostCells.instanceMatrix.needsUpdate = true; if (ghostCells.instanceColor) ghostCells.instanceColor.needsUpdate = true; ghostCells.visible = true;
     if (gh.type === 'wall') { if (ghostMesh) ghostMesh.visible = false; return; }
     if (gh.type !== ghostKey) {
       if (ghostMesh) fx.remove(ghostMesh);

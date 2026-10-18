@@ -32,7 +32,8 @@ class MinHeap {
   }
 }
 const DIRS8 = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
-const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3 };   // compact footprints; palisades are single posts, laid in lines
+const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3 };
+const LOT_PAD = { house: 1, farm: 1, tower: 1, workshop: 1, market: 1, wall: 0 };   // the path each lot includes   // compact footprints; palisades are single posts, laid in lines
 const BIG = 1.6; // mobs at least this size count as "big game"
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'packs', clock = true } = {}) {
@@ -47,7 +48,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     seed, biome, map, heroClass: hero, mode, night: 1, phase: 'day', time: 0,
     stock: mode === 'packs' ? { ...PACK_RULES.start } : {}, packs: [],
     gold: START.gold, food: START.food, kills: 0, events: [],
-    buildings: [], occ: new Int32Array(N * N).fill(-1),
+    buildings: [], occ: new Int32Array(N * N).fill(-1), res: new Int32Array(N * N).fill(-1),
     claimed: new Set([0]), nestAlive: map.regions.map(r => !!r.nest), wake: map.regions.map(() => Infinity),
     mobs: [], projectiles: [], chests: [], purses: [], allies: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
     P: freshPerkState(), picks: [], pendingPicks: 0, offer: [], offerSource: null, chestsHeld: 0, dawns: 0,
@@ -112,12 +113,14 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // Buildings go anywhere on your land. Footprints are whole cells; every building keeps a
   // one-cell street around it so people (and you) can walk between them. Palisades may chain
   // to other palisades and to towers. Palisades have four orientations: 0 —, 1 |, 2 \, 3 /.
-  function shape(type, x, y, rot = 0) {
-    const n = SIZE[type], ax = Math.round(x - n / 2), ay = Math.round(y - n / 2), cells = [];
-    if (type === 'wall') cells.push([Math.floor(x), Math.floor(y)]);
-    else for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) cells.push([ax + dx, ay + dy]);
+  // Every building owns a lot: its own cells plus a one-cell path on two sides (the street is part of the
+  // building, so lots tile edge to edge). Barricade posts are a single cell with no lot.
+  function shape(type, x, y, rot = 0, core = false) {
+    const n = SIZE[type], f = n + (LOT_PAD[type] || 0), ax = Math.round(x - (core ? n : f) / 2), ay = Math.round(y - (core ? n : f) / 2), cells = [], lot = [];
+    if (type === 'wall') { cells.push([Math.floor(x), Math.floor(y)]); lot.push([Math.floor(x), Math.floor(y)]); }
+    else { for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) cells.push([ax + dx, ay + dy]); for (let dy = 0; dy < f; dy++) for (let dx = 0; dx < f; dx++) lot.push([ax + dx, ay + dy]); }
     const xs = cells.map(q => q[0]), ys = cells.map(q => q[1]);
-    return { cells, cx: (Math.min(...xs) + Math.max(...xs) + 1) / 2, cy: (Math.min(...ys) + Math.max(...ys) + 1) / 2 };
+    return { cells, lot, cx: (Math.min(...xs) + Math.max(...xs) + 1) / 2, cy: (Math.min(...ys) + Math.max(...ys) + 1) / 2 };
   }
   function footprint(type, x, y, rot) {
     if (type === 'keep') {
@@ -125,34 +128,28 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (dx * dx + dy * dy <= 5) cells.push(idx(cx + dx, cy + dy));
       return cells;
     }
-    return shape(type, x, y, rot).cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b));
+    return shape(type, x, y, rot, true).cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b));
   }
+  const lotOf = (type, x, y, rot) => shape(type, x, y, rot, true).lot.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b));
   const nestAlive = r => map.regions[r] && map.regions[r].nest && S.nestAlive[r];
   /** Can `type` go here? x, y: wanted centre (snapped to cells); rot for palisades. */
   function canPlace(type, x, y, rot = 0, opts = {}) {
     if (!SIZE[type]) return { ok: false, reason: 'Unknown building.', cells: [] };
     if (BUILDINGS[type].tech) { if (keep.level < BUILDINGS[type].keep) return { ok: false, reason: `Raise the keep to level ${BUILDINGS[type].keep} first.`, cells: [] }; if (S.buildings.some(b => b.type === type)) return { ok: false, reason: `You already have a ${BUILDINGS[type].name}.`, cells: [] }; }
-    const { cells, cx, cy } = shape(type, x, y, rot);
-    const out = { ok: false, x: cx, y: cy, rot, cells: cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), reason: '' };
-    if (out.cells.length !== cells.length) { out.reason = 'Too close to the edge.'; return out; }
+    const { cells, lot, cx, cy } = shape(type, x, y, rot);
+    const out = { ok: false, x: cx, y: cy, rot, cells: cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), lot: lot.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), reason: '' };
+    if (out.cells.length !== cells.length || out.lot.length !== lot.length) { out.reason = 'Too close to the edge.'; return out; }
     const own = new Set(out.cells);
+    for (const i of out.lot) {
+      if (S.occ[i] >= 0 || S.res[i] >= 0) { out.reason = 'Another lot is in the way.'; return out; }
+      if (!own.has(i) && !PASSABLE[map.terrain[i]]) { out.reason = 'The path round it is blocked.'; return out; }
+    }
     for (const i of out.cells) {
       const t = map.terrain[i], r = map.region[i];
       if (r < 0 || !inZone(i)) { out.reason = 'Too far from your base: build near the keep or your other buildings.'; return out; }
       if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD || t === T.FOREST) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Barricades need ground, rubble or a ford.' : t === T.FOREST ? 'Rubble in the way. Tap it to clear it first.' : 'Needs open ground.'; return out; }
       if (S.occ[i] >= 0) { out.reason = 'Something is already built here.'; return out; }
       if (map.ramp[i] && type !== 'wall') { out.reason = 'Keep the ramp clear (a barricade can close it).'; return out; }
-    }
-    for (const i of out.cells) {
-      const x0 = i % N, y0 = (i / N) | 0;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        const xx = x0 + dx, yy = y0 + dy; if (!inside(xx, yy)) continue;
-        const j = idx(xx, yy); if (own.has(j)) continue;
-        const o = S.occ[j]; if (o < 0) continue;
-        const other = S.byId.get(o);
-        const chain = other && ((type === 'wall' && (other.type === 'wall' || other.type === 'tower')) || (type === 'tower' && other.type === 'wall'));
-        if (!chain) { out.reason = 'Leave a street: buildings cannot touch.'; return out; }
-      }
     }
     for (const reg of map.regions) if (nestAlive(reg.id) && Math.hypot(reg.nest.x - cx, reg.nest.y - cy) < 4) { out.reason = 'Too close to a nest.'; return out; }
     if (opts.deep && type !== 'wall' && sealsOff(out.cells)) { out.reason = 'That would close off a space you could not walk out of.'; return out; }
@@ -200,8 +197,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     }
     return false;
   }
-  function occupy(b) { b.cells = footprint(b.type, b.x, b.y, b.rot).filter(i => S.occ[i] < 0); for (const i of b.cells) S.occ[i] = b.id; S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; }
-  function vacate(b) { for (const i of b.cells) if (S.occ[i] === b.id) S.occ[i] = -1; S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; }
+  function occupy(b) { b.cells = footprint(b.type, b.x, b.y, b.rot).filter(i => S.occ[i] < 0); for (const i of b.cells) S.occ[i] = b.id; b.lot = b.type === 'keep' ? [] : lotOf(b.type, b.x, b.y, b.rot).filter(i => S.res[i] < 0 || S.res[i] === b.id); for (const i of b.lot) S.res[i] = b.id; S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; }
+  function vacate(b) { for (const i of b.cells) if (S.occ[i] === b.id) S.occ[i] = -1; for (const i of b.lot || []) if (S.res[i] === b.id) S.res[i] = -1; S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; }
 
   const mobById = new Map();
   const keep = { id: 0, type: 'keep', x: c, y: c, r: 2.3, level: 1, hp: KEEP.hp[0], maxHp: KEEP.hp[0], cd: 0, ruined: false, cells: [], boltT: 3 };

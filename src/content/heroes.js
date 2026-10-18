@@ -3,17 +3,17 @@
 export const HEROES = {
   warrior: {
     name: 'Brawler', blurb: 'Fire axe and a work jacket. Holds the line up close. War Cry pulls the dead onto you while you shrug off half their damage.',
-    autoBuild: true, hp: 30, speed: 6, attack: { kind: 'melee', dmg: 3, reach: 2.2, rate: 0.55 },
+    autoBuild: true, hp: 30, speed: 4.3, attack: { kind: 'melee', dmg: 3, reach: 2.2, rate: 0.55 },
     ability: { id: 'warcry', name: 'War Cry', cooldown: 25, radius: 6, taunt: 4, guard: 0.5 },
   },
   archer: {
     name: 'Ranger', blurb: 'A crossbow and a hood. Fragile, but picks off the dead from far away. Volley rains bolts on the thickest crowd.',
-    autoBuild: true, hp: 18, speed: 6.5, attack: { kind: 'ranged', dmg: 2, reach: 7.5, rate: 0.7 },
+    autoBuild: true, hp: 18, speed: 4.6, attack: { kind: 'ranged', dmg: 2, reach: 7.5, rate: 0.7 },
     ability: { id: 'volley', name: 'Volley', cooldown: 20, radius: 2.5, dmg: 6, reach: 10 },
   },
   merchant: {
     name: 'Scavver', blurb: 'Never fights. Runs the town by hand, picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays gold.',
-    hp: 16, speed: 6.6, attack: null, collects: true, discount: 0.1, extraOffer: 1, trader: true,
+    hp: 16, speed: 4.6, attack: null, collects: true, discount: 0.1, extraOffer: 1, trader: true,
     ability: { id: 'bounty', name: 'Bounty', cooldown: 45, duration: 20, radius: 9, gold: 1, bigGold: 3 },
   },
 };

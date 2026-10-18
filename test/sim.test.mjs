@@ -115,7 +115,7 @@ test('towns use their space: enough lots, little dead land, a street around ever
   }
 });
 
-test('free placement: no overlaps, a street between buildings, palisades are laid in lines', () => {
+test('free placement: no overlaps, every building owns its lot with a path, palisades are laid in lines', () => {
   const g = createGame({ mode: 'classic', seed: 3, biome: 'highland' }); const S = g.state; S.gold = 999;
   const t = g.map.town, spots = [];
   for (let y = t.y - 10; y <= t.y + 10; y++) for (let x = t.x - 10; x <= t.x + 10; x++) spots.push([x + 0.5, y + 0.5]);
@@ -125,7 +125,9 @@ test('free placement: no overlaps, a street between buildings, palisades are lai
   assert.equal(g.canPlace('house', hx + 1, hy).ok, false, 'overlapping house allowed');
   const touching = [[2, 0], [-2, 0], [0, 2], [0, -2]].map(([dx, dy]) => g.canPlace('house', hx + dx, hy + dy));
   assert.ok(touching.every(p => !p.ok), 'a touching house was allowed');
-  assert.ok(touching.some(p => /street/.test(p.reason)), 'the street rule never triggered');
+  assert.ok(touching.some(p => /lot/.test(p.reason)), 'the lot rule never triggered');
+  // lots tile edge to edge: the next home three cells over fits, and a path stays free between them
+  assert.ok([[3, 0], [-3, 0], [0, 3], [0, -3]].some(([dx, dy]) => g.canPlace('house', hx + dx, hy + dy).ok), 'lots do not tile');
   // palisades are laid as lines of posts; a line chains into the next one
   const [wx, wy] = spots.find(([x, y]) => g.lineCells(x, y, x + 4, y + 2).every(([cx, cy]) => g.canPlace('wall', cx + 0.5, cy + 0.5).ok));
   const before = g.state.buildings.filter(b => b.type === 'wall').length;

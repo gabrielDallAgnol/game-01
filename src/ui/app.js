@@ -303,7 +303,7 @@ export function startApp() {
     if (t === 'wall') return updateWallGhost();
     const sp = snap(placing.x, placing.y);
     const p = sp ? game.canPlace(t, sp.x, sp.y, 0, { deep: true }) : game.canPlace(t, placing.x, placing.y, 0, { deep: true });
-    placing.ghost = { type: t, x: p.x, y: p.y, rot: 0, ok: p.ok, cells: p.cells };
+    placing.ghost = { type: t, x: p.x, y: p.y, rot: 0, ok: p.ok, cells: p.cells, lot: (p.lot || []).filter(i => !p.cells.includes(i)) };
     placing.reason = p.reason;
     const n = S.stock[t] || 0;
     $('#placeInfo').innerHTML = p.ok ? `${BUILDINGS[t].name}${n ? ` · ${n} in hand` : ` · <span class="dot gold"></span> ${game.buyCost(t)}`}` : `<span class="warn">${p.reason || 'No room here.'}</span>`;
