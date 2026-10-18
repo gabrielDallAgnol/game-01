@@ -141,6 +141,7 @@ export function createStory(ctx) {
       apply(f, enc);
     }
     if (enc.kind === 'site') { ST.quests = ST.quests.filter(q => q.site !== enc.site || choiceId === 'leave'); if (choiceId === 'leave') ST.visited[enc.site] = 'left'; }
+    if (ctx.gainXp) ctx.gainXp(enc.kind === 'thread' ? 25 : enc.kind === 'street' ? 12 : enc.kind === 'site' ? 0 : 5);
     const line = enc.aiChron || `${enc.title}: ${c.label}.`;
     chron(line, enc.kind === 'thread' ? 4 : 2, enc.thread ? [enc.thread] : []);
     ST.encounters.shift(); ev('chosen', { enc: enc.id, choice: choiceId, kind: enc.kind });

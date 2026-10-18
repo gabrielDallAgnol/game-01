@@ -209,7 +209,7 @@ export function startApp() {
     const hero = game.heroDef;
     showCard('status', `<div class="enc sysw"><div class="eyebrow sysline">[Status]</div>
       <h1 class="sm">${esc(hero.name)} · day ${S.night}</h1>
-      <div class="statgrid"><span>Health <b>${Math.ceil(S.hero.hp)}/${S.hero.maxHp}</b></span><span>Kills <b>${S.kills}</b></span><span>People <b>${game.pop()}</b></span><span>Districts <b>${game.map.regions.filter(r => !S.sealed[r.id]).length}/${game.map.regions.length}</b></span><span>Heat <b>${Math.round(S.heat)}</b></span><span>Power <b>${game.powerIn()}/${game.powerOut()}</b></span></div>
+      <div class="statgrid"><span>Level <b>${S.lvl} · ${S.xp}/${game.xpNext()} xp</b></span><span>Health <b>${Math.ceil(S.hero.hp)}/${S.hero.maxHp}</b></span><span>Kills <b>${S.kills}</b></span><span>People <b>${game.pop()}</b></span><span>Districts <b>${game.map.regions.filter(r => !S.sealed[r.id]).length}/${game.map.regions.length}</b></span><span>Heat <b>${Math.round(S.heat)}</b></span><span>Power <b>${game.powerIn()}/${game.powerOut()}</b></span></div>
       <h2>Titles</h2><div class="titles">${ST.titles.length ? ST.titles.map(t => `<span class="title" title="${esc(TITLES[t].desc)}">${esc(TITLES[t].name)}</span>`).join('') : '<span class="tiny">None yet. The System is watching.</span>'}</div>
       <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<div class="comp"><b>${esc(n.name)}</b><span>${n.withHero ? 'Travels with you · post empty' : `${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}`}</span><span class="bond">${'♥'.repeat(Math.max(0, n.bond))}${'♡'.repeat(Math.max(0, 5 - n.bond))}</span><span class="acts"><button class="btn sm" data-chat="${n.id}">Talk</button><button class="btn sm ghost" data-follow="${n.id}" data-on="${n.withHero ? 0 : 1}">${n.withHero ? 'Back to post' : 'With me'}</button></span></div>`).join('') : '<span class="tiny">Nobody yet. Answer the calls: people are out there.</span>'}</div>
       <h2>Chronicle</h2><ol class="chron">${ST.chronicle.slice().reverse().slice(0, 14).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
@@ -677,6 +677,7 @@ export function startApp() {
     const S = game.state, night = S.phase === 'night', bm = game.isBloodMoon(S.night);
     $('#phaseLbl').textContent = S.over ? 'Fell on' : night ? 'Night' : 'Day';
     $('#nightNum').textContent = S.night;
+    $('#lvTag').textContent = `Lv ${S.lvl}`;
     $('#moon').hidden = !bm;
     $('#keepFill').style.width = (Math.max(0, S.keep.hp) / S.keep.maxHp * 100) + '%';
     $('#keepTxt').textContent = Math.max(0, Math.ceil(S.keep.hp));

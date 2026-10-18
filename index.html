@@ -220,6 +220,7 @@ body.compact .pill{font-size:13px}
 .toast.sys::after{content:"";position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-right:2px solid #7fd4ff;border-bottom:2px solid #7fd4ff}
 .toast.sys.bad{border-color:rgba(255,110,90,.65);background:linear-gradient(180deg,rgba(48,16,14,.95),rgba(28,10,10,.95));color:#ffd8d0}.toast.sys.bad .sh{color:#ff7a62}.toast.sys.bad::before,.toast.sys.bad::after{border-color:#ff7a62}
 body.compact #threatPill{order:3}
+.lv{font-family:var(--mono);font-size:11px;color:#7fd4ff;border:1px solid rgba(127,212,255,.45);border-radius:3px;padding:0 5px}
 .cont{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(20,32,44,.6)}.cont .tiny{white-space:normal}
 #autoBtn[aria-pressed=true]{background:#7fd4ff;color:#0b1620;border-color:#7fd4ff}
 #autoTag{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dockH,140px) + 6px);font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:#7fd4ff;background:rgba(12,20,30,.85);border:1px solid rgba(127,212,255,.5);border-radius:3px;padding:2px 8px;pointer-events:none}
@@ -269,6 +270,7 @@ body.compact .tray .hands{grid-column:1/-1}
     <div class="pill">
       <span class="nt"><span class="lbl" id="phaseLbl">Day</span><b id="nightNum">1</b></span>
       <span class="moon" id="moon" hidden>Blood moon</span>
+      <span class="lv" id="lvTag" title="Hero level: put down the dead, open districts, finish quests">Lv 1</span>
       <span class="kp" title="Keep health"><span class="meter"><i id="keepFill"></i></span><span class="tiny" id="keepTxt">80</span></span>
     </div>
     <div class="pill" id="resPill">
