@@ -717,7 +717,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function stepRoamer(m, dt, speed) {
     const R = TIDE.roam, h = S.hero, home = m.roam;
     // now and then a roamer next to your land drifts in and walks on the town
-    if (S.clock && S.night >= 2 && home.region >= 0 && baseDist(home.x, home.y) < (S.heat >= HEAT.stir ? 20 : 12) && rng.next() < TIDE.drift * (S.heat >= HEAT.stir ? 4 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
+    if (S.clock && S.night >= 2 && home.region >= 0 && baseDist(home.x, home.y) < (S.heat >= HEAT.stir ? 20 : 12) && rng.next() < TIDE.drift * Math.min(1, S.night / 6) * (S.heat >= HEAT.stir ? 4 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
     const fromHome = Math.hypot(m.x - home.x, m.y - home.y);
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
     const heroNear = hd < R.sight && Math.hypot(h.x - home.x, h.y - home.y) < R.leash && !inZone(idx(Math.floor(h.x), Math.floor(h.y)));

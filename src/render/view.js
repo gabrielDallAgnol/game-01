@@ -446,9 +446,15 @@ export function createView(canvas, game, opts = {}) {
     const seen = new Set();
     for (const m of S.mobs) {
       seen.add(m.id);
-      if (!mobState.has(m.id)) { const size = MOBS[m.kind].size; mobState.set(m.id, { bar: makeBar(m.kind === 'gravelord' || m.kind === 'guardian' ? 'boss' : 'z', 0.7 * size), phase: vis() * 6, face: m.face || 0, size, kind: m.kind, x: m.x, y: m.y }); }
+      if (!mobState.has(m.id)) {
+        const size = MOBS[m.kind].size * (m.unique ? 1.35 : 1);
+        const st = { bar: makeBar(m.kind === 'gravelord' || m.kind === 'guardian' ? 'boss' : 'z', 0.7 * size), phase: vis() * 6, face: m.face || 0, size, kind: m.kind, x: m.x, y: m.y };
+        if (m.unique) { st.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(m.unique.toUpperCase(), { w: 512, h: 64, size: 34, bg: '#2a0a10', fg: '#ff8a6a', spacing: '3px' }), transparent: true, depthTest: false })); st.tag.scale.set(3.2, 0.4, 1); st.tag.renderOrder = 22; fx.add(st.tag); st.glow = K.glowSprite('#ffd27a', 2.6, 1.6); fx.add(st.glow); }
+        mobState.set(m.id, st);
+      }
+      const st = mobState.get(m.id); if (st.tag) { st.tag.position.copy(W(m.x, m.y, 3.4)); st.glow.position.copy(W(m.x, m.y, 2.4)); st.glow.material.opacity = 0.6 + Math.sin(time * 6) * 0.3; }
     }
-    for (const [id, e] of mobState) if (!seen.has(id)) { fx.remove(e.bar); dying.push({ kind: e.kind, x: e.x, y: e.y, face: e.face, t: 0 }); mobState.delete(id); }
+    for (const [id, e] of mobState) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) { fx.remove(e.tag); fx.remove(e.glow); } dying.push({ kind: e.kind, x: e.x, y: e.y, face: e.face, t: 0 }); mobState.delete(id); }
   }
   function syncProjectiles() {
     const seen = new Set();
@@ -724,7 +730,7 @@ export function createView(canvas, game, opts = {}) {
       const fr = m.attacking ? 0 : (Math.sin(e.phase) > 0 ? 0 : 1);
       const lunge = m.attacking ? Math.max(0, Math.sin(time * 6 + e.phase)) * 0.25 : 0;
       const p = W(m.x, m.y, (m.rise - 1) * 1.1 + (m.attacking ? 0 : Math.abs(Math.sin(e.phase)) * 0.03));
-      crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, 1);
+      crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, m.unique ? 1.35 : 1);
       setBar(e.bar, m.x, 1.3 * Math.max(1, e.size), m.y, m.hp / m.maxHp);
     }
     for (const dd of [...dying]) {
@@ -754,9 +760,12 @@ export function createView(canvas, game, opts = {}) {
       { const hp = game.hiveHealth(r), n = map.regions[r].nest; if (!hv.bar) hv.bar = makeBar('boss', 2.4); if (hp > 0 && hp < 1) setBar(hv.bar, n.x, 3.4, n.y, hp); else hv.bar.visible = false; }
       const live = (active.has(r) || S.purge === r) && !hv.cleared;
       hv.g.visible = seenAt(map.regions[r].nest.x, map.regions[r].nest.y) || live;
-      const want = hv.cleared ? 0 : live ? 1 : nearNests.has(r) ? 0.15 : 0;
-      hv.glow += (want - hv.glow) * Math.min(1, dt * 2);
-      const siege = S.purge === r, colr = siege ? lc('#e3a54a') : lc('#8fff3a');
+      const swell = S.eruption && S.eruption.region === r;   // a hive about to burst swells and throbs red
+      const want = hv.cleared ? 0 : swell ? 1.6 + Math.sin(time * (10 - S.eruption.t / 5)) * 0.5 : live ? 1 : nearNests.has(r) ? 0.15 : 0;
+      hv.glow += (want - hv.glow) * Math.min(1, dt * (swell ? 8 : 2));
+      if (swell) hv.g.visible = true;
+      hv.g.scale.setScalar(swell ? 1 + 0.04 * Math.sin(time * 9) + 0.08 * (1 - S.eruption.t / 40) : 1);
+      const siege = S.purge === r, colr = swell ? lc('#ff5a3a') : siege ? lc('#e3a54a') : lc('#8fff3a');
       hv.decal.material.color.copy(colr); hv.decal.material.opacity = hv.glow * (0.35 + dark * 0.55);
       hv.haze.forEach((s, k) => { s.material.color.copy(colr); s.material.opacity = hv.glow * (0.12 + dark * 0.22) * (0.8 + 0.2 * Math.sin(time * 1.5 + k)); s.position.y = 0.6 + k * 0.45 + Math.sin(time * 0.7 + k) * 0.1; });
     }
