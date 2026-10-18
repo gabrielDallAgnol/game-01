@@ -20,6 +20,19 @@
 | Pathing | Flow field to the nearest building. Palisades cost 6 extra steps: the dead walk around them when they can and break through when they can't. Crawlers climb them. |
 | Heroes | Warrior (melee 3 dmg), Archer (ranged 2 dmg, 7.5 reach), Steward (never fights; +30% gold, 4 blessings offered, an extra pick every 3rd dawn). |
 
+## Readability & economy pass (Oct 18)
+| Change | Why | Measured |
+|---|---|---|
+| Lots on a 4-cell street grid, nudged ±1 to fit, then a fill pass | Random lots clumped together; the town didn't read as a city | Town lots 9 → 13–19, unused town land ≈10%, every lot has a street (tests) |
+| Town owns the plateau (Highland) or a 9-cell circle | Empty land inside the cliffs could not be built on | Highland town ≈19 lots |
+| Gate lots on fords and passes (towers/palisades only) | Natural chokepoints are where walls belong | 2 per river map, 3 per highland map |
+| Calmer palette: warm town with streets, muted wild, one border | Too many colours; hard to see where things are | — |
+| Daytime forecast: animated routes + "~N" on each nest | Hard to know where the next wave comes from | Test: every attacking nest has a route to town |
+| Citizens eat 1 food each (was ½) | One farm fed three houses, so farms barely mattered | — |
+| Tower upkeep 1/2 gold at level 2/3 | Tower-only builds had no cost of doing business | — |
+| Tower blessings are % (was +1 flat on a 1-damage tower) | Bow blessings replaced building towers | Paths now median 12–23 (was Bow far ahead) |
+| Ratings recalibrated: Easy < 0.3, Medium < 0.55, Hard < 0.8 | Monotonic table after bot fixes | Easy 1–3% of nights end the run, Impossible 59%+ |
+
 ## Next drop: town stats (agreed direction)
 - **Main system: scavenge runs** (Dying Light / State of Decay / Project Zomboid): ruins in unclaimed regions hold loot. Send survivors out by day; the further out, the better the loot and the risk. Survivors arrive with traits (Medic, Carpenter, Coward…).
 - **Infection and noise as natural events,** not tied to buildings. For example: a scavenger comes back bitten (treat, quarantine or exile), or a storm whose thunder draws a horde from one side.

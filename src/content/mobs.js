@@ -21,7 +21,7 @@ export const WAVES = {
   territory: claimed => 1 + 0.12 * (claimed - 1),    // each claimed region beyond the core adds 12%
   plunder: ring => 6 + 6 * ring,                     // gold found in a burned nest
   bloodMoonEvery: 5,
-  bloodMoonMult: n => (n < 10 ? 1.15 : 1.35),   // the first blood moon is a warning shot
+  bloodMoonMult: n => (n < 10 ? 1 : 1.35),      // the first blood moon is a warning shot: just its guardian
   surges: n => 2 + Math.floor(n / 3),
   duration: n => Math.min(40, 14 + 1.4 * n),
   // a purge siege adds this share of the night's budget, scaled by the nest's ring

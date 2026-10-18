@@ -11,7 +11,7 @@ import { PERKS, FAMILIES, freshPerkState } from '../content/perks.js';
 export const STEP = 1 / 60;
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
-export const RATING = [[0.3, 'Easy'], [0.6, 'Medium'], [1.1, 'Hard'], [Infinity, 'Impossible']];
+export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed } = {}) {
   const map = generateMap(mapSeed ?? seed, biome);

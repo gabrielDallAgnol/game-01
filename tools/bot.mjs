@@ -49,27 +49,32 @@ function slotFor(g, kind) {
 }
 
 export function dayTurn(g, strat) {
-  const S = g.state;
-  for (let guard = 0; guard < 60; guard++) {
-    const foodNet = g.foodPerDawn() - g.foodNeed();
-    let did = false;
-    for (const act of STRATEGIES[strat](S.night)) {
-      if (act === 'food') { if (foodNet < 1 && S.food < 6) { const s = slotFor(g, 'farm'); if (s && g.build(s.id, 'farm')) { did = true; break; } } continue; }
-      if (act === 'keep') { if (S.night >= 3 && g.upgradeKeep()) { did = true; break; } continue; }
-      if (act.startsWith('up')) {
-        const t = act.slice(2).toLowerCase();
-        const b = S.buildings.filter(x => x.type === t && x.level < 3).sort((a, c) => a.level - c.level)[0];
-        if (b && g.upgrade(b.slot)) { did = true; break; } continue;
-      }
-      if (act === 'farm' && foodNet > 3) continue;
-      const s = slotFor(g, act);
-      if (s && g.build(s.id, act)) { did = true; break; }
-    }
-    if (!did) {
-      const b = S.buildings.filter(x => (x.type === 'tower' || x.type === 'house') && x.level < 3).sort((a, c) => a.level - c.level)[0];
-      if (!(b && g.upgrade(b.slot)) && !g.upgradeKeep()) break;
-    }
+  // walk the shopping list round-robin, so every item gets its turn instead of the first one eating all the gold
+  const S = g.state, list = STRATEGIES[strat](S.night);
+  let k = 0, misses = 0;
+  while (misses < list.length + 2) {
+    const act = list[k % list.length]; k++;
+    if (tryAct(g, act)) misses = 0; else misses++;
   }
+  // leftovers: upgrade towers and houses, then the keep
+  for (let guard = 0; guard < 20; guard++) {
+    const b = S.buildings.filter(x => (x.type === 'tower' || x.type === 'house') && x.level < 3).sort((a, c) => a.level - c.level)[0];
+    if (!(b && g.upgrade(b.slot)) && !(S.night >= 3 && g.upgradeKeep())) break;
+  }
+}
+function tryAct(g, act) {
+  const S = g.state, foodNet = g.foodPerDawn() - g.foodNeed();
+  if (act === 'food') { if (foodNet < 1 && S.food < 6) { const s = slotFor(g, 'farm'); return !!(s && g.build(s.id, 'farm')); } return false; }
+  if (act === 'keep') return S.night >= 3 && g.upgradeKeep();
+  if (act.startsWith('up')) {
+    const t = act.slice(2).toLowerCase();
+    const b = S.buildings.filter(x => x.type === t && x.level < 3).sort((a, c) => a.level - c.level)[0];
+    return !!(b && g.upgrade(b.slot));
+  }
+  if (act === 'farm' && foodNet > 3) return false;
+  if (act === 'house' && foodNet < 0) return false; // do not add mouths you cannot feed
+  const s = slotFor(g, act);
+  return !!(s && g.build(s.id, act));
 }
 
 export function choosePerks(g, path) {
