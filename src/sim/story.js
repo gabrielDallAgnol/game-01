@@ -3,7 +3,7 @@
 //
 // S.story = { day, encounters (queue shown as cards), threads {id: {stage, status, cast, region, failAt}},
 //   npcs [], titles [], chronicle [], flags {}, quests [], power, hands, visited {} }
-import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM } from '../content/story.js';
+import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT } from '../content/story.js';
 import { RARITY } from '../content/districts.js';
 
 export function createStory(ctx) {
@@ -21,7 +21,7 @@ export function createStory(ctx) {
     const T = THREADS[threadId], c = T.cast[role], th = ST.threads[threadId];
     if (th.cast[role]) return npc(th.cast[role]);
     const id = `n${ST.nextId++}`;
-    const n = { id, role, name: c.names[rng.int(c.names.length)], epithet: c.epithet, persona: { ...c.persona }, secret: c.secret, bond: 1, alive: true, joined: false, named: false, thread: threadId, chatToday: 0, memory: [] };
+    const n = { id, role: c.role || role, name: c.names[rng.int(c.names.length)], epithet: c.epithet, persona: { ...c.persona }, secret: c.secret, bond: 1, alive: true, joined: false, named: false, thread: threadId, chatToday: 0, memory: [] };
     ST.npcs.push(n); th.cast[role] = id; return n;
   }
   const fill = (s, th) => { if (!s) return s; const n = th && Object.values(th.cast).map(npc).find(Boolean); return s.replace(/\{name\}/g, n ? n.name.split(' ')[0] : 'they'); };
@@ -70,6 +70,7 @@ export function createStory(ctx) {
       case 'claimHere': { const l = th && th.region !== undefined && ctx.siteOf(th.region); if (l && !l.owned) ctx.claimFree(l.id); break; }
       case 'risen': ctx.risen(f.n); break;
       case 'gamble': if (rng.next() >= f.p) for (const b of f.bad) apply(b, enc); else toast('The fever broke at dawn. He lives.', 'good'); break;
+      case 'unique': S.unique = { name: f.name, mult: f.mult, night: S.night + (f.later || 0) - (S.night % 5 === 0 && !f.later ? 0 : 0), thread: enc && enc.thread }; if (f.later) S.unique.night = nextMoon(S.night + 1); else S.unique.night = nextMoon(S.night); break;
       case 'evolve': ctx.evolve(f.cls); chron(`Became a ${ctx.heroes[f.cls].name}.`, 5, ['hero']); break;
       case 'evolveLater': ST.evoLater = { cls: f.cls, from: f.from }; break;
       case 'advance': if (th) { th.stage++; th.since = S.night; } break;
@@ -77,6 +78,7 @@ export function createStory(ctx) {
       case 'fail': if (th) { if (f.after) { th.status = 'waiting'; th.failAt = S.night + f.after; } else th.status = 'failed'; } break;
     }
   }
+  const nextMoon = n => { let k = n; while (k % 5) k++; return k; };
   function districtFor(kit) {
     const front = ctx.frontier();
     // a region already holding this kit, else an unassigned frontier region, else any frontier region
@@ -157,8 +159,12 @@ export function createStory(ctx) {
       if (th.status !== 'open' || shown >= 2) continue;
       const st = THREADS[tid].stages[th.stage]; if (!st || st.at !== 'dawn' || th.stage === 0) continue;
       if (S.night - th.since < (st.after || 0)) continue;
+      if (st.needs === 'uniqueDone' && !(S.unique && S.unique.slain)) { if (S.unique && S.unique.escaped) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[Unique Monster: ${S.unique.name}] It got away. It will be back on the next blood moon.`, 'bad'); } continue; }
       push(threadEncounter(tid, th.stage)); shown++;
     }
+    if (ST.flags.beacon && !ST.flags.beaconDone) { ST.flags.beaconDone = true; S.survivors += 2; toast('Two strangers walked in under your flag. +2 people.', 'good'); }
+    // quiet dawns: a small moment, once each
+    if (!shown && S.night >= 3 && rng.next() < 0.6) { ST.ambient = ST.ambient || []; const pool = AMBIENT.filter(a => !ST.ambient.includes(a.id) && a.when(S)); if (pool.length) { const a = pool[rng.int(pool.length)]; ST.ambient.push(a.id); push({ kind: 'ambient', eyebrow: a.eyebrow, title: a.title, scene: a.scene, choices: a.choices.map(c => ({ ...c })) }); shown++; } }
     // a route out of the fences every other day (and whenever none opened for three days)
     const front = ctx.frontier();
     if (front.length && S.night >= 2 && shown < 2 && (S.night % 2 === 0 || S.night - ST.lastOpen >= 3)) { const e = districtEncounter(); if (e) { push(e); shown++; } }
@@ -182,6 +188,7 @@ export function createStory(ctx) {
   const bonus = {
     power: () => ST.power + ST.npcs.reduce((a, n) => a + (n.alive && n.joined && ROLES[n.role].power || 0), 0),
     hands: () => ST.hands + ST.npcs.reduce((a, n) => a + (n.alive && n.joined && ROLES[n.role].hands || 0), 0),
+    towers: () => ST.npcs.reduce((a, n) => a + (n.alive && n.joined && ROLES[n.role].towers || 0), 0),
     lullaby: () => { const n = npcByRole('revenant'); return n && n.joined ? (n.named ? 0.65 : ROLES.revenant.lullaby) : 1; },
     heat: () => (ST.flags.quiet ? 0.85 : 1),
   };

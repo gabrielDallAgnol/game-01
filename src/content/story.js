@@ -33,6 +33,7 @@ export const TITLES = {
   warden: { name: 'Warden of the Young', desc: 'Brought the children home. +1 food each dawn from their garden.', fx: [{ op: 'flag', key: 'garden' }] },
   ironGrid: { name: 'Iron Grid', desc: 'Lived through a blackout.' },
   loud: { name: 'The Loudest Town', desc: 'A hive burst because of you, and you lived.' },
+  uniqueSlayer: { name: 'Light-Breaker', desc: 'Killed a unique monster. +15% hero damage.', fx: [{ op: 'perk', key: 'heroDmgMult', mul: 1.15 }] },
 };
 
 // Calls to open a district: framed by why you would go. Options are built from the frontier.
@@ -167,11 +168,88 @@ export const THREADS = {
   },
 };
 
+// The unique monsters: each run's blood moons bring one with a name and a story. Kill it for a legendary blessing.
+THREADS.lantern = {
+  title: 'The Lantern-Eater',
+  cast: {},
+  start: { day: 5 },
+  stages: [
+    {
+      id: 'sighting', at: 'dawn', eyebrow: '[Unique Monster sighted: The Lantern-Eater]', title: 'Something eats the light',
+      scene: 'Last night the lamp on the north corner went out. Then the next one, and the next, a line of darkness walking toward the keep. In the morning the bulbs are gone, and so are the poles. Tonight is a blood moon. [There is only one of it in the whole world.]',
+      choices: [
+        { id: 'bait', label: 'Light every lamp and draw it in', hint: 'It walks into your towers tonight instead of a guardian: tougher, slower, worth a legendary blessing and a title. +15 heat.', fx: [{ op: 'heat', n: 15 }, { op: 'unique', name: 'The Lantern-Eater', mult: 1.7 }, { op: 'advance' }] },
+        { id: 'dark', label: 'Douse the lights and hide', hint: 'Tonight is a normal blood moon. It will come back, angrier, on the next one.', fx: [{ op: 'unique', name: 'The Lantern-Eater', mult: 2.2, later: 5 }, { op: 'advance' }] },
+      ],
+    },
+    {
+      id: 'aftermath', at: 'dawn', after: 1, needs: 'uniqueDone', eyebrow: '[Unique Monster slain: The Lantern-Eater]', title: 'The thing on the street',
+      scene: 'In daylight it is smaller than it looked, and somehow sadder: a tangle of cables and bulbs grown into something that was a man. Your people stand around it and nobody speaks.',
+      choices: [
+        { id: 'skull', label: 'Mount its lamp-skull on the keep', hint: 'Towers +10% damage for good. The dead fear the light now.', fx: [{ op: 'perk', key: 'towerDmg', add: 0.1 }, { op: 'resolve' }] },
+        { id: 'burn', label: 'Burn it in the square', hint: 'Heat -25 and +1 food every dawn: people sleep better.', fx: [{ op: 'heat', n: -25 }, { op: 'flag', key: 'garden' }, { op: 'resolve' }] },
+      ],
+    },
+  ],
+};
+
+// A faction: people are dangerous too
+THREADS.toll = {
+  title: 'The Bridge Crew',
+  cast: { boss: { role: 'raider', names: ['Dario Kent', 'Mags Okoro', 'Viktor Hale', 'Rosa Quint'], epithet: 'the Toll-Keeper', persona: { traits: ['charming', 'greedy', 'loyal to their own'], quirk: 'flips a coin before every answer', want: 'their crew fed through winter', fear: 'being the last one left' }, secret: 'Their crew is half the size they claim. They are starving too.' } },
+  start: { day: 7 },
+  stages: [
+    {
+      id: 'demand', at: 'dawn', eyebrow: '[Faction encountered: The Bridge Crew]', title: 'A toll for the road',
+      speaker: 'boss', line: '"Heads, you pay and we keep the dead off your west road. Tails, we ring every bell in the city."',
+      scene: 'Six of them at your fence at sunrise, armed, clean, rested. Their leader flips a coin and catches it without looking. They want scrap to keep the west road quiet.',
+      choices: [
+        { id: 'pay', label: 'Pay the toll', hint: '-10 scrap. Quiet roads (heat -10 now), and they remember you kept your word.', cost: { gold: 10 }, fx: [{ op: 'heat', n: -10 }, { op: 'flag', key: 'paid' }, { op: 'advance' }] },
+        { id: 'refuse', label: 'Tell them to try it', hint: 'They ring the bells: +25 heat now. They will be back.', fx: [{ op: 'heat', n: 25 }, { op: 'flag', key: 'refused' }, { op: 'advance' }] },
+        { id: 'offer', label: 'Offer them a place instead', hint: '-6 food. If they say yes, their guns are yours. Their leader decides in two days.', cost: { food: 6 }, fx: [{ op: 'flag', key: 'offered' }, { op: 'advance' }] },
+      ],
+    },
+    {
+      id: 'answer', at: 'dawn', after: 2, eyebrow: '[Quest: The Bridge Crew]', title: 'The coin comes down',
+      speaker: 'boss', line: '"I flipped it. I didn\'t look. I\'m asking you instead."',
+      scene: 'They are back, fewer than before. The leader admits it: half their crew is gone, the rest are hungry. They do not want to be the last ones left out there.',
+      choices: [
+        { id: 'join', label: 'Bring the crew in', hint: '{name} joins as captain of the watch (towers +10%), +3 people. -4 food.', fx: [{ op: 'food', n: -4 }, { op: 'survivors', n: 3 }, { op: 'recruit', role: 'boss' }, { op: 'resolve' }] },
+        { id: 'trade', label: 'Trade, but keep the fence shut', hint: 'They sell you salvage: +14 scrap now, and they go.', fx: [{ op: 'gold', n: 14 }, { op: 'resolve' }] },
+        { id: 'away', label: 'Send them on', hint: 'They leave the city. Nothing changes.', fx: [{ op: 'resolve' }] },
+      ],
+    },
+  ],
+};
+
+// Small moments: one-shot storylets that fill quiet dawns. `when` must hold; each happens once per run.
+export const AMBIENT = [
+  { id: 'dog', when: S => S.night >= 3, eyebrow: '[Event]', title: 'A dog at the gate',
+    scene: 'A grey dog has followed you home from the ruins: ribs showing, one ear torn, tail going like mad. It will not leave the gate.',
+    choices: [{ id: 'keep', label: 'Let it in', hint: 'It barks when the dead come close: your hero moves 8% faster and the town sleeps better (+1 food each dawn).', fx: [{ op: 'perk', key: 'heroSpeed', mul: 1.08 }, { op: 'flag', key: 'garden' }] }, { id: 'shoo', label: 'Shoo it away', hint: 'One more mouth is one too many.', fx: [] }] },
+  { id: 'flag', when: S => S.night >= 4, eyebrow: '[Event]', title: 'Your flag on the overpass',
+    scene: 'Someone painted your orange flag on the motorway overpass, three metres tall. It can be seen for miles. So can you.',
+    choices: [{ id: 'leave', label: 'Leave it: let them find us', hint: '+2 people at the next dawn. +10 heat.', fx: [{ op: 'heat', n: 10 }, { op: 'flag', key: 'beacon' }] }, { id: 'paint', label: 'Paint over it', hint: 'Heat -10.', fx: [{ op: 'heat', n: -10 }] }] },
+  { id: 'fever', when: S => S.night >= 4, eyebrow: '[Warning]', title: 'Fever in the bunks',
+    scene: 'Four of your people are coughing and burning up. Not bitten: just sick, the ordinary kind that used to be nothing.',
+    choices: [{ id: 'care', label: 'Nurse them', hint: '-5 food. Everyone pulls through.', cost: { food: 5 }, fx: [{ op: 'food', n: -5 }] }, { id: 'rest', label: 'Let them rest and hope', hint: 'One of them does not make it (-1 person). The rest are weak: -1 pair of hands today.', fx: [{ op: 'survivors', n: -1 }, { op: 'handsToday', n: -1 }] }] },
+  { id: 'wedding', when: S => S.night >= 6, eyebrow: '[Event]', title: 'A wedding at the keep',
+    scene: 'Two of your people want to get married on the keep steps, tonight, before the bell. Someone found a suit. Someone found a cake, somehow.',
+    choices: [{ id: 'yes', label: 'Hold the wedding', hint: '-4 food. Everyone works harder: +2 pairs of hands today.', cost: { food: 4 }, fx: [{ op: 'food', n: -4 }, { op: 'handsToday', n: 2 }] }, { id: 'no', label: 'Not now. Maybe after the war', hint: 'Nothing changes.', fx: [] }] },
+  { id: 'thief', when: S => S.buildings.some(b => b.type === 'generator'), eyebrow: '[Event]', title: 'Diesel thief',
+    scene: 'Somebody has been siphoning the generator at night. Tonight you catch her: a girl, maybe fifteen, with a jerrycan bigger than she is.',
+    choices: [{ id: 'hire', label: 'Put her to work on the generator', hint: '+1 person and +1 power.', fx: [{ op: 'survivors', n: 1 }, { op: 'power', n: 1 }] }, { id: 'chase', label: 'Chase her off', hint: 'She runs, yelling. +8 heat.', fx: [{ op: 'heat', n: 8 }] }] },
+  { id: 'window', when: S => S.night >= 8, eyebrow: '[Hidden scenario discovered]', title: 'A quest you never accepted',
+    scene: '[Quest: Find the clock that runs backwards. Recommended level: 40.] The window will not close. Somewhere in this city a clock runs the wrong way, and the System wants you to find it.',
+    choices: [{ id: 'accept', label: '[Accept]', hint: 'A rare blessing now. The System will remember.', fx: [{ op: 'blessing' }, { op: 'flag', key: 'clockQuest' }] }, { id: 'decline', label: '[Decline]', hint: 'The window flickers and goes away. For now.', fx: [] }] },
+];
+
 // Companion roles: what they give while they live, and what they can do at your side
 export const ROLES = {
   engineer: { post: 'Engineer', bonus: '+3 power', power: 3 },
   teacher: { post: 'Quartermaster', bonus: '+1 pair of hands every day', hands: 1 },
   revenant: { post: 'Revenant', bonus: 'the dead slow near the keep', lullaby: 0.8 },
+  raider: { post: 'Captain of the Watch', bonus: 'towers +10% damage', towers: 0.1 },
 };
 
 // Offline chat: what companions say when Claude is not connected (topic buttons)

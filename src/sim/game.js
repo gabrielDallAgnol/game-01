@@ -135,7 +135,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const heroMax = () => Math.round((HC.hp + S.P.heroHp + (mastery('champion') ? 25 : 0)) * S.P.heroHpMult);
   let sc = null, story = null;
   const owns = k => S.landmarks.some(l => l.owned && l.kind === k);
-  const towerMult = () => (1 + S.P.towerDmg + (sc ? sc.towerBonus() : 0) + (owns('police') ? 0.15 : 0)) * (mastery('deadeye') ? 1.4 : 1);
+  const towerMult = () => (1 + S.P.towerDmg + (sc ? sc.towerBonus() : 0) + (owns('police') ? 0.15 : 0) + (story ? story.bonus.towers() : 0)) * (mastery('deadeye') ? 1.4 : 1);
   const keepMult = () => (1 + S.P.keepDmg) * (mastery('deadeye') ? 1.4 : 1);
   const upkeep = () => Math.max(0, S.buildings.reduce((a, b) => a + ((BUILDINGS[b.type].upkeep || [])[b.level - 1] || 0), 0) - S.P.upkeepCut * 2);
   const foodNeed = () => Math.ceil(pop() * START.foodPerCitizen);
@@ -402,7 +402,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     }
     const dur = WAVES.duration(n), surges = WAVES.surges(n);
     const q = list.map((e, k) => ({ ...e, t: Math.floor(k * surges / list.length) / surges * dur + rng.range(0, 2.5) }));
-    if (isBloodMoon(n)) for (const kind of bossesFor(n)) q.push({ kind, nest: nests[rng.int(nests.length)], t: dur * 0.6 + rng.range(0, 6) });
+    if (isBloodMoon(n)) { const bs = bossesFor(n); const uq = S.unique && !S.unique.slain && S.unique.night === n; bs.forEach((kind, k) => q.push({ kind, unique: uq && k === 0, nest: nests[rng.int(nests.length)], t: dur * 0.6 + rng.range(0, 6) })); }
     if (S.purge !== null) {
       let pb = purgeBudget(S.purge, n);
       const last = dur * (surges - 1) / surges;
@@ -472,6 +472,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (HC.volleyPays && src === 'volley') { earn(HC.volleyPays); ev('bountyGold', { x: m.x, y: m.y, gold: HC.volleyPays }); }
     S.stats.killsByKind[m.kind] = (S.stats.killsByKind[m.kind] || 0) + 1;
     if (m.kind === 'guardian' || m.kind === 'gravelord') S.stats.bosses++;
+    if (m.unique && S.unique) { S.unique.slain = true; S.picks.push('nest'); syncPicks(); toast(`[Unique Monster slain: ${m.unique}] A legendary blessing waits at dawn.`, 'good'); if (story) { story.chron(`Killed ${m.unique}, the unique monster.`, 5, ['unique']); story.grant('uniqueSlayer'); } }
     const D = MOBS[m.kind];
     if (S.P.lifesteal && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 6) S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + S.P.lifesteal);
     if (S.P.bounty && S.kills % 3 === 0) earn(1);
@@ -1436,6 +1437,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       S.qT += dt;
       while (S.queue.length && S.queue[0].t <= S.qT) {
         const q = S.queue.shift(), m = spawnAtNest(q.kind, q.nest);
+        if (q.unique) { m.hp = m.maxHp = Math.ceil(m.maxHp * S.unique.mult); m.unique = S.unique.name; m.speed *= 0.85; ev('firstDead', { id: m.id }); toast(`[Unique Monster: ${S.unique.name}] It is here.`, 'bad'); }
         if (q.first) { m.hp = m.maxHp = TIDE.first.hp; m.speed *= TIDE.first.speed; m.first = true; ev('firstDead', { id: m.id }); toast('Something crawls out of the dark. It is coming for the town.', 'bad'); }
       }
       stepMobs(dt);
@@ -1452,7 +1454,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }
     // sunrise: whatever still walks long after the last surge burns away
     if (S.phase === 'night' && !S.queue.length && S.mobs.some(m => !m.roam && m.stream === undefined) && S.qT > WAVES.duration(S.night) + 90) {
-      for (const m of S.mobs.filter(q => !q.roam && q.stream === undefined)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
+      for (const m of S.mobs.filter(q => !q.roam && q.stream === undefined)) { if (m.unique && S.unique) S.unique.escaped = true; S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
       toast('The sun rises and the last of the dead burn away.');
     }
     if (S.phase === 'night' && !S.over && !S.queue.length && !S.mobs.some(m => !m.roam && m.stream === undefined)) dawn();
