@@ -62,6 +62,10 @@ Inspired by Red Alert 2 / OpenRA: you always see where things can go, and walls 
 | Tap to walk | The hero plans a path around buildings (A*) instead of stopping at the first wall. |
 | The dead | Can no longer squeeze diagonally between two building corners or posts. |
 
+## Balance after placement + pathing (Oct 18, evening)
+Smarter hero pathing helped the fighters more than the Merchant (median 28–29 vs 24). Fix: sellswords 15 hp / 3 dmg, three per hire (max 9).
+24-run check (balanced + towers, careful): mean night warrior 25.2, archer 24.6, merchant 24.3. Medians cluster at blood moons (19/24/29). All balance gates pass.
+
 ## Next drop: town stats (agreed direction)
 - **Main system: scavenge runs** (Dying Light / State of Decay / Project Zomboid): ruins in unclaimed regions hold loot. Send survivors out by day; the further out, the better the loot and the risk. Survivors arrive with traits (Medic, Carpenter, Coward…).
 - **Infection and noise as natural events,** not tied to buildings. For example: a scavenger comes back bitten (treat, quarantine or exile), or a storm whose thunder draws a horde from one side.

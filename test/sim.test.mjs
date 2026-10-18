@@ -209,7 +209,7 @@ test('heroes: abilities work and the merchant hires sellswords', () => {
     const t = g.map.town; S.hero.x = t.x; S.hero.y = t.y + 3.5;
     if (S.mobs[0]) { S.hero.x = S.mobs[0].x; S.hero.y = S.mobs[0].y; }
     const ok = g.useAbility(S.mobs[0]?.x, S.mobs[0]?.y);
-    if (hero === 'merchant') { assert.equal(ok, true); assert.equal(S.allies.length, 2); assert.equal(S.gold, 40); }
+    if (hero === 'merchant') { assert.equal(ok, true); assert.equal(S.allies.length, 3); assert.equal(S.gold, 40); }
     else assert.ok(S.ability.cd > 0 || !ok, `${hero} ability did nothing`);
     assert.equal(g.useAbility(), false, 'ability ignored its cooldown');
   }

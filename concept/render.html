@@ -1,0 +1,91 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>concept render</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+</head><body>
+<script src="lib/three.min.js"></script>
+<script src="lib/CopyShader.js"></script>
+<script src="lib/EffectComposer.js"></script>
+<script src="lib/RenderPass.js"></script>
+<script src="lib/ShaderPass.js"></script>
+<script src="lib/MaskPass.js"></script>
+<script src="lib/SAOShader.js"></script>
+<script src="lib/DepthLimitedBlurShader.js"></script>
+<script src="lib/UnpackDepthRGBAShader.js"></script>
+<script src="lib/SAOPass.js"></script>
+<script src="lib/SimplexNoise.js"></script>
+<script src="lib/SSAOShader.js"></script>
+<script src="lib/SSAOPass.js"></script>
+<script src="lib/LuminosityHighPassShader.js"></script>
+<script src="lib/UnrealBloomPass.js"></script>
+<script src="lib/SMAAShader.js"></script>
+<script src="lib/SMAAPass.js"></script>
+<script src="lib/RoundedBoxGeometry.js"></script>
+<script src="lib/BufferGeometryUtils.js"></script>
+<script src="kit.js"></script>
+<script src="scenes.js"></script>
+<script>
+// Offline concept renderer: linear HDR → SAO → bloom → grade (ACES, saturation, lift/gain, vignette) → SMAA.
+const q = new URLSearchParams(location.search);
+const W = +(q.get('w') || 1600), H = +(q.get('h') || 900), name = q.get('scene') || 'test';
+const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H);
+renderer.outputEncoding = THREE.LinearEncoding; renderer.toneMapping = THREE.NoToneMapping;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.physicallyCorrectLights = false;
+document.body.appendChild(renderer.domElement);
+
+const GradeShader = {
+  uniforms: {
+    tDiffuse: { value: null }, exposure: { value: 1.0 }, saturation: { value: 1.0 }, contrast: { value: 1.0 },
+    lift: { value: new THREE.Vector3(0, 0, 0) }, gain: { value: new THREE.Vector3(1, 1, 1) }, vignette: { value: 0.35 },
+    resolution: { value: new THREE.Vector2(W, H) }, grain: { value: 0.015 },
+  },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float exposure, saturation, contrast, vignette, grain; uniform vec3 lift, gain; uniform vec2 resolution;
+    varying vec2 vUv;
+    vec3 aces(vec3 x){ const float a=2.51,b=0.03,c=2.43,d=0.59,e=0.14; return clamp((x*(a*x+b))/(x*(c*x+d)+e),0.0,1.0); }
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+    void main(){
+      vec3 c = texture2D(tDiffuse, vUv).rgb * exposure;
+      c = aces(c);
+      c = pow(c, vec3(1.0/2.2));
+      float l = dot(c, vec3(0.2126,0.7152,0.0722));
+      c = mix(vec3(l), c, saturation);
+      c = (c - 0.5) * contrast + 0.5;
+      c = c * gain + lift * (1.0 - c);
+      vec2 d = vUv - 0.5; d.x *= resolution.x / resolution.y;
+      c *= 1.0 - vignette * smoothstep(0.35, 1.05, length(d));
+      c += (hash(vUv * resolution) - 0.5) * grain;
+      gl_FragColor = vec4(clamp(c,0.0,1.0), 1.0);
+    }`,
+};
+
+window.__done = false;
+try {
+  const S = SCENES[name]({ W, H });
+  const { scene, camera, look } = S;
+  const rt = new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  const composer = new THREE.EffectComposer(renderer, rt);
+  composer.setPixelRatio(1); composer.setSize(W, H);
+  composer.addPass(new THREE.RenderPass(scene, camera));
+  if (look.sao !== false) {
+    // SSAO renders the beauty pass itself, so it replaces the plain render pass
+    composer.passes.length = 0;
+    const ao = new THREE.SSAOPass(scene, camera, W, H);
+    const o = Object.assign({ kernelRadius: 1.2, minDistance: 0.0004, maxDistance: 0.012 }, look.sao || {});
+    ao.kernelRadius = o.kernelRadius; ao.minDistance = o.minDistance; ao.maxDistance = o.maxDistance;
+    composer.addPass(ao);
+  }
+  if (look.bloom) composer.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(W, H), look.bloom.strength, look.bloom.radius, look.bloom.threshold));
+  const grade = new THREE.ShaderPass(GradeShader);
+  for (const k of Object.keys(look.grade || {})) { const v = look.grade[k]; if (Array.isArray(v)) grade.uniforms[k].value.set(...v); else grade.uniforms[k].value = v; }
+  composer.addPass(grade);
+  const smaa = new THREE.SMAAPass(W, H); composer.addPass(smaa);
+  if (S.before) S.before(renderer);
+  composer.render();
+  window.__info = S.info || '';
+  window.__done = true;
+} catch (e) { window.__error = String(e && e.stack || e); window.__done = true; }
+</script>
+</body></html>
