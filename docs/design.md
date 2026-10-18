@@ -83,7 +83,7 @@ The first part of the agreed next drop: the ruins hold supplies, and survivors g
 
 | Rule | Detail |
 |---|---|
-| Sites | One supply cache per region, at a doorway into a ruined block (or the open spot nearest the region's middle). A glowing amber marker by day. Tap it to open the site panel. |
+| Sites | One supply cache per region, at a doorway into a ruined block (or the open spot nearest the region's middle). A glowing marker by day, coloured by distance (pale on your land, amber next door, red deep in the city). Tap it to open the site panel. Crews walk out at nightfall and home at dawn; a lantern burns at a site while a crew is there. |
 | Distance | Counted in regions from your land. 0 = inside your land, 1 = next door, 2 = deep in the city. Further than 2 is out of reach. |
 | Crew | You start with 2 survivors (max 8), each with a trait. Runs can find new survivors. |
 | A run | Pick who goes, pay supplies (1 / 3 / 5 gold per survivor by distance). They leave now and come back at dawn. Call them back before the bell for a refund. One crew per site; each site has 2–3 searches. |
@@ -91,7 +91,7 @@ The first part of the agreed next drop: the ruins hold supplies, and survivors g
 | Risk per survivor | Death 0 / 8 / 18%, +10% if the site's hive is awake, +8% on a blood moon. Bites 0 / 10 / 15%. |
 | Bites | A bitten survivor turns at nightfall inside the town (a runner at the keep) unless treated: 4 food or 6 gold, from the Crew card. Or turn them out. The Crew button turns red while someone is bitten. |
 | Traits | Scout (run half as deadly), Medic (no bites on their run), Mule (double food), Tinker (more free buildings), Marksman (at home at night: towers +6%), Cook (at home at night: +2 food at dawn), Coward (never dies, half loot). Sending a Marksman or Cook costs their home bonus that night. |
-| Sim | `src/sim/scavenge.js`, own random stream: a run without scavenging plays out exactly as before. Bots don't scavenge yet. |
+| Sim | `src/sim/scavenge.js`, own random stream: a run without scavenging plays out exactly as before. Bots scavenge only with `node tools/balance.mjs --scav 1`. |
 
 ## Clearing rubble (Oct 18, evening)
 Rubble (the old forest cells) on your land blocks homes, farms and towers but slows the dead (×1.4 slower). Tap it by day to clear a 3×3 patch for 1 gold per cell: it becomes paved, buildable ground, and the dead cross it at full speed. A trade between room to build and a natural slow zone. The placement hint says "Rubble in the way. Tap it to clear it first." Bots don't clear yet.
