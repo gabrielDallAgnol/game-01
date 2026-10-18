@@ -110,6 +110,21 @@ Sound is synthesised with WebAudio (no files): a cracked bell at nightfall, a da
 
 Also this evening: auto graphics (steps HQ → MQ → LQ after ~6 s under 30 fps, unless you picked a level), calmer town ground, closer desktop camera, balance bots pack buildings on a 3-cell grid.
 
+## Balance finding: dense towns snowball (Oct 18, evening)
+The balance bots used to build only on the map's suggested lots (up to 9 per region, a 4-cell grid). Now they pack buildings on a 3-cell grid, like a player can with the new 2×2 homes and 1-cell towers.
+
+| Measure | Lots-only bots (afternoon) | Dense bots (tonight) |
+|---|---|---|
+| Median night reached | 29 (mean 24) | 39 (mean 38) |
+| Tower DPS, night 20 / 25 | 1 670 / 1 880 | 5 490 / 8 140 |
+| Gold banked, night 25 | 3 800 | 4 260 |
+| Regions claimed | — | 17 of 17 (whole map) |
+
+Late game, gold piles up either way; the real limit on defence is how much land you fill. A player who fills the land now outgrows the waves. A 2-cell gap between towers was tried and made no measurable difference (reverted). The balance gates (`npm run test:balance`) are expected to fail until this is fixed. Options for Gabriel:
+1. **Towers need crew:** each tower is manned by people from your homes (ties defence to the city and to the scavenging survivors).
+2. **A build cap per keep level**, Thronefall-style.
+3. **Waves scale with town size** (buildings or land), not just nights and regions.
+
 ## Next drop: town stats (agreed direction)
 - **Main system: scavenge runs** (v1 shipped, see above) (Dying Light / State of Decay / Project Zomboid): ruins in unclaimed regions hold loot. Send survivors out by day; the further out, the better the loot and the risk. Survivors arrive with traits (Medic, Carpenter, Coward…).
 - **Infection and noise as natural events,** not tied to buildings. For example: a scavenger comes back bitten (treat, quarantine or exile), or a storm whose thunder draws a horde from one side.
