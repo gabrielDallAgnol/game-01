@@ -13,7 +13,7 @@ import { createAudio } from './audio.js';
 import { createChronicler } from './story-ai.js';
 import { createSaves } from './saves.js';
 import { TITLES, ROLES, BARKS } from '../content/story.js';
-import { RARITY } from '../content/districts.js';
+import { RARITY, KITS } from '../content/districts.js';
 import { LEGACY, fameOf } from '../content/legacy.js';
 
 const $ = s => document.querySelector(s);
@@ -551,7 +551,7 @@ export function startApp() {
     }
     if (selected.type === 'region' && S.sealed[selected.id]) {
       const known = S.kits[selected.id]; $('#pEyebrow').textContent = 'Sealed district'; $('#pTitle').textContent = names[selected.id];
-      body.innerHTML = `<div class="stat"><span>Behind the quarantine fence${known ? ` · scouts say: <b>${known === 'signature' ? 'a landmark' : known}</b>` : ''}</span></div><div class="tiny" style="white-space:normal">Districts open through the story: your scouts offer a route every other dawn, and some calls cut a way straight to where you are needed. You cannot walk in until then. The dead can.</div>`;
+      body.innerHTML = `<div class="stat"><span>Behind the quarantine fence${known ? ` · scouts say: <b>${known === 'signature' ? 'a landmark' : (KITS[known] || {}).name || known}</b>` : ''}</span></div><div class="tiny" style="white-space:normal">Districts open through the story: your scouts offer a route every other dawn, and some calls cut a way straight to where you are needed. You cannot walk in until then. The dead can.</div>`;
       return;
     }
     if (selected.type === 'region') {
