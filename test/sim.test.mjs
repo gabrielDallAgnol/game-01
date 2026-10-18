@@ -385,14 +385,12 @@ test('hands, rising costs, power and heat', () => {
   assert.ok(S.mobs.length > before, 'the hive did not burst');
 });
 
-test('blessings: each hero only sees their own family plus the shared ones', () => {
+test('blessings: a Calling mostly sees its own family; a Survivor sees all three', () => {
+  const count = hero => { const g = createGame({ seed: 3, hero }); const S = g.state, n = {}; for (let k = 0; k < 60; k++) { S.picks = ['dawn']; S.reroll.free = 1; g.reroll(); for (const id of S.offer) { const f = (PERKS.find(p => p.id === id) || {}).fam; n[f] = (n[f] || 0) + 1; } } return n; };
   for (const [hero, own, others] of [['warrior', 'hero', ['ranger', 'scavver']], ['archer', 'ranger', ['hero', 'scavver']], ['merchant', 'scavver', ['hero', 'ranger']]]) {
-    const g = createGame({ seed: 3, hero }); const S = g.state, seen = new Set();
-    for (let k = 0; k < 40; k++) { S.picks = ['dawn']; S.reroll.free = 1; g.reroll(); for (const id of S.offer) seen.add(id); }
-    const fams = new Set([...seen].map(id => (PERKS.find(p => p.id === id) || {}).fam));
-    for (const f of others) assert.ok(!fams.has(f), `${hero} was offered ${f} blessings`);
-    assert.ok(fams.has(own), `${hero} never saw their own family`);
+    const n = count(hero); for (const f of others) assert.ok((n[own] || 0) > (n[f] || 0), `${hero}: ${f} offered as often as ${own}`);
   }
+  const s = count('survivor'); for (const f of ['hero', 'ranger', 'scavver']) assert.ok(s[f] > 0, `a Survivor never saw ${f}`);
 });
 
 test('build zone: near the keep at first, and every building widens it', () => {
@@ -476,4 +474,18 @@ test('districts: sealed at the start, opened by choice, identity decided when of
   assert.ok(g.openDistrict(r)); assert.equal(S.sealed[r], 0);
   if (site) assert.notEqual(site.kind, 'unknown', 'the site kept no identity');
   assert.ok(g.frontier().length >= front.length - 1);
+});
+
+test('evolution: a Survivor takes a Calling, then a final class from a second family', async () => {
+  const { PERKS } = await import('../src/content/perks.js');
+  const g = createGame({ seed: 8, hero: 'survivor' }); const S = g.state; readyDay(g);
+  const take = id => { S.picks = ['dawn']; S.offer = [id]; S.pendingPicks = 1; g.choosePerk(id); };
+  const ranger = PERKS.filter(p => p.fam === 'ranger' && p.max >= 1).map(p => p.id);
+  take('steel'); assert.equal(S.story.encounters.length, 0, 'evolved after one blessing');
+  take('steel'); const e = S.story.encounters[0]; assert.ok(e && e.kind === 'evolve', 'no Calling offered');
+  g.choose('evolve'); assert.equal(S.heroClass, 'warrior');
+  take(ranger[0]); take(ranger[1]);
+  const f = S.story.encounters[0]; assert.ok(f && f.kind === 'evolve', 'no final class offered');
+  g.choose('evolve'); assert.equal(S.heroClass, 'vanguard'); assert.equal(g.heroDef.name, 'Vanguard');
+  assert.ok(S.hero.maxHp >= 34);
 });

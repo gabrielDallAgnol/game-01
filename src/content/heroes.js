@@ -1,6 +1,11 @@
 // Hero classes. `attack: null` means the hero never fights. Every hero has one ability button.
 
 export const HEROES = {
+  survivor: {
+    name: 'Survivor', blurb: 'Nobody yet: a length of pipe, a work jacket and a status window. What you become depends on the blessings you take.',
+    hp: 24, speed: 4.4, attack: { kind: 'melee', dmg: 2.2, reach: 2.0, rate: 0.6 },
+    ability: { id: 'shove', name: 'Shove', cooldown: 14, radius: 2.8, dmg: 2, push: 2.4 },
+  },
   warrior: {
     name: 'Brawler', blurb: 'Fire axe and a work jacket. Holds the line up close. War Cry pulls the dead onto you while you shrug off half their damage.',
     hp: 30, speed: 4.3, attack: { kind: 'melee', dmg: 3, reach: 2.2, rate: 0.55 },
@@ -18,6 +23,16 @@ export const HEROES = {
   },
 };
 export const HERO_ORDER = ['warrior', 'archer', 'merchant'];
+// final classes: a Calling plus a second hero family. Each keeps its Calling's ability and adds one twist.
+Object.assign(HEROES, {
+  vanguard: { ...HEROES.warrior, name: 'Vanguard', base: 'warrior', blurb: 'Brawler who learned to throw: every swing also strikes a second dead within reach.', hp: 34, attack: { kind: 'melee', dmg: 3.4, reach: 2.5, rate: 0.55 }, twin: true },
+  warlord: { ...HEROES.warrior, name: 'Warlord', base: 'warrior', blurb: 'War Cry pays: every dead that falls near you while it lasts pays 1 scrap. Tougher than anyone.', hp: 42, cryPays: 1 },
+  deadeye: { ...HEROES.archer, name: 'Deadeye', base: 'archer', blurb: 'Ranger who sells the shot: reach 8, and every dead your Volley kills pays 2 scrap.', hp: 22, attack: { kind: 'ranged', dmg: 2, reach: 8, rate: 0.8 }, volleyPays: 2 },
+});
+// which hero family leads to which Calling, and which pair to which final class
+export const CALLINGS = { hero: 'warrior', ranger: 'archer', scavver: 'merchant' };
+export const FINALS = { 'archer+warrior': 'vanguard', 'merchant+warrior': 'warlord', 'archer+merchant': 'deadeye' };
+export const EVOLVE_AT = 2;   // blessings of one hero family that unlock its Calling (and the second family the final class)
 
 export const MERC = { hp: 15, dmg: 3, rate: 0.8, speed: 5.5, leash: 6, reach: 1.1 };
 export const PURSE = { chance: 0.25, life: 12, value: { default: 1, brute: 3, guardian: 8, gravelord: 8 } };

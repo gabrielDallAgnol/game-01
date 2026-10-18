@@ -13,7 +13,7 @@ import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE } from './figures.js';
 const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
 const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
 const FOOT = { house: 2, farm: 2, tower: 1, workshop: 3, market: 3, generator: 2 };   // cells each building covers   // world units per metre of each kit model
-const HERO_RIG = { warrior: 'brawler', archer: 'ranger', merchant: 'scavver', steward: 'scavver' };
+const HERO_RIG = { warrior: 'brawler', archer: 'ranger', merchant: 'scavver', steward: 'scavver', survivor: 'brawler', vanguard: 'brawler', warlord: 'brawler', deadeye: 'ranger' };
 const HOUSE_COLORS = ['sand', 'bone', 'stone', 'pale'];
 const HIVES = ['metro', 'petrol', 'hospital'];
 
@@ -362,7 +362,8 @@ export function createView(canvas, game, opts = {}) {
   const dying = [], effects = [];
   const crowd = createCrowd(world); crowd.warm(['walker', 'runner']);
 
-  const heroRig = liveRig(K.heroes[HERO_RIG[S.heroClass] || 'brawler']()); world.add(heroRig.g);
+  let heroRig = liveRig(K.heroes[HERO_RIG[S.heroClass] || 'brawler']()), rigClass = S.heroClass; world.add(heroRig.g);
+  function syncRig() { if (rigClass === S.heroClass) return; const want = HERO_RIG[S.heroClass] || 'brawler'; if (want !== HERO_RIG[rigClass]) { world.remove(heroRig.g); heroRig = liveRig(K.heroes[want]()); world.add(heroRig.g); } rigClass = S.heroClass; burst(S.hero.x, S.hero.y, 2.2, '#7fd4ff'); }
   const heroBar = makeBar('h', 1.0);
   const arrowGeo = new THREE.BoxGeometry(0.04, 0.04, 0.6), spitGeo = new THREE.IcosahedronGeometry(0.13, 0);
   const arrowMat = new THREE.MeshBasicMaterial({ color: lc('#f0e2c4').multiplyScalar(1.5) }), spitMat = new THREE.MeshBasicMaterial({ color: lc('#b4ff4e').multiplyScalar(2) });
@@ -685,7 +686,7 @@ export function createView(canvas, game, opts = {}) {
     for (const [id, f] of flameFor) if (!mobState.has(id)) { fx.remove(f); flames.push(f); flameFor.delete(id); }
 
     // hero
-    heroRig.g.visible = !h.dead; heroRig.g.position.copy(W(h.x, h.y));
+    syncRig(); heroRig.g.visible = !h.dead; heroRig.g.position.copy(W(h.x, h.y));
     let df = h.face - heroRig.g.rotation.y; while (df > Math.PI) df -= Math.PI * 2; while (df < -Math.PI) df += Math.PI * 2; heroRig.g.rotation.y += df * Math.min(1, dt * 14);
     heroRig.pose(h.moving, time * 10, h.swing > 0 ? 1 - h.swing / 0.25 : -1);
     heroRing.visible = !h.dead; heroRing.position.copy(W(h.x, h.y, 0.05));

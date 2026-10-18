@@ -4,9 +4,9 @@
 
 // Each hero has a family of their own; the town families (bow, stone, harvest) are shared.
 export const FAMILIES = {
-  hero:    { name: 'Brawler', color: '#e58a6a', hero: 'warrior' },
-  ranger:  { name: 'Ranger',  color: '#7fc4d8', hero: 'archer' },
-  scavver: { name: 'Scavver', color: '#d9b45a', hero: 'merchant' },
+  hero:    { name: 'Brawn', color: '#e58a6a', hero: 'warrior', path: 'Brawler' },
+  ranger:  { name: 'Aim',  color: '#7fc4d8', hero: 'archer', path: 'Ranger' },
+  scavver: { name: 'Wits', color: '#d9b45a', hero: 'merchant', path: 'Scavver' },
   bow:     { name: 'Bow',     color: '#eaa441' },
   stone:   { name: 'Stone',   color: '#a9bccd' },
   harvest: { name: 'Harvest', color: '#a3c65c' },

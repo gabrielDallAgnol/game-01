@@ -4,19 +4,19 @@
 import { createGame } from '../src/sim/game.js';
 import { heroTick, chooseStory } from './bot.mjs';
 
-const diff = process.argv[2] || 'survivor', DAYS = +(process.argv[3] || 14), SEEDS = +(process.argv[4] || 4), hero = process.argv[5] || 'warrior';
+const diff = process.argv[2] || 'survivor', DAYS = +(process.argv[3] || 14), SEEDS = +(process.argv[4] || 4), hero = process.argv[5] || 'warrior', AUTO = process.argv[6] === 'auto';
 const biomes = ['riverbend', 'highland', 'lakeshore', 'vale'];
 const out = [];
 for (let s = 0; s < SEEDS; s++) {
   const t0 = Date.now();
   const g = createGame({ seed: 100 + s, mapSeed: 300 + s, biome: biomes[s % 4], hero, difficulty: diff });
-  const S = g.state; S.builders = 'balanced';
+  const S = g.state; S.builders = 'balanced'; if (AUTO) g.setAutopilot(true);
   let steps = 0, heatSum = 0, heatN = 0, peakHeat = 0, blackoutT = 0, minKeep = 1;
   const nightLog = [];
   while (!S.over && S.night <= DAYS && steps < 60 * 60 * 60) {
     while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]);
     if (S.story.encounters.length) chooseStory(g);
-    if (steps % 15 === 0) heroTick(g, 'active');
+    if (!AUTO && steps % 15 === 0) heroTick(g, 'active');
     const n = S.night, ph = S.phase;
     g.step(); steps++;
     if (steps % 60 === 0) { heatSum += S.heat; heatN++; peakHeat = Math.max(peakHeat, S.heat); if (S.blackout) blackoutT++; }

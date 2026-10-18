@@ -60,7 +60,7 @@ export function startApp() {
       <p>Build by day. Hold the keep by night. Clear the hives around you to claim more of the city, and see how many nights you last.</p>
       <p class="tiny">Build out from the keep: every building widens your zone · claim landmarks for a forward base · after big nights, supply drops land in the wild: go get them yourself.</p>
       <h2>Your hero</h2>
-      <div class="choices">${HERO_ORDER.map(h => `<button class="choice" data-hero="${h}" aria-pressed="${setup.hero === h}"><b>${HEROES[h].name}</b><span>${HEROES[h].blurb}</span><span class="tiny">Ability: ${HEROES[h].ability.name}</span></button>`).join('')}</div>
+      <p class="tiny" style="white-space:normal">You start as a <b>Survivor</b>. Blessings come in three hero families: <b>Brawn</b>, <b>Aim</b> and <b>Wits</b>. Two of one family and the System offers its Calling (Brawler, Ranger or Scavver); two of a second family and you evolve into a final class: Vanguard, Warlord or Deadeye.</p>
       <h2>Difficulty</h2>
       <div class="choices">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="choice" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><b>${d.name}</b><span>${d.blurb}</span></button>`).join('')}</div>
       <h2>Your land</h2>
@@ -79,7 +79,7 @@ export function startApp() {
   }
 
   function begin(mapSeed, biome) {
-    game = createGame({ seed: setup.runSeed, mapSeed, biome, hero: setup.hero, mode: 'classic', difficulty: setup.difficulty });
+    game = createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty });
     names = regionNames(mapSeed, game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
     if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
@@ -129,7 +129,7 @@ export function startApp() {
       const p = PERKS.find(q => q.id === id), F = FAMILIES[p.fam];
       const combo = SYNERGIES.find(sy => (sy.a === id && game.has(sy.b)) || (sy.b === id && game.has(sy.a)));
       return `<button class="perk ${p.rarity}${p.pact ? ' pact' : ''}" data-perk="${id}" style="--fam:${F.color}">
-        <span class="pf">${F.name}<span class="pips">${pips(p.fam)}</span><span class="rar">${p.pact ? 'Pact' : p.rarity}</span></span>
+        <span class="pf">${F.name}${F.path && S.heroClass === 'survivor' ? ` · ${F.path} path` : ''}<span class="pips">${pips(p.fam)}</span><span class="rar">${p.pact ? 'Pact' : p.rarity}</span></span>
         <b>${p.name}${p.max > 1 ? ` <span class="lv">${(S.P.taken[id] || 0) + 1}/${p.max}</span>` : ''}${combo ? ' <span class="combo">Combo!</span>' : ''}</b>
         <span class="pd">${p.desc}</span>${p.pact ? `<span class="pcost">Price: ${p.cost}</span>` : ''}${combo ? `<span class="pcombo">${combo.text}</span>` : ''}</button>`;
     }).join('');
@@ -597,6 +597,7 @@ export function startApp() {
   $('#bell').onclick = ringBell;
   $('#logBtn').onclick = showLog;
   $('#crewBtn').onclick = () => { if (game) showStatus(); };
+  $('#autoBtn').onclick = () => { if (!game) return; const on = !game.state.autopilot; game.setAutopilot(on); $('#autoBtn').setAttribute('aria-pressed', on); $('#autoTag').hidden = !on; toast(on ? '[Autopilot on] Your hero defends the town and your people build. You still choose blessings and story moments.' : '[Autopilot off] Your hands again.', 'sys'); };
   let speed = 1; const SPEEDS = [1, 2, 3];
   $('#spdBtn').onclick = () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; $('#spdBtn').textContent = `${speed}×`; $('#spdBtn').classList.toggle('fast', speed > 1); };
   const showSound = () => { const b = $('#sndBtn'); b.classList.toggle('off', audio.muted()); b.setAttribute('aria-label', audio.muted() ? 'Sound off' : 'Sound on'); };

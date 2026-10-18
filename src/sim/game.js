@@ -5,7 +5,7 @@ import { generateMap, N, T, PASSABLE, idx, inside, LANDMARKS } from './mapgen.js
 import { computeFlow, computeNext } from './flow.js';
 import { BUILDINGS, KEEP, MAX_LEVEL, START, UNLOCKS, POWER, RISE, HANDS } from '../content/buildings.js';
 import { MOBS, WAVES, TIDE } from '../content/mobs.js';
-import { HEROES, MERC, PURSE, TRADES } from '../content/heroes.js';
+import { HEROES, MERC, PURSE, TRADES, CALLINGS, FINALS, EVOLVE_AT } from '../content/heroes.js';
 import { PERKS, FAMILIES, MASTERIES, SYNERGIES, ODDS, REROLL, freshPerkState } from '../content/perks.js';
 import { PACKS, PACK_RULES } from '../content/packs.js';
 import { createScavenge } from './scavenge.js';
@@ -55,12 +55,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const map = generateMap(mapSeed ?? seed, biome);
   const rng = new Rng(hashSeed(seed, 'run'));
   const perkRng = new Rng(hashSeed(seed, 'perks'));
-  const HC = HEROES[hero];
+  let HC = HEROES[hero];
   const DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
   const c = map.town.x;
 
   const S = {
-    seed, biome, map, heroClass: hero, mode, night: 1, phase: 'day', time: 0,
+    seed, biome, map, heroClass: hero, mode, evo: { calling: null, offered: {} }, night: 1, phase: 'day', time: 0,
     stock: { ...PACK_RULES.start }, packs: [], difficulty: DIFFICULTY[difficulty] ? difficulty : 'survivor', handsUsed: 0, handsExtra: 0, heat: 0, eruption: null, heatCool: 0, blackout: false, foreman: false,
     gold: START.gold, food: START.food, kills: 0, events: [],
     buildings: [], occ: new Int32Array(N * N).fill(-1), res: new Int32Array(N * N).fill(-1),
@@ -326,8 +326,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const hp = u.reduce((a, [, m]) => a + m.weight * m.hp, 0) / w, cost = u.reduce((a, [, m]) => a + m.weight * m.cost, 0) / w;
     return hp / cost;
   }
-  // first blood moon brings a nest guardian; from night 10 the Gravelord walks, one more every 10 nights
-  function bossesFor(n) { return n < 10 ? ['guardian'] : Array.from({ length: Math.floor(n / 10) }, () => 'gravelord'); }
+  // blood moons: a nest guardian at 5, two at 10, the Gravelord from 15 (one more every 10 nights)
+  function bossesFor(n) { return n < 10 ? ['guardian'] : n < 15 ? ['guardian', 'guardian'] : Array.from({ length: Math.floor((n - 5) / 10) }, () => 'gravelord'); }
   const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
   // a bigger town draws more dead: +1% per citizen past the first 15
   // noise: people, homes, workshops and gunfire carry; the louder the town, the more dead it draws
@@ -468,6 +468,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       const big = MOBS[m.kind].size >= BIG, pay = (big ? HC.ability.bigGold * (mastery('warband') ? 3 : 1) : HC.ability.gold) + S.P.bountyGold;
       earn(pay); S.stats.bountyGold = (S.stats.bountyGold || 0) + pay; ev('bountyGold', { x: m.x, y: m.y, gold: pay });
     }
+    if (HC.cryPays && S.hero.guardT > 0 && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 7) { earn(HC.cryPays); ev('bountyGold', { x: m.x, y: m.y, gold: HC.cryPays }); }
+    if (HC.volleyPays && src === 'volley') { earn(HC.volleyPays); ev('bountyGold', { x: m.x, y: m.y, gold: HC.volleyPays }); }
     S.stats.killsByKind[m.kind] = (S.stats.killsByKind[m.kind] || 0) + 1;
     if (m.kind === 'guardian' || m.kind === 'gravelord') S.stats.bosses++;
     const D = MOBS[m.kind];
@@ -968,8 +970,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
         tx = best.x; ty = best.y;
       }
       const dmg = A.dmg * S.P.abilityDmg * Math.sqrt(WAVES.hpScale(S.night)), rad = A.radius + S.P.abilityRadius;
-      for (const m of [...S.mobs]) if (Math.hypot(m.x - tx, m.y - ty) < rad) hitMob(m, dmg, 'hero');
+      for (const m of [...S.mobs]) if (Math.hypot(m.x - tx, m.y - ty) < rad) hitMob(m, dmg, HC.volleyPays ? 'volley' : 'hero');
       ev('volley', { x: tx, y: ty, r: rad });
+    } else if (A.id === 'shove') {
+      const rad = A.radius + S.P.abilityRadius;
+      for (const m of [...S.mobs]) { const d = Math.hypot(m.x - h.x, m.y - h.y); if (d > rad || m.kind === 'gravelord') continue; const k = A.push * (1 - d / rad * 0.5) / Math.max(0.3, MOBS[m.kind].size); const nx = m.x + (m.x - h.x) / (d || 1) * k, ny = m.y + (m.y - h.y) / (d || 1) * k; if (standable(m, nx, ny)) { m.x = nx; m.y = ny; } m.cd = Math.max(m.cd, 0.8); hitMob(m, A.dmg * S.P.abilityDmg, 'hero'); }
+      ev('warcry', { x: h.x, y: h.y, r: rad });
     } else if (A.id === 'bounty') {
       S.bountyT = A.duration + S.P.bountyTime + (mastery('warband') ? 10 : 0);
       ev('bounty', { t: S.bountyT }); toast('Bounty is on: every kill near you pays scrap.', 'good');
@@ -994,7 +1000,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const source = S.picks[0];
     S.offerSource = source;
     if (source.startsWith('mastery:')) { const fam = source.split(':')[1]; S.offer = MASTERIES[fam].map(m => `m:${m.id}`); return; }
-    const pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && !(FAMILIES[p.fam].hero && FAMILIES[p.fam].hero !== S.heroClass));
+    const pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && famOk(p.fam));
     const n = 3 + (source === 'dawn' ? (HC.extraOffer || 0) : 0);
     const odds = ODDS[source] || ODDS.dawn, out = [];
     const want = [];
@@ -1011,12 +1017,43 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       let cands = pool.filter(p => !out.includes(p.id) && p.rarity === rar && !(p.pact && pacts));
       if (!cands.length) cands = pool.filter(p => !out.includes(p.id) && !(p.pact && pacts));
       if (!cands.length) break;
-      const pk = cands[perkRng.weighted(cands.map(p => (1 + S.P.fam[p.fam] * 0.6) * (FAMILIES[p.fam].hero ? 2 : p.fam === 'bow' ? 0.7 : 1)))];
+      const pk = cands[perkRng.weighted(cands.map(p => (1 + S.P.fam[p.fam] * 0.6) * famWeight(p.fam)))];
       if (pk.pact) pacts++;
       out.push(pk.id);
     }
     S.offer = out;
     if (!out.length) { S.picks.shift(); rollOffer(); }
+  }
+  // hero families: a Survivor sees all three; a Calling sees its own (and, rarer, the others: a second one makes the final class);
+  // a final class sees its two
+  function famOk(f) {
+    const F = FAMILIES[f]; if (!F.hero) return true;
+    const cls = S.heroClass, H = HEROES[cls];
+    if (cls === 'survivor' || !H.base && !S.evo.final) return true;
+    return [H.base || cls, S.evo.second].includes(F.hero);
+  }
+  function famWeight(f) {
+    const F = FAMILIES[f]; if (!F.hero) return f === 'bow' ? 0.7 : 1;
+    const cls = S.heroClass; if (cls === 'survivor') return 1.3;
+    return F.hero === (HEROES[cls].base || cls) ? 2 : 0.6;
+  }
+  /** become another class: the Calling, then the final class */
+  function evolve(cls) {
+    const H = HEROES[cls]; if (!H) return false;
+    const was = HC.name; S.heroClass = cls; HC = H; S.ability.cd = 0;
+    if (H.base) S.evo.final = cls; else S.evo.calling = cls;
+    refreshMaxSoon(); ev('evolve', { cls });
+    toast(`[Class evolution: ${was} → ${H.name}] ${H.blurb}`, 'good');
+    return true;
+  }
+  function checkEvolution(fam) {
+    const F = FAMILIES[fam]; if (!F.hero || !story) return;
+    const n = S.P.fam[fam], cls = S.heroClass;
+    if (cls === 'survivor' && n >= EVOLVE_AT && !S.evo.offered[F.hero]) { S.evo.offered[F.hero] = true; story.offerEvolution(F.hero, cls); }
+    else if (cls !== 'survivor' && !HEROES[cls].base && F.hero !== cls && n >= EVOLVE_AT && !S.evo.offered['final']) {
+      const key = [cls, F.hero].sort().join('+'), fin = FINALS[key];
+      if (fin) { S.evo.offered.final = true; S.evo.second = F.hero; story.offerEvolution(fin, cls); }
+    }
   }
   function reroll() {
     if (!S.offer.length || S.offerSource.startsWith('mastery:')) return false;
@@ -1037,6 +1074,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       pk.fx(S.P); S.P.taken[id] = (S.P.taken[id] || 0) + 1; S.P.fam[pk.fam]++; S.cur.perks.push(id); S.stats.blessings++;
       for (const sy of SYNERGIES) if ((sy.a === id && has(sy.b)) || (sy.b === id && has(sy.a))) toast(`Combo! ${sy.text}`, 'good');
       if (S.P.fam[pk.fam] === 3 && !S.P.mastery[pk.fam] && !(pk.fam === 'hero' && !HC.attack)) S.picks.splice(1, 0, `mastery:${pk.fam}`);
+      checkEvolution(pk.fam);
     }
     for (const b of S.buildings) { const m = maxHpOf(b.type, b.level); if (!b.ruined) b.hp += m - b.maxHp; b.maxHp = m; }
     const km = keepMaxHp(); keep.hp = Math.min(km, keep.hp + Math.max(0, km - keep.maxHp)); keep.maxHp = km;
@@ -1120,6 +1158,25 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (best === goal && heroOk(goal)) path[path.length - 1] = { x: tx, y: ty };
     return path;
   }
+  // ---------- autopilot: the hero plays by itself (defends the town, fetches crates, rests when hurt) ----------
+  let autoT = 0, handT = 0;
+  function autoHero(dt) {
+    const h = S.hero; if (h.dead || (handT -= dt) > 0 || (autoT -= dt) > 0) return; autoT = 0.3;
+    const home = { x: c, y: c + 3.5 };
+    const A = HC.ability, near = r => S.mobs.filter(m => m.rise >= 1 && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < r).length;
+    if (A && S.ability.cd <= 0 && near(A.id === 'volley' ? 9 : 5) >= 4 && (A.id !== 'warcry' || h.hp > h.maxHp * 0.5)) useAbility();
+    if (h.hp < h.maxHp * 0.35) { api.heroTo(home.x, home.y); return; }
+    const threats = S.mobs.filter(m => m.rise >= 1 && (!m.roam || Math.hypot(m.x - c, m.y - c) < 12) && Math.hypot(m.x - c, m.y - c) < 15);
+    if (threats.length && HC.attack) {
+      threats.sort((a, b) => Math.hypot(a.x - c, a.y - c) - Math.hypot(b.x - c, b.y - c));
+      const m = threats[0], reach = HC.attack.reach * 0.8;
+      if (Math.hypot(m.x - h.x, m.y - h.y) > reach) api.heroTo(m.x, m.y);
+      return;
+    }
+    const loot = S.chests[0] || (S.phase === 'day' && h.hp > h.maxHp * 0.7 && S.drops.find(d => Math.hypot(d.x - c, d.y - c) < 20));
+    if (loot) { api.heroTo(loot.x, loot.y); return; }
+    if (Math.hypot(h.x - home.x, h.y - home.y) > 2) api.heroTo(home.x, home.y);
+  }
   function unstickHero() {
     const h = S.hero; if (walkable(h.x, h.y)) return;
     for (let r = 1; r <= 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
@@ -1162,7 +1219,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
         const cleave = mastery('whirlwind') || (has('wardance') && h.attacks % 3 === 0);
         if (A.kind === 'melee') {
           if (cleave) S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size < reach).forEach(m => hitMob(m, dmg, 'hero'));
-          else hitMob(best, dmg, 'hero');
+          else { hitMob(best, dmg, 'hero'); if (HC.twin) { const sec = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - h.x, o.y - h.y) - 0.3 * MOBS[o.kind].size < reach); if (sec) hitMob(sec, dmg * 0.7, 'hero'); } }
           ev('swing');
         } else {
           const shot = m => fire(1.4, h.x, h.y, m, dmg * (mastery('sniper') && m.hp >= m.maxHp ? 2 : 1), 'hero', 24);
@@ -1365,6 +1422,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     refreshFlow();
     if (S.ability.cd > 0) S.ability.cd = Math.max(0, S.ability.cd - dt);
     if (S.bountyT > 0) S.bountyT = Math.max(0, S.bountyT - dt);
+    if (S.autopilot) autoHero(dt);
     stepHero(dt);
     if ((S.revealT = (S.revealT || 0) - dt) <= 0) { S.revealT = 0.25; if (!S.hero.dead) reveal(S.hero.x, S.hero.y, 8); }
     if (S.phase === 'day' && S.clock && !S.over) {
@@ -1447,12 +1505,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   S.scav = sc.scav;
 
   const REVIVE = ['Hush', 'Echo', 'Lull', 'Old Song', 'Quill', 'Tam', 'Vesper', 'Nocturne'];
+  function refreshMaxSoon() { refreshMax(); }
   const refreshMax = () => {
     for (const b of S.buildings) { const m = maxHpOf(b.type, b.level); if (!b.ruined) b.hp += m - b.maxHp; b.maxHp = m; }
     const km = keepMaxHp(); keep.hp = Math.min(km, keep.hp + Math.max(0, km - keep.maxHp)); keep.maxHp = km;
     const hm = heroMax(); S.hero.hp = Math.min(hm, S.hero.hp + Math.max(0, hm - S.hero.maxHp)); S.hero.maxHp = hm;
   };
-  story = createStory({ S, map, rng: new Rng(hashSeed(seed, 'story')), ev, toast, earn, addHeat, openDistrict, frontier, districtOffer, siteOf, LANDMARKS, pop, refreshMax, syncPicks,
+  story = createStory({ heroes: HEROES, evolve: cls => evolve(cls), S, map, rng: new Rng(hashSeed(seed, 'story')), ev, toast, earn, addHeat, openDistrict, frontier, districtOffer, siteOf, LANDMARKS, pop, refreshMax, syncPicks,
     landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) takeSite(l); }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
     risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the dead.', 'bad'); } });
   story.start();
@@ -1460,8 +1519,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const api = {
     setBuilders: f => { if (S.builders !== null && FOCI.includes(f)) S.builders = f; },
     scavenge: { siteInfo: sc.siteInfo, send: sc.send, recall: sc.recall, treat: sc.treat, exile: sc.exile, hopsMap: sc.hopsMap },
-    state: S, map, heroDef: HC, step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, choosePerk, reroll, trade, planPurge, useAbility,
-    setHeroInput: (x, y) => { S.hero.input.x = x; S.hero.input.y = y; },
+    state: S, map, get heroDef() { return HC; }, evolve: cls => evolve(cls), step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, choosePerk, reroll, trade, planPurge, useAbility,
+    setHeroInput: (x, y) => { S.hero.input.x = x; S.hero.input.y = y; if (x || y) handT = 2; },
+    setAutopilot: on => { S.autopilot = !!on; if (on && !S.builders) S.builders = 'balanced'; else if (!on && !S.foreman) S.builders = null; },
     heroTo: (x, y) => {
       const h = S.hero, t = h.target;
       if (t && h.path && Math.hypot(t.x - x, t.y - y) < 0.6) return;   // same place: keep the plan

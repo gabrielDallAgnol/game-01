@@ -70,6 +70,8 @@ export function createStory(ctx) {
       case 'claimHere': { const l = th && th.region !== undefined && ctx.siteOf(th.region); if (l && !l.owned) ctx.claimFree(l.id); break; }
       case 'risen': ctx.risen(f.n); break;
       case 'gamble': if (rng.next() >= f.p) for (const b of f.bad) apply(b, enc); else toast('The fever broke at dawn. He lives.', 'good'); break;
+      case 'evolve': ctx.evolve(f.cls); chron(`Became a ${ctx.heroes[f.cls].name}.`, 5, ['hero']); break;
+      case 'evolveLater': ST.evoLater = { cls: f.cls, from: f.from }; break;
       case 'advance': if (th) { th.stage++; th.since = S.night; } break;
       case 'resolve': if (th) { th.status = 'done'; } break;
       case 'fail': if (th) { if (f.after) { th.status = 'waiting'; th.failAt = S.night + f.after; } else th.status = 'failed'; } break;
@@ -147,6 +149,7 @@ export function createStory(ctx) {
     // threads that waited too long fail with a cost
     for (const [tid, th] of Object.entries(ST.threads)) if (th.status === 'waiting' && S.night >= th.failAt) { th.status = 'failed'; toast(`[Quest failed: ${THREADS[tid].title}] Too late.`, 'bad'); chron(`Too late for ${THREADS[tid].title}.`, 3, [tid]); }
     let shown = 0;
+    if (ST.evoLater && S.heroClass === ST.evoLater.from) { const e = ST.evoLater; ST.evoLater = null; offerEvolution(e.cls, e.from); shown++; }
     // a new thread starts on its day
     for (const [tid, T] of Object.entries(THREADS)) if (!ST.threads[tid] && S.night >= T.start.day && shown < 1) { ST.threads[tid] = { stage: 0, status: 'open', cast: {}, since: S.night }; push(threadEncounter(tid, 0)); shown++; }
     // dawn stages of running threads
@@ -192,5 +195,12 @@ export function createStory(ctx) {
       chronicle: ST.chronicle.slice(-10).map(c => `day ${c.day}: ${c.text}`),
     };
   }
-  return { start, dawn, tick, choose, can, bonus, context, chron, npc, grant, rarityColor: r => (RARITY[r] || RARITY.common).color };
+  // class evolution: offered as an encounter so the player decides when
+  function offerEvolution(cls, from) {
+    const H = ctx.heroes[cls], F = ctx.heroes[from];
+    push({ kind: 'evolve', eyebrow: '[Class evolution available]', title: `${F.name} → ${H.name}`, scene: `The status window flickers, then rewrites itself. A new line glows where your class used to be: ${H.name.toUpperCase()}. ${H.blurb}`,
+      choices: [{ id: 'evolve', label: `Become a ${H.name}`, hint: `${H.attack ? (H.attack.kind === 'melee' ? 'Fights up close' : 'Fights from range') : 'Never fights'} · ability: ${H.ability.name} · ${H.hp} health.`, fx: [{ op: 'evolve', cls }] },
+        { id: 'wait', label: 'Not yet', hint: 'Stay as you are. The window will wait for you (it comes back at dawn).', fx: [{ op: 'evolveLater', cls, from }] }] });
+  }
+  return { offerEvolution, start, dawn, tick, choose, can, bonus, context, chron, npc, grant, rarityColor: r => (RARITY[r] || RARITY.common).color };
 }

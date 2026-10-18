@@ -82,7 +82,7 @@ export function createPlanner(g) {
   };
 
   function stepOnce() {
-    const focus = S.builders; if (!focus || focus === 'off') return false;
+    const focus = S.builders; if (!focus || focus === 'off') return false;   // autopilot turns the builders on
     const net = g.foodPerDawn() - g.foodNeed();
     if ((net < 0 || (net < 1 && S.food < 4)) && ACT.farm()) return true;
     if (S.blackout && ACT.power()) return true;
