@@ -2,14 +2,14 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: full-bleed 3D canvas; slim HUD pills in the top corners; one bottom dock for panels and the night bell */
 :root{
-  --ink:#121a1b; --panel:rgba(22,32,33,.88); --panel-solid:#1a2627;
-  --bone:#ecdfc6; --muted:#a6b0a3; --amber:#eaa441; --wheat:#d6b75a; --rot:#a3c65c; --blood:#d4553f; --line:rgba(236,223,198,.16);
-  --easy:#a3c65c; --medium:#eaa441; --hard:#e0773f; --impossible:#d4553f;
-  --display:"Alegreya SC","Palatino Linotype",Georgia,serif; --body:"Alegreya Sans","Segoe UI",system-ui,sans-serif;
+  --ink:#121416; --panel:rgba(16,18,20,.82); --panel-solid:#17191c;
+  --bone:#e9e3d6; --muted:#a7a399; --amber:#d9843a; --wheat:#c9b36a; --rot:#b4ff4e; --blood:#d5513d; --line:rgba(233,227,214,.15);
+  --easy:#9fd06a; --medium:#d9a04a; --hard:#d9743a; --impossible:#d5513d;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif; --body:"Barlow","Segoe UI",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
   color-scheme: dark;
 }
 [hidden]{display:none!important}
@@ -153,6 +153,18 @@ details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:v
 @media (max-width:560px){ .ability{width:64px;height:64px;bottom:calc(96px + env(safe-area-inset-bottom,0px))} .tb{padding:3px 9px 4px 5px;font-size:12px} .packs{grid-template-columns:1fr} }
 @media (max-width:560px){ .opts{grid-template-columns:repeat(2,1fr)} .pill{gap:8px;padding:3px 10px 4px} .meter{width:40px} }
 @media (prefers-reduced-motion:reduce){ .toast{animation:none} }
+/* city theme: condensed signage type, dark glass, amber = yours, toxic green = theirs */
+.card h1,.card h2,.choice b,.perk b,.pack b,.phead b,.opt .nm,.endstats b{text-transform:uppercase;letter-spacing:.01em}
+.card h1{font-weight:700}
+.btn{font-weight:700;letter-spacing:.02em}
+.eyebrow,.tiny,.pf,#info,.nestTag{font-family:var(--mono)}
+.eyebrow{letter-spacing:.14em}
+.pill,.bar,.tb,.place,#panel,.toast{backdrop-filter:blur(8px)}
+.nt b,.r b{font-weight:700}
+.card{background:#16181b;border-color:rgba(233,227,214,.12)}
+.choice[aria-pressed="true"]{border-color:var(--amber);background:rgba(217,132,58,.12)}
+#info{font-size:12px} #info em{color:var(--rot)}
+.ar i{border-left-color:var(--rot)}
 </style>
 
 <canvas id="view" tabindex="0" aria-label="Map of Hollowmere"></canvas>
@@ -169,7 +181,7 @@ details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:v
       <span class="r" title="Citizens"><span class="dot pop"></span><b id="pop">0</b></span>
     </div>
   </div>
-  <div class="side"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">&minus;</button><button id="logBtn" class="txt" aria-label="Open run log">Log</button></div>
+  <div class="side"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">&minus;</button><button id="logBtn" class="txt" aria-label="Open run log">Log</button><button id="qBtn" class="txt" aria-label="Graphics quality">HQ</button></div>
   <div id="dock">
     <div id="panel" hidden>
       <div class="phead"><span class="eyebrow" id="pEyebrow"></span><b id="pTitle"></b><button class="x" id="pClose" aria-label="Close panel">&times;</button></div>
@@ -187,4 +199,17 @@ details.ledger{margin-bottom:14px} details.ledger summary{cursor:pointer;color:v
 <div id="overlay"><div class="card wide" id="card"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="./vendor/CopyShader.js"></script>
+<script src="./vendor/EffectComposer.js"></script>
+<script src="./vendor/RenderPass.js"></script>
+<script src="./vendor/ShaderPass.js"></script>
+<script src="./vendor/MaskPass.js"></script>
+<script src="./vendor/SimplexNoise.js"></script>
+<script src="./vendor/SSAOShader.js"></script>
+<script src="./vendor/SSAOPass.js"></script>
+<script src="./vendor/LuminosityHighPassShader.js"></script>
+<script src="./vendor/UnrealBloomPass.js"></script>
+<script src="./vendor/FXAAShader.js"></script>
+<script src="./vendor/RoundedBoxGeometry.js"></script>
+<script src="./vendor/BufferGeometryUtils.js"></script>
 <script type="module" src="./src/main.js"></script>

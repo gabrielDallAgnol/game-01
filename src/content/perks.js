@@ -30,12 +30,12 @@ export const PERKS = [
   { id: 'hunter',  fam: 'bow', rarity: R, name: 'Big Game', desc: 'Towers deal 60% more damage to brutes, guardians and Gravelords.', max: 1, fx: P => { P.hunter = true; } },
   { id: 'ballista',fam: 'bow', rarity: L, name: 'Ballista Keep', desc: 'Every 3 seconds the keep fires a bolt that pierces a whole line: 8 damage, range 12.', max: 1, fx: P => { P.ballista = true; } },
   // Stone
-  { id: 'timber',  fam: 'stone', rarity: C, name: 'Thick Timber', desc: 'Palisades +60% health.', max: 2, fx: P => { P.wallHp += 0.6; } },
+  { id: 'timber',  fam: 'stone', rarity: C, name: 'Thick Timber', desc: 'Barricades +60% health.', max: 2, fx: P => { P.wallHp += 0.6; } },
   { id: 'mortar',  fam: 'stone', rarity: C, name: 'Lime Mortar', desc: 'All buildings +20% health. Keep +20.', max: 2, fx: P => { P.allHp += 0.2; P.keepHp += 20; } },
-  { id: 'masons',  fam: 'stone', rarity: C, name: 'Guild of Masons', desc: 'Towers and palisades cost 1 less.', max: 2, fx: P => { P.defDiscount += 1; } },
-  { id: 'thorns',  fam: 'stone', rarity: R, name: 'Thorned Stakes', desc: 'Zombies that hit a palisade take 3 damage.', max: 1, fx: P => { P.thorns += 3; } },
-  { id: 'tar',     fam: 'stone', rarity: R, name: 'Tar Pits', desc: 'Zombies within 2 of a palisade move 40% slower.', max: 1, fx: P => { P.tar = true; } },
-  { id: 'bastion', fam: 'stone', rarity: R, name: 'Bastions', desc: 'Towers within 3 of a palisade deal 40% more damage.', max: 1, fx: P => { P.bastion = true; } },
+  { id: 'masons',  fam: 'stone', rarity: C, name: 'Guild of Masons', desc: 'Towers and barricades cost 1 less.', max: 2, fx: P => { P.defDiscount += 1; } },
+  { id: 'thorns',  fam: 'stone', rarity: R, name: 'Thorned Stakes', desc: 'Zombies that hit a barricade take 3 damage.', max: 1, fx: P => { P.thorns += 3; } },
+  { id: 'tar',     fam: 'stone', rarity: R, name: 'Tar Pits', desc: 'Zombies within 2 of a barricade move 40% slower.', max: 1, fx: P => { P.tar = true; } },
+  { id: 'bastion', fam: 'stone', rarity: R, name: 'Bastions', desc: 'Towers within 3 of a barricade deal 40% more damage.', max: 1, fx: P => { P.bastion = true; } },
   { id: 'salvage', fam: 'stone', rarity: R, name: 'Salvage', desc: 'Whenever a building falls, gain 2 gold.', max: 1, fx: P => { P.salvage = true; } },
   { id: 'bell',    fam: 'stone', rarity: L, name: 'Bell of Last Light', desc: 'Once a run, when the keep would fall it holds at 30% and every zombie within 8 takes 20 damage.', max: 1, fx: P => { P.bell = true; } },
   // Harvest
@@ -51,14 +51,14 @@ export const PERKS = [
   { id: 'pactBlood', fam: 'bow', rarity: R, pact: true, name: 'Blood Arrows', desc: 'Towers deal 50% more damage.', cost: 'The keep has 30% less health.', max: 1, fx: P => { P.towerDmg += 0.5; P.keepHpMult *= 0.7; } },
   { id: 'pactGreed', fam: 'harvest', rarity: R, pact: true, name: 'Usury', desc: '+12 gold every dawn.', cost: 'Each claimed region adds 25% threat instead of 12%.', max: 1, fx: P => { P.tax += 12; P.greed = true; } },
   { id: 'pactRage',  fam: 'hero', rarity: R, pact: true, name: 'Berserker', desc: 'Your attacks deal double damage.', cost: 'You no longer heal by day and lose 40% max health.', max: 1, fx: P => { P.heroDmgMult *= 2; P.noDayHeal = true; P.heroHpMult *= 0.6; } },
-  { id: 'pactStone', fam: 'stone', rarity: R, pact: true, name: 'Walls of Bone', desc: 'Palisades +150% health.', cost: 'Every house pays 1 less gold.', max: 1, fx: P => { P.wallHp += 1.5; P.houseGold -= 1; } },
+  { id: 'pactStone', fam: 'stone', rarity: R, pact: true, name: 'Walls of Bone', desc: 'Barricades +150% health.', cost: 'Every house pays 1 less gold.', max: 1, fx: P => { P.wallHp += 1.5; P.houseGold -= 1; } },
 ];
 
 // two partners held together give a bonus; the card shows "Combo!" when you hold the partner
 export const SYNERGIES = [
   { a: 'tar', b: 'fire', text: 'Burning zombies in tar take double burn damage.' },
   { a: 'rally', b: 'watch', text: 'Rallying Cry reaches 8, and paired towers get it anywhere.' },
-  { a: 'guarded', b: 'bastion', text: 'Houses within 3 of a palisade pay 1 more gold.' },
+  { a: 'guarded', b: 'bastion', text: 'Houses within 3 of a barricade pay 1 more gold.' },
   { a: 'blood', b: 'bounty', text: 'Every kill by your hero pays 1 gold.' },
   { a: 'salvage', b: 'mortar', text: 'Fallen buildings give 4 gold instead of 2.' },
 ];
@@ -74,7 +74,7 @@ export const MASTERIES = {
   ],
   stone: [
     { id: 'mending', name: 'Mending', desc: 'Buildings repair themselves at night.' },
-    { id: 'fortress', name: 'Fortress', desc: 'Crawlers cannot climb palisades, and palisades hit back for half the damage they take.' },
+    { id: 'fortress', name: 'Fortress', desc: 'Crawlers cannot climb barricades, and barricades hit back for half the damage they take.' },
   ],
   harvest: [
     { id: 'prosperity', name: 'Prosperity', desc: '+30% gold and food at dawn.' },

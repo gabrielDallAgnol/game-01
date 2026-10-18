@@ -33,5 +33,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const tag = '<script type="module" src="./src/main.js"></script>';
 if (!html.includes(tag)) throw new Error('index.html is missing the module entry tag');
 fs.mkdirSync(path.dirname(out), { recursive: true });
-fs.writeFileSync(out, html.replace(tag, () => `<script>\n${bundle}\n</script>`));
+// classic vendor scripts (three.js helpers) are inlined in place
+const withVendor = html.replace(/<script src="\.\/vendor\/([\w.-]+\.js)"><\/script>/g, (_, f) => `<script>\n${fs.readFileSync(path.join(root, 'vendor', f), 'utf8')}\n</script>`);
+fs.writeFileSync(out, withVendor.replace(tag, () => `<script>\n${bundle}\n</script>`));
 console.log(`${order.length} modules → ${path.relative(process.cwd(), out)} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);

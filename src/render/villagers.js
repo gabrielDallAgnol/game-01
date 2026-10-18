@@ -6,7 +6,7 @@ const SPEED = 1.2;
 const CLOTHES = [0x7a5a3e, 0x5e6a4a, 0x6a5560, 0x8a7a5a, 0x4e5a66, 0x7a4a3a];
 const SKINS = [0xe2b48c, 0xc99a72, 0x9a6e4c, 0xf0caa4];
 
-export function createVillagers({ THREE, world, game, W, map }) {
+export function createVillagers({ THREE, world, game, W, map, figure }) {
   const S = game.state;
   const group = new THREE.Group(); world.add(group);
 
@@ -43,6 +43,7 @@ export function createVillagers({ THREE, world, game, W, map }) {
   const houses = () => S.buildings.filter(b => b.type === 'house' && !b.ruined);
 
   function makeMesh() {
+    if (figure) { const f = figure(); return { g: f.g, body: f.body, frames: f.frames, legs: null, sack: null }; }
     const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
     const cloth = mat(CLOTHES[Math.floor(Math.random() * CLOTHES.length)]), skin = mat(SKINS[Math.floor(Math.random() * SKINS.length)]);
     const torso = new THREE.Mesh(geo.body, cloth); torso.position.y = 0.51; torso.castShadow = true; body.add(torso);
@@ -142,7 +143,8 @@ export function createVillagers({ THREE, world, game, W, map }) {
       v.phase += dt * 9;
       const walking = v.state === 'walk' || v.state === 'homing';
       const swing = walking ? Math.sin(v.phase) * 0.6 : 0;
-      v.legs[0].rotation.x = swing; v.legs[1].rotation.x = -swing;
+      if (v.frames) { const second = walking && Math.sin(v.phase) < 0; v.frames[0].visible = !second; v.frames[1].visible = second; }
+      else { v.legs[0].rotation.x = swing; v.legs[1].rotation.x = -swing; }
       if (v.state === 'work' && v.target && v.target.kind === 'farm') {
         v.body.rotation.x = 0.45 + Math.max(0, Math.sin(time * 4 + v.phase)) * 0.25; // hoeing
         v.body.position.y = 0;

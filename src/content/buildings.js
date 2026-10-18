@@ -2,7 +2,7 @@
 
 export const BUILDINGS = {
   house: {
-    name: 'House', cost: [4, 6, 12], hp: [24, 36, 48], gold: [2, 4, 6], pop: [2, 4, 6],
+    name: 'Home', cost: [4, 6, 12], hp: [24, 36, 48], gold: [2, 4, 6], pop: [2, 4, 6],
     desc: ['+2 gold · 2 people', '+4 gold · 4 people', '+6 gold · 6 people'],
   },
   farm: {
@@ -10,12 +10,12 @@ export const BUILDINGS = {
     desc: ['+3 food', '+6 food', '+9 food'],
   },
   tower: {
-    name: 'Watchtower', cost: [6, 8, 14], upkeep: [0, 1, 2], hp: [24, 36, 50], range: [7, 8.5, 10], dmg: [1, 2, 3], rate: [0.9, 0.75, 0.6],
+    name: 'Tower', cost: [6, 8, 14], upkeep: [0, 1, 2], hp: [24, 36, 50], range: [7, 8.5, 10], dmg: [1, 2, 3], rate: [0.9, 0.75, 0.6],
     desc: ['Shoots · range 7', 'Faster · range 8.5 · upkeep 1', 'Heavy bolts · range 10 · upkeep 2'],
   },
   wall: {
-    name: 'Palisade', cost: [1, 2, 3], hp: [30, 60, 100], blocks: true,
-    desc: ['One post of a wall · 30 hp · you walk through, the dead do not', 'Stone · 60 hp', 'Bastion · 100 hp'],
+    name: 'Barricade', cost: [1, 2, 3], hp: [30, 60, 100], blocks: true,
+    desc: ['One barricade post · 30 hp · you walk through, the dead do not', 'Wrecks and sandbags · 60 hp', 'Concrete and razor wire · 100 hp'],
   },
 };
 export const BUILD_ORDER = ['house', 'farm', 'tower', 'wall'];

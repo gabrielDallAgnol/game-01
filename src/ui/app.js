@@ -19,8 +19,8 @@ const RINGS = ['Town', 'Near lands', 'Far lands'];
 const ARM_MS = 700;          // cards ignore taps this long after they appear
 const DAWN_DELAY = 1.2;      // seconds between the last kill and the first card
 const JOY_PX = 14;           // a touch that moves further than this is a joystick drag, not a tap
-const SHORT = { house: 'House', farm: 'Farm', tower: 'Tower', wall: 'Palisade' };
-const PLURAL = { house: 'Houses', farm: 'Farms', tower: 'Towers', wall: 'palisade posts' };
+const SHORT = { house: 'Home', farm: 'Farm', tower: 'Tower', wall: 'Barricade' };
+const PLURAL = { house: 'Homes', farm: 'Farms', tower: 'Towers', wall: 'barricade posts' };
 
 export function startApp() {
   let game = null, view = null, names = [], selected = null, placing = null, paused = true, acc = 0, last = performance.now(), hudT = 0;
@@ -33,15 +33,15 @@ export function startApp() {
   // ---------- start screen ----------
   function drawMinimap(canvas, m) {
     const ctx = canvas.getContext('2d'), s = 4; canvas.width = canvas.height = N * s;
-    const col = { [T.GRASS]: '#6c8a4b', [T.FOREST]: '#3f6b3a', [T.ROCK]: '#7d7f74', [T.WATER]: '#3d6f8a', [T.CLIFF]: '#8a8072', [T.FORD]: '#6a8f9a', [T.DIRT]: '#8a7350', [T.VOID]: '#1f2b1f' };
+    const col = { [T.GRASS]: '#3d3c39', [T.FOREST]: '#55524b', [T.ROCK]: '#a39d90', [T.WATER]: '#2c4a52', [T.CLIFF]: '#77726a', [T.FORD]: '#8d887d', [T.DIRT]: '#6b675f', [T.VOID]: '#161615' };
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       const i = idx(x, y), r = m.region[i];
       ctx.fillStyle = col[m.terrain[i]]; ctx.fillRect(x * s, y * s, s, s);
       if (r > 0) { ctx.fillStyle = 'rgba(18,26,27,.35)'; ctx.fillRect(x * s, y * s, s, s); }
     }
-    ctx.fillStyle = '#a8d65c';
+    ctx.fillStyle = '#b4ff4e';
     for (const r of m.regions) if (r.nest) { ctx.beginPath(); ctx.arc(r.nest.x * s, r.nest.y * s, 4, 0, 7); ctx.fill(); }
-    ctx.fillStyle = '#eaa441'; ctx.beginPath(); ctx.arc(m.town.x * s, m.town.y * s, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d9843a'; ctx.beginPath(); ctx.arc(m.town.x * s, m.town.y * s, 7, 0, 7); ctx.fill();
   }
   function showStart() {
     paused = true; $('#hud').hidden = true;
@@ -49,7 +49,7 @@ export function startApp() {
     const best = store.get('best', 0);
     showCard('start', `<div class="eyebrow">Endless nights${best ? ` · your best: night ${best}` : ''}</div>
       <h1>Hold Hollowmere</h1>
-      <p>Build by day. Hold the keep by night. Burn the nests around you to claim more land, and see how many nights you last.</p>
+      <p>Build by day. Hold the keep by night. Clear the hives around you to claim more of the city, and see how many nights you last.</p>
       <h2>Your hero</h2>
       <div class="choices">${HERO_ORDER.map(h => `<button class="choice" data-hero="${h}" aria-pressed="${setup.hero === h}"><b>${HEROES[h].name}</b><span>${HEROES[h].blurb}</span><span class="tiny">Ability: ${HEROES[h].ability.name}</span></button>`).join('')}</div>
       <h2>How you build</h2>
@@ -73,7 +73,8 @@ export function startApp() {
   function begin(mapSeed, biome) {
     game = createGame({ seed: setup.runSeed, mapSeed, biome, hero: setup.hero, mode: setup.mode });
     names = regionNames(mapSeed, game.map.regions.length);
-    if (!view) view = createView($('#view'), game);
+    const qp = new URLSearchParams(location.search).get('q');
+    if (!view) { view = createView($('#view'), game, { quality: qp || store.get('quality', null) || undefined }); showQuality(); }
     window.__game = game;
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = !game.heroDef.ability;
@@ -133,7 +134,7 @@ export function startApp() {
     $$('[data-perk]').forEach(b => b.onclick = onArmed(() => { game.choosePerk(b.dataset.perk); dawnFlow(); }));
     const rr = $('#pReroll'); if (rr) rr.onclick = onArmed(() => { if (game.reroll()) showPerks(); });
   }
-  const itemsText = items => Object.entries(items).map(([t, n]) => `<span class="it ${t}"><i></i>${n} ${n > 1 ? PLURAL[t] : t === 'wall' ? 'palisade post' : SHORT[t]}</span>`).join('');
+  const itemsText = items => Object.entries(items).map(([t, n]) => `<span class="it ${t}"><i></i>${n} ${n > 1 ? PLURAL[t] : t === 'wall' ? 'barricade post' : SHORT[t]}</span>`).join('');
   function showPacks() {
     const S = game.state;
     const kindName = { eco: 'Town', def: 'Defence', mix: 'Mixed' };
@@ -238,7 +239,7 @@ export function startApp() {
   // Placement works like a classic RTS: the land you can build on lights up, the building in hand
   // snaps to the nearest spot that fits (preferring spots that line up with a street), and
   // palisades are laid as lines: pick where the line starts, then where it ends.
-  const SIZE = { house: 3, farm: 3, tower: 2, wall: 1 };
+  const SIZE = { house: 2, farm: 2, tower: 1, wall: 1 };
   const cellOf = (x, y) => [Math.floor(x), Math.floor(y)];
   function computeZone(type) {
     const S = game.state, n = SIZE[type], off = n % 2 ? 0.5 : 0, mask = new Uint8Array(N * N), spots = [];
@@ -275,7 +276,7 @@ export function startApp() {
     // begin at the spot nearest to just above the hero
     let best = null, bd = Infinity; for (const sp of placing.zone.spots) { const d = Math.hypot(sp.x - h.x, sp.y - (h.y - 3)); if (d < bd) { bd = d; best = sp; } }
     if (best) { placing.x = best.x; placing.y = best.y; }
-    if (!placing.zone.spots.length) toast(type === 'wall' ? 'No open ground left for palisades.' : `No room left for a ${SHORT[type].toLowerCase()}. Claim more land or pull something down.`, 'bad');
+    if (!placing.zone.spots.length) toast(type === 'wall' ? 'No open ground left for barricades.' : `No room left for a ${SHORT[type].toLowerCase()}. Claim more land or pull something down.`, 'bad');
     updateGhost(); $('#place').hidden = false; renderTray();
   }
   function stopPlacing() { placing = null; $('#place').hidden = true; renderTray(); }
@@ -308,7 +309,7 @@ export function startApp() {
       const c = best || [ex, ey], ok = !!best;
       placing.cell = c;
       placing.ghost = { type: 'wall', x: c[0] + 0.5, y: c[1] + 0.5, ok, cells: [idx(c[0], c[1])] };
-      $('#placeInfo').innerHTML = ok ? `Palisade · ${touchUI ? 'tap' : 'click'} where the line starts${budget ? ` · ${S.stock.wall || 0} posts in hand` : ''}` : `<span class="warn">${game.canPlace('wall', ex + 0.5, ey + 0.5).reason || 'No room here.'}</span>`;
+      $('#placeInfo').innerHTML = ok ? `Barricade · ${touchUI ? 'tap' : 'click'} where the line starts${budget ? ` · ${S.stock.wall || 0} posts in hand` : ''}` : `<span class="warn">${game.canPlace('wall', ex + 0.5, ey + 0.5).reason || 'No room here.'}</span>`;
       $('#pOk').textContent = 'Start here'; $('#pOk').disabled = !ok;
       return;
     }
@@ -369,15 +370,15 @@ export function startApp() {
     }
     if (selected.type === 'region') {
       const info = game.regionInfo(selected.id), reg = game.map.regions[selected.id];
-      $('#pEyebrow').textContent = `${RINGS[Math.min(2, reg.ring)]} · ${info.nest ? (info.active ? 'nest awake' : 'nest asleep') : 'no nest'}`;
+      $('#pEyebrow').textContent = `${RINGS[Math.min(2, reg.ring)]} · ${info.nest ? (info.active ? 'hive awake' : 'hive asleep') : 'no hive'}`;
       $('#pTitle').textContent = names[selected.id];
       const land = [info.forest > 40 ? 'deep forest' : info.forest > 15 ? 'woods' : 'open fields', info.water ? 'water' : null].filter(Boolean).join(' · ');
-      let html = `<div class="stat"><span>${land}</span>${info.wakes ? `<span>Wakes <b>${info.wakes}</b> more ${info.wakes === 1 ? 'nest' : 'nests'} beyond it</span>` : ''}</div>`;
+      let html = `<div class="stat"><span>${land}</span>${info.wakes ? `<span>Wakes <b>${info.wakes}</b> more ${info.wakes === 1 ? 'hive' : 'hives'} beyond it</span>` : ''}</div>`;
       if (S.purge === selected.id) html += `<div class="opts one">${opt('opt-cancel', 'data-cancel="1"', 'Call off the march', null, 'Tonight will be a normal night.', !day)}</div>`;
       else if (info.canPurge) {
-        html += `<div class="stat"><span>Siege tonight would be <span class="rating ${info.rating}">${info.rating}</span></span><span>Your defences against this nest's last stand</span></div>`;
-        html += `<div class="opts one">${opt('opt-purge', 'data-purge="1"', 'March on this nest tonight', null, 'Its dead come in force at the end of the night. Survive and the land is yours, with a legendary blessing.', false)}</div>`;
-      } else html += `<div class="tiny">${info.nest ? 'Claim the land between you and this nest first.' : 'Nothing to burn here.'}</div>`;
+        html += `<div class="stat"><span>Siege tonight would be <span class="rating ${info.rating}">${info.rating}</span></span><span>Your defences against this hive's last stand</span></div>`;
+        html += `<div class="opts one">${opt('opt-purge', 'data-purge="1"', 'Clear this hive tonight', null, 'Its dead come in force at the end of the night. Survive and the land is yours, with a legendary blessing.', false)}</div>`;
+      } else html += `<div class="tiny">${info.nest ? 'Claim the land between you and this hive first.' : 'No hive here.'}</div>`;
       body.innerHTML = html;
       return;
     }
@@ -388,7 +389,7 @@ export function startApp() {
     let html = `<div class="stat"><span>Health <b>${Math.ceil(b.hp)} / ${b.maxHp}</b></span><span>${B.desc[b.level - 1]}</span></div><div class="opts two">`;
     if (b.type === 'wall') {
       const run = game.wallRun(b.id), total = run.reduce((a, w) => a + game.upCostOf(w), 0);
-      if (b.level < MAX_LEVEL) html += opt('opt-upw', 'data-upw="1"', `Upgrade this palisade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, total, `${B.desc[b.level]} each. Short of gold? The nearest posts go first.`, S.gold < game.upCostOf(b) || !day);
+      if (b.level < MAX_LEVEL) html += opt('opt-upw', 'data-upw="1"', `Upgrade this barricade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, total, `${B.desc[b.level]} each. Short of gold? The nearest posts go first.`, S.gold < game.upCostOf(b) || !day);
       html += opt('opt-demo', 'data-demo="1"', 'Pull down this post', null, 'Opens a gap you can build a gate tower in.', !day);
       body.innerHTML = html + '</div>'; selected.range = null; return;
     }
@@ -415,6 +416,10 @@ export function startApp() {
   const ringBell = () => { if (game && !paused && game.startNight()) { closePanel(); stopPlacing(); } };
   $('#bell').onclick = ringBell;
   $('#logBtn').onclick = showLog;
+  // graphics quality: High (shadows, ambient occlusion, glow), Medium (glow), Low (fastest)
+  const QNAME = { high: 'HQ', medium: 'MQ', low: 'LQ' }, QNEXT = { high: 'medium', medium: 'low', low: 'high' };
+  function showQuality() { if (view) { $('#qBtn').textContent = QNAME[view.quality()]; $('#qBtn').setAttribute('aria-label', `Graphics quality: ${view.quality()}`); } }
+  $('#qBtn').onclick = () => { if (!view) return; const q = QNEXT[view.quality()]; view.setQuality(q); store.set('quality', q); showQuality(); toast(`Graphics: ${q}.`); };
   $('#zIn').onclick = () => view && view.setZoom(view.getZoom() * 0.8);
   $('#zOut').onclick = () => view && view.setZoom(view.getZoom() * 1.25);
 
@@ -459,7 +464,7 @@ export function startApp() {
     } else {
       bell.hidden = false; bell.textContent = bm ? 'Face the blood moon' : 'Ring the bell';
       const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
-      $('#info').innerHTML = `Tonight <em>~${dead}</em> from ${fc.length} ${fc.length === 1 ? 'nest' : 'nests'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}`;
+      $('#info').innerHTML = `Tonight <em>~${dead}</em> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'} · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();

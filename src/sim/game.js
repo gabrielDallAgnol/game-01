@@ -24,7 +24,7 @@ class MinHeap {
   }
 }
 const DIRS8 = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
-const SIZE = { house: 3, farm: 3, tower: 2, wall: 1 };   // palisades are single posts, laid in lines
+const SIZE = { house: 2, farm: 2, tower: 1, wall: 1 };   // compact footprints; palisades are single posts, laid in lines
 const BIG = 1.6; // mobs at least this size count as "big game"
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'packs' } = {}) {
@@ -118,7 +118,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const i of out.cells) {
       const t = map.terrain[i], r = map.region[i];
       if (r < 0 || !S.claimed.has(r)) { out.reason = 'Claim this land first.'; return out; }
-      if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD || t === T.FOREST) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Palisades need ground, woods or a ford.' : 'Needs open ground.'; return out; }
+      if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD || t === T.FOREST) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Barricades need ground, woods or a ford.' : 'Needs open ground.'; return out; }
       if (S.occ[i] >= 0) { out.reason = 'Something is already built here.'; return out; }
     }
     for (const i of out.cells) {
@@ -187,7 +187,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   occupy(keep);
 
   function placeBuilding(type, x, y, rot, level, id) {
-    const b = { id: id ?? S.nextId++, type, level, x, y, rot: type === 'wall' ? rot : 0, r: type === 'wall' ? 0.6 : type === 'tower' ? 0.9 : 1.3,
+    const b = { id: id ?? S.nextId++, type, level, x, y, rot: type === 'wall' ? rot : 0, r: type === 'wall' ? 0.6 : type === 'tower' ? 0.6 : 1.0,
       hp: maxHpOf(type, level), maxHp: maxHpOf(type, level), cd: 0, ruined: false, fell: false, nearWater: nearWaterAt(x, y), shotN: 0, rainT: 0 };
     S.buildings.push(b); S.byId.set(b.id, b); occupy(b); liveTick = -1;
     ev('build', { id: b.id });
@@ -414,7 +414,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const [x, y] of lineCells(x0, y0, x1, y1)) {
       if (n >= max) break;
       const p = canPlace('wall', x + 0.5, y + 0.5, 0); if (!p.ok) continue;
-      if ((S.stock.wall || 0) <= 0 && S.gold < buyCost('wall')) { if (!n) fail(`A palisade post costs ${buyCost('wall')} gold.`); break; }
+      if ((S.stock.wall || 0) <= 0 && S.gold < buyCost('wall')) { if (!n) fail(`A barricade post costs ${buyCost('wall')} gold.`); break; }
       pay('wall'); S.cur.built.push('wall'); S.stats.built++; placeBuilding('wall', p.x, p.y, 0, 1); n++;
     }
     if (n) unstickHero();

@@ -66,6 +66,18 @@ Inspired by Red Alert 2 / OpenRA: you always see where things can go, and walls 
 Smarter hero pathing helped the fighters more than the Merchant (median 28–29 vs 24). Fix: sellswords 15 hp / 3 dmg, three per hire (max 9).
 24-run check (balanced + towers, careful): mean night warrior 25.2, archer 24.6, merchant 24.3. Medians cluster at blood moons (19/24/29). All balance gates pass.
 
+## Reclaim the city: the new look in the game (Oct 18, night)
+| Area | What changed |
+|---|---|
+| Footprints | Homes and farms 2×2 (were 3×3), towers 1 cell (were 2×2): about twice the buildings in the same land, still with a street around each |
+| World | Rock → ruined apartment blocks (one bay per cell: windows, floor bands, broken tops); forest → rubble fields with wrecks, scrub, dead trees; water → canals with concrete banks; fords → footbridges; cliffs → retaining walls; claimed ground is paved |
+| Look | Linear lighting, warm sun and cool fill, soft shadows, SSAO, bloom, ACES grade; territory tint from a claim mask (your land warm, the wild grey) |
+| Night | Fixed pool of warm lights (keep fire, lamps, lanterns, lit homes), hero lantern, L3 turret searchlight with beam; windows light up |
+| Kit | Homes ruin→L3, towers, farms, keep (camp → depot → compound), barricade posts that join (chain-link, sandbags, concrete), hive landmarks (metro, petrol, hospital bay) |
+| Figures | Jointed hero and sellswords; the dead as instanced crowds (two walk frames per kind) with glowing eyes; baked villagers |
+| UI | Barlow Condensed / Barlow / Plex Mono, dark glass pills; Brawler, Ranger, Scavver; Home, Barricade; hives; city map names |
+| Quality | HQ (SSAO + bloom), MQ (bloom, phone default), LQ (grade only); button on the right, remembered |
+
 ## Next drop: town stats (agreed direction)
 - **Main system: scavenge runs** (Dying Light / State of Decay / Project Zomboid): ruins in unclaimed regions hold loot. Send survivors out by day; the further out, the better the loot and the risk. Survivors arrive with traits (Medic, Carpenter, Coward…).
 - **Infection and noise as natural events,** not tied to buildings. For example: a scavenger comes back bitten (treat, quarantine or exile), or a storm whose thunder draws a horde from one side.

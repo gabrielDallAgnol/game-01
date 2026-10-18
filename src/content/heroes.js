@@ -2,17 +2,17 @@
 
 export const HEROES = {
   warrior: {
-    name: 'Warrior', blurb: 'Sword and shield. Holds the line up close. War Cry pulls the dead onto you while you shrug off half their damage.',
+    name: 'Brawler', blurb: 'Fire axe and a work jacket. Holds the line up close. War Cry pulls the dead onto you while you shrug off half their damage.',
     hp: 30, speed: 6, attack: { kind: 'melee', dmg: 3, reach: 2.2, rate: 0.55 },
     ability: { id: 'warcry', name: 'War Cry', cooldown: 25, nightOnly: true, radius: 6, taunt: 4, guard: 0.5 },
   },
   archer: {
-    name: 'Archer', blurb: 'Fragile, but picks off the dead from far away. Volley rains arrows on the thickest crowd.',
+    name: 'Ranger', blurb: 'A crossbow and a hood. Fragile, but picks off the dead from far away. Volley rains bolts on the thickest crowd.',
     hp: 18, speed: 6.5, attack: { kind: 'ranged', dmg: 2, reach: 7.5, rate: 0.7 },
     ability: { id: 'volley', name: 'Volley', cooldown: 20, nightOnly: true, radius: 2.5, dmg: 6, reach: 10 },
   },
   merchant: {
-    name: 'Merchant', blurb: 'Never fights. Hires sellswords with gold, picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn.',
+    name: 'Scavver', blurb: 'Never fights. Hires sellswords with gold, picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn.',
     hp: 16, speed: 6.6, attack: null, collects: true, discount: 0.1, extraOffer: 1, trader: true,
     ability: { id: 'hire', name: 'Hire sellswords', cooldown: 6, nightOnly: true, cost: 10, costStep: 5, count: 3, max: 9 },
   },

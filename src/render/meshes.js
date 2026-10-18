@@ -3,7 +3,7 @@
 
 const matCache = new Map();
 export function mat(c) {
-  if (!matCache.has(c)) matCache.set(c, new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.95, metalness: 0 }));
+  if (!matCache.has(c)) matCache.set(c, new THREE.MeshStandardMaterial({ color: new THREE.Color(c).convertSRGBToLinear(), flatShading: true, roughness: 0.95, metalness: 0 }));
   return matCache.get(c);
 }
 export const windowMat = () => (windowMat.m ||= new THREE.MeshStandardMaterial({ color: 0x3a2a18, emissive: 0xffb24a, emissiveIntensity: 0, flatShading: true }));

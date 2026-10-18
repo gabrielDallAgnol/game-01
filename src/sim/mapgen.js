@@ -10,10 +10,10 @@ export const BUILDABLE = [true, false, false, false, false, false, true, false];
 export const MOVE_COST = [1, 1.6, Infinity, Infinity, Infinity, 2.5, 1, Infinity];
 
 export const BIOMES = {
-  riverbend: { name: 'River Bend', blurb: 'A river curls around one flank. The dead must wade through the fords.' },
-  highland:  { name: 'Highland Hold', blurb: 'The town sits on a plateau. Cliffs leave only a few passes up.' },
-  lakeshore: { name: 'Lakeshore', blurb: 'A wide lake guards your back. Good farmland, open front.' },
-  vale:      { name: 'The Vale', blurb: 'You start at the bottom of a V-shaped valley. The dead only come from above, and you push up through it.' },
+  riverbend: { name: 'Canal District', blurb: 'A canal curls around one flank. The dead must cross at the footbridges.' },
+  highland:  { name: 'The Heights', blurb: 'The town sits on a raised plaza. Retaining walls leave only a few ramps up.' },
+  lakeshore: { name: 'Harbour Front', blurb: 'An old harbour basin guards your back. Open ground for allotments, open front.' },
+  vale:      { name: 'The Cut', blurb: 'You start at the bottom of a V-shaped sunken district. The dead only come from above, and you push up through it.' },
 };
 
 const R = 30;           // playable radius

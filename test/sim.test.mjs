@@ -121,7 +121,7 @@ test('free placement: no overlaps, a street between buildings, palisades are lai
   const [hx, hy] = find('house');
   assert.equal(g.build('house', hx, hy), true);
   assert.equal(g.canPlace('house', hx + 1, hy).ok, false, 'overlapping house allowed');
-  const touching = [[3, 0], [-3, 0], [0, 3], [0, -3]].map(([dx, dy]) => g.canPlace('house', hx + dx, hy + dy));
+  const touching = [[2, 0], [-2, 0], [0, 2], [0, -2]].map(([dx, dy]) => g.canPlace('house', hx + dx, hy + dy));
   assert.ok(touching.every(p => !p.ok), 'a touching house was allowed');
   assert.ok(touching.some(p => /street/.test(p.reason)), 'the street rule never triggered');
   // palisades are laid as lines of posts; a line chains into the next one
