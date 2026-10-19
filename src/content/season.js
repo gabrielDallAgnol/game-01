@@ -53,6 +53,6 @@ export const RULES = {
   hunger: { name: 'Hunger', desc: 'Everyone eats more. Food finds in the city are worth double.' },
 };
 // offline episode titles: one per day of the first season (Claude writes later ones when it is on)
-export const EPISODES = ['A Bus Full of Strangers', 'Hands', 'Drawings on the Glass', 'Red Sky Tomorrow', 'The First Blood Moon',
+export const EPISODES = ['A Bus Full of Strangers', 'The Status Window', 'The Light That Went Out', 'Drawings on the Glass', 'The First Blood Moon',
   'Breathing Room', 'They Can Hear Us', 'What the Radio Said', 'A Toll for the Road', 'The Thing That Eats the Light',
   'The Long Table', 'Behind the Fence', 'The Trial', 'The Eve', 'The Gravelord'];

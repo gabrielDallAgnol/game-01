@@ -213,6 +213,8 @@ export function createStory(ctx) {
   // ---------- the director: what comes at dawn ----------
   function dawn() {
     ST.day = S.night; deeds();
+    // the System wakes up after the first night (the darkest moment), with its gift
+    if (S.night === 2 && !ST.gifted) { ST.gifted = true; push({ kind: 'gift', eyebrow: GIFT.eyebrow, title: GIFT.title, scene: `${SYSTEM.intro} ${GIFT.scene}`, choices: GIFT.choices.map(c => ({ ...c })) }); chron('The status window opened.', 4); }
     for (const n of ST.npcs) n.chatToday = 0;
     if (ST.threads.hummer && ST.threads.hummer.status === 'open' && ST.threads.hummer.stage === 1) S.food = Math.max(0, S.food - 1);   // the caged one eats
     S.food += (ST.garden || 0) + (ST.flags.garden ? 1 : 0) + bonus.food();
@@ -263,7 +265,7 @@ export function createStory(ctx) {
   function placeSpots() {
     ST.spots = ST.spots.filter(sp => S.night - sp.day < 3);
     ST.streetUsed = ST.streetUsed || [];
-    const want = Math.min(2, map.regions.filter(r => r.ring > 0 && !S.sealed[r.id]).length);
+    const want = Math.min(S.night < 2 ? 1 : 2, map.regions.filter(r => r.ring > 0 && !S.sealed[r.id]).length);
     for (let k = ST.spots.length; k < want; k++) {
       const pool = STREET.filter(e => !ST.streetUsed.includes(e.id));
       const spot = ctx.findSpot(); if (!spot) return;
@@ -298,7 +300,7 @@ export function createStory(ctx) {
   let tipT = 0;
   function tips() {
     if ((tipT -= 0.25) > 0) return; ST.tips = ST.tips || [];
-    for (const t of TIPS) if (!ST.tips.includes(t.id) && t.when(S, ctx.api())) { ST.tips.push(t.id); toast(t.text, 'win'); tipT = 20; return; }
+    for (const t of TIPS) if (!ST.tips.includes(t.id) && (S.night >= 2 || t.day1) && t.when(S, ctx.api())) { ST.tips.push(t.id); toast(t.text, t.day1 ? 'sys' : 'win'); tipT = 20; return; }
   }
   function tick() {
     tips();
@@ -316,8 +318,7 @@ export function createStory(ctx) {
     }
   }
   function start() {
-    push({ kind: 'gift', eyebrow: GIFT.eyebrow, title: GIFT.title, scene: `${SYSTEM.intro}\n\n${GIFT.scene}`, choices: GIFT.choices.map(c => ({ ...c })) });
-    chron('Woke up in the fallen city with a status window and a bus full of strangers.', 5);
+    chron('Woke up in the fallen city with a bus full of strangers.', 5);
     placeSpots(); episode();
   }
   /** bonuses companions and story give the town */

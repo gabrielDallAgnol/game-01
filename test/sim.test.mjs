@@ -55,7 +55,7 @@ test('palisades reroute the dead instead of being ignored', () => {
 test('day actions respect gold, phase and claimed land', () => {
   const g = createGame({ mode: 'classic', seed: 2, biome: 'lakeshore' });
   const S = g.state, core = g.map.regions[0].slots; S.stock = {};
-  const outside = g.map.slots.find(s => s.region !== 0);
+  const outside = g.map.slots.find(s => s.region !== 0 && !g.inZone(s.x, s.y));
   assert.equal(g.build(outside.id, 'house'), false, 'built outside claimed land');
   assert.equal(g.build(core[0], 'tower'), true);
   assert.equal(g.build(core[0], 'house'), false, 'built on an occupied slot');
@@ -85,8 +85,8 @@ test('heroes: every class fights, the Scavver only weakly', () => {
   for (const hero of ['warrior', 'archer', 'merchant']) {
     const g = createGame({ mode: 'classic', seed: 4, biome: 'highland', hero }); const S = g.state;
     while (S.pendingPicks) g.choosePerk(S.offer[0]);
-    g.startNight();
-    for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) { const m = S.mobs[0]; if (m) g.heroTo(m.x, m.y); g.step(); }
+    S.night = 3; g.startNight();
+    for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) { const m = S.mobs.find(q => !q.roam); if (m) g.heroTo(m.x, m.y); g.step(); }
     const kills = S.log[0].kills.hero || 0;
     assert.ok(kills > 0, `${hero} killed nothing`);
   }
@@ -109,7 +109,7 @@ test('towns use their space: enough lots, little dead land, a street around ever
   for (const biome of Object.keys(BIOMES)) for (let s = 1; s <= 20; s++) {
     const m = generateMap(s, biome), st = spaceStats(m);
     assert.ok(st.coreSlots >= 7, `${biome} ${s}: town has ${st.coreSlots} lots`);
-    assert.ok(st.coreUnused <= 0.25, `${biome} ${s}: ${Math.round(st.coreUnused * 100)}% of town land unused`);
+    assert.ok(st.coreUnused <= 0.3, `${biome} ${s}: ${Math.round(st.coreUnused * 100)}% of town land unused`);
     for (const a of m.slots) for (const b of m.slots) if (a !== b && !a.gate && !b.gate)
       assert.ok(Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) >= 4, `${biome} ${s}: lots ${a.id} and ${b.id} touch`);
   }
@@ -185,7 +185,7 @@ test('tapping a spot walks around buildings instead of stopping at them', () => 
 test('blessings: rarity by source, pacts, masteries, reroll', () => {
   const g = createGame({ mode: 'classic', seed: 12, biome: 'lakeshore', hero: 'warrior' }); const S = g.state;
   S.picks = ['nest']; g.choosePerk; // a nest offer must hold a legendary
-  S.picks = ['nest']; S.pendingPicks = 1;
+  S.picks = ['nest']; S.pendingPicks = 1; S.offer = ['steel']; S.offerSource = 'nest';
   g.reroll(); // free reroll rolls the nest offer
   
   assert.ok(S.offer.some(id => PERKS.find(p => p.id === id).rarity === 'legendary'), 'nest offer without a legendary');
@@ -386,7 +386,7 @@ test('hands, rising costs, power and heat', () => {
 });
 
 test('blessings: a Calling mostly sees its own family; a Survivor sees all three', () => {
-  const count = hero => { const g = createGame({ seed: 3, hero }); const S = g.state, n = {}; for (let k = 0; k < 60; k++) { S.picks = ['dawn']; S.reroll.free = 1; g.reroll(); for (const id of S.offer) { const f = (PERKS.find(p => p.id === id) || {}).fam; n[f] = (n[f] || 0) + 1; } } return n; };
+  const count = hero => { const g = createGame({ seed: 3, hero }); const S = g.state, n = {}; for (let k = 0; k < 60; k++) { S.picks = ['nest']; S.offer = ['steel']; S.offerSource = 'nest'; S.reroll.free = 1; g.reroll(); for (const id of S.offer) { const f = (PERKS.find(p => p.id === id) || {}).fam; n[f] = (n[f] || 0) + 1; } } return n; };
   for (const [hero, own, others] of [['warrior', 'hero', ['ranger', 'scavver']], ['archer', 'ranger', ['hero', 'scavver']], ['merchant', 'scavver', ['hero', 'ranger']]]) {
     const n = count(hero); for (const f of others) assert.ok((n[own] || 0) > (n[f] || 0), `${hero}: ${f} offered as often as ${own}`);
   }

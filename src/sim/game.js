@@ -19,7 +19,7 @@ export const STEP = 1 / 60;
 export const PICKS_PER_DAWN = 2;
 export const DROPS = { channel: 3, reach: 1.7, life: 2 };   // seconds to open, how close, nights it lasts
 export const STREAM = { every: 11, drop: 0.35, min: 3.5, nightMult: 1.6, rage: 4, rageTime: 18, hiveHp: 60 };   // seconds between dead per hive
-export const ZONE = { keep: 10, building: 4.5, landmark: 7, hiveBlock: 6, hiveReach: 14 };
+export const ZONE = { keep: 13, building: 4.5, landmark: 7, hiveBlock: 6, hiveReach: 14 };
 export const TOWN_DRAW = { free: 12, per: 0.012 };
 export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/3
 // Heat: how much attention the town draws. It rests on a floor set by your noise (people, homes, guns, generators)
@@ -655,7 +655,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (l.kind === 'tvtower' || L.reveal) { S.seen.fill(1); S.seenVersion++; } else reveal(l.x, l.y, l.kind === 'eiffel' ? 22 : 9);
     if (L.survivors) S.survivors += L.survivors;
     gainXp(15); addPath('scavver', 0.5);
-    if (L.manual) { S.picks.push(`manual:${L.manual}`); syncPicks(); toast(`[Field manual found] ${FAMILIES[L.manual].name} blessings: pick one at once.`, 'good'); }
+    if (L.manual) { const m = FAMILIES[L.manual].hero ? 'chest' : `manual:${L.manual}`; S.picks.push(m); syncPicks(); toast(m === 'chest' ? '[Supplies found] A blessing for the town: pick one at once.' : `[Field manual found] ${FAMILIES[L.manual].name} blessings: pick one at once.`, 'good'); }
     S.stats.sites = (S.stats.sites || 0) + 1;
     ev('landmark', { id }); toast(`[Site claimed: ${L.name}] ${L.desc}`, 'good');
     if (story) { S.story.quests = S.story.quests.filter(q => q.site !== id); story.chron(`Claimed the ${L.name}.`, 3); }
@@ -740,13 +740,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function stepRoamer(m, dt, speed) {
     const R = TIDE.roam, h = S.hero, home = m.roam;
     // now and then a roamer next to your land drifts in and walks on the town
-    if (S.clock && S.night >= 2 && home.region >= 0 && baseDist(home.x, home.y) < (S.heat >= HEAT.stir ? 20 : 12) && rng.next() < TIDE.drift * Math.min(1, S.night / 6) * (S.heat >= HEAT.stir ? 2.5 : 1) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
+    if (S.clock && S.night >= 2 && home.region >= 0 && baseDist(home.x, home.y) < (S.heat >= HEAT.stir ? 20 : 12) && rng.next() < TIDE.drift * Math.min(1, S.night / 6) * (S.heat >= HEAT.stir ? 2.5 : 1) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; m.stream = -2; ev('drift', { id: m.id }); return; }
     const fromHome = Math.hypot(m.x - home.x, m.y - home.y);
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), heroHome = inZone(idx(Math.floor(h.x), Math.floor(h.y)));
     // once a roamer has your scent it hunts you: it follows you home and joins the attack on the town
     if (!m.hunt && !h.dead && hd < R.sight - (S.story.flags.quiet ? 1.5 : 0) && !heroHome && (!m.warden || Math.hypot(h.x - home.x, h.y - home.y) < R.leash)) { m.hunt = true; ev('aggro', { id: m.id }); }
     if (m.hunt && (h.dead || hd > R.lose || (m.warden && Math.hypot(h.x - home.x, h.y - home.y) > R.leash + 4))) m.hunt = false;
-    if (m.hunt && !m.warden && heroHome && baseDist(m.x, m.y) < 4) { m.roam = null; m.hunt = false; ev('drift', { id: m.id }); return; }
+    if (m.hunt && !m.warden && heroHome && baseDist(m.x, m.y) < 4) { if (S.night < 3) { m.hunt = false; m.wp = { x: home.x, y: home.y }; } else { m.roam = null; m.hunt = false; m.stream = -2; ev('drift', { id: m.id }); return; } }
     if (m.hunt || (m.tauntT > 0 && !h.dead)) {
       m.face = Math.atan2(h.x - m.x, h.y - m.y);
       if (hd > 0.9) moveToward(m, h.x, h.y, speed * (R.chase[m.kind] || 1.2) * dt); else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; hurtHero(MOBS[m.kind].dmg * (m.dmgK || 1)); ev('bite', { id: m.id }); } }
@@ -1064,7 +1064,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.offerSource = source;
     if (source.startsWith('mastery:')) { const fam = source.split(':')[1]; S.offer = MASTERIES[fam].map(m => `m:${m.id}`); return; }
     const manual = source.startsWith('manual:') ? source.split(':')[1] : null;   // a field manual found in a site: blessings of one family
-    let pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && (manual ? p.fam === manual && !p.pact : famOk(p.fam)));
+    const epic = source === 'nest';   // hero blessings (Brawn, Aim, Wits, Heart) are epic loot: a burned hive or a unique monster
+    let pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && (manual ? p.fam === manual && !p.pact : famOk(p.fam)) && (epic ? !!FAMILIES[p.fam].hero : !FAMILIES[p.fam].hero));
+    if (epic && !pool.length) pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && famOk(p.fam));
     if (manual && !pool.length) pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && famOk(p.fam));
     const n = 3 + (source === 'dawn' ? (HC.extraOffer || 0) : 0);
     const odds = ODDS[manual ? 'chest' : source] || ODDS.dawn, out = [];
@@ -1552,7 +1554,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); if (S.phase === 'day') checkForeman(); story.tick(); if (S.blackout) S.sawBlackout = true; }
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }
     // sunrise: whatever still walks long after the last surge burns away
-    if (S.phase === 'night' && !S.queue.length && S.mobs.some(m => !m.roam && m.stream === undefined) && S.qT > WAVES.duration(S.night) + 90) {
+    if (S.phase === 'night' && !S.queue.length && S.mobs.some(m => !m.roam && m.stream === undefined) && S.qT > WAVES.duration(S.night) + 30) {
       for (const m of S.mobs.filter(q => !q.roam && q.stream === undefined)) { if (m.unique && S.unique) S.unique.escaped = true; S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
       toast('The sun rises and the last of the dead burn away.');
     }
@@ -1600,7 +1602,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   /** building whose footprint covers the cell under (x, y), or the keep */
   function buildingAt(x, y) { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return null; const o = S.occ[idx(cx, cy)]; return o >= 0 ? S.byId.get(o) : null; }
   for (const r of S.claimed) revealRegion(r); reveal(c, c, 14);
-  S.picks.push('dawn'); rollOffer(); rollPacks(); spawnRoamers();
+  rollOffer(); rollPacks(); spawnRoamers();   // day 1 is quiet: the first blessing comes at dawn 2
 
   // ---------- scavenging ----------
   sc = createScavenge({ S, map, seed, ev, toast, earn, activeNests, isBloodMoon, spawnMob, fail });

@@ -4,14 +4,14 @@
 
 // The voice of the world: terse, slightly cold, in [brackets]. The hero woke up in this city with a status window.
 export const SYSTEM = {
-  intro: '[Status window unlocked] You woke up in Hollowmere with a name you remember and a city you do not. The dead walk. A bus full of strangers calls you boss. Hold the town.',
+  intro: '[Status window unlocked] You lived through your first night. At dawn, blue light folds out of the air in front of you, like a window in a game you never played.',
 };
 
 // The first gift: one of three, before day 1 starts
 export const GIFT = {
   title: 'The System offers a starting gift',
   eyebrow: '[Choose one]',
-  scene: 'Blue light folds out of the air in front of you, like a window in a game you never played. Three lines blink, waiting.',
+  scene: 'Three lines blink, waiting for you to choose.',
   choices: [
     { id: 'lantern', label: 'Lantern of Dawn', hint: 'Your hero hits 15% harder and sees further at night.', fx: [{ op: 'perk', key: 'heroDmgMult', mul: 1.15 }, { op: 'title', id: 'lantern' }] },
     { id: 'boots', label: 'Quiet Boots', hint: 'The dead in the streets notice you later, and your town draws less attention.', fx: [{ op: 'flag', key: 'quiet' }, { op: 'title', id: 'quiet' }] },
@@ -137,7 +137,7 @@ export const THREADS = {
   school: {
     title: 'Drawings on the Glass',
     cast: { teacher: { role: 'teacher', names: ['Ines Moreau', 'Clara Weiss', 'Beatriz Lima', 'Hanna Sund'], epithet: 'the Teacher', persona: { traits: ['calm', 'stubborn', 'dry-humoured'], quirk: 'corrects everyone\'s grammar, even now', want: 'every child fed and counted', fear: 'losing count' }, secret: 'One of the children is bitten. She has been hiding it for four days.' } },
-    start: { day: 3 },
+    start: { day: 4 },
     stages: [
       {
         id: 'drawings', at: 'dawn', eyebrow: '[Signal: children]', title: 'Drawings on the glass',
@@ -174,7 +174,7 @@ export const THREADS = {
 THREADS.lantern = {
   title: 'The Lantern-Eater',
   cast: {},
-  start: { day: 2 },
+  start: { day: 3 },
   stages: [
     {
       id: 'mark', at: 'dawn', eyebrow: '[You have been Marked]', title: 'The light that went out',
@@ -182,7 +182,7 @@ THREADS.lantern = {
       choices: [{ id: 'note', label: 'Remember it', hint: 'Something in this city knows your face now. It will come back on a blood moon.', lean: 'ranger', fx: [{ op: 'advance' }] }, { id: 'stare', label: 'Stare back into the dark', hint: 'Let it come. You will be ready.', lean: 'hero', fx: [{ op: 'advance' }] }],
     },
     {
-      id: 'sighting', at: 'dawn', after: 8, eyebrow: '[Unique Monster sighted: The Lantern-Eater]', title: 'Something eats the light',
+      id: 'sighting', at: 'dawn', after: 7, eyebrow: '[Unique Monster sighted: The Lantern-Eater]', title: 'Something eats the light',
       scene: 'Last night the lamp on the north corner went out. Then the next one, and the next, a line of darkness walking toward the keep. In the morning the bulbs are gone, and so are the poles. Tonight is a blood moon. [There is only one of it in the whole world.]',
       choices: [
         { id: 'bait', label: 'Light every lamp and draw it in', hint: 'It walks into your towers tonight instead of a guardian: tougher, slower, worth a legendary blessing and a title. +15 heat.', fx: [{ op: 'heat', n: 15 }, { op: 'unique', name: 'The Lantern-Eater', mult: 1.5 }, { op: 'advance' }] },
@@ -305,7 +305,7 @@ export const BARKS = {
 // One new idea at a time: System tips that appear the first time something matters
 export const TIPS = [
   { id: 'hands', when: (S, g) => S.handsUsed > 0, text: '[Tip: Hands] Every build or upgrade takes a free pair of hands for the day. More people, more hands. They rest at dawn.' },
-  { id: 'night', when: S => S.phase === 'night' && S.night === 1, text: '[Tip: The first night] Something is coming from the dark. Your towers shoot on their own; you can fight too.' },
+  { id: 'night', day1: true, when: S => S.phase === 'night' && S.night === 1, text: '[Tip: The first night] Something is coming from the dark. Your towers shoot on their own; you can fight too.' },
   { id: 'stream', when: S => S.mobs.some(m => m.stream !== undefined && !m.roam), text: '[Tip: The stream] Awake hives never stop sending their dead, day or night. Burn a hive to stop it, but hitting one makes it rage.' },
   { id: 'street', when: S => S.story.spots.length > 0 && S.phase === 'day', text: '[Tip: Encounters] Blue beacons in the open districts are people and places worth a look. A few dead guard each one.' },
   { id: 'district', when: S => S.story.quests.length > 0, text: '[Tip: Quests] A blue arrow points to your quest. Walk there yourself: the town will hold for a while.' },

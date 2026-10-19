@@ -64,7 +64,7 @@ export function generateMap(seed, biome) {
   function cityCell(x, y, d) {
     const ux = inBlock(x), uy = inBlock(y);
     if (ux < ROADW || uy < ROADW) { road[idx(x, y)] = 1; return T.GRASS; }
-    if (d < 8) return T.GRASS;
+    if (d < 11) return T.GRASS;   // the square and the streets round it: open ground to build on
     const ex = Math.min(ux - ROADW, BLOCK - 1 - ux), ey = Math.min(uy - ROADW, BLOCK - 1 - uy), e = Math.min(ex, ey);   // 0 = sidewalk
     if (e === 0) return T.GRASS;
     const kind = kindOf(x, y);
@@ -130,7 +130,7 @@ export function generateMap(seed, biome) {
 
   // 3. town clearing
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
-    if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 7) terrain[idx(x, y)] = T.DIRT;
+    if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 9) terrain[idx(x, y)] = T.DIRT;
 
   // 4. regions: town + a ring of 6 + an outer ring of 6 big far districts
   const seeds = [{ x: c, y: c, ring: 0 }];

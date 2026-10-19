@@ -309,7 +309,7 @@ export function createView(canvas, game, opts = {}) {
     const spots = [];
     for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
       const i = idx(x, y), r = map.region[i]; if (r < 0 || S.sealed[r] || !PASSABLE[map.terrain[i]]) continue;
-      for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) { const j = idx(x + dx, y + dy), r2 = map.region[j]; if (r2 >= 0 && S.sealed[r2] && PASSABLE[map.terrain[j]]) { spots.push([x + 0.5 + dx * 0.5, y + 0.5 + dy * 0.5, dx ? Math.PI / 2 : 0]); break; } }
+      for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) { const j = idx(x + dx, y + dy), r2 = map.region[j]; if (r2 >= 0 && S.sealed[r2] && PASSABLE[map.terrain[j]]) spots.push([x + 0.5 + dx * 0.5, y + 0.5 + dy * 0.5, dx ? Math.PI / 2 : 0]); }   // every edge: the panels join corner to corner
     }
     if (!spots.length) return;
     fenceMesh = new THREE.Group();

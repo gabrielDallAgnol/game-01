@@ -158,7 +158,7 @@ export function startApp() {
   }
   const needsDawn = () => { const S = game.state; return S.phase === 'day' && !S.over && ((S.pendingPicks > 0 && S.offer.length) || S.story.encounters.length || S.packs.length || (S.trade && !S.trade.done && !traderSeen)); };
 
-  const sourceLabel = { dawn: 'Dawn blessing', chest: 'From a chest', nest: 'Spoils of the nest', 'manual:hero': 'Field manual · Brawn', 'manual:ranger': 'Field manual · Aim', 'manual:scavver': 'Field manual · Wits', 'manual:heart': 'Field manual · Heart', 'manual:bow': 'Field manual · Bow', 'manual:stone': 'Field manual · Stone', 'manual:harvest': 'Field manual · Harvest' };
+  const sourceLabel = { dawn: 'Dawn blessing', chest: 'From a chest', nest: 'Epic loot · from the hive', 'manual:hero': 'Field manual · Brawn', 'manual:ranger': 'Field manual · Aim', 'manual:scavver': 'Field manual · Wits', 'manual:heart': 'Field manual · Heart', 'manual:bow': 'Field manual · Bow', 'manual:stone': 'Field manual · Stone', 'manual:harvest': 'Field manual · Harvest' };
   function showPerks() {
     const S = game.state, src = S.offerSource || 'dawn', isMastery = src.startsWith('mastery:');
     const pips = f => [0, 1, 2].map(i => `<i class="${i < S.P.fam[f] ? 'on' : ''}"></i>`).join('');
@@ -177,8 +177,8 @@ export function startApp() {
     const build = Object.keys(FAMILIES).filter(f => S.P.fam[f]).map(f => `${FAMILIES[f].name} ${Math.min(S.P.fam[f], 3)}/3${S.P.mastery[f] ? ' ★' : ''}`).join(' · ');
     const rc = game.rerollCost();
     showCard('perk', `<div class="eyebrow">${isMastery ? 'Three of a kind' : sourceLabel[src] || 'Blessing'}${S.pendingPicks > 1 ? ` · ${S.pendingPicks} to pick` : ''}</div>
-      <h1 class="sm">${isMastery ? 'Choose a mastery' : 'The town remembers'}</h1>
-      <div class="perks">${cards}</div>
+      <h1 class="sm">${isMastery ? 'Choose a mastery' : src === 'nest' ? 'Epic loot' : 'The town remembers'}</h1>${src === 'nest' ? '<p class="tiny" style="white-space:normal">Hero blessings only drop from burned hives and unique monsters. Each one also leans your path.</p>' : ''}
+      <div class="perks${src === 'nest' ? ' epic' : ''}">${cards}</div>
       <div class="cardrow spread"><span class="tiny">${build ? 'Your build: ' + build : 'Take three of one kind to unlock a mastery.'}</span>
       ${isMastery ? '' : `<button class="btn ghost" id="pReroll" ${rc > S.gold ? 'disabled' : ''}>Reroll${rc ? ` · <span class="dot gold"></span> ${rc}` : ' · free'}</button>`}</div>`);
     $$('[data-perk]').forEach(b => b.onclick = onArmed(() => { game.choosePerk(b.dataset.perk); dawnFlow(); }));
@@ -790,7 +790,7 @@ export function startApp() {
       bell.innerHTML = (bm ? 'Face the moon' : 'Ring bell') + (bonus > 0 ? `<span class="badge">+${bonus}</span>` : '');
       const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
       const loose = S.mobs.filter(m => !m.roam).length;
-      $('#info').innerHTML = `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}${sunDial(game.dayFrac(), dusk <= 15)}${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · <span class="long">Tonight </span><em>~${dead}</em> dead<span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
+      $('#info').innerHTML = `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}${sunDial(game.dayFrac(), dusk <= 15)}${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · <span class="long">Tonight </span><em>☠ ${dead}</em><span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();
