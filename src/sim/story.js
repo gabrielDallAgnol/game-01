@@ -249,7 +249,7 @@ export function createStory(ctx) {
     if (!shown && S.night >= 3 && rng.next() < 0.6) { ST.ambient = ST.ambient || []; const pool = AMBIENT.filter(a => !ST.ambient.includes(a.id) && a.when(S)); if (pool.length) { const a = pool[rng.int(pool.length)]; ST.ambient.push(a.id); push({ kind: 'ambient', eyebrow: a.eyebrow, title: a.title, scene: a.scene, choices: a.choices.map(c => ({ ...c })) }); shown++; } }
     // a route out of the fences every other day (and whenever none opened for three days)
     const front = ctx.frontier();
-    if (front.length && S.feat.routes && shown < 2 && (S.night % 2 === 0 || S.night - ST.lastOpen >= 3)) { const e = districtEncounter(); if (e) { push(e); shown++; } }
+    if (front.length && S.feat.routes && shown < 2 && S.night - (ST.lastRoute || 0) >= 2) { const e = districtEncounter(); if (e) { push(e); shown++; ST.lastRoute = S.night; } }
     episode();
   }
   // every day is an episode: a title card at dawn, like an anime

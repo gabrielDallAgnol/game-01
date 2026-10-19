@@ -811,7 +811,7 @@ export function startApp() {
     $('#food').textContent = S.food; $('#foodNote').textContent = `+${game.foodPerDawn()} −${game.foodNeed()}`;
     $('#foodNote').classList.toggle('warn', game.foodPerDawn() + S.food < game.foodNeed());
     const hf = game.handsFree(); $('#hands').textContent = `${hf}/${game.handsMax()}`; $('#hands').classList.toggle('none', hf < 1);
-    const pin = game.powerIn(), pout = game.powerOut(); $('#pwrTxt').textContent = `${pin}/${pout}`; $('#pwr').classList.toggle('off', S.blackout); $('#pwr').hidden = !S.feat.power; $('.heat').hidden = !S.feat.heat; $('#threatPill').hidden = !S.feat.power && !S.feat.heat;
+    const pin = game.powerIn(), pout = game.powerOut(); $('#pwrTxt').textContent = `${pin - pout >= 0 ? '+' : '−'}${Math.abs(pin - pout)}`; $('#pwr').title = `Power: ${pin} made, ${pout} used. Short of power, everything powered switches off.`; $('#pwr').classList.toggle('thin', pin - pout < 2); $('#pwr').classList.toggle('off', S.blackout); $('#pwr').hidden = !S.feat.power; $('.heat').hidden = !S.feat.heat; $('#threatPill').hidden = !S.feat.power && !S.feat.heat;
     $('#blackout').hidden = !S.blackout; document.body.classList.toggle('bo', !!S.blackout); if (S.blackout) $('#boTxt').textContent = `${pout} needed · ${pin} made`;
     const ht = Math.round(S.heat); $('#heatFill').style.width = Math.min(100, S.heat) + '%'; $('#heatTxt').textContent = ht;
     const hel = $('.heat'); hel.classList.toggle('hot', S.heat >= HEAT.erupt || !!S.eruption); hel.classList.toggle('stir', S.heat >= HEAT.stir && S.heat < HEAT.erupt);

@@ -73,7 +73,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     reroll: { free: REROLL.free, cost: REROLL.base }, trade: null, halfUpgrade: false,
     ability: { cd: 0, hires: 0 }, weather: 'clear', clock, dayT: 0, dayQueue: [], drops: [], landmarks: map.landmarks.map(l => ({ ...l, owned: false })), seen: new Uint8Array(N * N), seenVersion: 0, builders: null, survivors: START.survivors,
     log: [], cur: null, over: false, won: false,
-    sealed: Uint8Array.from(map.regions, r => (r.ring > 1 || (r.ring === 1 && r.nest) ? 1 : 0)), kits: {}, sealVersion: 0, legacy: { ...legacy },
+    sealed: Uint8Array.from(map.regions, r => (r.ring > 1 ? 1 : 0)), kits: {}, pickups: [], sealVersion: 0, legacy: { ...legacy },
     hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0, guardT: 0, attacks: 0 },
     flow: null, flowNext: null, climb: null, climbNext: null, flowDirty: true,
     stats: { goldEarned: 0, goldSpent: 0, built: 0, upgraded: 0, killsByKind: {}, killsBy: {}, peakPop: 0, buildingsLost: 0, housesLost: 0, risen: 0,
@@ -99,7 +99,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const costOf = (type, level = 1) => Math.max(1, Math.floor(BUILDINGS[type].cost[level - 1] * (1 - (HC.discount || 0))) - (isDef(type) ? S.P.defDiscount : S.P.ecoDiscount));
   // a new building costs more for every one of its kind you already have
   const copies = type => S.buildings.filter(b => b.type === type).length;
-  const newCost = type => Math.max(1, Math.round(costOf(type) * (1 + (RISE[type] || 0) * copies(type))));
+  const newCost = type => Math.max(1, Math.round(costOf(type) * (1 + 2 * (RISE[type] || 0) * Math.sqrt(copies(type)))));   // each copy costs more, but the climb flattens
   const buyCost = type => newCost(type) * (S.mode === 'packs' && !BUILDINGS[type].tech ? PACK_RULES.premium : 1);
   // hands: every build or upgrade takes a free pair of hands for the rest of the day
   const handsMax = () => HANDS.base + Math.ceil(Math.sqrt(pop())) + Math.floor(pop() / 12) + S.handsExtra + (S.legacy.hands || 0) + (S.landmarks || []).reduce((a, l) => a + (l.owned && LANDMARKS[l.kind].hands || 0), 0) + (story ? story.bonus.hands() : 0);
@@ -118,6 +118,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const powered = b => powerDraw(b) === 0 || !S.blackout;
   function checkPower() {
     const out = powerIn() < powerOut();
+    if (!out && S.feat.power && powerOut() > 0 && powerIn() - powerOut() < 2 && !S.powerWarned) { S.powerWarned = true; toast('[Warning: power] Only **' + (powerIn() - powerOut()) + '** power to spare. Lose a generator and everything powered switches off.', 'bad'); }
+    if (powerIn() - powerOut() >= 3) S.powerWarned = false;
     if (out !== S.blackout) { S.blackout = out; ev(out ? 'blackout' : 'powerBack'); toast(out ? `POWER DOWN. Your powered buildings switched off: ${powerOut()} needed, ${powerIn()} made. Build a generator or pull something down.` : 'Power restored. The lights come back on.', out ? 'bad' : 'good'); }
   }
   const houseGold = b => Math.round(BUILDINGS.house.gold[b.level - 1] * DIFF.eco) + S.P.houseGold + (hasTech('market') ? 1 : 0) + (mastery('tycoon') ? 1 : 0) + (has('guarded') && near(b, 'tower', 6) ? 2 : 0) + (combo('guarded', 'bastion') && near(b, 'wall', 3) ? 1 : 0);
@@ -776,6 +778,24 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const cx = Math.floor(m.x), cy = Math.floor(m.y); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) { m.x = ox; m.y = oy; m.wp = null; }
   }
 
+  // ---------- pickups: little finds in the open streets, worth a detour while you explore ----------
+  const PICKUP = { start: 28, perDawn: 6, max: 40 };
+  function scatterPickups(n) {
+    for (let k = 0, tries = 0; k < n && tries < n * 30 && S.pickups.length < PICKUP.max; tries++) {
+      const x = rng.int(N), y = rng.int(N), i = idx(x, y), r = map.region[i];
+      if (r < 0 || S.sealed[r] || !PASSABLE[map.terrain[i]] || !map.reach[i] || S.occ[i] >= 0 || inZone(i) || map.lm[i] >= 0) continue;
+      if (S.pickups.some(p => Math.abs(p.x - x) + Math.abs(p.y - y) < 4)) continue;
+      S.pickups.push({ id: S.nextId++, x: x + 0.5, y: y + 0.5, kind: rng.next() < 0.55 ? 'scrap' : 'food' }); k++;
+    }
+  }
+  function stepPickups() {
+    const h = S.hero; if (h.dead) return;
+    for (const p of [...S.pickups]) if (Math.abs(p.x - h.x) < 0.9 && Math.abs(p.y - h.y) < 0.9) {
+      S.pickups.splice(S.pickups.indexOf(p), 1);
+      if (p.kind === 'scrap') earn(1); else S.food += 1;
+      S.stats.pickups = (S.stats.pickups || 0) + 1; ev('pickup', { id: p.id, kind: p.kind, x: p.x, y: p.y });
+    }
+  }
   // ---------- supply drops: after big nights a crate comes down in the wild, guarded ----------
   const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
   function compass(x, y) { const a = Math.atan2(x - c, -(y - c)); return DIRS[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]; }
@@ -837,7 +857,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const nests = new Set(activeNests(n)); for (const r in rage) if (rage[r] > 0) { nests.add(+r); rage[r] -= dt; }
     const u = unlocked(Math.max(1, n - 1));
     for (const r of nests) {
-      if (!S.nestAlive[r] || (S.sealed[r] && !(rage[r] > 0))) continue;
+      if (!S.nestAlive[r] || ((S.sealed[r] || S.night < 5) && !(rage[r] > 0))) continue;   // the near hives only send their dead by night until the first blood moon (unless you anger one)
       streamAcc[r] = (streamAcc[r] || rng.range(0, every)) + dt * mult * (rage[r] > 0 ? STREAM.rage : 1);
       while (streamAcc[r] >= every) {
         streamAcc[r] -= every;
@@ -977,7 +997,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     }
     closeLog({ goldIn, foodIn, foodNeed: need, fed: +fed.toFixed(2), claimedNow });
     let rebuilt = 0, rebuildCost = 0, left = 0;
-    for (const b of [...S.buildings]) { if (b.ruined) { const rc = Math.ceil(costOf(b.type, b.level) / 4); if (S.gold >= rc) { S.gold -= rc; rebuildCost += rc; rebuilt++; b.ruined = false; b.hp = b.maxHp; occupy(b); ev('rebuild', { id: b.id }); } else { left++; continue; } } b.hp = b.maxHp; b.fell = false; }
+    for (const b of [...S.buildings].sort((p, q) => (q.type === 'generator') - (p.type === 'generator'))) { if (b.ruined) { const rc = Math.ceil(costOf(b.type, b.level) / 4); if (S.gold >= rc) { S.gold -= rc; rebuildCost += rc; rebuilt++; b.ruined = false; b.hp = b.maxHp; occupy(b); ev('rebuild', { id: b.id }); } else { left++; continue; } } b.hp = b.maxHp; b.fell = false; }
     if (rebuilt) toast(`Rebuilt ${rebuilt} ${rebuilt === 1 ? 'building' : 'buildings'} for ${rebuildCost} scrap.`, 'bad');
     if (left) toast(`${left} ${left === 1 ? 'ruin waits' : 'ruins wait'} for scrap to rebuild.`, 'bad');
     liveTick = -1;
@@ -991,7 +1011,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     sc.dawn(isBloodMoon(S.night));
     S.night++; newLog();
     S.weather = rollWeather(S.night); if (S.weather !== 'clear') toast(`Tonight: ${W8().name.toLowerCase()}. ${W8().desc}`, W8().kind);
-    planDay(S.night); spawnRoamers();
+    planDay(S.night); spawnRoamers(); scatterPickups(PICKUP.perDawn);
     for (const d of [...S.drops]) if (--d.ttl <= 0) { S.drops.splice(S.drops.indexOf(d), 1); ev('dropGone', { id: d.id }); }
     { const was = S.night - 1; if (isBloodMoon(was)) dropSupply('The blood moon has set.'); else if (claimedNow !== null) dropSupply('With the hive burned,'); else if (was >= 3 && rng.next() < 0.2) dropSupply('At first light,'); }
     S.reroll.cost = REROLL.base;
@@ -1564,6 +1584,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const p of [...S.purses]) { p.life -= dt; if (p.life <= 0) { S.purses.splice(S.purses.indexOf(p), 1); ev('purseGone', { id: p.id }); } }
     stepProjectiles(dt);
     if (S.drops.length) stepDrops(dt);
+    if (S.pickups.length) stepPickups();
     stepStream(dt);
     stepHeat(dt);
     if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); if (S.phase === 'day') checkForeman(); story.tick(); if (S.blackout) S.sawBlackout = true; }
@@ -1618,6 +1639,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function buildingAt(x, y) { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return null; const o = S.occ[idx(cx, cy)]; return o >= 0 ? S.byId.get(o) : null; }
   for (const r of S.claimed) revealRegion(r); reveal(c, c, 14);
   rollOffer(); rollPacks(); spawnRoamers();   // day 1 is quiet: the first blessing comes at dawn 2
+  if (!restore) scatterPickups(PICKUP.start);
 
   // ---------- scavenging ----------
   sc = createScavenge({ S, map, seed, ev, toast, earn, activeNests, isBloodMoon, spawnMob, fail });
@@ -1654,13 +1676,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, reroll: S.reroll, halfUpgrade: S.halfUpgrade,
       landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),
-      evo: S.evo, path: S.path, feat: S.feat, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, eruption: S.eruption, heatCool: S.heatCool, sawBlackout: !!S.sawBlackout, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT,
+      evo: S.evo, path: S.path, feat: S.feat, pickups: S.pickups, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, eruption: S.eruption, heatCool: S.heatCool, sawBlackout: !!S.sawBlackout, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT,
       buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0]), keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)] };
   }
   function restoreSnap(R) {
     Object.assign(S, { night: R.night, gold: R.gold, food: R.food, kills: R.kills, stock: R.stock, survivors: R.survivors, heat: R.heat, foreman: R.foreman, builders: R.builders, autopilot: R.autopilot,
       kits: R.kits, claimed: new Set(R.claimed), nestAlive: R.nestAlive, wake: R.wake.map(w => (w < 0 ? Infinity : w)), P: R.P, picks: R.picks, chestsHeld: R.chestsHeld, dawns: R.dawns,
-      weather: R.weather, reroll: R.reroll, halfUpgrade: R.halfUpgrade, stats: R.stats, log: R.log || [], evo: R.evo, path: R.path || S.path, feat: R.feat || {}, season: R.season || S.season, buildersWas: R.buildersWas ?? undefined, lvl: R.lvl || 1, xp: R.xp || 0, unique: R.unique || undefined, eruption: R.eruption || null, heatCool: R.heatCool || 0, sawBlackout: !!R.sawBlackout, trade: R.trade || null, drained: R.drained, salvage: R.salvage, clearedIdx: R.cleared, handsUsed: R.handsUsed, dayT: R.dayT });
+      weather: R.weather, reroll: R.reroll, halfUpgrade: R.halfUpgrade, stats: R.stats, log: R.log || [], evo: R.evo, pickups: R.pickups || [], path: R.path || S.path, feat: R.feat || {}, season: R.season || S.season, buildersWas: R.buildersWas ?? undefined, lvl: R.lvl || 1, xp: R.xp || 0, unique: R.unique || undefined, eruption: R.eruption || null, heatCool: R.heatCool || 0, sawBlackout: !!R.sawBlackout, trade: R.trade || null, drained: R.drained, salvage: R.salvage, clearedIdx: R.cleared, handsUsed: R.handsUsed, dayT: R.dayT });
     S.sealed = Uint8Array.from(R.sealed); S.sealVersion++;
     mastSet = new Set(Object.values(S.P.mastery));
     R.landmarks.forEach(([o, k, st], i) => { const l = S.landmarks[i]; if (l) { l.owned = !!o; l.kind = k; l.stripped = !!st; } });

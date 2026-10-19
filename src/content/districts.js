@@ -13,13 +13,13 @@ export const RARITY = {
 export const RARITY_ODDS = { 1: { common: 55, rare: 40, unique: 5 }, 2: { common: 30, rare: 48, unique: 22 } };
 
 export const KITS = {
-  flats: { rarity: 'common', lm: 'flats', name: 'Tower Blocks', call: 'A torch blinks from a top-floor window across the fence. Three short, three long.', max: 3 },
-  allotment: { rarity: 'common', lm: 'allotment', name: 'The Allotments', call: 'Someone kept the vegetable plots watered. You can see green over the wall.', max: 2 },
-  market: { rarity: 'common', lm: 'market', name: 'High Street', call: 'The shutters on the high street are still down. Whatever is behind them, nobody took it.', max: 2 },
-  police: { rarity: 'rare', lm: 'police', name: 'Police Quarter', call: 'The precinct armory had a steel door. It might still be shut.', max: 1 },
-  clinic: { rarity: 'rare', lm: 'clinic', name: 'Clinic Row', call: 'A red cross painted fresh on a roof. Somebody is still treating people over there.', max: 1 },
-  substation: { rarity: 'rare', lm: 'substation', name: 'The Substation', call: 'The streetlights on the far grid flickered on last night. For eleven seconds.', max: 1 },
-  fuel: { rarity: 'rare', lm: 'fuel', name: 'Fuel Depot', call: 'Diesel. You can smell it on the wind: the depot tanks are not empty.', max: 1 },
-  school: { rarity: 'rare', lm: 'school', name: 'The School', call: 'Children\'s drawings taped to the school windows. Some of them are new.', max: 1 },
-  radio: { rarity: 'unique', lm: 'radio', name: 'Radio Station', call: 'A looped broadcast on 98.4: "...if you can hear this, we are still here..."', max: 1 },
+  flats: { rarity: 'common', lm: 'flats', name: 'Tower Blocks', call: 'A torch blinks from a top floor. Three short, three long.', max: 3 },
+  allotment: { rarity: 'common', lm: 'allotment', name: 'The Allotments', call: 'Green over the wall. Someone kept the plots watered.', max: 2 },
+  market: { rarity: 'common', lm: 'market', name: 'High Street', call: 'The high street shutters are still down. Nobody looted it.', max: 2 },
+  police: { rarity: 'rare', lm: 'police', name: 'Police Quarter', call: 'The armory had a steel door. It might still be shut.', max: 1 },
+  clinic: { rarity: 'rare', lm: 'clinic', name: 'Clinic Row', call: 'A fresh red cross on a roof. Someone is still treating people.', max: 1 },
+  substation: { rarity: 'rare', lm: 'substation', name: 'The Substation', call: 'The far grid lit up last night. For eleven seconds.', max: 1 },
+  fuel: { rarity: 'rare', lm: 'fuel', name: 'Fuel Depot', call: 'Diesel on the wind. The depot tanks are not empty.', max: 1 },
+  school: { rarity: 'rare', lm: 'school', name: 'The School', call: 'New children\'s drawings in the school windows.', max: 1 },
+  radio: { rarity: 'unique', lm: 'radio', name: 'Radio Station', call: 'A loop on 98.4: "...if you can hear this, we are still here..."', max: 1 },
 };

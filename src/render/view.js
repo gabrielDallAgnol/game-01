@@ -494,6 +494,7 @@ export function createView(canvas, game, opts = {}) {
     for (let k = 0; k < 26; k++) { const m = new THREE.Mesh(confGeo, confMats[k % confMats.length]); m.position.copy(W(x, y, 0.6)); fx.add(m); const a = vis() * Math.PI * 2, s = 1.2 + vis() * 2.2; confetti.push({ m, vx: Math.cos(a) * s, vz: Math.sin(a) * s, vy: 3.2 + vis() * 2.5, spin: vis() * 12, t: 0 }); }
     if (label) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(label, { w: 256, h: 64, size: 40, bg: 'rgba(0,0,0,0)', fg: '#ffd166' }), transparent: true, depthTest: false })); sp.scale.set(1.6, 0.4, 1); sp.position.copy(W(x, y, 2.2)); sp.renderOrder = 12; fx.add(sp); confetti.push({ m: sp, label: true, t: 0 }); }
   }
+  function floatLabel(x, y, text, col) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(text, { w: 256, h: 64, size: 36, bg: 'rgba(0,0,0,0)', fg: col }), transparent: true, depthTest: false })); sp.scale.set(1.2, 0.3, 1); sp.position.copy(W(x, y, 1.2)); sp.renderOrder = 12; fx.add(sp); confetti.push({ m: sp, label: true, t: 0.4 }); }
   function stepConfetti(dt) {
     for (const c of [...confetti]) {
       c.t += dt;
@@ -590,6 +591,18 @@ export function createView(canvas, game, opts = {}) {
       const e = aMeshes.get(a.id); if (e.tag) e.tag.position.copy(W(a.x, a.y, 1.9));
     }
     for (const [id, e] of aMeshes) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) fx.remove(e.tag); world.remove(e.g); aMeshes.delete(id); }
+  }
+  // little finds in the streets: a scrap crate (amber glint) or a food sack (green), bobbing gently
+  const pkMeshes = new Map();
+  const pkModel = kind => { const b = new K.B(); if (kind === 'scrap') { b.cbox('#7a6a55', 0.36, 0.24, 0.28, 0, 0, 0, { r: 0.03 }); b.cbox('#f0a040', 0.38, 0.05, 0.3, 0, 0.12, 0, { r: 0.01 }); } else { b.sph('#8aa860', 0.2, 0, 0.18, 0, { detail: 1, sy: 0.85 }); b.cbox('#c9b36a', 0.08, 0.08, 0.08, 0, 0.34, 0, { r: 0.02 }); } const g = b.build(); g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; };
+  function syncPickups(t) {
+    const seen = new Set();
+    for (const p of S.pickups || []) {
+      seen.add(p.id); let g = pkMeshes.get(p.id);
+      if (!g) { g = pkModel(p.kind); g.position.copy(W(p.x, p.y)); world.add(g); pkMeshes.set(p.id, g); }
+      g.visible = seenAt(p.x, p.y); g.position.y = 0.05 + Math.sin(t * 2.4 + p.id) * 0.05; g.rotation.y = t * 0.6 + p.id;
+    }
+    for (const [id, g] of pkMeshes) if (!seen.has(id)) { world.remove(g); pkMeshes.delete(id); }
   }
   function syncPurses() {
     const seen = new Set();
@@ -690,6 +703,7 @@ export function createView(canvas, game, opts = {}) {
       if (e.t === 'firstDead') focus = { id: e.id, t: 5 };
       if (e.t === 'hitHive') { const n = map.regions[e.region].nest; burst(n.x, n.y, 1.4, '#9dff4a'); }
       if (e.t === 'bountyGold') burst(e.x, e.y, 0.6, '#f0c050');
+      if (e.t === 'pickup') { burst(e.x, e.y, 0.5, e.kind === 'scrap' ? '#f0a040' : '#9fe08a'); floatLabel(e.x, e.y, e.kind === 'scrap' ? '+1 scrap' : '+1 food', e.kind === 'scrap' ? '#ffc070' : '#b4f09a'); }
       if (e.t === 'scavGo') sendWalkers(e.site, e.n, false);
       if (e.t === 'scavBack') sendWalkers(e.site, e.n, true);
       if (e.t === 'explode') burst(e.x, e.y, e.r, '#a3c65c');
@@ -748,7 +762,7 @@ export function createView(canvas, game, opts = {}) {
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
-    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time); syncDrops(time); syncSpots(time); syncFences();
+    syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time); syncDrops(time); syncSpots(time); syncPickups(time); syncFences();
     game.zone();
     if ((S.seenVersion !== seenV || S.zoneVersion !== zoneV) && (shroudT -= dt) <= 0) { shroudT = 0.3; if (S.zoneVersion !== zoneV) repaint = true; seenV = S.seenVersion; zoneV = S.zoneVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }

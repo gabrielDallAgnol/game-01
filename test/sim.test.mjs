@@ -463,8 +463,9 @@ test('breaking a hive by hand: it rages, then burns', () => {
 test('districts: sealed at the start, opened by choice, identity decided when offered', () => {
   const g = createGame({ seed: 11 }); const S = g.state; readyDay(g);
   const front = g.frontier(); assert.ok(front.length >= 2, 'no frontier');
-  assert.ok(g.map.regions.every(r => (r.ring === 0 || (r.ring === 1 && !r.nest)) === !S.sealed[r.id]), 'the home ward is wrong');
-  assert.ok(g.map.regions.filter(r => r.ring === 1 && !r.nest).every(r => !g.siteOf(r.id) || g.siteOf(r.id).kind !== 'unknown'), 'a home ward site has no identity');
+  assert.ok(g.map.regions.every(r => (r.ring <= 1) === !S.sealed[r.id]), 'the home ward is wrong');
+  assert.ok(g.map.regions.filter(r => r.ring === 1).every(r => !g.siteOf(r.id) || g.siteOf(r.id).kind !== 'unknown'), 'a home ward site has no identity');
+  assert.ok(S.pickups.length >= 15, 'no pickups to find');
   const off = front.map(r => g.districtOffer(r)); assert.ok(off.every(o => o.name && o.rarity && o.call));
   assert.equal(g.districtOffer(front[0]).kit, off[0].kit, 'identity changed between looks');
   const r = front[0], site = g.siteOf(r);
