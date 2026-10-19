@@ -63,6 +63,13 @@ export function startApp() {
       <h1>Hold Hollowmere</h1>
       <p>You woke up in a fallen city with a status window and a bus full of strangers. Build by day, hold the town hall by night, and open the quarantined districts one by one: people to save, power to restore, hives to burn.</p>
       <p class="tiny" style="white-space:normal">Every build takes a free pair of hands · noise raises heat, and at the red mark a hive bursts · power runs the best towers, and a blackout switches them all off · blue arrows and beacons are your story.</p>
+      <details class="news"><summary>What's new (Oct 19)</summary><ul>
+        <li>The city is sealed: open districts through calls and routes. Blue arrows are quests, blue beacons are encounters.</li>
+        <li>Every build takes a free pair of hands; copies cost more. Power runs the best towers; heat makes hives burst.</li>
+        <li>Start as a Survivor; 2 blessings of a family = its Calling, a second family = a final class. Levels too.</li>
+        <li>Companions: tap the day counter to talk to them or take one with you.</li>
+        <li>Auto in the ⋯ menu plays for you. The run saves every dawn, on any device.</li>
+      </ul></details>
       <h2>Your hero</h2>
       <p class="tiny" style="white-space:normal">You start as a <b>Survivor</b>. Blessings come in four hero families: <b>Brawn</b>, <b>Aim</b>, <b>Wits</b> and <b>Heart</b>. Two of one family and the System offers its Calling (Brawler, Ranger, Scavver or Medic); two of a second family and you evolve into one of six final classes: Vanguard, Warlord, Deadeye, Warden, Marshal or Quartermaster.</p>
       <h2>Difficulty</h2>
