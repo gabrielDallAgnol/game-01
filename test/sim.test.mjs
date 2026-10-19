@@ -69,7 +69,7 @@ test('a survived siege claims the region and wakes the nests behind it', () => {
   const S = g.state;
   while (S.pendingPicks) g.choosePerk(S.offer[0]);
   assert.ok(!g.map.regions.some(r => g.canPurge(r.id)), 'a level 1 keep should not march on hives');
-  S.gold = 100; assert.ok(g.upgradeKeep());
+  S.gold = 100; assert.ok((prepKeep(g), g.upgradeKeep()));
   const target = g.map.regions.find(r => g.canPurge(r.id));
   assert.ok(target, 'no region can be marched on');
   S.keep.hp = S.keep.maxHp = 1e6; // make the keep unkillable for this test
@@ -243,6 +243,7 @@ test('packs: a choice of 2 each dawn, pack buildings are free, extra ones cost d
 // ---------- scavenging ----------
 const createGame = o => { const g = newGame(o); clearStory(g); return g; };
 const clearStory = g => { const S = g.state; for (let k = 0; k < 9 && S.story.encounters.length; k++) { const e = S.story.encounters[0]; g.choose(e.choices[e.choices.length - 1].id); } };
+const prepKeep = g => { const S = g.state; S.food = Math.max(S.food, 99); S.survivors = Math.max(S.survivors, 40); S.stats.sites = Math.max(S.stats.sites || 0, 1); S.gold = Math.max(S.gold, 200); };
 const readyDay = g => { const S = g.state; S.handsExtra = 99; clearStory(g); while (S.pendingPicks) g.choosePerk(S.offer[0]); while (S.packs.length) g.choosePack(S.packs[0]); };
 const nextDawn = g => { const S = g.state; g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step(); };
 const firstSite = (g, hops) => g.state.scav.sites.map(s => g.scavenge.siteInfo(s.id)).find(i => i.visible && i.hops === hops);
@@ -293,7 +294,7 @@ test('nothing grows past the keep', () => {
   const s = g.map.slots.find(q => S.claimed.has(q.region) && g.canPlace('house', q.x, q.y).ok);
   assert.ok(g.build('house', s.x, s.y)); const b = S.buildings.find(x => x.type === 'house');
   assert.ok(!g.upgrade(b.id), 'L2 home with an L1 keep');
-  assert.ok(g.upgradeKeep()); assert.ok(g.upgrade(b.id));
+  assert.ok((prepKeep(g), g.upgradeKeep())); assert.ok(g.upgrade(b.id));
   assert.ok(!g.upgrade(b.id), 'L3 home with an L2 keep');
 });
 
@@ -311,7 +312,7 @@ test('towers need crew from homes; a bigger town draws more dead', () => {
   const draw0 = g.townDraw();
   for (let k = 0; k < 6; k++) { const h = spot('house'); if (h) g.build('house', h.x, h.y); }
   assert.ok(g.townDraw() >= draw0);
-  for (const b of S.buildings.filter(x => x.type === 'house')) { g.upgradeKeep(); g.upgrade(b.id); }
+  for (const b of S.buildings.filter(x => x.type === 'house')) { (prepKeep(g), g.upgradeKeep()); g.upgrade(b.id); }
   assert.ok(g.townDraw() > 1, 'no extra dead for a big town');
 });
 
@@ -351,8 +352,8 @@ test('foreman: the town learns to build by itself once it is established, for ev
     assert.equal(S.builders, null, 'builders before the town is established'); S.handsExtra = 99;
     const t = g.map.town; let placed = 0;
     for (let r = 4; r < 12 && placed < 6; r++) for (let a = 0; a < 24 && placed < 6; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) placed++; }
-    g.upgradeKeep(); for (let k = 0; k < 60; k++) g.step(); assert.ok(!S.foreman, 'foreman before keep 3');
-    g.upgradeKeep(); for (let k = 0; k < 60; k++) g.step();
+    (prepKeep(g), g.upgradeKeep()); for (let k = 0; k < 60; k++) g.step(); assert.ok(!S.foreman, 'foreman before keep 3');
+    (prepKeep(g), g.upgradeKeep()); for (let k = 0; k < 60; k++) g.step();
     assert.ok(S.foreman, `${hero}: no foreman with ${S.buildings.length} buildings`);
     assert.equal(S.builders, null, 'the foreman switched itself on'); g.setBuilders('balanced');
     const n0 = S.buildings.length; for (let k = 0; k < 60 * 30 && S.phase === 'day'; k++) g.step();
@@ -373,7 +374,7 @@ test('hands, rising costs, power and heat', () => {
   S.handsExtra = 99;
   // power: two level 2 towers draw more than the keep makes → blackout; a generator fixes it
   for (let k = 0; k < 3; k++) { p = spot('tower'); g.build('tower', p.x, p.y); }
-  S.survivors = 30; g.upgradeKeep();
+  S.survivors = 30; (prepKeep(g), g.upgradeKeep());
   for (const b of S.buildings.filter(x => x.type === 'tower')) g.upgrade(b.id);
   g.step(); g.step(); for (let k = 0; k < 20; k++) g.step();
   assert.ok(g.powerOut() > g.powerIn() ? S.blackout : !S.blackout, 'blackout flag out of step');
@@ -427,7 +428,7 @@ test('tech: Workshop and Market need a level 2 keep, take time to build, and unl
   const g = createGame({ mode: 'classic', seed: 9 }); readyDay(g); const S = g.state; S.gold = 400;
   const t = g.map.town, spot = type => { for (let r = 3; r < 10; r++) for (let a = 0; a < 24; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace(type, x, y).ok) return { x, y }; } return null; };
   assert.equal(spot('workshop'), null, 'a workshop with a level 1 keep');
-  g.upgradeKeep(); g.upgradeKeep();
+  (prepKeep(g), g.upgradeKeep()); (prepKeep(g), g.upgradeKeep());
   const h = spot('house'); g.build('house', h.x, h.y); const home = S.buildings.find(b => b.type === 'house');
   g.upgrade(home.id); assert.equal(home.level === 2 || S.byId.get(home.id).level === 2, true);
   assert.equal(g.upgrade(home.id), false, 'level 3 home without a market');
@@ -453,7 +454,7 @@ test('breaking a hive by hand: it rages, then burns', () => {
   const g = createGame({ seed: 16, hero: 'warrior' }); const S = g.state; readyDay(g);
   const reg = g.map.regions.find(r => r.nest && r.ring === 1);
   assert.equal(g.hitHive(reg.id, 5), false, 'a level 1 keep can break a near hive');
-  S.gold = 99; g.upgradeKeep();
+  S.gold = 99; (prepKeep(g), g.upgradeKeep());
   for (let k = 0; k < 200 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
   assert.equal(S.nestAlive[reg.id], false, 'the hive never burned');
   assert.ok(S.claimed.has(reg.id));
@@ -507,7 +508,7 @@ test('decisions lean the path: rescuing is Heart, dealing is Wits', () => {
 test('saving: a dawn snapshot restores the town, the story and the city', () => {
   const g = createGame({ seed: 21, hero: 'survivor', difficulty: 'veteran' }); const S = g.state; readyDay(g); S.gold = 300;
   const t = g.map.town; let n = 0; for (let r = 4; r < 10 && n < 4; r++) for (let a = 0; a < 24 && n < 4; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) n++; }
-  g.upgradeKeep(); const f = g.frontier(); g.openDistrict(f[0]);
+  (prepKeep(g), g.upgradeKeep()); const f = g.frontier(); g.openDistrict(f[0]);
   const snap = JSON.parse(JSON.stringify(g.snapshot()));
   assert.ok(JSON.stringify(snap).length < 200000, 'save too big');
   const h = newGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, difficulty: snap.difficulty, restore: snap }); const R = h.state;

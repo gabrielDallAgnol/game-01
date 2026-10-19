@@ -41,7 +41,7 @@ export const LANDMARKS = {
   radio:   { name: 'Radio Station', size: 3, cost: 14, manual: 'scavver', reveal: true, desc: 'Broadcasts reach every block: reveals the whole city and draws a survivor every other dawn.' },
   eiffel:  { name: 'Eiffel Tower', size: 5, cost: 20, signature: true, desc: 'A lookout over the city: reveals all around it, and every tower reaches 1.5 further.' },
   tvtower: { name: 'Fernsehturm', size: 4, cost: 20, signature: true, desc: 'The broadcast reaches everyone: reveals the whole city, and +3 scrap every dawn.' },
-  christ:  { name: 'Christ the Redeemer', size: 4, cost: 20, signature: true, desc: 'Hope from the cliff top: a blessing every dawn, not every other.' },
+  christ:  { name: 'Christ the Redeemer', size: 4, cost: 20, signature: true, desc: 'Hope from the cliff top: a blessing for the town every third dawn.' },
 };
 const GRID = 4;         // lot spacing: a 3×3 building plus a one-cell street
 

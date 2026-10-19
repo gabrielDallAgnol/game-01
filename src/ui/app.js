@@ -158,7 +158,7 @@ export function startApp() {
   }
   const needsDawn = () => { const S = game.state; return S.phase === 'day' && !S.over && ((S.pendingPicks > 0 && S.offer.length) || S.story.encounters.length || S.packs.length || (S.trade && !S.trade.done && !traderSeen)); };
 
-  const sourceLabel = { dawn: 'Dawn blessing', chest: 'From a chest', nest: 'Epic loot · from the hive', 'manual:hero': 'Field manual · Brawn', 'manual:ranger': 'Field manual · Aim', 'manual:scavver': 'Field manual · Wits', 'manual:heart': 'Field manual · Heart', 'manual:bow': 'Field manual · Bow', 'manual:stone': 'Field manual · Stone', 'manual:harvest': 'Field manual · Harvest' };
+  const sourceLabel = { dawn: 'Dawn blessing', chest: 'From a chest', nest: 'The hive burns · a blessing', 'manual:hero': 'Field manual · Brawn', 'manual:ranger': 'Field manual · Aim', 'manual:scavver': 'Field manual · Wits', 'manual:heart': 'Field manual · Heart', 'manual:bow': 'Field manual · Bow', 'manual:stone': 'Field manual · Stone', 'manual:harvest': 'Field manual · Harvest' };
   function showPerks() {
     const S = game.state, src = S.offerSource || 'dawn', isMastery = src.startsWith('mastery:');
     const pips = f => [0, 1, 2].map(i => `<i class="${i < S.P.fam[f] ? 'on' : ''}"></i>`).join('');
@@ -170,14 +170,14 @@ export function startApp() {
       const p = PERKS.find(q => q.id === id), F = FAMILIES[p.fam];
       const combo = SYNERGIES.find(sy => (sy.a === id && game.has(sy.b)) || (sy.b === id && game.has(sy.a)));
       return `<button class="perk ${p.rarity}${p.pact ? ' pact' : ''}" data-perk="${id}" style="--fam:${F.color}">
-        <span class="pf">${F.name}${F.path && S.heroClass === 'survivor' ? ` · ${F.path} path` : ''}<span class="pips">${pips(p.fam)}</span><span class="rar">${p.pact ? 'Pact' : p.rarity}</span></span>
+        <span class="pf">${F.name}<span class="pips">${pips(p.fam)}</span><span class="rar">${p.pact ? 'Pact' : p.rarity}</span></span>
         <b>${p.name}${p.max > 1 ? ` <span class="lv">${(S.P.taken[id] || 0) + 1}/${p.max}</span>` : ''}${combo ? ' <span class="combo">Combo!</span>' : ''}</b>
         <span class="pd">${p.desc}</span>${p.pact ? `<span class="pcost">Price: ${p.cost}</span>` : ''}${combo ? `<span class="pcombo">${combo.text}</span>` : ''}</button>`;
     }).join('');
     const build = Object.keys(FAMILIES).filter(f => S.P.fam[f]).map(f => `${FAMILIES[f].name} ${Math.min(S.P.fam[f], 3)}/3${S.P.mastery[f] ? ' ★' : ''}`).join(' · ');
     const rc = game.rerollCost();
     showCard('perk', `<div class="eyebrow">${isMastery ? 'Three of a kind' : sourceLabel[src] || 'Blessing'}${S.pendingPicks > 1 ? ` · ${S.pendingPicks} to pick` : ''}</div>
-      <h1 class="sm">${isMastery ? 'Choose a mastery' : src === 'nest' ? 'Epic loot' : 'The town remembers'}</h1>${src === 'nest' ? '<p class="tiny" style="white-space:normal">Hero blessings only drop from burned hives and unique monsters. Each one also leans your path.</p>' : ''}
+      <h1 class="sm">${isMastery ? 'Choose a mastery' : 'A blessing'}</h1>${isMastery ? '' : '<p class="tiny" style="white-space:normal">Blessings come only at special moments: a hive burned, a key level (5, 10, 15…), a unique monster, a rare find.</p>'}
       <div class="perks${src === 'nest' ? ' epic' : ''}">${cards}</div>
       <div class="cardrow spread"><span class="tiny">${build ? 'Your build: ' + build : 'Take three of one kind to unlock a mastery.'}</span>
       ${isMastery ? '' : `<button class="btn ghost" id="pReroll" ${rc > S.gold ? 'disabled' : ''}>Reroll${rc ? ` · <span class="dot gold"></span> ${rc}` : ' · free'}</button>`}</div>`);
@@ -622,7 +622,8 @@ export function startApp() {
       const k = S.keep, l = k.level;
       $('#pEyebrow').textContent = 'Town centre'; $('#pTitle').textContent = `Keep · level ${l}`;
       let html = `<div class="stat"><span>Health <b>${Math.ceil(k.hp)} / ${k.maxHp}</b></span><span>${KEEP.desc[l - 1]}</span></div><div class="opts two">`;
-      html += l < 3 ? opt('opt-keep', 'data-keep="1"', 'Raise the keep', KEEP.cost[l], `${KEEP.desc[l]} · buildings up to level ${l + 1} · march on ${l + 1 >= 3 ? 'far' : 'near'} hives`, S.gold < KEEP.cost[l] || !day) : '';
+      const miss = l < 3 ? game.keepNeeds() : [];
+      html += l < 3 ? opt('opt-keep', 'data-keep="1"', 'Raise the town hall', KEEP.cost[l], miss.length ? `Still needed: ${miss.join(' · ')}` : `${KEEP.desc[l]} · buildings up to level ${l + 1} · march on ${l + 1 >= 3 ? 'far' : 'near'} hives`, miss.length > 0 || S.gold < KEEP.cost[l] || !day) : '';
       if (S.trade && !S.trade.done && day) html += opt('opt-trader', 'data-trader="1"', 'Visit the trader', null, 'One deal before nightfall.', false);
       body.innerHTML = html + '</div>' + (l >= 3 ? '<div class="tiny">The keep is at its full height.</div>' : '');
       selected.range = KEEP.range[l - 1] + S.P.towerRange;

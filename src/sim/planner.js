@@ -74,7 +74,7 @@ export function createPlanner(g) {
   };
   // the keep comes first once the town needs it (level 2 from night 3, level 3 from night 7);
   // towers: enough of them for the night, then make them better instead of more
-  ACT.keepEarly = () => ((g.keepLevel() < 2 && S.night >= 3) || (g.keepLevel() < 3 && S.night >= 7)) && ACT.keep();
+  ACT.keepEarly = () => g.keepLevel() < 3 && !g.keepNeeds().length && ACT.keep();   // as soon as the town has earned it
   ACT.defend = () => { const n = S.buildings.filter(b => b.type === 'tower').length, want = Math.min(12, 2 + Math.ceil(S.night * 0.6)); return n < want ? ACT.tower() || ACT.upTower() : ACT.upTower() || ACT.tower(); };
   const PLAN = {
     defence: ['keepEarly', 'defend', 'workshop', 'wall', 'house', 'upHouse'],

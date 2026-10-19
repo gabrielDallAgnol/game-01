@@ -2,8 +2,8 @@
 
 export const BUILDINGS = {
   house: {
-    name: 'Home', cost: [4, 6, 12], hp: [24, 36, 48], gold: [3, 5, 7], pop: [2, 4, 6],
-    desc: ['+3 scrap · 2 people', '+5 scrap · 4 people', '+7 scrap · 6 people'],
+    name: 'Home', cost: [4, 6, 12], hp: [24, 36, 48], gold: [4, 7, 10], pop: [2, 4, 6],
+    desc: ['+4 scrap · 2 people', '+7 scrap · 4 people', '+10 scrap · 6 people'],
   },
   farm: {
     name: 'Farm', cost: [3, 5, 10], hp: [14, 22, 30], food: [3, 6, 9],
@@ -45,8 +45,10 @@ export const UNLOCKS = { tower: 'workshop', wall: 'workshop', house: 'market', f
 export const MAX_LEVEL = 3;
 
 export const KEEP = {
-  cost: [0, 12, 24], hp: [80, 120, 170], dmg: [3, 4, 5], range: [8, 9, 10], rate: 1.0, shots: [1, 1, 2],
+  // a town hall has to be earned: scrap, plus food in store, people, and (for level 3) a hive burned or a site held
+  need: [null, { food: 6, people: 8 }, { food: 18, people: 18, won: 1 }],
+  cost: [0, 20, 50], hp: [80, 120, 170], dmg: [3, 4, 5], range: [8, 9, 10], rate: 1.0, shots: [1, 1, 2],
   desc: ['Shoots · range 8', '+40 health · harder arrows · range 9', '+50 health · two arrows · range 10'],
 };
 
-export const START = { gold: 12, food: 6, baseIncome: 6, foodPerCitizen: 1, survivors: 3, salvage: 0.3 };   // salvage: scrap per dead put down
+export const START = { gold: 16, food: 6, baseIncome: 9, foodPerCitizen: 1, survivors: 3, salvage: 0.4 };   // salvage: scrap per dead put down

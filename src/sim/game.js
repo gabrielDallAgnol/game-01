@@ -27,14 +27,14 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 export const HEAT = { floorPer: 1.4, floorMax: 60, decay: 0.04, rise: 2.5, shot: 0.04, kill: 0.2, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Difficulty: threat (how many dead), economy (what homes and farms give), heat (how fast attention builds).
 export const DIFFICULTY = {
-  story:     { name: 'Story', blurb: 'For the story and the city. Fewer dead, richer homes.', threat: 0.62, eco: 1.25, heat: 0.7 },
-  survivor:  { name: 'Survivor', blurb: 'Fair but hard. The way it is meant to be played.', threat: 1, eco: 1, heat: 1 },
-  veteran:   { name: 'Veteran', blurb: 'More dead, thinner supplies. Mistakes cost buildings.', threat: 1.3, eco: 0.9, heat: 1.2 },
-  nightmare: { name: 'Nightmare', blurb: 'The city wants you dead. It usually gets its way.', threat: 1.65, eco: 0.8, heat: 1.4 },
+  story:     { name: 'Story', blurb: 'For the story and the city. Fewer dead, richer homes.', threat: 0.55, eco: 1.25, heat: 0.7 },
+  survivor:  { name: 'Survivor', blurb: 'Fair but hard. The way it is meant to be played.', threat: 0.88, eco: 1, heat: 1 },
+  veteran:   { name: 'Veteran', blurb: 'More dead, thinner supplies. Mistakes cost buildings.', threat: 1.15, eco: 0.9, heat: 1.2 },
+  nightmare: { name: 'Nightmare', blurb: 'The city wants you dead. It usually gets its way.', threat: 1.45, eco: 0.8, heat: 1.4 },
 };
 export const FOREMAN = { buildings: 6, keep: 3 };   // the Foreman: a toggle, never on by itself
 // hero levels: XP from the dead you put down yourself, sites, quests and districts. Each level: a little harder, a little tougher.
-export const LEVEL = { xp: lv => Math.round(20 * Math.pow(lv, 1.45)), dmg: 0.05, hp: 3, max: 50 };   // the town learns to build by itself once it is this established
+export const LEVEL = { xp: lv => Math.round(20 * Math.pow(lv, 1.45)), dmg: 0.09, hp: 4, max: 50 };   // the town learns to build by itself once it is this established
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
 export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
@@ -377,6 +377,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.lvl >= LEVEL.max) return; S.xp += n;
     while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] Damage +${Math.round(LEVEL.dmg * 100)}%, health +${LEVEL.hp}.`, 'good'); }
     if (S.phase === 'day') checkEvolution();
+    if (S.lvl % 5 === 0 && S.lvl > (S.blessLvl || 0)) { S.blessLvl = S.lvl; S.picks.push('chest'); syncPicks(); if (S.phase === 'day' && S.picks.length === 1) rollOffer(); toast(`[Level ${S.lvl}] The System grants a blessing.`, 'good'); }
   }
   function heroRate() { return HC.attack ? HC.attack.rate / S.P.heroRate / (mastery('champion') ? 1.3 : 1) : 1; }
   function heroDps() {
@@ -655,17 +656,27 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (l.kind === 'tvtower' || L.reveal) { S.seen.fill(1); S.seenVersion++; } else reveal(l.x, l.y, l.kind === 'eiffel' ? 22 : 9);
     if (L.survivors) S.survivors += L.survivors;
     gainXp(15); addPath('scavver', 0.5);
-    if (L.manual) { const m = FAMILIES[L.manual].hero ? 'chest' : `manual:${L.manual}`; S.picks.push(m); syncPicks(); toast(m === 'chest' ? '[Supplies found] A blessing for the town: pick one at once.' : `[Field manual found] ${FAMILIES[L.manual].name} blessings: pick one at once.`, 'good'); }
+    if (L.manual) { S.picks.push(`manual:${L.manual}`); syncPicks(); toast(`[Field manual found] A blessing: pick one at once.`, 'good'); }
     S.stats.sites = (S.stats.sites || 0) + 1;
     ev('landmark', { id }); toast(`[Site claimed: ${L.name}] ${L.desc}`, 'good');
     if (story) { S.story.quests = S.story.quests.filter(q => q.site !== id); story.chron(`Claimed the ${L.name}.`, 3); }
     return true;
   }
+  /** what the next town hall level still needs besides scrap (empty = ready) */
+  function keepNeeds() {
+    const n = KEEP.need[keep.level]; if (!n) return [];
+    const out = [];
+    if (S.food < n.food) out.push(`${n.food} food in store`);
+    if (pop() < n.people) out.push(`${n.people} people`);
+    if (n.won && S.stats.regionsClaimed + (S.stats.sites || 0) < n.won) out.push('a hive burned or a site claimed');
+    return out;
+  }
   function upgradeKeep() {
     if (S.phase !== 'day' || keep.level >= 3) return fail('Cannot raise the keep.');
+    { const miss = keepNeeds(); if (miss.length) return fail(`The town hall needs more first: ${miss.join(', ')}.`); }
     const cost = KEEP.cost[keep.level]; if (S.gold < cost) return fail('Not enough scrap.');
     if (!useHand()) return false;
-    S.gold -= cost; S.cur.spent += cost; S.cur.upgraded.push(`keep${keep.level + 1}`); S.stats.goldSpent += cost;
+    S.gold -= cost; S.food -= (KEEP.need[keep.level] || {}).food || 0; S.cur.spent += cost; S.cur.upgraded.push(`keep${keep.level + 1}`); S.stats.goldSpent += cost;
     keep.level++; const m = keepMaxHp(); keep.hp += m - keep.maxHp; keep.maxHp = m; keep.r = 2.3 * (1 + 0.12 * (keep.level - 1));
     ev('keepUp'); checkFeatures(); return true;
   }
@@ -740,13 +751,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function stepRoamer(m, dt, speed) {
     const R = TIDE.roam, h = S.hero, home = m.roam;
     // now and then a roamer next to your land drifts in and walks on the town
-    if (S.clock && S.night >= 2 && home.region >= 0 && baseDist(home.x, home.y) < (S.heat >= HEAT.stir ? 20 : 12) && rng.next() < TIDE.drift * Math.min(1, S.night / 6) * (S.heat >= HEAT.stir ? 2.5 : 1) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; m.stream = -2; ev('drift', { id: m.id }); return; }
+    if (S.clock && S.night >= 2 && home.region >= 0 && baseDist(home.x, home.y) < (S.heat >= HEAT.stir ? 20 : 12) && rng.next() < TIDE.drift * Math.min(1, S.night / 6) * (S.heat >= HEAT.stir ? 2.5 : 1) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
     const fromHome = Math.hypot(m.x - home.x, m.y - home.y);
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), heroHome = inZone(idx(Math.floor(h.x), Math.floor(h.y)));
     // once a roamer has your scent it hunts you: it follows you home and joins the attack on the town
     if (!m.hunt && !h.dead && hd < R.sight - (S.story.flags.quiet ? 1.5 : 0) && !heroHome && (!m.warden || Math.hypot(h.x - home.x, h.y - home.y) < R.leash)) { m.hunt = true; ev('aggro', { id: m.id }); }
     if (m.hunt && (h.dead || hd > R.lose || (m.warden && Math.hypot(h.x - home.x, h.y - home.y) > R.leash + 4))) m.hunt = false;
-    if (m.hunt && !m.warden && heroHome && baseDist(m.x, m.y) < 4) { if (S.night < 3) { m.hunt = false; m.wp = { x: home.x, y: home.y }; } else { m.roam = null; m.hunt = false; m.stream = -2; ev('drift', { id: m.id }); return; } }
+    if (m.hunt && !m.warden && heroHome && baseDist(m.x, m.y) < 4) { if (S.night < 4) { m.hunt = false; m.wp = { x: home.x, y: home.y }; } else { m.roam = null; m.hunt = false; ev('drift', { id: m.id }); return; } }
     if (m.hunt || (m.tauntT > 0 && !h.dead)) {
       m.face = Math.atan2(h.x - m.x, h.y - m.y);
       if (hd > 0.9) moveToward(m, h.x, h.y, speed * (R.chase[m.kind] || 1.2) * dt); else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; hurtHero(MOBS[m.kind].dmg * (m.dmgK || 1)); ev('bite', { id: m.id }); } }
@@ -980,7 +991,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     { const was = S.night - 1; if (isBloodMoon(was)) dropSupply('The blood moon has set.'); else if (claimedNow !== null) dropSupply('With the hive burned,'); else if (was >= 3 && rng.next() < 0.2) dropSupply('At first light,'); }
     S.reroll.cost = REROLL.base;
     const want = [];
-    if (S.night % 2 === 0 || owns('christ')) want.push('dawn');              // S.night is already the coming night: a dawn blessing every other day
+    if (owns('christ') && S.night % 3 === 0) want.push('chest');   // no dawn blessings: they come from hives (epic loot) and key levels
     if (nestPick) want.push('nest');
     for (let k = 0; k < S.chestsHeld; k++) want.push('chest');
     const keepPicks = Math.max(1, PICKS_PER_DAWN), extra = want.slice(keepPicks).filter(x => x === 'chest').length;
@@ -1064,9 +1075,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.offerSource = source;
     if (source.startsWith('mastery:')) { const fam = source.split(':')[1]; S.offer = MASTERIES[fam].map(m => `m:${m.id}`); return; }
     const manual = source.startsWith('manual:') ? source.split(':')[1] : null;   // a field manual found in a site: blessings of one family
-    const epic = source === 'nest';   // hero blessings (Brawn, Aim, Wits, Heart) are epic loot: a burned hive or a unique monster
-    let pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && (manual ? p.fam === manual && !p.pact : famOk(p.fam)) && (epic ? !!FAMILIES[p.fam].hero : !FAMILIES[p.fam].hero));
-    if (epic && !pool.length) pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && famOk(p.fam));
+    let pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && (manual ? p.fam === manual && !p.pact : famOk(p.fam)));   // one kind of blessing; only special moments bring one
     if (manual && !pool.length) pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && famOk(p.fam));
     const n = 3 + (source === 'dawn' ? (HC.extraOffer || 0) : 0);
     const odds = ODDS[manual ? 'chest' : source] || ODDS.dawn, out = [];
@@ -1681,7 +1690,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), dayFrac: () => (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
     dropSupply,
     xpNext: () => LEVEL.xp(S.lvl), gainXp: n => gainXp(n), addPath: (f, n) => addPath(f, n), checkEvolution: () => checkEvolution(), partySize: () => partySize(), companionFollow, snapshot, frontier, districtOffer, openDistrict, kitFor, siteOf, story: () => story, choose: id => story.choose(id),
-    hasTech, crewing, manned, handsMax, handsFree, powerIn, powerOut, powered, heatFloor, addHeat, difficulty: () => DIFF, newCost, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
+    keepNeeds, hasTech, crewing, manned, handsMax, handsFree, powerIn, powerOut, powered, heatFloor, addHeat, difficulty: () => DIFF, newCost, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
     abilityCost, towerStats: b => towerStats(b), has,
