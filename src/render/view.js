@@ -8,7 +8,7 @@ import { createVillagers } from './villagers.js';
 import { K, CFG } from './kit.js';
 import { createLook } from './look.js';
 import { buildCity } from './city.js';
-import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE } from './figures.js';
+import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE, xrayMat } from './figures.js';
 import { KITS, RARITY } from '../content/districts.js';
 
 const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
@@ -442,10 +442,10 @@ export function createView(canvas, game, opts = {}) {
   const dying = [], effects = [];
   const crowd = createCrowd(world); crowd.warm(['walker', 'runner']);
 
-  // x-ray: where a building hides the hero (or a companion), a glowing silhouette shows through it
+  // x-ray: where a building hides the hero (or a companion), a soft silhouette shows through it (never over the figure itself)
   const xrayMats = {};
   function xray(g, col) {
-    const mat = xrayMats[col] || (xrayMats[col] = new THREE.MeshBasicMaterial({ color: lc(col).multiplyScalar(1.6), transparent: true, opacity: 0.6, depthWrite: false, depthFunc: THREE.GreaterDepth }));
+    const mat = xrayMats[col] || (xrayMats[col] = xrayMat(lc(col)));
     const list = []; g.traverse(o => { if (o.isMesh && !o.userData.xray) list.push(o); });
     for (const o of list) { const x = new THREE.Mesh(o.geometry, mat); x.userData.xray = true; x.renderOrder = 30; x.castShadow = false; o.add(x); }
     return g;
@@ -600,7 +600,7 @@ export function createView(canvas, game, opts = {}) {
 
   // ---------- sellswords, purses ----------
   const aMeshes = new Map(), puMeshes = new Map();
-  const mercRig = () => K.figure({ outfit: { top: 'cloth3', sleeve: 'cloth3', legs: 'dark', vest: 'amberDeep', cap: 'grey', boots: 'tyre' }, bw: 1.05, pose: { sR: [-0.5, 0, 0.15], eR: -1.0, sL: [-0.3, 0, 0.1], eL: -0.8 }, props: p => { const g = new THREE.Group(); const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.75, 0.05), K.M('steel')); m.position.y = -0.3; g.add(m); g.rotation.x = -1.1; p.hand.add(g); } });
+  const mercRig = () => K.heroes.sellsword();
   function syncAllies() {
     const seen = new Set();
     for (const a of S.allies) {
@@ -670,14 +670,10 @@ export function createView(canvas, game, opts = {}) {
   }
 
   const villagerMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
-  const TOPS = ['cloth1', 'cloth2', 'stone', 'cloth3', 'sand'];
-  const villagers = createVillagers({ THREE, world, game, W, map, figure: () => {
-    const top = TOPS[Math.floor(Math.random() * TOPS.length)], pack = Math.random() < 0.3;
-    return bakedWalker(() => K.figure({ outfit: { top, legs: Math.random() < 0.5 ? 'cloth3' : 'dark', hair: Math.random() < 0.5 ? 'bark' : 'tyre', cap: Math.random() < 0.2 ? 'amber' : null, pack: pack ? 'canvas' : null }, pose: { sL: [0.15, 0, 0], sR: [-0.15, 0, 0], hL: [0.25], hR: [-0.25], kR: 0.2 } }), villagerMat);
-  } });
+  const villagers = createVillagers({ THREE, world, game, W, map, figure: () => { const seed = Math.floor(Math.random() * 1e6); return bakedWalker(() => K.folk(seed), villagerMat); } });
   // ---------- scavengers: crews walk out to their site at nightfall and home at dawn ----------
   const crewWalkers = [];
-  const scavRig = () => bakedWalker(() => K.figure({ outfit: { top: 'cloth3', legs: 'dark', hair: 'tyre', cap: 'grey', pack: 'canvas', vest: 'amberDeep' }, pose: { sL: [0.15, 0, 0], sR: [-0.15, 0, 0], hL: [0.25], hR: [-0.25], kR: 0.2 } }), villagerMat);
+  const scavRig = () => { const seed = Math.floor(Math.random() * 1e6); return bakedWalker(() => K.folk(seed, { crew: true }), villagerMat); };
   function gridPath(ax, ay, bx, by) {
     const ok = i => PASSABLE[map.terrain[i]];
     const s0 = idx(Math.floor(ax), Math.floor(ay)), g0 = idx(Math.floor(bx), Math.floor(by));

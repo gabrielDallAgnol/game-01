@@ -16,17 +16,31 @@ export function bake(obj) {
     const mat = Array.isArray(m.material) ? m.material[0] : m.material;
     if (mat.transparent && mat.opacity < 0.6) return;
     let g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
-    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'color') g.deleteAttribute(k);
     tmpM.multiplyMatrices(inv, m.matrixWorld); g.applyMatrix4(tmpM);
     const isGlow = mat.emissive && mat.emissiveIntensity > 1.5;
     col.copy(isGlow ? mat.emissive : mat.color);
-    const n = g.attributes.position.count, c = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b; }
+    const n = g.attributes.position.count, c = new Float32Array(n * 3), vc = mat.vertexColors && g.attributes.color;
+    // welded figure parts already carry their colours: keep them (tinted by the material colour)
+    for (let i = 0; i < n; i++) { c[i * 3] = col.r * (vc ? vc.getX(i) : 1); c[i * 3 + 1] = col.g * (vc ? vc.getY(i) : 1); c[i * 3 + 2] = col.b * (vc ? vc.getZ(i) : 1); }
     g.setAttribute('color', new THREE.BufferAttribute(c, 3));
     (isGlow ? glow : body).push(g);
   });
   const merge = list => list.length ? THREE.BufferGeometryUtils.mergeBufferGeometries(list, false) : null;
   return { geo: merge(body), glow: merge(glow) };
+}
+// x-ray: where a building hides a figure, a soft silhouette shows through it. Drawn only where something is in front
+// by more than the figure's own depth (vertices pulled toward the camera), so the figure never x-rays itself.
+export function xrayMat(color, o = {}) {
+  const m = new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(o.boost ?? 1.25), transparent: true, opacity: o.opacity ?? 0.45, depthWrite: false, depthFunc: THREE.GreaterDepth });
+  const push = { value: o.push ?? 1.1 };
+  m.onBeforeCompile = sh => {
+    sh.uniforms.xrPush = push;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float xrPush;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\n  mvPosition.xyz *= max(0.0, 1.0 - xrPush / length(mvPosition.xyz));\n  gl_Position = projectionMatrix * mvPosition;');
+  };
+  m.customProgramCacheKey = () => 'xray';
+  return m;
 }
 export const vcMat = (o = {}) => K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: o.rough ?? 0.86, metalness: 0 }));
 
