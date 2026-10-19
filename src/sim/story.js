@@ -306,7 +306,7 @@ export function createStory(ctx) {
     tips();
     const tr = ST.trial;
     if (tr && !tr.done && !tr.started && !S.hero.dead && Math.hypot(S.hero.x - tr.x, S.hero.y - tr.y) < 3) { tr.started = true; ctx.spawnTrial(tr); toast(`[${tr.name}] Defeat the **trial warden**. It will not follow you home.`, 'bad'); }
-    if (S.phase !== 'day' || ST.encounters.length || S.hero.dead) return;
+    if (ST.encounters.length || S.hero.dead) return;
     if (spotTick()) return;
     for (const l of S.landmarks) if (typeof ST.visited[l.id] === 'number' && ST.visited[l.id] < S.night && !ctx.landmarkReach(l)) ST.visited[l.id] = false;   // left yesterday: it can ask again
     for (const l of S.landmarks) {

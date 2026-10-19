@@ -13,6 +13,28 @@ export const MOBS = {
   guardian:  { name: 'Nest Guardian', hp: 30, speed: 0.9, dmg: 8, cost: 0, from: 99, weight: 0, size: 1.8, dropsChest: 1 },
   gravelord: { name: 'Gravelord', hp: 70, speed: 0.8, dmg: 12, cost: 0, from: 99, weight: 0, size: 2.3, summon: { kind: 'walker', every: 6, count: 2 }, dropsChest: 1 },
   risen:     { name: 'Risen',     hp: 2,  speed: 1.5,  dmg: 2,  cost: 0, from: 99, weight: 0, size: 0.95, fixedHp: true },
+  // the woods: game for the pot, and the wolves that hunt it
+  deer:      { name: 'Deer',      hp: 3,  speed: 2.6,  dmg: 0,  cost: 0, from: 99, weight: 0, size: 0.95, fixedHp: true, animal: true, food: 2 },
+  wolf:      { name: 'Wolf',      hp: 5,  speed: 3.1,  dmg: 2,  cost: 0, from: 99, weight: 0, size: 0.85, fixedHp: true, animal: true, food: 1 },
+};
+
+// The brain: every dead goes for the loudest thing it senses. You, if you are close and out in the open; the town otherwise.
+// Rank is brains: higher ranks sense you further, keep your trail longer, remember where they last saw you,
+// and (rank 3+) wait for you on the road home.
+export const BRAIN = {
+  rank: { walker: 1, risen: 1, crawler: 1, runner: 2, spitter: 2, bloater: 2, brute: 3, screamer: 3, guardian: 4, gravelord: 4, wolf: 2, deer: 0 },
+  sense: [0, 5, 8, 11, 14],        // cells: how far they notice you (more when you are fighting, less in smoke)
+  forget: [0, 1.6, 2.2, 2.6, 3],   // they lose you past sense × this
+  remember: [0, 0, 6, 10, 14],     // seconds they search where they last saw you
+  ambush: [0, 0, 0, 0.45, 0.8],    // chance a rank-3+ dead waits on your road home instead of marching on the town
+  farSpeed: 2,                     // far from you and the town (off screen), the dead walk this much faster
+};
+// Burning a hive: the dead inside pour out after you. Tools buy you time.
+export const ESCAPE = {
+  horde: n => 4 + Math.floor(n / 2),                                   // dead in a hive's death throes
+  flare: { cost: 4, t: 20, name: 'Flare', desc: 'They chase the light for **20 s**.' },
+  smoke: { cost: 3, t: 25, name: 'Smoke', desc: 'They lose your scent unless they bump into you.' },
+  run:   { name: 'Just run', desc: 'They come after you **right away**.' },
 };
 
 export const WAVES = {
@@ -36,6 +58,6 @@ export const TIDE = {
   drift: 0.012,                        // per second: chance a roamer next to your land wanders in toward the town
   opening: [0, 0.5, 0.75, 0.9],   // the first nights ramp up (night 1 is a single dead)
   first: { hp: 5, speed: 0.7 },        // the first dead: slow, tough, unforgettable
-  roam: { perRing: [0, 5, 8], radius: 4.5, sight: 6, leash: 10, lose: 16, cap: 90, chase: { walker: 1.35, runner: 1.1, brute: 1.25, crawler: 1.2 } },   // a hunting roamer moves this much faster than it wanders
+  roam: { perRing: [0, 3, 12], radius: 4.5, sight: 6, leash: 10, lose: 16, cap: 150, animals: { deer: 4, wolves: 2 }, chase: { walker: 1.35, runner: 1.1, brute: 1.25, crawler: 1.2 } },   // a hunting roamer moves this much faster than it wanders
 };
 

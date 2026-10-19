@@ -91,7 +91,7 @@ export function createLook({ renderer, scene, camera, canvas }) {
   const warm = new THREE.Color(), dayDir = new THREE.Vector3();
   function blend(k, blood, target, span, t = 0.4) {
     const D = PRESETS.day, Nn = blood ? PRESETS.blood : PRESETS.night, arc = Math.sin(Math.PI * Math.min(1, Math.max(0, t))), edge = 1 - arc;
-    dayDir.set(-0.95 + 1.9 * t, 0.28 + 0.9 * arc, 0.42);
+    dayDir.set(-0.95 + 1.9 * t, 0.45 + 0.75 * arc, 0.42);   // never so low that a pole throws a shadow across the map
     scene.background.copy(lc(D.bg, Nn.bg, k)); scene.fog.color.copy(scene.background);
     hemi.color.copy(lc(D.hemiSky, Nn.hemiSky, k)); hemi.groundColor.copy(lc(D.hemiGnd, Nn.hemiGnd, k)); hemi.intensity = ln(D.hemi, Nn.hemi, k);
     warm.copy(L(D.sun)).lerp(c2.copy(L(t > 0.5 ? '#ff9a58' : '#ffc890')), Math.pow(edge, 1.6));

@@ -6,7 +6,7 @@ import { BUILDINGS, BUILD_ORDER, TECH_ORDER, UNLOCKS, KEEP, MAX_LEVEL } from '..
 import { HEROES, HERO_ORDER, TRADES } from '../content/heroes.js';
 import { PERKS, FAMILIES, SYNERGIES, MASTERIES } from '../content/perks.js';
 import { PACKS } from '../content/packs.js';
-import { MOBS } from '../content/mobs.js';
+import { MOBS, ESCAPE } from '../content/mobs.js';
 import { regionNames, hiveName } from '../content/names.js';
 import { TRAITS, TREAT, RUN } from '../content/scavenge.js';
 import { createAudio } from './audio.js';
@@ -28,7 +28,7 @@ const chronicler = createChronicler(store);
 const saves = createSaves();
 let lastSave = null;
 for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => audio.unlock(), { capture: true });
-const RINGS = ['Home district', 'Inner city', 'Outer city'];
+const RINGS = ['Camp', 'The wilds', 'The city', 'The old core'];
 const ARM_MS = 700;          // cards ignore taps this long after they appear
 const DAWN_DELAY = 1.2;      // seconds between the last kill and the first card
 const JOY_PX = 14;           // a touch that moves further than this is a joystick drag, not a tap
@@ -44,17 +44,71 @@ export function startApp() {
   if (setup.hero === 'steward') setup.hero = 'merchant';
 
   // ---------- start screen ----------
-  function drawMinimap(canvas, m) {
-    const ctx = canvas.getContext('2d'), s = 4; canvas.width = canvas.height = N * s;
-    const col = { [T.GRASS]: '#3d3c39', [T.FOREST]: '#55524b', [T.ROCK]: '#a39d90', [T.WATER]: '#2c4a52', [T.CLIFF]: '#77726a', [T.FORD]: '#8d887d', [T.DIRT]: '#6b675f', [T.VOID]: '#161615' };
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-      const i = idx(x, y), r = m.region[i];
-      ctx.fillStyle = col[m.terrain[i]]; ctx.fillRect(x * s, y * s, s, s);
-      if (r > 0) { ctx.fillStyle = 'rgba(18,26,27,.35)'; ctx.fillRect(x * s, y * s, s, s); }
+  // ---------- maps: one pixel per cell, cropped to the land (the dark between is skipped) ----------
+  const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const MAPCOL = { meadow: hex('#5f7a45'), wood: hex('#2f4a2a'), street: hex('#77736b'), block: hex('#45423e'), park: hex('#3f5634'), water: hex('#2f5a6e'), ford: hex('#8d887d'), dirt: hex('#8a6a48'), road: hex('#c2a46e'), cliff: hex('#8a8378'), site: hex('#e0b050'), voidc: [11, 13, 14] };
+  function mapBox(m) { let x0 = N, y0 = N, x1 = 0, y1 = 0; for (let i = 0; i < N * N; i++) if (m.terrain[i] !== T.VOID) { const x = i % N, y = (i / N) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return { x0: Math.max(0, x0 - 3), y0: Math.max(0, y0 - 3), x1: Math.min(N - 1, x1 + 3), y1: Math.min(N - 1, y1 + 3) }; }
+  /** paint the world into a canvas (N×N); with `seen`, what you have not explored is dark (the road and the city's outline show faintly) */
+  function paintWorld(cv, m, seen) {
+    cv.width = cv.height = N; const ctx = cv.getContext('2d'), im = ctx.createImageData(N, N), d = im.data;
+    for (let i = 0; i < N * N; i++) {
+      const t = m.terrain[i], wild = m.wild && m.wild[i];
+      let c = t === T.VOID ? MAPCOL.voidc : m.lm[i] >= 0 ? MAPCOL.site : m.road[i] && wild ? MAPCOL.road : t === T.WATER ? MAPCOL.water : t === T.FORD ? MAPCOL.ford : t === T.CLIFF ? MAPCOL.cliff : t === T.DIRT ? MAPCOL.dirt
+        : wild ? (t === T.FOREST ? MAPCOL.wood : MAPCOL.meadow) : t === T.ROCK ? MAPCOL.block : t === T.FOREST ? MAPCOL.park : MAPCOL.street;
+      let k = 1;
+      if (seen && !seen[i] && t !== T.VOID) k = m.road[i] && wild ? 0.55 : wild ? 0.28 : 0.42;
+      d[i * 4] = c[0] * k; d[i * 4 + 1] = c[1] * k; d[i * 4 + 2] = c[2] * k; d[i * 4 + 3] = 255;
     }
-    ctx.fillStyle = '#b4ff4e';
-    for (const r of m.regions) if (r.nest) { ctx.beginPath(); ctx.arc(r.nest.x * s, r.nest.y * s, 4, 0, 7); ctx.fill(); }
-    ctx.fillStyle = '#d9843a'; ctx.beginPath(); ctx.arc(m.town.x * s, m.town.y * s, 7, 0, 7); ctx.fill();
+    ctx.putImageData(im, 0, 0); return cv;
+  }
+  function drawMinimap(canvas, m) {
+    const b = mapBox(m), w = b.x1 - b.x0 + 1, h = b.y1 - b.y0 + 1, src = paintWorld(document.createElement('canvas'), m, null), s = 2;
+    canvas.width = w * s; canvas.height = h * s; const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(src, b.x0, b.y0, w, h, 0, 0, w * s, h * s);
+    ctx.fillStyle = '#d9843a'; ctx.beginPath(); ctx.arc((m.town.x - b.x0) * s, (m.town.y - b.y0) * s, 6, 0, 7); ctx.fill();
+  }
+  // in game: a live picture of what you have explored
+  let worldCv = null, worldV = -1, worldB = null, miniT = 0;
+  function worldNow() {
+    const S = game.state;
+    if (!worldCv) { worldCv = document.createElement('canvas'); worldB = mapBox(game.map); worldV = -1; }
+    if (worldV !== S.seenVersion) { worldV = S.seenVersion; paintWorld(worldCv, game.map, S.seen); }
+    return worldCv;
+  }
+  function marks(ctx, ox, oy, s, big) {
+    const S = game.state, m = game.map, dot = (x, y, r, col, ring) => { ctx.beginPath(); ctx.arc((x - ox) * s, (y - oy) * s, r, 0, 7); if (ring) { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); } else { ctx.fillStyle = col; ctx.fill(); } };
+    const seenAt = (x, y) => S.seen[idx(Math.floor(x), Math.floor(y))] === 1;
+    for (const r of m.regions) if (r.nest && seenAt(r.nest.x, r.nest.y)) dot(r.nest.x, r.nest.y, big ? 5 : 3, S.nestAlive[r.id] ? (r.ring === 1 ? '#b4ff4e' : '#ff5a4a') : '#6b6b6b');
+    if (big) for (const l of S.landmarks) if (seenAt(l.x, l.y)) dot(l.x, l.y, 6, l.owned ? '#ffb347' : '#ffe08a', !l.owned);
+    for (const sp of S.story.spots) if (big) dot(sp.x, sp.y, 4, '#6fc3ff');
+    const tr = S.story.trial; if (tr && !tr.done) dot(tr.x, tr.y, big ? 6 : 4, '#ff4a4a', true);
+    dot(m.town.x, m.town.y, big ? 7 : 4, '#d9843a');
+    const h = S.hero; dot(h.x, h.y, big ? 6 : 4, '#ffffff'); dot(h.x, h.y, big ? 9 : 6, 'rgba(255,255,255,.5)', true);
+  }
+  function drawMini() {
+    const cv = $('#mini'); if (!cv || !game) return;
+    const S = game.state, src = worldNow(), R = 36, px = 2, ctx = cv.getContext('2d'), h = S.hero;
+    if (cv.width !== R * 2 * px * 2) { cv.width = cv.height = R * 2 * px * 2; }
+    const s = cv.width / (R * 2); ctx.imageSmoothingEnabled = false; ctx.fillStyle = '#0b0d0e'; ctx.fillRect(0, 0, cv.width, cv.width);
+    ctx.drawImage(src, h.x - R, h.y - R, R * 2, R * 2, 0, 0, cv.width, cv.width);
+    marks(ctx, h.x - R, h.y - R, s, false);
+    // where the city lies, when it is off the little map
+    const c = game.map.city; if (c) { const a = Math.atan2(c.y - h.y, c.x - h.x), dd = Math.hypot(c.x - h.x, c.y - h.y); if (dd > R + c.r * 0.3) { const r0 = cv.width / 2 - 9, x = cv.width / 2 + Math.cos(a) * r0, y = cv.width / 2 + Math.sin(a) * r0; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-6, -6); ctx.lineTo(-6, 6); ctx.fill(); ctx.restore(); } }
+  }
+  function showMap() {
+    const S = game.state, src = worldNow(), b = worldB, w = b.x1 - b.x0 + 1, hh = b.y1 - b.y0 + 1, s = 2;
+    paused = true; if (placing) stopPlacing(); closePanel();
+    showCard('map', `<div class="eyebrow">${esc(game.map.name)} · day ${S.night}</div><h1 class="sm">Map</h1>
+      <div class="mapwrap"><canvas id="bigMap" aria-label="Map of the woods and the city"></canvas></div>
+      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#d9843a"></i>Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span><span><i style="background:#ff5a4a"></i>City hive</span><span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#6fc3ff"></i>Encounter</span></div>
+      <p class="tiny" style="white-space:normal">Dark ground is unexplored. The old road starts deep in the woods and leads to the city: <b>about a minute on foot</b>.</p>
+      <div class="cardrow"><button class="btn big" id="mapOk">Back</button></div>`, true, false);
+    const cv = $('#bigMap'); cv.width = w * s; cv.height = hh * s; const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(src, b.x0, b.y0, w, hh, 0, 0, w * s, hh * s);
+    marks(ctx, b.x0, b.y0, s, true);
+    const lbl = (x, y, t) => { ctx.font = 'bold 22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(t, (x - b.x0) * s, (y - b.y0) * s); ctx.fillStyle = '#fff1d6'; ctx.fillText(t, (x - b.x0) * s, (y - b.y0) * s); };
+    lbl(game.map.town.x, game.map.town.y - 8, 'CAMP'); const c = game.map.city; if (c) lbl(c.x, c.y - c.r - 6, 'THE CITY');
+    $('#mapOk').onclick = () => { hideCard(); paused = false; };
   }
   function showStart() {
     paused = true; $('#hud').hidden = true;
@@ -62,9 +116,17 @@ export function startApp() {
     const best = store.get('best', 0);
     showCard('start', `<div class="eyebrow">An open-ended reclaiming${best ? ` · your best: night ${best}` : ''}</div>
       <h1>Hold Hollowmere</h1>
-      <p>You woke up in a fallen city with a status window and a bus full of strangers. Build by day, hold the town hall by night, and open the quarantined districts one by one: people to save, power to restore, hives to burn.</p>
-      <p class="tiny" style="white-space:normal">It starts small: your square, the streets around it, a bus full of strangers. The rest of the city (power, heat, the far districts, your class) arrives one episode at a time.</p>
-      <details class="news"><summary>What's new (Oct 19, afternoon)</summary><ul>
+      <p>You woke up in the woods with a status window and a bus full of strangers. The city that fell is a minute's walk down the old road, and it is crawling with the dead. Build your camp, hunt, raid the city for what it hides, and burn the hives.</p>
+      <p class="tiny" style="white-space:normal">There is no bell and no safe hour: you can build, explore and fight at any time. The dead come all day and harder at night. They go for the loudest thing they sense: your camp, or you.</p>
+      <details class="news" open><summary>What's new (Oct 19, evening)</summary><ul>
+        <li><b>The frontier:</b> a camp in a forest clearing. The city is far down an old road that starts deep in the woods.</li>
+        <li><b>The woods:</b> farmsteads, lumber camps, a quarry, a hunting lodge. Deer to hunt, wolves that hunt you.</li>
+        <li><b>No day/night split:</b> build, upgrade and explore at any hour. The sun just keeps moving.</li>
+        <li><b>Smarter dead:</b> they hunt you in the open. Runners remember where they saw you. Brutes wait on your road home.</li>
+        <li><b>Burn hives any time.</b> Then flee: a <b>flare</b> or <b>smoke</b> buys time, or just run.</li>
+        <li><b>A map:</b> tap the little map on the left (or press M).</li>
+      </ul></details>
+      <details class="news"><summary>Earlier today</summary><ul>
         <li>Anime pacing: one new system per episode, each with a System window you read at your own pace.</li>
         <li>A bigger home ward to explore from day 1; far districts are big expeditions that cost supplies.</li>
         <li>Your choices decide your class: Heart, Brawn, Aim or Wits. At level 5, a trial in the city earns it.</li>
@@ -76,9 +138,9 @@ export function startApp() {
       <p class="tiny" style="white-space:normal">You start as a <b>Survivor</b>. What you do decides what you become: rescues lean to <b>Heart</b>, fighting up close to <b>Brawn</b>, scouting to <b>Aim</b>, deals to <b>Wits</b>. At level 5 a trial earns your Calling (Medic, Brawler, Ranger or Scavver); at 12 your second family makes one of six final classes.</p>
       <h2>Difficulty</h2>
       <div class="choices">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="choice" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><b>${d.name}</b><span>${d.blurb}</span></button>`).join('')}</div>
-      <h2>Your land</h2>
+      <h2>Your world</h2>
       <div class="choices">${opts.map((o, k) => `<button class="choice" data-map="${k}" aria-pressed="${setup.pick === k}"><canvas id="mm${k}" aria-hidden="true"></canvas><b>${o.name}</b><span>${BIOMES[o.biome].blurb}</span><span class="tiny">Seed ${o.seed}</span></button>`).join('')}</div>
-      <div class="seedrow"><button class="btn ghost" id="reroll">Show other lands</button></div>
+      <div class="seedrow"><button class="btn ghost" id="reroll">Another seed</button></div>
       ${legacyHtml()}
       <label class="tiny aitog" style="display:block;margin-top:12px"><input type="checkbox" id="aiStart" ${chronicler.enabled() ? 'checked' : ''}> ✦ Let the Chronicler (Claude) write your story and play your companions. Uses your Claude account; it asks first. Off = the scripted story.</label>
       <div id="contRow" hidden class="cont"></div>
@@ -93,7 +155,7 @@ export function startApp() {
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); };
     $('#begin').onclick = () => { const o = opts[setup.pick]; begin(o.seed, o.biome); };
     saves.load().then(snap => {
-      if (!snap || snap.v !== 2 || card !== 'start' || !$('#contRow')) return;
+      if (!snap || snap.v !== 3 || card !== 'start' || !$('#contRow')) return;
       const row = $('#contRow'); row.hidden = false;
       row.innerHTML = `<button class="btn big" id="cont">Continue · day ${snap.night} in ${esc(snap.city || 'the city')}</button><span class="tiny">${saves.cloud() ? 'Saved to your account: works on any device' : 'Saved on this device'} · ${new Date(snap.savedAt).toLocaleString()}</span>`;
       $('#cont').onclick = () => begin(snap.mapSeed, snap.biome, snap);
@@ -110,11 +172,11 @@ export function startApp() {
     names = regionNames(mapSeed, game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
     if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
-    window.__game = game; window.__openSel = sel => openSel(sel);
+    window.__game = game; window.__view = view; window.__openSel = sel => openSel(sel);
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = !game.heroDef.ability;
     if (snap) { previouslyOn(); $('#autoBtn').setAttribute('aria-pressed', !!game.state.autopilot); $('#autoTag').hidden = !game.state.autopilot; }
-    else toast(`[Day 1 · ${game.map.name}] Your survivors carry plans for a **home**, a **farm** and a **tower**. Look around the streets near the square: there are people out there.`, 'sys');
+    else toast(`[Day 1 · the woods] You made camp in a **clearing**, far from the city. Your survivors carry plans for a **home**, a **farm** and a **tower**. The woods hide **farms, deer and wolves**; the old road to the city starts **deep in the trees**. Tap the **map** (left) to see where you have been.`, 'sys');
     traderSeen = true; dawnT = 0.3;
   }
 
@@ -147,7 +209,7 @@ export function startApp() {
   function dawnFlow() {
     if (!game) return;
     const S = game.state;
-    if (S.over || S.phase !== 'day') return;
+    if (S.over) return;
     paused = true; if (placing) stopPlacing(); closePanel();
     if (S.pendingPicks > 0 && S.offer.length) return showPerks();
     if (S.story.encounters.length) return showEncounter();
@@ -156,7 +218,7 @@ export function startApp() {
     hideCard(); paused = false;
     if (S.mode === 'packs' && stockTotal() > 0) toast('Pick a building in the tray to place it.');
   }
-  const needsDawn = () => { const S = game.state; return S.phase === 'day' && !S.over && ((S.pendingPicks > 0 && S.offer.length) || S.story.encounters.length || S.packs.length || (S.trade && !S.trade.done && !traderSeen)); };
+  const needsDawn = () => { const S = game.state; return !S.over && ((S.pendingPicks > 0 && S.offer.length) || S.story.encounters.length || S.packs.length || (S.trade && !S.trade.done && !traderSeen)); };
 
   const sourceLabel = { dawn: 'Dawn blessing', chest: 'From a chest', nest: 'The hive burns · a blessing', 'manual:hero': 'Field manual · Brawn', 'manual:ranger': 'Field manual · Aim', 'manual:scavver': 'Field manual · Wits', 'manual:heart': 'Field manual · Heart', 'manual:bow': 'Field manual · Bow', 'manual:stone': 'Field manual · Stone', 'manual:harvest': 'Field manual · Harvest' };
   function showPerks() {
@@ -283,7 +345,7 @@ export function startApp() {
     if (!last) { $('#encNext').onclick = onArmed(next); $('#encScene').onclick = onArmed(next); $('#encSkip').onclick = onArmed(() => { encPage.set(enc.id, pages.length - 1); showEncounter(); }); }
     $$('[data-choice]').forEach(b => b.onclick = onArmed(() => { if (P && P.chronicle) enc.aiChron = P.chronicle; if (game.choose(b.dataset.choice)) { encPage.delete(enc.id); audio.play('claim'); afterEncounter(); } }));
   }
-  function afterEncounter() { if (game.state.story.encounters.length) showEncounter(); else if (game.state.phase === 'day') dawnFlow(); else { hideCard(); paused = false; } }
+  function afterEncounter() { if (game.state.story.encounters.length) showEncounter(); else { dawnFlow(); if (!needsDawn()) { hideCard(); paused = false; } } }
 
   function showStatus() {
     const S = game.state, ST = S.story, comp = ST.npcs.filter(n => n.joined && n.alive);
@@ -443,6 +505,18 @@ export function startApp() {
     $('#winOk').onclick = onArmed(() => { if (wins.length) showWin(); else { hideCard(); paused = false; } });
   }
 
+  // a hive burns: its dead pour out after you. A flare or smoke buys time.
+  function showEscape() {
+    const S = game.state, E = S.escape; if (!E) return;
+    paused = true; if (placing) stopPlacing(); closePanel();
+    const n = E.horde.length, F = ESCAPE.flare, Sm = ESCAPE.smoke, Rn = ESCAPE.run;
+    const b = (id, name, cost, unit, desc, off) => `<button class="opt esc" data-esc="${id}" ${off ? 'disabled' : ''}><span class="nm">${name}${cost ? `<span class="cost"><span class="dot ${unit === 'scrap' ? 'gold' : 'food'}"></span>${cost}</span>` : ''}</span><span class="ds">${rich(desc)}${off ? ` <b class="bad">Not enough ${unit}.</b>` : ''}</span></button>`;
+    showCard('escape', `<div class="enc sysw"><div class="eyebrow sysline">[System] The hive is ash</div><h1 class="sm"><b>${n} dead</b> pour out after you</h1>
+      <p class="tiny" style="white-space:normal">They will hunt you until you lose them or reach your walls. What do you do?</p>
+      <div class="opts one">${b('flare', `🔥 ${F.name}`, F.cost, 'scrap', F.desc, S.gold < F.cost)}${b('smoke', `💨 ${Sm.name}`, Sm.cost, 'food', Sm.desc, S.food < Sm.cost)}${b('run', `🏃 ${Rn.name}`, 0, '', Rn.desc, false)}</div></div>`, true);
+    $$('[data-esc]').forEach(x => x.onclick = onArmed(() => { if (game.escape(x.dataset.esc)) { flushToasts(); hideCard(); paused = false; } }));
+  }
+
   // every dawn is an episode: a title card, like an anime eyecatch
   function showEpisode(e) {
     const el = $('#episode'); if (!el) return;
@@ -455,7 +529,7 @@ export function startApp() {
   let trayKey = '';
   function renderTray() {
     const S = game.state, tray = $('#tray');
-    tray.hidden = S.phase !== 'day' || !!card;
+    tray.hidden = !!card;
     if (tray.hidden) { trayKey = ''; return; }
     const hands = game.handsFree();
     const sig = [S.gold, JSON.stringify(S.stock), placing && placing.type, S.builders, S.foreman, S.autopilot, S.feat.power, game.keepLevel(), S.buildings.length, hands].join('|'); if (sig === trayKey) return; trayKey = sig;
@@ -653,7 +727,7 @@ export function startApp() {
   function flushToasts() { for (const e of game.drainEvents()) if (e.t === 'toast' || e.t === 'fail') toast(e.msg, e.t === 'fail' ? 'bad' : e.kind); }
   function renderPanel() {
     if (!selected || !game) return;
-    const S = game.state, body = $('#pBody'), day = S.phase === 'day';
+    const S = game.state, body = $('#pBody'), day = !S.over;   // no day/night split: everything works at any hour
     if (selected.type === 'keep') {
       const k = S.keep, l = k.level;
       $('#pEyebrow').textContent = 'Town centre'; $('#pTitle').textContent = `Keep · level ${l}`;
@@ -672,16 +746,13 @@ export function startApp() {
     }
     if (selected.type === 'region') {
       const info = game.regionInfo(selected.id), reg = game.map.regions[selected.id];
-      $('#pEyebrow').textContent = `${names[selected.id]} · ${S.sealed[selected.id] ? 'sealed' : RINGS[Math.min(2, reg.ring)]}`;
+      $('#pEyebrow').textContent = `${names[selected.id]} · ${S.sealed[selected.id] ? 'sealed' : RINGS[Math.min(3, reg.ring)]}`;
       $('#pTitle').textContent = info.nest ? `Hive: ${hiveName(game.map.seed, selected.id)} · ${info.active ? 'awake' : 'asleep'}` : names[selected.id];
       const land = [info.forest > 40 ? 'deep forest' : info.forest > 15 ? 'woods' : 'open fields', info.water ? 'water' : null].filter(Boolean).join(' · ');
       let html = `<div class="stat"><span>${land}</span>${info.wakes ? `<span>Wakes <b>${info.wakes}</b> more ${info.wakes === 1 ? 'hive' : 'hives'} beyond it</span>` : ''}</div>`;
-      if (S.purge === selected.id) html += `<div class="opts one">${opt('opt-cancel', 'data-cancel="1"', 'Call off the march', null, 'Tonight will be a normal night.', !day)}</div>`;
-      else if (info.canPurge) {
-        html += `<div class="stat"><span>Siege tonight would be <span class="rating ${info.rating}">${info.rating}</span></span><span>Your defences against this hive's last stand</span></div>`;
-        html += `<div class="opts one">${opt('opt-purge', 'data-purge="1"', 'Clear this hive tonight', null, 'Its dead come in force at the end of the night. Survive and the land is yours, with a legendary blessing.', false)}</div>`;
-        html += `<div class="tiny">Or walk up and strike it yourself: while you hit it, it pours out its dead (health ${Math.round(game.hiveHealth(selected.id) * 100)}%).</div>`;
-      } else html += `<div class="tiny">${!info.nest ? 'No hive here.' : game.keepLevel() < info.needKeep ? `Raise the keep to level ${info.needKeep} to march on ${reg.ring >= 2 ? 'a far' : 'a near'} hive.` : 'Claim the land between you and this hive first.'}</div>`;
+      if (info.nest) html += game.keepLevel() < info.needKeep ? `<div class="tiny">Too strong for now: <b>raise the town hall to level ${info.needKeep}</b> to break a ${reg.ring >= 3 ? 'core' : 'city'} hive.</div>`
+        : `<div class="stat"><span>Hive health <b>${Math.round(game.hiveHealth(selected.id) * 100)}%</b></span><span>Walk up and strike it, <b>day or night</b>. While you hit it, it pours out its dead.</span></div><div class="tiny" style="white-space:normal">When it burns: <b>a legendary blessing</b> and scrap. Its last dead come after you: <b>a flare</b> (scrap) or <b>smoke</b> (food) buys you time.</div>`;
+      else html += '<div class="tiny">No hive here.</div>';
       body.innerHTML = html;
       return;
     }
@@ -696,9 +767,10 @@ export function startApp() {
     if (selected.type === 'site') { renderSite(body, day); return; }
     if (selected.type === 'rubble') {
       const r = game.rubbleAt(selected.x, selected.y);
-      $('#pEyebrow').textContent = 'Your land'; $('#pTitle').textContent = r.blocks ? 'A ruined block' : 'Rubble';
+      const woods = game.map.wild && game.map.wild[idx(Math.floor(selected.x), Math.floor(selected.y))];
+      $('#pEyebrow').textContent = 'Your land'; $('#pTitle').textContent = r.blocks ? 'A ruined block' : woods ? 'Trees' : 'Rubble';
       body.innerHTML = `<div class="stat"><span>${r.blocks ? 'Walls block building and the dead alike.' : 'Blocks building. Slows the dead.'}</span><span>Knock it down to make room. The dead cross open ground faster.</span></div>`
-        + (r.cells.length ? `<div class="opts one">${opt('opt-clear', 'data-clear="1"', r.blocks ? `Knock down ${r.blocks} ${r.blocks === 1 ? 'bay' : 'bays'} of the block` : `Clear ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of rubble`, r.cost, r.blocks ? `A 3×3 patch becomes open ground. Takes a pair of hands${S.feat.heat ? '; the noise carries (+heat)' : ''}.` : 'A 3×3 patch around this spot becomes paved ground.', S.gold < r.cost || !day || (r.blocks && game.handsFree() < 1))}</div>` : '<div class="tiny">Nothing left to clear here.</div>');
+        + (r.cells.length ? `<div class="opts one">${opt('opt-clear', 'data-clear="1"', r.blocks ? `Knock down ${r.blocks} ${r.blocks === 1 ? 'bay' : 'bays'} of the block` : woods ? `Fell ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of trees` : `Clear ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of rubble`, r.cost, r.blocks ? `A 3×3 patch becomes open ground. Takes a pair of hands${S.feat.heat ? '; the noise carries (+heat)' : ''}.` : 'A 3×3 patch around this spot becomes paved ground.', S.gold < r.cost || !day || (r.blocks && game.handsFree() < 1))}</div>` : '<div class="tiny">Nothing left to clear here.</div>');
       return;
     }
     const b = selB(); if (!b) { closePanel(); return; }
@@ -740,9 +812,9 @@ export function startApp() {
     renderPanel(); updateHud();
   });
   $('#pClose').onclick = closePanel;
-  const ringBell = () => { if (game && !paused && game.startNight()) { closePanel(); stopPlacing(); } };
-  $('#bell').onclick = ringBell;
+  $('#bell').hidden = true;   // no bell: dusk comes with the sun
   $('#logBtn').onclick = showLog;
+  $('#mini').onclick = () => { if (game && !card) showMap(); };
   $('#crewBtn').onclick = () => { if (game) showStatus(); };
   $('#dayPill').onclick = () => { if (game && !card && !game.state.over) showStatus(); };
   document.addEventListener('visibilitychange', () => { if (document.hidden && game && !game.state.over) { const snap = game.snapshot(); if (snap) saves.save(snap); } });
@@ -784,7 +856,7 @@ export function startApp() {
   function renderAbility() {
     const A = game.heroDef.ability, S = game.state, el = $('#ability');
     if (!A) { el.hidden = true; return; }
-    el.hidden = A.nightOnly && S.phase !== 'night';
+    el.hidden = false;
     if (el.hidden) return;
     const cd = S.ability.cd, cost = game.abilityCost();
     el.querySelector('.an').textContent = A.name;
@@ -816,18 +888,15 @@ export function startApp() {
     const ht = Math.round(S.heat); $('#heatFill').style.width = Math.min(100, S.heat) + '%'; $('#heatTxt').textContent = ht;
     const hel = $('.heat'); hel.classList.toggle('hot', S.heat >= HEAT.erupt || !!S.eruption); hel.classList.toggle('stir', S.heat >= HEAT.stir && S.heat < HEAT.erupt);
     const cw = game.crewing(); $('#pop').textContent = game.pop(); $('#popNote').textContent = cw.need ? `${cw.free} free` : ''; $('#popNote').classList.toggle('warn', cw.need > cw.people);
-    $('#buildBtn').style.visibility = night || S.over ? 'hidden' : '';
-    const bell = $('#bell');
-    if (night || S.over) {
-      bell.hidden = true;
-      const left = S.queue.length + S.mobs.filter(m => !m.roam && m.stream === undefined).length;
-      $('#info').innerHTML = S.over ? 'The keep has fallen' : `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}<em>${left}</em> dead left${S.hero.dead ? ` · you return in ${Math.ceil(S.hero.respawn)}s` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
-    } else {
-      bell.hidden = false; const bonus = game.bellBonus(), dusk = Math.ceil(game.duskIn());
-      bell.innerHTML = (bm ? 'Face the moon' : 'Ring bell') + (bonus > 0 ? `<span class="badge">+${bonus}</span>` : '');
-      const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
-      const loose = S.mobs.filter(m => !m.roam).length;
-      $('#info').innerHTML = `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}${sunDial(game.dayFrac(), dusk <= 15)}${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · <span class="long">Tonight </span><em>☠ ${dead}</em><span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
+    $('#buildBtn').style.visibility = S.over ? 'hidden' : '';
+    $('#bell').hidden = true;
+    if (S.over) $('#info').innerHTML = 'The keep has fallen';
+    else {
+      // one clock: the sun (or the moon) crosses the sky; the dead never stop coming
+      const loose = S.mobs.filter(m => !m.roam && !MOBS[m.kind].animal).length, hunting = S.mobs.filter(m => m.hunt && !MOBS[m.kind].animal).length;
+      let tail = '';
+      if (!night) { const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio(); tail = ` · <span class="long">Tonight </span><em>☠ ${dead}</em> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>`; }
+      $('#info').innerHTML = `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}${sunDial(night ? game.nightFrac() : game.dayFrac(), !night && game.duskIn() <= 15, night)}${loose ? ` · <em class="loose">${loose}</em> coming` : ''}${hunting ? ` · <em class="hunt">${hunting}</em> on your trail` : ''}${S.hero.dead ? ` · back in ${Math.ceil(S.hero.respawn)}s` : ''}${tail}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();
@@ -835,16 +904,17 @@ export function startApp() {
   }
 
   // the sun's arc across the day: where it stands is how much daylight is left
-  function sunDial(t, soon) {
+  function sunDial(t, soon, moon = false) {
     const a = Math.PI * (1 - t), x = 22 + Math.cos(a) * 17, y = 19 - Math.sin(a) * 15;
-    return `<span class="sundial${soon ? ' soon' : ''}" title="The sun sets at dusk: then the night comes"><svg viewBox="0 0 44 22" width="40" height="20" aria-hidden="true"><path d="M5 19 A17 15 0 0 1 39 19" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="2" y1="19.5" x2="42" y2="19.5" stroke="currentColor" stroke-opacity=".5"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" class="sun"/></svg></span>`;
+    return `<span class="sundial${soon ? ' soon' : ''}${moon ? ' moon' : ''}" title="${moon ? 'The moon crosses the sky: at dawn the night is over' : 'The sun sets at dusk: then the night comes'}"><svg viewBox="0 0 44 22" width="40" height="20" aria-hidden="true"><path d="M5 19 A17 15 0 0 1 39 19" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="2" y1="19.5" x2="42" y2="19.5" stroke="currentColor" stroke-opacity=".5"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" class="sun"/></svg></span>`;
   }
   // ---------- edge arrows ----------
   const edge = { top: 60, bot: 100, pool: [], tags: [] };
   function edgeMarks() {
     const S = game.state, Wd = innerWidth, Hh = innerHeight, m = 22, t = edge.top, bt = Hh - edge.bot, cx = Wd / 2, cy = (t + bt) / 2, buckets = new Map();
-    if (S.phase === 'night') for (const z of S.mobs) {
-      if (z.roam) continue;
+    for (const z of S.mobs) {
+      if (z.roam || z.lure || MOBS[z.kind].animal) continue;
+      if (Math.hypot(z.x - S.hero.x, z.y - S.hero.y) > 40 && Math.hypot(z.x - game.map.town.x, z.y - game.map.town.y) > 30) continue;   // far away: not your worry yet
       const p = view.project(z.x, z.y); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
       const ang = Math.atan2(p.y - cy, p.x - cx), key = Math.round(ang / (Math.PI / 16));
       const b = buckets.get(key) || { ang, n: 0, big: false }; b.n++; if (MOBS[z.kind].size >= 1.6) b.big = true; buckets.set(key, b);
@@ -865,15 +935,18 @@ export function startApp() {
       const p = view.project(d.x, d.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
       buckets.set(3000 + d.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, drop: true });
     }
-    if (S.phase === 'day') for (const sp of S.story.spots) {
+    for (const sp of S.story.spots) {
       const p = view.project(sp.x, sp.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
       buckets.set(7000 + sp.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, quest: true, label: '!' });
     }
-    { const tr = S.story.trial; if (S.phase === 'day' && tr && !tr.done) { const p = view.project(tr.x, tr.y, 1.5); if (!(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(6999, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: true, quest: true, label: 'Trial' }); } }
-    if (S.phase === 'day') for (const q of S.story.quests) {
+    { const tr = S.story.trial; if (tr && !tr.done) { const p = view.project(tr.x, tr.y, 1.5); if (!(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(6999, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: true, quest: true, label: 'Trial' }); } }
+    for (const q of S.story.quests) {
       const p = view.project(q.x, q.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
       buckets.set(5000 + q.site, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, quest: true });
     }
+    // places: the city down the road, and the way home
+    { const c = game.map.city, h = S.hero; if (c && Math.hypot(c.x - h.x, c.y - h.y) > c.r + 6) { const p = view.project(c.x, c.y, 1); if (!(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8000, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, place: true, label: 'City' }); } }
+    { const tw = game.map.town, h = S.hero; if (Math.hypot(tw.x - h.x, tw.y - h.y) > 24) { const p = view.project(tw.x, tw.y, 1); if (!(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8001, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, place: true, label: 'Camp' }); } }
     for (let k = tagN; k < edge.tags.length; k++) edge.tags[k].hidden = true;
     let i = 0;
     for (const b of buckets.values()) {
@@ -881,7 +954,7 @@ export function startApp() {
       const c = Math.cos(b.ang), s = Math.sin(b.ang), hx = Wd / 2 - m, hy = Math.max(10, (bt - t) / 2 - m * 0.5), k = Math.min(Math.abs(hx / (c || 1e-6)), Math.abs(hy / (s || 1e-6)));
       el.style.transform = `translate(${cx + c * k}px, ${cy + s * k}px) rotate(${b.ang}rad)`;
       const sp = el.lastChild; sp.textContent = b.label ? b.label : b.quest ? 'Quest' : b.drop ? 'Drop' : b.day ? `~${b.n}` : b.n > 1 ? b.n : ''; sp.style.transform = `rotate(${-b.ang}rad)`;
-      el.classList.toggle('big', b.big); el.classList.toggle('drop', !!b.drop); el.classList.toggle('quest', !!b.quest); el.hidden = false; i++;
+      el.classList.toggle('big', b.big); el.classList.toggle('drop', !!b.drop); el.classList.toggle('quest', !!b.quest); el.classList.toggle('place', !!b.place); el.hidden = false; i++;
     }
     for (; i < edge.pool.length; i++) edge.pool[i].hidden = true;
     if (S.over) for (const el of [...edge.pool, ...edge.tags]) el.hidden = true;
@@ -923,7 +996,7 @@ export function startApp() {
         joy.firstChild.style.transform = `translate(${nx * Math.min(d, 40)}px, ${ny * Math.min(d, 40)}px)`;
       }
     }
-    if (e.pointerType === 'mouse' && game.state.phase === 'day') { const p = view.pick(e.clientX, e.clientY); canvas.style.cursor = p && p.type !== 'ground' ? 'pointer' : ''; }
+    if (e.pointerType === 'mouse') { const p = view.pick(e.clientX, e.clientY); canvas.style.cursor = p && p.type !== 'ground' ? 'pointer' : ''; }
   });
   canvas.addEventListener('pointerup', e => {
     const wasPinch = touches.size >= 2; touches.delete(e.pointerId); if (touches.size < 2) pinch0 = 0;
@@ -946,11 +1019,11 @@ export function startApp() {
     const p = view.pick(e.clientX, e.clientY); if (!p) return;
     const S = game.state;
     if (p.type === 'landmark') { const l = S.landmarks[p.id]; if (!l.owned) { game.heroTo(l.x, l.y + l.size / 2 + 1); view.showMove(l.x, l.y + l.size / 2 + 1); } openSel({ type: 'landmark', id: p.id }); return; }
-    if (S.phase === 'day' && p.type === 'rubble') { game.heroTo(p.x, p.y); view.showMove(p.x, p.y); openSel({ type: 'rubble', x: p.x, y: p.y }); return; }
-    if (S.phase === 'day' && p.type === 'site') { openSel({ type: 'site', id: p.id, pick: new Set() }); return; }
-    if (S.phase === 'day' && (p.type === 'building' || p.type === 'keep')) { openSel(p.type === 'building' ? { type: 'building', id: p.id } : { type: 'keep' }); return; }
-    if (S.phase === 'day' && p.type === 'region' && S.sealed[p.id]) { openSel({ type: 'region', id: p.id }); return; }
-    if (S.phase === 'day' && p.type === 'region' && game.map.regions[p.id].nest && game.regionInfo(p.id).nest) {
+    if (p.type === 'rubble') { game.heroTo(p.x, p.y); view.showMove(p.x, p.y); openSel({ type: 'rubble', x: p.x, y: p.y }); return; }
+    if (p.type === 'site') { openSel({ type: 'site', id: p.id, pick: new Set() }); return; }
+    if (p.type === 'building' || p.type === 'keep') { openSel(p.type === 'building' ? { type: 'building', id: p.id } : { type: 'keep' }); return; }
+    if (p.type === 'region' && S.sealed[p.id]) { openSel({ type: 'region', id: p.id }); return; }
+    if (p.type === 'region' && game.map.regions[p.id].nest && game.regionInfo(p.id).nest) {
       const n = game.map.regions[p.id].nest;
       if (Math.hypot(n.x - p.x, n.y - p.y) < 4 || !(selected && selected.type === 'region')) { openSel({ type: 'region', id: p.id }); return; }
     }
@@ -962,11 +1035,11 @@ export function startApp() {
     if (e.target.closest && e.target.closest('button') && (k === ' ' || k === 'enter')) return;
     if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) { keys[k] = true; e.preventDefault(); }
     if (!game) return;
-    if (k === 'n') ringBell();
     if (k === 'l') showLog();
+    if (k === 'm' && !card) showMap();
     if (k === 'q' || k === ' ') { e.preventDefault(); useAbility(); }
     if (k === 'enter' && placing) placeNow();
-    if (['1', '2', '3', '4', '5', '6'].includes(k) && !paused && game.state.phase === 'day') { const t = [...BUILD_ORDER, ...TECH_ORDER][+k - 1]; if (placing && placing.type === t) stopPlacing(); else startPlacing(t); }
+    if (['1', '2', '3', '4', '5', '6'].includes(k) && !paused) { const t = [...BUILD_ORDER, ...TECH_ORDER][+k - 1]; if (placing && placing.type === t) stopPlacing(); else startPlacing(t); }
     if ((k === '=' || k === '+') && view) view.setZoom(view.getZoom() * 0.8);
     if ((k === '-' || k === '_') && view) view.setZoom(view.getZoom() * 1.25);
   });
@@ -1000,12 +1073,13 @@ export function startApp() {
     if (dawnT > 0) dawnT -= dt;
     if (!card && wins.length && dawnT <= 0 && !S.over) showWin();
     if (!card && dawnT <= 0 && needsDawn()) dawnFlow();
-    if (!card && !paused && S.phase === 'day' && S.story.encounters.length) showEncounter();
+    if (!card && !paused && S.story.encounters.length) showEncounter();
+    if (!card && S.escape) showEscape();
     if (endT > 0 && now >= endT) { endT = -1; paused = true; showEnd(); }
-    if (placing && placing.zone.ver !== S.occVersion && S.phase === 'day') { refreshZone(); updateGhost(); }
-    if (placing && S.phase !== 'day') stopPlacing();
+    if (placing && placing.zone.ver !== S.occVersion) { refreshZone(); updateGhost(); }
     view.frame(dt, { events, selected, ghost: placing && placing.ghost, zone: placing && placing.zoneMask });
     edgeMarks(); watchFrames(raw);
+    if ((miniT -= dt) <= 0) { miniT = 0.4; drawMini(); }
     hudT -= dt; if (hudT <= 0) { updateHud(); hudT = 0.2; if (selected && !paused) { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } } }
   }
   requestAnimationFrame(frame);

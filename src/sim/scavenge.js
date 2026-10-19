@@ -77,7 +77,7 @@ export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, isB
   }
 
   function send(siteId, ids) {
-    if (S.phase !== 'day' || S.over) return fail('Send a crew out during the day.');
+    if (S.over) return false;
     const info = siteInfo(siteId); if (!info || !info.reachable) return fail('Too far. Claim more land first.');
     if (info.left <= 0) return fail('This ruin has been picked clean.');
     if (info.run) return fail('A crew is already heading there.');
@@ -92,7 +92,7 @@ export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, isB
     return true;
   }
   function recall(siteId) {
-    const k = runs.findIndex(r => r.site === siteId); if (k < 0 || S.phase !== 'day') return false;
+    const k = runs.findIndex(r => r.site === siteId); if (k < 0) return false;
     const r = runs[k]; runs.splice(k, 1);
     for (const id of r.ids) { const c = byId(id); if (c) c.out = null; }
     S.gold += r.kit; S.cur.spent -= r.kit; S.stats.goldSpent -= r.kit;

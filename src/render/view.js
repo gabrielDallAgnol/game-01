@@ -320,7 +320,7 @@ export function createView(canvas, game, opts = {}) {
     fenceMesh = new THREE.Group();
     const meshes = []; fenceGeo.traverse(o => { if (o.isMesh) meshes.push(o); });
     for (const src of meshes) {
-      const im = new THREE.InstancedMesh(src.geometry, src.material, spots.length); im.castShadow = true;
+      const im = new THREE.InstancedMesh(src.geometry, src.material, spots.length); im.castShadow = false; im.frustumCulled = false;   // spread over the map (and no shadow: far fences streak across the shadow map): never cull by the base shape
       spots.forEach(([x, y, ry], k) => { rd.position.copy(W(x, y)); rd.rotation.set(0, ry, 0); rd.scale.setScalar(1); rd.updateMatrix(); im.setMatrixAt(k, rd.matrix); });
       fenceMesh.add(im);
     }
@@ -352,7 +352,7 @@ export function createView(canvas, game, opts = {}) {
     });
     const count = routes.reduce((a, r) => a + Math.max(1, Math.floor(r.len / SPACING)), 0);
     if (routeMesh) { fx.remove(routeMesh); routeMesh.dispose(); }
-    routeMesh = new THREE.InstancedMesh(chevGeo, routeMat, Math.max(1, count)); routeMesh.renderOrder = 5; fx.add(routeMesh);
+    routeMesh = new THREE.InstancedMesh(chevGeo, routeMat, Math.max(1, count)); routeMesh.renderOrder = 5; routeMesh.frustumCulled = false; fx.add(routeMesh);
     let k = 0; for (const r of routes) { const n = Math.max(1, Math.floor(r.len / SPACING)); for (let q = 0; q < n; q++) routeMesh.setColorAt(k++, tmpC.copy(lc(r.siege ? '#e3a54a' : '#d5513d')).multiplyScalar(1.3)); }
     if (routeMesh.instanceColor) routeMesh.instanceColor.needsUpdate = true;
   }
@@ -638,12 +638,12 @@ export function createView(canvas, game, opts = {}) {
   const flames = []; const flameFor = new Map();
 
   // ---------- placement ghost and build zone ----------
-  const ghostCells = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }), 64);
+  const ghostCells = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }), 64); ghostCells.frustumCulled = false;
   ghostCells.renderOrder = 6; ghostCells.visible = false; fx.add(ghostCells);
   let ghostMesh = null, ghostKey = '';
   const ZONE_MAX = 2500;
   const zoneMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: lc('#5fd06a'), transparent: true, opacity: 0.38, depthWrite: false }), ZONE_MAX);
-  zoneMesh.renderOrder = 5; zoneMesh.visible = false; fx.add(zoneMesh); let zoneRef = null;
+  zoneMesh.renderOrder = 5; zoneMesh.frustumCulled = false; zoneMesh.visible = false; fx.add(zoneMesh); let zoneRef = null;
   function setZone(z) {
     if (z === zoneRef) return; zoneRef = z;
     if (!z) { zoneMesh.visible = false; return; }
@@ -958,7 +958,7 @@ export function createView(canvas, game, opts = {}) {
     if (b && b.type === 'keep') return { type: 'keep', ...p };
     if (b) return { type: 'building', id: b.id, ...p };
     const cx2 = Math.floor(p.x), cy2 = Math.floor(p.y);
-    if (cx2 >= 0 && cy2 >= 0 && cx2 < N && cy2 < N) { const i = idx(cx2, cy2), r = map.region[i], t = map.terrain[i]; if (r >= 0 && (t === T.FOREST || t === T.ROCK) && S.occ[i] < 0 && game.zone()[i] === 1 && S.phase === 'day') return { type: 'rubble', ...p }; if (r >= 0 && !S.claimed.has(r)) return { type: 'region', id: r, ...p }; }
+    if (cx2 >= 0 && cy2 >= 0 && cx2 < N && cy2 < N) { const i = idx(cx2, cy2), r = map.region[i], t = map.terrain[i]; if (r >= 0 && (t === T.FOREST || t === T.ROCK) && S.occ[i] < 0 && game.zone()[i] === 1) return { type: 'rubble', ...p }; if (r >= 0 && !S.claimed.has(r)) return { type: 'region', id: r, ...p }; }
     return { type: 'ground', ...p };
   }
   function showMove(x, y) { moveMark.position.copy(W(x, y, 0.07)); moveMark.scale.set(1, 1, 1); moveMark.material.opacity = 0.9; }
@@ -966,6 +966,7 @@ export function createView(canvas, game, opts = {}) {
 
   return {
     frame, pick, project, showMove, resize, routes: () => routes, groundAt, startOrbit: () => { orbit = 0.001; },
+    scene, camera, info: () => new Promise(res => { const I = renderer.info; I.autoReset = false; requestAnimationFrame(() => { I.reset(); requestAnimationFrame(() => { const o = { calls: I.render.calls, tris: I.render.triangles, geos: I.memory.geometries }; I.autoReset = true; res(o); }); }); }),   // one whole frame (all passes)
     setZoom: z => { zoom = Math.max(0.45, Math.min(1.8, z)); }, getZoom: () => zoom,
     setQuality: q => { look.setQuality(q); resize(); }, quality: () => look.quality(),
   };

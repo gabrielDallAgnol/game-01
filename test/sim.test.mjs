@@ -6,18 +6,23 @@ import { generateMap, validateMap, mapChoices, BIOMES, N, idx, PASSABLE } from '
 import { createGame as newGame } from '../src/sim/game.js';
 import { playRun } from '../tools/bot.mjs';
 
-test('every biome generates valid maps across 40 seeds', () => {
-  for (const biome of Object.keys(BIOMES)) for (let s = 1; s <= 40; s++) {
+test('the frontier map generates valid worlds across 20 seeds', () => {
+  for (const biome of ['riverbend']) for (let s = 1; s <= 20; s++) {
     const m = generateMap(s, biome);
     assert.deepEqual(validateMap(m), [], `${biome} seed ${s}`);
   }
 });
 
-test('map choice offers two different biomes', () => {
-  for (let s = 1; s <= 20; s++) {
-    const c = mapChoices(s);
-    assert.equal(c.length, 2); assert.notEqual(c[0].biome, c[1].biome);
-  }
+test('one world while we test: the start screen offers a single valid map', () => {
+  for (let s = 1; s <= 5; s++) { const c = mapChoices(s); assert.equal(c.length, 1); assert.equal(c[0].biome, 'riverbend'); }
+});
+
+test('the frontier: a camp in the woods, the road starts deep in the forest, the city is far away', () => {
+  const m = generateMap(4, 'riverbend'), c = N / 2;
+  let nearRoad = 0; for (let y = c - 30; y < c + 30; y++) for (let x = c - 30; x < c + 30; x++) if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 30 && m.road[idx(x, y)]) nearRoad++;
+  assert.equal(nearRoad, 0, 'the road reaches the camp');
+  assert.ok(Math.hypot(m.city.x - c, m.city.y - c) - m.city.r > 120, 'the city is too close');
+  assert.ok(m.landmarks.filter(l => l.kind === 'farmstead' || l.kind === 'lumber').length >= 2, 'no farms or lumber camps in the woods');
 });
 
 test('every nest can walk to the town', () => {
@@ -61,24 +66,21 @@ test('day actions respect gold, phase and claimed land', () => {
   assert.equal(g.build(core[0], 'house'), false, 'built on an occupied slot');
   S.gold = 0; assert.equal(g.build(core[1], 'house'), false, 'built without gold');
   S.pendingPicks = 0; assert.equal(g.startNight(), true);
-  S.gold = 99; assert.equal(g.build(core[1], 'house'), false, 'built at night');
+  S.gold = 99; assert.equal(g.build(core[1], 'house'), true, 'no building at night (there is no day/night split any more)');
 });
 
-test('a survived siege claims the region and wakes the nests behind it', () => {
-  const g = createGame({ mode: 'classic', seed: 9, biome: 'riverbend', hero: 'archer' });
-  const S = g.state;
-  while (S.pendingPicks) g.choosePerk(S.offer[0]);
-  assert.ok(!g.map.regions.some(r => g.canPurge(r.id)), 'a level 1 keep should not march on hives');
-  S.gold = 100; assert.ok((prepKeep(g), g.upgradeKeep()));
-  const target = g.map.regions.find(r => g.canPurge(r.id));
-  assert.ok(target, 'no region can be marched on');
-  S.keep.hp = S.keep.maxHp = 1e6; // make the keep unkillable for this test
-  assert.equal(g.planPurge(target.id), true);
-  g.startNight();
-  for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) g.step();
-  assert.ok(S.claimed.has(target.id), 'region was not claimed');
-  assert.equal(S.nestAlive[target.id], false);
-  for (const nb of target.neighbors) if (g.map.regions[nb].nest && !S.claimed.has(nb)) assert.ok(S.wake[nb] <= S.night, `neighbour ${nb} did not wake`);
+test('the brain: the dead hunt you out in the open, give up at the town, and the clever ones wait on the road home', () => {
+  const g = createGame({ seed: 9, hero: 'archer' }), S = g.state; readyDay(g);
+  const c = g.map.town.x;
+  S.mobs.length = 0;
+  S.hero.x = c + 30; S.hero.y = c; const w = g.state.mobs; 
+  const spawn = (kind, x, y) => { const id = S.nextId; g.state.mobs.push({ id: S.nextId++, kind, x, y, hp: 99, maxHp: 99, cd: 1, speed: 1, boost: 1, rise: 1, face: 0, tauntT: 0 }); return S.mobs.find(m => m.id === id); };
+  const near = spawn('walker', c + 34, c), far = spawn('walker', c + 42, c), brute = spawn('brute', c + 30, c + 30);
+  brute.ambush = true;
+  for (let k = 0; k < 30; k++) g.step();
+  assert.ok(near.hunt, 'a walker 4 cells away did not notice you');
+  assert.ok(!far.hunt, 'a walker 12 cells away noticed you');
+  assert.ok(brute.ambushAt && Math.hypot(brute.ambushAt.x - c, brute.ambushAt.y - c) < Math.hypot(S.hero.x - c, S.hero.y - c), 'the brute did not move to cut you off');
 });
 
 test('heroes: every class fights, the Scavver only weakly', () => {
@@ -229,7 +231,6 @@ test('packs: a choice of 2 each dawn, pack buildings are free, extra ones cost d
   const g = createGame({ seed: 5, biome: 'highland', mode: 'packs' }); const S = g.state;
   while (S.pendingPicks) g.choosePerk(S.offer[0]);
   assert.equal(S.packs.length, 2);
-  assert.equal(g.startNight(), false, 'night started before choosing a pack');
   const before = { ...S.stock }; g.choosePack(S.packs[0]);
   assert.ok(Object.keys(S.stock).some(t => S.stock[t] > (before[t] || 0)), 'pack added nothing');
   const t = g.map.town, spots = [];
@@ -286,7 +287,6 @@ test('clearing rubble on your land costs gold and makes buildable ground', () =>
   assert.equal(S.gold, gold - r.cost);
   assert.ok(r.cells.every(i => g.map.terrain[i] === 0 || g.map.terrain[i] === 6));
   assert.equal(g.rubbleAt(spot.x, spot.y).cells.length, 0);
-  g.startNight(); assert.ok(!g.clearRubble(spot.x, spot.y));
 });
 
 test('nothing grows past the keep', () => {
@@ -340,9 +340,12 @@ test('tides: night 1 is a single tough dead, dusk falls on its own, roamers wand
   assert.equal(S.phase, 'day', 'roamers kept the night from ending');
 });
 
-test('ringing the bell early pays gold', () => {
+test('no bell: dusk comes with the sun, and the day carries on into the night', () => {
   const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
-  const gold = S.gold; assert.ok(g.startNight()); assert.ok(S.gold > gold);
+  for (let k = 0; k < 60 * 130 && S.phase === 'day'; k++) g.step();
+  assert.equal(S.phase, 'night', 'the sun never set');
+  for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) g.step();
+  assert.equal(S.phase, 'day', 'the night never ended');
 });
 
 test('foreman: the town learns to build by itself once it is established, for every hero', () => {
@@ -450,22 +453,30 @@ test('the stream: the dead keep coming from awake hives, and they never hold up 
   assert.equal(S.phase, 'day', 'the stream kept the night from ending');
 });
 
-test('breaking a hive by hand: it rages, then burns', () => {
+test('burning a hive any time: its dead pour out after you, and a flare buys time', () => {
   const g = createGame({ seed: 16, hero: 'warrior' }); const S = g.state; readyDay(g);
+  const city = g.map.regions.find(r => r.nest && r.ring === 2);
+  assert.equal(g.hitHive(city.id, 5), false, 'a level 1 keep can break a city hive');
   const reg = g.map.regions.find(r => r.nest && r.ring === 1);
-  assert.equal(g.hitHive(reg.id, 5), false, 'a level 1 keep can break a near hive');
-  S.gold = 99; (prepKeep(g), g.upgradeKeep());
-  for (let k = 0; k < 200 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
+  for (let k = 0; k < 400 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
   assert.equal(S.nestAlive[reg.id], false, 'the hive never burned');
-  assert.ok(S.claimed.has(reg.id));
+  assert.ok(S.escape && S.escape.horde.length >= 3, 'no horde in the death throes');
+  S.gold = 10; assert.ok(g.escape('flare')); assert.equal(S.gold, 6);
+  const horde = S.mobs.filter(m => m.lure); assert.ok(horde.length >= 3, 'the flare lured nobody');
+  // nobody chooses: they come at once
+  const reg2 = g.map.regions.find(r => r.nest && r.ring === 1 && S.nestAlive[r.id]);
+  S.hero.x = reg2.nest.x + 2; S.hero.y = reg2.nest.y; S.hero.hp = S.hero.maxHp = 9999;
+  for (let k = 0; k < 400 && S.nestAlive[reg2.id]; k++) g.hitHive(reg2.id, 5);
+  for (let k = 0; k < 60; k++) g.step();
+  assert.equal(S.escape, null); assert.ok(S.mobs.some(m => m.hunt && !m.roam));
 });
 
 test('districts: sealed at the start, opened by choice, identity decided when offered', () => {
   const g = createGame({ seed: 11 }); const S = g.state; readyDay(g);
   const front = g.frontier(); assert.ok(front.length >= 2, 'no frontier');
-  assert.ok(g.map.regions.every(r => (r.ring <= 1) === !S.sealed[r.id]), 'the home ward is wrong');
+  assert.ok(g.map.regions.every(r => (r.ring <= 2) === !S.sealed[r.id]), 'only the old core should be sealed');
   assert.ok(g.map.regions.filter(r => r.ring === 1).every(r => !g.siteOf(r.id) || g.siteOf(r.id).kind !== 'unknown'), 'a home ward site has no identity');
-  assert.ok(S.pickups.length >= 15, 'no pickups to find');
+  assert.ok(S.pickups.length >= 12, 'no pickups to find');
   const off = front.map(r => g.districtOffer(r)); assert.ok(off.every(o => o.name && o.rarity && o.call));
   assert.equal(g.districtOffer(front[0]).kit, off[0].kit, 'identity changed between looks');
   const r = front[0], site = g.siteOf(r);

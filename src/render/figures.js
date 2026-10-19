@@ -42,7 +42,7 @@ function strideFrame(root, k = 1) {
 }
 
 const KIND_RIG = {
-  walker: 'walker', runner: 'runner', crawler: 'crawler', brute: 'brute', spitter: 'spitter', bloater: 'bloater', screamer: 'screamer', gravelord: 'gravelord', guardian: 'gravelord',
+  walker: 'walker', runner: 'runner', crawler: 'crawler', brute: 'brute', spitter: 'spitter', bloater: 'bloater', screamer: 'screamer', gravelord: 'gravelord', guardian: 'gravelord', deer: 'deer', wolf: 'wolf',
 };
 /** the dead, drawn in batches: two instanced frames per kind plus their glowing eyes */
 export function createCrowd(world) {
@@ -52,10 +52,10 @@ export function createCrowd(world) {
   const eyeMat = new THREE.MeshBasicMaterial({ vertexColors: true }); eyeMat.color.setRGB(4, 4, 4);
   function kindOf(kind) {
     if (kinds[kind]) return kinds[kind];
-    const make = () => { CFG.eyeScale = 2.6; const r = K.dead[KIND_RIG[kind] || 'walker']({}); CFG.eyeScale = 1; if (kind === 'guardian') r.scale.multiplyScalar(0.8); return r; };
-    const A = make(), B = make(); strideFrame(B);
+    const make = alt => { CFG.eyeScale = 2.6; const r = K.dead[KIND_RIG[kind] || 'walker']({ alt }); CFG.eyeScale = 1; if (kind === 'guardian') r.scale.multiplyScalar(0.8); return r; };
+    const A = make(false), B = make(true); strideFrame(B);
     const frames = [bake(A), bake(B)];
-    const cap = kind === 'gravelord' || kind === 'guardian' ? 12 : 400;
+    const cap = kind === 'gravelord' || kind === 'guardian' ? 12 : kind === 'deer' || kind === 'wolf' ? 60 : 400;
     const meshes = frames.map(f => {
       const m = new THREE.InstancedMesh(f.geo, bodyMat, cap); m.castShadow = true; m.receiveShadow = false; m.frustumCulled = false; m.count = 0; world.add(m);
       const e = f.glow ? new THREE.InstancedMesh(f.glow, eyeMat, cap) : null; if (e) { e.frustumCulled = false; e.count = 0; world.add(e); }

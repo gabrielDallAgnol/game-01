@@ -94,7 +94,7 @@ export function createPlanner(g) {
     return false;
   }
   function tick(dt) {
-    if (S.phase !== 'day' || S.over || S.pendingPicks > 0 || S.packs.length) return;
+    if (S.over || S.pendingPicks > 0 || S.packs.length) return;
     t += dt; if (t < EVERY) return; t = 0;
     S.quiet = true; let ok = false;
     try { ok = stepOnce(); } finally { S.quiet = false; }

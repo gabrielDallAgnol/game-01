@@ -20,12 +20,14 @@ export const K = (() => {
   };
 
   // territory tint: every surface outside your land is drawn cooler, darker and desaturated.
-  // A 128×128 mask texture (1 = claimed, one texel per cell) is sampled in world space by every standard material.
-  const MS = 128, maskData = new Uint8Array(MS * MS * 4);
+  // A 512×512 mask texture (1 = claimed, one texel per cell) is sampled in world space by every standard material.
+  const MS = 512, maskData = new Uint8Array(MS * MS * 4);
   const maskTex = new THREE.DataTexture(maskData, MS, MS, THREE.RGBAFormat);
   maskTex.magFilter = THREE.LinearFilter; maskTex.minFilter = THREE.LinearFilter; maskTex.needsUpdate = true;
   const T = { mask: { value: maskTex }, off: { value: 32 }, amount: { value: 0.8 }, dark: { value: 0.7 } };
   // R = your land, G = explored (the shroud is black where G = 0)
+  // fast path: arrays straight from the sim (zone and shroud), one texel per cell
+  function setMaskArrays(zone, seen, n) { T.off.value = n / 2; for (let y = 0; y < MS; y++) for (let x = 0; x < MS; x++) { const k = (y * MS + x) * 4, i = y * n + x, inMap = x < n && y < n; maskData[k] = maskData[k + 2] = inMap && zone[i] === 1 ? 255 : 0; maskData[k + 1] = inMap && seen[i] === 1 ? 255 : 0; maskData[k + 3] = 255; } maskTex.needsUpdate = true; }
   function setMask(fn, n = 64, seen = null) { T.off.value = n / 2; for (let y = 0; y < MS; y++) for (let x = 0; x < MS; x++) { const inMap = x < n && y < n, v = inMap && fn(x, y) ? 255 : 0, k = (y * MS + x) * 4; maskData[k] = maskData[k + 2] = v; maskData[k + 1] = !seen || (inMap && seen(x, y)) ? 255 : 0; maskData[k + 3] = 255; } maskTex.needsUpdate = true; }
   function territory(m) {
     m.onBeforeCompile = sh => {
@@ -34,12 +36,12 @@ export const K = (() => {
         .replace('#include <project_vertex>', '#include <project_vertex>\n  vec4 tw = vec4(transformed, 1.0);\n  #ifdef USE_INSTANCING\n  tw = instanceMatrix * tw;\n  #endif\n  vTWorld = (modelMatrix * tw).xyz;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTWorld; uniform sampler2D tMask; uniform float tOff, tAmount, tDark;')
         .replace('#include <dithering_fragment>', `#include <dithering_fragment>
-  float own = texture2D(tMask, (vTWorld.xz + tOff) / 128.0).r;
+  float own = texture2D(tMask, (vTWorld.xz + tOff) / 512.0).r;
   float wild = (1.0 - smoothstep(0.25, 0.75, own)) * tAmount;
   vec3 c = gl_FragColor.rgb; float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   vec3 cool = mix(vec3(l), c, 0.45) * vec3(0.9, 0.97, 1.08) * tDark;
   gl_FragColor.rgb = mix(c, cool, wild);
-  float seen = texture2D(tMask, (vTWorld.xz + tOff) / 128.0).g;
+  float seen = texture2D(tMask, (vTWorld.xz + tOff) / 512.0).g;
   // unexplored: the land shows through, grey and dim, like a map not yet walked
   float lit = smoothstep(0.15, 0.85, seen); float gl = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
   gl_FragColor.rgb = mix(vec3(gl) * vec3(0.78, 0.84, 0.95) * 0.5, gl_FragColor.rgb, lit);`);
@@ -1154,6 +1156,23 @@ export const K = (() => {
     screamer: o => rig({ ...o, outfit: { ...ZO, top: 'pale', bareArms: true }, eyes: true, bw: 0.85, pose: { lean: -0.3, neck: -0.5, head: -0.4, sL: [-2.7, 0, -0.35], eL: -0.3, sR: [-2.6, 0, -0.3], eR: -0.25, hL: [0.1], hR: [-0.1] } }),
     gravelord: o => { const r = rig({ ...o, outfit: { ...ZO, top: 'soot', legs: 'dark', bareArms: true }, eyes: true, eyesI: 10, bw: 1.7, chestDepth: 1.25, scale: 2.4, pose: { lean: 0.18, neck: 0.3, sL: [-0.35, 0, 0.35], eL: -0.4, sR: [-1.3, 0, 0.25], eR: -0.5, hL: [-0.15], kL: 0.2, hR: [0.15], kR: 0.1 }, props: p => { const b = new B(); for (let k = 0; k < 7; k++) b.cbox(k % 2 ? 'slab' : 'rebar', 0.05, 0.16 + (k % 3) * 0.06, 0.03, Math.cos(k * 0.9) * 0.1, 0.22, Math.sin(k * 0.9) * 0.1, { r: 0.005, rz: Math.cos(k * 0.9) * 0.4, rx: Math.sin(k * 0.9) * 0.4 }); p.head.add(b.build()); } }); return r; },
   };
+  // the woods: simple four-legged game (two frames: legs swapped)
+  function beast(o, c) {
+    const b = new B(), sw = o && o.alt ? -1 : 1, L = c.leg, top = L + c.body * 0.5;
+    b.cbox(c.coat, c.body * 0.8, c.body, c.len, 0, top, 0, { r: 0.08 });
+    b.cbox(c.belly, c.body * 0.7, c.body * 0.35, c.len * 0.8, 0, top - c.body * 0.35, 0, { r: 0.06 });
+    for (const [lx, lz, ph] of [[-1, 1, 1], [1, 1, -1], [-1, -1, -1], [1, -1, 1]]) b.cbox(c.legc, 0.09, L, 0.09, lx * c.body * 0.28, L / 2, lz * c.len * 0.36, { r: 0.02, rx: 0.35 * ph * sw });
+    b.cbox(c.coat, c.body * 0.38, c.neck, c.body * 0.38, 0, top + c.neck * 0.45, c.len * 0.5, { r: 0.05, rx: -0.5 });
+    b.cbox(c.coat, c.body * 0.42, c.body * 0.38, c.head, 0, top + c.neck * 0.85, c.len * 0.5 + c.head * 0.55, { r: 0.05 });
+    b.cbox(c.nose, c.body * 0.22, c.body * 0.2, 0.12, 0, top + c.neck * 0.8, c.len * 0.5 + c.head * 1.05, { r: 0.03 });
+    b.cbox(c.coat, 0.08, 0.12 * c.ear, 0.05, -c.body * 0.15, top + c.neck * 0.85 + c.body * 0.25, c.len * 0.5 + c.head * 0.3, { r: 0.02, rz: -0.3 });
+    b.cbox(c.coat, 0.08, 0.12 * c.ear, 0.05, c.body * 0.15, top + c.neck * 0.85 + c.body * 0.25, c.len * 0.5 + c.head * 0.3, { r: 0.02, rz: 0.3 });
+    b.cbox(c.tail, 0.08, 0.08, c.tl, 0, top + c.body * 0.2, -c.len * 0.55, { r: 0.03, rx: c.tailUp });
+    if (c.antlers) for (const sx of [-1, 1]) { b.cbox('bone', 0.04, 0.38, 0.04, sx * 0.1, top + c.neck * 0.85 + 0.35, c.len * 0.5 + c.head * 0.3, { r: 0.01, rz: sx * 0.35 }); b.cbox('bone', 0.03, 0.2, 0.03, sx * 0.2, top + c.neck * 0.85 + 0.5, c.len * 0.5 + c.head * 0.45, { r: 0.01, rx: 0.5 }); }
+    const g = new THREE.Group(); g.add(b.build()); return g;
+  }
+  dead.deer = o => beast(o, { coat: '#8a5a34', belly: '#c9a77e', legc: '#6b4528', nose: '#2a2420', tail: '#e8dcc8', leg: 0.62, body: 0.36, len: 0.95, neck: 0.42, head: 0.3, ear: 1.2, tl: 0.12, tailUp: -0.6, antlers: true });
+  dead.wolf = o => beast(o, { coat: '#6d6a66', belly: '#a8a49c', legc: '#4c4946', nose: '#1d1c1b', tail: '#5e5b57', leg: 0.42, body: 0.34, len: 0.95, neck: 0.22, head: 0.36, ear: 1.4, tl: 0.42, tailUp: 0.5 });
   const figure = rig;
 
   // ---------- gameplay overlays (drawn in the world, like the game) ----------
@@ -1198,5 +1217,5 @@ export const K = (() => {
     m.rotation.x = -Math.PI / 2; m.renderOrder = 5; return m;
   }
 
-  return { P, M, T, setMask, territory, WIN, LENS, lin, rng, B, weeds, beam, place, post, rboxGeo, sign, textTex, glowDecal, glowSprite, apartment, rubble, streets, grass, car, bus, container, sandbags, jersey, lamp, trafficLight, busStop, tree, bush, barrelFire, townhouse, tower, barricade, farm, keep, hospital, metro, petrol, police, figure, heroes, dead, zoneCells, chevrons, ghost, ring, chainMat };
+  return { P, M, T, setMask, setMaskArrays, territory, WIN, LENS, lin, rng, B, weeds, beam, place, post, rboxGeo, sign, textTex, glowDecal, glowSprite, apartment, rubble, streets, grass, car, bus, container, sandbags, jersey, lamp, trafficLight, busStop, tree, bush, barrelFire, townhouse, tower, barricade, farm, keep, hospital, metro, petrol, police, figure, heroes, dead, zoneCells, chevrons, ghost, ring, chainMat };
 })();

@@ -12,6 +12,7 @@ import { bake, vcMat } from './figures.js';
 const GROUND = {
   open: '#3a3936', paved: '#3c3b38', meadow: '#47513a', meadowOwn: '#4f5a3e',   // round the camp: trampled grass, not asphalt
   plaza: '#46443f', rubble: '#45433d', rock: '#2f2e2b', ford: '#8d887d', cliff: '#56534c', voidc: '#262522', bed: '#1c2527',
+  forestFloor: '#334129', forestOwn: '#3b4a2f', trail: '#6b5d48', trailOwn: '#76674f', bank: '#4b4a3a',
   lot: '#2b2a28', street: '#6a665e', road: '#323336', roadOwn: '#343436', walk: '#55524c', park: '#4a573c', deck: '#6f6b63', deckOwn: '#7a7469', ramp: '#77736a',
 };
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
@@ -28,6 +29,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   const cornerH = (x, y) => (isHigh(x - 1, y - 1) || isHigh(x, y - 1) || isHigh(x - 1, y) || isHigh(x, y) ? HIGH : 0);
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const t = at(x, y), x0 = x - C, z0 = y - C;
+    if (t === T.VOID) continue;   // the dark between the woods and the city: nothing to draw
     const water = t === T.WATER || t === T.FORD, i = idx(x, y), lift = map.high[i] || map.ramp[i];
     const h = (cx, cy) => (water ? hOf(t) : lift ? cornerH(cx, cy) : 0);
     const a = h(x, y), b = h(x, y + 1), cc = h(x + 1, y), d = h(x + 1, y + 1);
@@ -48,7 +50,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   geo.computeVertexNormals();
   const groundMat = K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }));
   const ground = new THREE.Mesh(geo, groundMat); ground.receiveShadow = true; world.add(ground);
-  const under = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), K.M('#262522')); under.rotation.x = -Math.PI / 2; under.position.y = -0.5; world.add(under);
+  const under = new THREE.Mesh(new THREE.PlaneGeometry(N * 2.2, N * 2.2), K.M('#262522')); under.rotation.x = -Math.PI / 2; under.position.y = -0.5; world.add(under);
   const jitter = new Float32Array(N * N).map(() => 0.97 + rand() * 0.05);
   const c = new THREE.Color(), c2 = new THREE.Color();
   function paint() {
@@ -57,7 +59,9 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
       const t = map.terrain[i], x = i % N, y = (i / N) | 0;
       const own = game.zone()[i] === 1;
       const isWalk = t === T.GRASS && !map.road[i] && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const xx = x + dx, yy = y + dy; return xx >= 0 && yy >= 0 && xx < N && yy < N && map.road[idx(xx, yy)]; });
-      let key = map.lm[i] >= 0 ? 'plaza' : map.road[i] ? (own ? 'roadOwn' : 'road') : isWalk ? 'walk' : t === T.FOREST ? 'park' : map.high[i] ? (own ? 'deckOwn' : 'deck') : map.ramp[i] ? 'ramp' : t === T.GRASS ? (Math.hypot(x - C, y - C) < 24 ? (own ? 'meadowOwn' : 'meadow') : own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
+      const wild = map.wild && map.wild[i];
+      let key = wild ? (map.lm[i] >= 0 ? 'plaza' : map.road[i] ? (own ? 'trailOwn' : 'trail') : t === T.FOREST ? (own ? 'forestOwn' : 'forestFloor') : t === T.GRASS ? (own ? 'meadowOwn' : 'meadow') : t === T.DIRT ? 'plaza' : t === T.WATER || t === T.FORD ? 'bed' : 'voidc')
+        : map.lm[i] >= 0 ? 'plaza' : map.road[i] ? (own ? 'roadOwn' : 'road') : isWalk ? 'walk' : t === T.FOREST ? 'park' : map.high[i] ? (own ? 'deckOwn' : 'deck') : map.ramp[i] ? 'ramp' : t === T.GRASS ? (own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
       if (t === T.GRASS || t === T.DIRT || t === T.FOREST) {
         if (S.occ[i] >= 0) key = 'lot';
         else if (S.res[i] >= 0) key = 'street';   // the path that belongs to a building's lot
@@ -73,7 +77,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
 
   // ---------- asphalt detail: cracks, patches, manholes, faded paint ----------
   for (let i = 0; i < N * N; i++) {
-    const t = map.terrain[i]; if ((t !== T.GRASS && t !== T.DIRT) || map.high[i] || map.ramp[i]) continue;
+    const t = map.terrain[i]; if ((t !== T.GRASS && t !== T.DIRT) || map.high[i] || map.ramp[i] || (map.wild && map.wild[i])) continue;
     const x = (i % N) - C + 0.5, z = ((i / N) | 0) - C + 0.5, r = rand();
     if (r < 0.07) statics.cbox('soot', 0.03, 0.006, 0.5 + rand() * 0.7, x + (rand() - 0.5) * 0.6, 0.004, z + (rand() - 0.5) * 0.6, { r: 0.001, ry: rand() * 3 });
     else if (r < 0.11) statics.cbox('asphalt2', 0.4 + rand() * 0.5, 0.005, 0.3 + rand() * 0.5, x, 0.003, z, { r: 0.001, ry: rand() * 3 });
@@ -82,7 +86,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   // road markings: a dashed centre line between the two lanes, zebra crossings before each junction
   const isRoad = (x, y) => x >= 0 && y >= 0 && x < N && y < N && map.road[idx(x, y)] === 1;
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    if (!isRoad(x, y) || map.high[idx(x, y)]) continue;
+    if (!isRoad(x, y) || map.high[idx(x, y)] || (map.wild && map.wild[idx(x, y)])) continue;   // the forest road is a dirt track
     const X = x - C, Z = y - C;
     const vert = isRoad(x + 1, y) && !isRoad(x - 1, y) && !isRoad(x + 2, y);   // left lane of a north-south road
     const horiz = isRoad(x, y + 1) && !isRoad(x, y - 1) && !isRoad(x, y + 2);
@@ -178,6 +182,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
     for (let y = cy0; y < cy0 + CH; y++) for (let x0 = cx0; x0 < cx0 + CH; x0++) {
       const i = idx(x0, y); if (map.terrain[i] !== T.FOREST) continue;
       any = true; const r = mulberry32(i * 7919 + 13), x = x0 - C + 0.5, z = y - C + 0.5;
+      if (map.wild && map.wild[i]) { if (r() < 0.35) for (let k = 0; k < 3; k++) rub.sph(leaf[k % 2], 0.14 + r() * 0.14, x + (r() - 0.5) * 0.8, 0.06, z + (r() - 0.5) * 0.8, { detail: 0, sy: 0.55 }); if (r() < 0.05) rub.cbox('stone', 0.3, 0.16, 0.24, x + (r() - 0.5) * 0.6, 0.06, z + (r() - 0.5) * 0.6, { r: 0.05, ry: r() * 3 }); continue; }
       if (r() < 0.82) { r(); r(); r(); r(); r(); r(); r(); } else for (let k = 0, n = 1; k < n; k++) { const sz = 0.1 + r() * 0.2; rub.cbox(rubCols[Math.floor(r() * 5)], sz * 1.6, sz * 0.7, sz, x + (r() - 0.5) * 0.85, sz * 0.3, z + (r() - 0.5) * 0.85, { r: 0.01, rx: r() * 3, ry: r() * 3, rz: r() * 3 }); }
       if (r() < 0.6) for (let k = 0; k < 3; k++) rub.sph(leaf[k % 2], 0.16 + r() * 0.16, x + (r() - 0.5) * 0.7, 0.08, z + (r() - 0.5) * 0.7, { detail: 0, sy: 0.6 });
       if (r() < 0.08) rub.cyl('rebar', 0.012, 0.012, 0.4, x + (r() - 0.5) * 0.6, 0.05, z + (r() - 0.5) * 0.6, { seg: 4, rx: r(), rz: r() });
@@ -189,24 +194,37 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   new Set(forest.map(chunkOf)).forEach(buildChunk);
   // instanced props baked from the kit
   const propMeshes = [];
+  // props are instanced in 32×32 chunks, each with its own bounds, so the camera culls what it cannot see
+  const PCH = 32, mat0 = vcMat();
   const props = (make, cells, place) => {
     if (!cells.length) return;
     const { geo: g } = bake(make()); if (!g) return;
-    const m = new THREE.InstancedMesh(g, vcMat(), cells.length), d = new THREE.Object3D();
-    cells.forEach((i, k) => { place(i, d); d.updateMatrix(); m.setMatrixAt(k, d.matrix); });
-    m.castShadow = true; m.receiveShadow = true; world.add(m); propMeshes.push({ m, cells }); return m;
+    const groups = new Map(); for (const i of cells) { const k = Math.floor(((i / N) | 0) / PCH) * 64 + Math.floor((i % N) / PCH); let a = groups.get(k); if (!a) groups.set(k, a = []); a.push(i); }
+    const d = new THREE.Object3D();
+    for (const [k, list] of groups) {
+      const gg = new THREE.BufferGeometry(); for (const a in g.attributes) gg.setAttribute(a, g.attributes[a]); if (g.index) gg.setIndex(g.index);
+      const cx = (k % 64) * PCH + PCH / 2 - C, cz = Math.floor(k / 64) * PCH + PCH / 2 - C;
+      gg.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, 2, cz), PCH * 0.75 + 4);
+      const m = new THREE.InstancedMesh(gg, mat0, list.length); m.frustumCulled = true;   // r128 turns culling off for instancing; our chunk bounds make it safe
+      list.forEach((i, q) => { place(i, d); d.updateMatrix(); m.setMatrixAt(q, d.matrix); });
+      m.castShadow = true; m.receiveShadow = true; world.add(m); propMeshes.push({ m, cells: list });
+    }
   };
   const cellPos = (i, d, jitter = 0.3) => d.position.set((i % N) - C + 0.5 + (rand() - 0.5) * jitter, 0, ((i / N) | 0) - C + 0.5 + (rand() - 0.5) * jitter);
   const pickCells = (list, p) => list.filter(() => rand() < p);
-  props(() => K.tree({ dead: true, seed: 3 }), pickCells(forest, 0.025), (i, d) => { cellPos(i, d); d.scale.setScalar(0.3 + rand() * 0.1); d.rotation.set(0, rand() * 6, 0); });
-  const nearC = i => Math.hypot((i % N) - C, ((i / N) | 0) - C) < 26;   // the woods round the camp are thicker
-  props(() => K.tree({ seed: 7, h: 5 }), forest.filter(i => rand() < (nearC(i) ? 0.55 : 0.22)), (i, d) => { cellPos(i, d); d.scale.setScalar((nearC(i) ? 0.28 : 0.24) + rand() * 0.06); d.rotation.set(0, rand() * 6, 0); });
-  props(() => K.tree({ seed: 19, h: 6 }), forest.filter(i => nearC(i) && rand() < 0.25), (i, d) => { cellPos(i, d); d.scale.setScalar(0.3 + rand() * 0.08); d.rotation.set(0, rand() * 6, 0); });
-  props(() => K.bush({ seed: 5, n: 5 }), pickCells(forest, 0.18), (i, d) => { cellPos(i, d); d.scale.set(0.34 + rand() * 0.12, 0.22, 0.34 + rand() * 0.12); d.rotation.set(0, rand() * 6, 0); });
+  const nearC = i => !!(map.wild && map.wild[i]);   // the woods are thick; city parks are thin
+  const woods = forest.filter(i => nearC(i)), parks = forest.filter(i => !nearC(i));
+  props(() => K.tree({ dead: true, seed: 3 }), pickCells(parks, 0.025), (i, d) => { cellPos(i, d); d.scale.setScalar(0.3 + rand() * 0.1); d.rotation.set(0, rand() * 6, 0); });
+  // the woods: cheap low-poly pines (≈40 triangles) make the mass; a few round trees break it up
+  const pine = (tone, tall) => { const b = new K.B(); b.cyl('#4a3626', 0.12, 0.16, 1.1, 0, 0, 0, { seg: 5 }); const L = tall ? 3 : 2; for (let k = 0; k < L; k++) b.cyl(tone, 0.02, 1.15 - k * 0.3, 1.5 - k * 0.2, 0, 0.8 + k * 0.95, 0, { seg: 6 }); return b.build(); };
+  props(() => pine('#2f5233', true), woods.filter(() => rand() < 0.22), (i, d) => { cellPos(i, d); d.scale.setScalar(0.85 + rand() * 0.45); d.rotation.set(0, rand() * 6, 0); });
+  props(() => pine('#3d6338', false), woods.filter(() => rand() < 0.2), (i, d) => { cellPos(i, d); d.scale.setScalar(0.7 + rand() * 0.35); d.rotation.set(0, rand() * 6, 0); });
+  props(() => K.tree({ seed: 7, h: 5 }), woods.filter(() => rand() < 0.035).concat(parks.filter(() => rand() < 0.22)), (i, d) => { cellPos(i, d); d.scale.setScalar(0.26 + rand() * 0.06); d.rotation.set(0, rand() * 6, 0); });
+  props(() => K.bush({ seed: 5, n: 5 }), pickCells(forest, 0.08), (i, d) => { cellPos(i, d); d.scale.set(0.34 + rand() * 0.12, 0.22, 0.34 + rand() * 0.12); d.rotation.set(0, rand() * 6, 0); });
   // street trees along the sidewalks
-  const walks = []; for (let i = 0; i < N * N; i++) { const x = i % N, y = (i / N) | 0; if (map.terrain[i] === T.GRASS && !map.road[i] && !map.high[i] && map.lm[i] < 0 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isRoad(x + dx, y + dy)) && (x + y) % 3 === 0) walks.push(i); }
+  const walks = []; for (let i = 0; i < N * N; i++) { const x = i % N, y = (i / N) | 0; if (map.terrain[i] === T.GRASS && !(map.wild && map.wild[i]) && !map.road[i] && !map.high[i] && map.lm[i] < 0 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isRoad(x + dx, y + dy)) && (x + y) % 3 === 0) walks.push(i); }
   props(() => K.tree({ seed: 9, h: 4 }), pickCells(walks, 0.35), (i, d) => { cellPos(i, d, 0.1); d.scale.setScalar(0.2 + rand() * 0.04); d.rotation.set(0, rand() * 6, 0); });
-  const wreckCells = pickCells(forest.concat(pickCells([...Array(N * N).keys()].filter(i => map.terrain[i] === T.GRASS && !map.high[i] && !map.ramp[i] && !(map.region[i] >= 0 && S.claimed.has(map.region[i]))), 0.01)), 0.04);
+  const wreckCells = pickCells(forest.filter(i => !(map.wild && map.wild[i])).concat(pickCells([...Array(N * N).keys()].filter(i => map.terrain[i] === T.GRASS && !(map.wild && map.wild[i]) && !map.high[i] && !map.ramp[i] && !(map.region[i] >= 0 && S.claimed.has(map.region[i]))), 0.01)), 0.04);
   ['rust', 'stone', 'grey', 'pale'].forEach((color, v) => props(() => K.car({ wreck: true, color, seed: 11 + v }), wreckCells.filter((_, k) => k % 4 === v), (i, d) => { cellPos(i, d, 0.2); d.scale.setScalar(0.3); d.rotation.set((rand() - 0.5) * 0.08, rand() * 6, (rand() - 0.5) * 0.08); }));
 
   // ---------- canals, footbridges, retaining walls ----------
@@ -218,6 +236,11 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
     const water = new THREE.Mesh(wg, K.territory(new THREE.MeshStandardMaterial({ color: lin('#2c4a52'), roughness: 0.18, metalness: 0.2 }))); water.receiveShadow = true; world.add(water);
     for (const i of waterCells) {
       const cx = i % N, cy = (i / N) | 0, x = cx - C + 0.5, z = cy - C + 0.5;
+      if (map.wild && map.wild[i]) {   // a stream in the woods: reeds on the banks, stepping stones at the fords
+        if (map.terrain[i] === T.FORD) for (let k = 0; k < 2; k++) statics.cyl('stone', 0.22, 0.26, 0.2, x + (rand() - 0.5) * 0.5, -0.12, z + (rand() - 0.5) * 0.5, { seg: 7 });
+        else if (rand() < 0.3) statics.sph(leaf[0], 0.18, x + (rand() - 0.5) * 0.9, -0.05, z + (rand() - 0.5) * 0.9, { detail: 0, sy: 1.4 });
+        continue;
+      }
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const t = at(cx + dx, cy + dy); if (t === T.WATER || t === T.FORD || t === T.VOID) continue;
         if (dx) statics.box('stone', 0.12, 0.62, 1.0, x + dx * 0.56, -0.48, z, { r: 0.01 }); else statics.box('stone', 1.0, 0.62, 0.12, x, -0.48, z + dy * 0.56, { r: 0.01 });
@@ -247,7 +270,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   world.add(statics.build());
 
   // ---------- territory: claimed land warm, the wild cool and grey ----------
-  function setTerritory() { const z = game.zone(); K.setMask((x, y) => z[idx(x, y)] === 1, N, (x, y) => S.seen[idx(x, y)] === 1); }
+  function setTerritory() { K.setMaskArrays(game.zone(), S.seen, N); }
   setTerritory();
 
   /** rubble cleared: rebuild the touched chunks and hide props standing on those cells */
