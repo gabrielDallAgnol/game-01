@@ -5,3 +5,4 @@ tools/dev/
 reports/*.txt
 concept/lib/
 concept/out/
+.claude/
