@@ -490,7 +490,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.P.lifesteal && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 6) S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + S.P.lifesteal);
     if (S.P.bounty && S.kills % 3 === 0) earn(1);
     if (src === 'hero' || src === 'volley' || src === 'merc') gainXp(MOBS[m.kind].size >= BIG ? 6 : 1);
-    if (src === 'hero') addPath(HC.attack && HC.attack.kind === 'ranged' ? 'ranger' : 'hero', 0.04); else if (src === 'tower') addPath('ranger', 0.008);
+    if (src === 'hero') addPath(HC.attack && HC.attack.kind === 'ranged' ? 'ranger' : 'hero', 0.012); else if (src === 'tower') addPath('ranger', 0.002);   // decisions weigh more than kills
     if (m.trial && story) story.trialWon(m.trial);
     if (src === 'hero' && combo('blood', 'bounty')) earn(1);
     if (D.burst) { liveTick = -1; explode(m.x, m.y, D.burst); }
