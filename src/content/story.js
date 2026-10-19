@@ -14,7 +14,7 @@ export const GIFT = {
   scene: 'Blue light folds out of the air in front of you, like a window in a game you never played. Three lines blink, waiting.',
   choices: [
     { id: 'lantern', label: 'Lantern of Dawn', hint: 'Your hero hits 15% harder and sees further at night.', fx: [{ op: 'perk', key: 'heroDmgMult', mul: 1.15 }, { op: 'title', id: 'lantern' }] },
-    { id: 'boots', label: 'Quiet Boots', hint: 'The town draws 15% less heat. The dead notice you later.', fx: [{ op: 'flag', key: 'quiet' }, { op: 'title', id: 'quiet' }] },
+    { id: 'boots', label: 'Quiet Boots', hint: 'The dead in the streets notice you later, and your town draws less attention.', fx: [{ op: 'flag', key: 'quiet' }, { op: 'title', id: 'quiet' }] },
     { id: 'will', label: 'Iron Will', hint: 'The keep has 30 more health, and so do you (+8).', fx: [{ op: 'perk', key: 'keepHp', add: 30 }, { op: 'perk', key: 'heroHp', add: 8 }, { op: 'title', id: 'will' }] },
   ],
 };
@@ -33,6 +33,8 @@ export const TITLES = {
   warden: { name: 'Warden of the Young', desc: 'Brought the children home. +1 food each dawn from their garden.', fx: [{ op: 'flag', key: 'garden' }] },
   ironGrid: { name: 'Iron Grid', desc: 'Lived through a blackout.' },
   loud: { name: 'The Loudest Town', desc: 'A hive burst because of you, and you lived.' },
+  called: { name: 'The Called', desc: 'Passed the trial of a Calling. +10 health.', fx: [{ op: 'perk', key: 'heroHp', add: 10 }] },
+  ascended: { name: 'Ascended', desc: 'Passed the last trial. +10% hero damage.', fx: [{ op: 'perk', key: 'heroDmgMult', mul: 1.1 }] },
   uniqueSlayer: { name: 'Light-Breaker', desc: 'Killed a unique monster. +15% hero damage.', fx: [{ op: 'perk', key: 'heroDmgMult', mul: 1.15 }] },
 };
 
@@ -67,7 +69,7 @@ export const THREADS = {
   channel9: {
     title: 'The Voice on Channel 9',
     cast: { engineer: { role: 'engineer', names: ['Mara Voss', 'Lena Brandt', 'Sofia Reyes', 'Ada Kowal'], epithet: 'the Wire Witch', persona: { traits: ['blunt', 'restless', 'proud'], quirk: 'counts in volts when she is nervous', want: 'to see the city lights come back', fear: 'the dark under the city' }, secret: 'She opened the metro gates the night the city fell, to let people shelter. The dead came up instead.' } },
-    start: { day: 2 },
+    start: { day: 7, feat: 'power' },
     stages: [
       {
         id: 'signal', at: 'dawn', eyebrow: '[Signal intercepted]', title: 'Static on Channel 9',
@@ -102,7 +104,7 @@ export const THREADS = {
   hummer: {
     title: 'The One Who Hums',
     cast: { revenant: { role: 'revenant', names: ['The Hummer'], epithet: 'one of the dead', persona: { traits: ['silent', 'gentle', 'watchful'], quirk: 'hums the same four notes', want: 'to remember its own name', fear: 'fire' }, secret: 'It was the bandleader at the old concert hall. The four notes are the first bar of its last song.' } },
-    start: { day: 3 },
+    start: { day: 12 },
     stages: [
       {
         id: 'sighting', at: 'dawn', eyebrow: '[Anomaly detected: infected, non-hostile?]', title: 'The one who hums',
@@ -135,7 +137,7 @@ export const THREADS = {
   school: {
     title: 'Drawings on the Glass',
     cast: { teacher: { role: 'teacher', names: ['Ines Moreau', 'Clara Weiss', 'Beatriz Lima', 'Hanna Sund'], epithet: 'the Teacher', persona: { traits: ['calm', 'stubborn', 'dry-humoured'], quirk: 'corrects everyone\'s grammar, even now', want: 'every child fed and counted', fear: 'losing count' }, secret: 'One of the children is bitten. She has been hiding it for four days.' } },
-    start: { day: 4 },
+    start: { day: 3 },
     stages: [
       {
         id: 'drawings', at: 'dawn', eyebrow: '[Signal: children]', title: 'Drawings on the glass',
@@ -161,7 +163,7 @@ export const THREADS = {
         choices: [
           { id: 'treat', label: 'Treat him', hint: 'Costs 8 scrap (free with a clinic). He lives. +1 bond.', cost: { gold: 8 }, clinicFree: true, fx: [{ op: 'bond', role: 'teacher', n: 1 }, { op: 'resolve' }] },
           { id: 'isolate', label: 'Isolate him and wait', hint: 'A coin toss. If he turns, a house falls tonight.', fx: [{ op: 'gamble', p: 0.5, bad: [{ op: 'risen', n: 3 }, { op: 'bond', role: 'teacher', n: -1 }] }, { op: 'resolve' }] },
-          { id: 'mercy', label: 'Do what has to be done', hint: 'Nobody else gets bitten. {name} will never forgive you (-2 bond).', fx: [{ op: 'bond', role: 'teacher', n: -2 }, { op: 'resolve' }] },
+          { id: 'mercy', lean: 'hero', label: 'Do what has to be done', hint: 'Nobody else gets bitten. {name} will never forgive you (-2 bond).', fx: [{ op: 'bond', role: 'teacher', n: -2 }, { op: 'resolve' }] },
         ],
       },
     ],
@@ -172,10 +174,15 @@ export const THREADS = {
 THREADS.lantern = {
   title: 'The Lantern-Eater',
   cast: {},
-  start: { day: 10 },
+  start: { day: 2 },
   stages: [
     {
-      id: 'sighting', at: 'dawn', eyebrow: '[Unique Monster sighted: The Lantern-Eater]', title: 'Something eats the light',
+      id: 'mark', at: 'dawn', eyebrow: '[You have been Marked]', title: 'The light that went out',
+      scene: 'In the night, every lamp on the north road went dark, one by one. At the last one, something tall turned and looked at you. Then it was gone. On your status window, a new line: **[Marked by: ???]**',
+      choices: [{ id: 'note', label: 'Remember it', hint: 'Something in this city knows your face now. It will come back on a blood moon.', lean: 'ranger', fx: [{ op: 'advance' }] }, { id: 'stare', label: 'Stare back into the dark', hint: 'Let it come. You will be ready.', lean: 'hero', fx: [{ op: 'advance' }] }],
+    },
+    {
+      id: 'sighting', at: 'dawn', after: 8, eyebrow: '[Unique Monster sighted: The Lantern-Eater]', title: 'Something eats the light',
       scene: 'Last night the lamp on the north corner went out. Then the next one, and the next, a line of darkness walking toward the keep. In the morning the bulbs are gone, and so are the poles. Tonight is a blood moon. [There is only one of it in the whole world.]',
       choices: [
         { id: 'bait', label: 'Light every lamp and draw it in', hint: 'It walks into your towers tonight instead of a guardian: tougher, slower, worth a legendary blessing and a title. +15 heat.', fx: [{ op: 'heat', n: 15 }, { op: 'unique', name: 'The Lantern-Eater', mult: 1.5 }, { op: 'advance' }] },
@@ -197,7 +204,7 @@ THREADS.lantern = {
 THREADS.toll = {
   title: 'The Bridge Crew',
   cast: { boss: { role: 'raider', names: ['Dario Kent', 'Mags Okoro', 'Viktor Hale', 'Rosa Quint'], epithet: 'the Toll-Keeper', persona: { traits: ['charming', 'greedy', 'loyal to their own'], quirk: 'flips a coin before every answer', want: 'their crew fed through winter', fear: 'being the last one left' }, secret: 'Their crew is half the size they claim. They are starving too.' } },
-  start: { day: 7 },
+  start: { day: 9 },
   stages: [
     {
       id: 'demand', at: 'dawn', eyebrow: '[Faction encountered: The Bridge Crew]', title: 'A toll for the road',
@@ -250,6 +257,42 @@ export const ROLES = {
   teacher: { post: 'Quartermaster', bonus: '+1 pair of hands every day', hands: 1 },
   revenant: { post: 'Revenant', bonus: 'the dead slow near the keep', lullaby: 0.8 },
   raider: { post: 'Captain of the Watch', bonus: 'towers +10% damage', towers: 0.1 },
+  // roles for the people Claude (or the city) makes up
+  scout: { post: 'Scout', bonus: '+1 pair of hands every day', hands: 1 },
+  medic: { post: 'Medic', bonus: 'you heal 1 health a second', regen: 1 },
+  cook: { post: 'Cook', bonus: '+2 food every dawn', food: 2 },
+  mechanic: { post: 'Mechanic', bonus: '+2 power', power: 2 },
+  gunner: { post: 'Gunner', bonus: 'towers +6% damage', towers: 0.06 },
+};
+
+// Side quests the Chronicler (Claude) invents from what happened in this run. Claude picks a template, writes the words
+// and may invent the person in it; the engine owns the effects (numbers grow a little with the day: n = night).
+// Every choice has an id the AI must keep. `who`: the quest needs a character (Claude invents one).
+export const QUEST_TEMPLATES = {
+  rescue: { who: true, desc: 'someone trapped or hiding who needs you to come and get them', choices: [
+    { id: 'bring', label: 'Bring them home', fx: n => [{ op: 'survivors', n: 2 + (n >> 3) }, { op: 'food', n: -2 }] },
+    { id: 'supply', label: 'Leave supplies and a map', fx: () => [{ op: 'food', n: -2 }, { op: 'flag', key: 'beacon' }] },
+  ] },
+  recruit: { who: true, desc: 'a person with a skill and a past who could join the town as a companion (pick a role: scout, medic, cook, mechanic or gunner)', choices: [
+    { id: 'join', label: 'Ask them to join you', fx: () => [{ op: 'recruitNew' }] },
+    { id: 'trade', label: 'Trade, then part ways', fx: n => [{ op: 'gold', n: 5 + (n >> 1) }] },
+  ] },
+  bargain: { who: true, desc: 'a trader, a gang or a stranger who wants something for something', choices: [
+    { id: 'pay', label: 'Pay their price', cost: n => ({ gold: 4 + (n >> 1) }), fx: n => [{ op: 'food', n: 6 + (n >> 1) }] },
+    { id: 'refuse', label: 'Walk away', fx: () => [{ op: 'heat', n: 6 }] },
+  ] },
+  mystery: { who: false, desc: 'something strange the System notices: a place, an object, a sign, tied to what came before', choices: [
+    { id: 'touch', label: 'Look closer', fx: () => [{ op: 'blessing' }, { op: 'hurt', n: 6 }] },
+    { id: 'leave', label: 'Mark it and leave', fx: () => [{ op: 'hands', n: 1 }] },
+  ] },
+  dilemma: { who: true, desc: 'a hard choice between mercy and safety (or between two people), with no clean answer', choices: [
+    { id: 'mercy', label: 'Choose mercy', fx: n => [{ op: 'survivors', n: 1 + (n >> 4) }, { op: 'heat', n: 8 }] },
+    { id: 'safety', label: 'Choose the town', fx: n => [{ op: 'gold', n: 4 + (n >> 1) }] },
+  ] },
+  echo: { who: false, desc: 'a callback: something or someone from an earlier day comes back, changed', choices: [
+    { id: 'welcome', label: 'Meet it head on', fx: n => [{ op: 'perk', key: 'heroDmg', add: 0.3 }] },
+    { id: 'avoid', label: 'Let the past lie', fx: () => [{ op: 'heat', n: -8 }] },
+  ] },
 };
 
 // Offline chat: what companions say when Claude is not connected (topic buttons)
@@ -263,14 +306,13 @@ export const BARKS = {
 export const TIPS = [
   { id: 'hands', when: (S, g) => S.handsUsed > 0, text: '[Tip: Hands] Every build or upgrade takes a free pair of hands for the day. More people, more hands. They rest at dawn.' },
   { id: 'night', when: S => S.phase === 'night' && S.night === 1, text: '[Tip: The first night] Something is coming from the dark. Your towers shoot on their own; you can fight too.' },
-  { id: 'heat', when: S => S.heat >= 30, text: '[Tip: Heat] Your town makes noise: people, guns, generators. Past the first mark the dead drift in; at the red mark a hive bursts.' },
-  { id: 'power', when: (S, g) => g.powerOut() > 0, text: '[Tip: Power] Upgraded towers and tech need power. Short of it, they all switch off. Generators are loud; substations out in the city are quiet.' },
   { id: 'stream', when: S => S.mobs.some(m => m.stream !== undefined && !m.roam), text: '[Tip: The stream] Awake hives never stop sending their dead, day or night. Burn a hive to stop it, but hitting one makes it rage.' },
   { id: 'street', when: S => S.story.spots.length > 0 && S.phase === 'day', text: '[Tip: Encounters] Blue beacons in the open districts are people and places worth a look. A few dead guard each one.' },
   { id: 'district', when: S => S.story.quests.length > 0, text: '[Tip: Quests] A blue arrow points to your quest. Walk there yourself: the town will hold for a while.' },
-  { id: 'evolve', when: S => S.P.fam.hero + S.P.fam.ranger + S.P.fam.scavver + (S.P.fam.heart || 0) >= 1, text: '[Tip: Evolution] Two blessings of one hero family (Brawn, Aim, Wits, Heart) unlock its Calling. A second family later makes your final class.' },
+  { id: 'evolve', when: S => S.lvl >= 2, text: '[Tip: Your path] Every **choice** you make leans you toward **Brawn, Aim, Wits or Heart**. At **level 5** the System offers the class you have been living, as a trial. Tap the day counter to see your path.' },
+  { id: 'roam', when: S => S.mobs.some(m => m.hunt), text: '[Tip: Hunted] The dead out in the streets **follow you** once they see you, all the way home. Lead them into your towers, or lose them.' },
+  { id: 'clear', when: (S, g) => S.night >= 3 && S.phase === 'day', text: '[Tip: Make room] Tap **rubble** or a **ruined block** on your land to knock it down. Blocks cost more scrap and a pair of hands, and the noise carries.' },
   { id: 'status', when: S => S.story.npcs.some(n => n.joined) || S.story.titles.length >= 2, text: '[Tip: Status] Tap the day counter (top left) for your status: titles, companions to talk to or take with you, and the chronicle.' },
-  { id: 'foreman', when: S => S.foreman, text: '[Tip: Foreman] Your people now build on their own. Set their focus in the build menu, or turn on Auto in the ⋯ menu and just make the big choices.' },
 ];
 
 // Out in the open districts: people and places you stumble on. A marker appears; walk there to see what it is.

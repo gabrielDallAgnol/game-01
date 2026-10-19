@@ -3,28 +3,28 @@
 export const HEROES = {
   survivor: {
     name: 'Survivor', blurb: 'Nobody yet: a length of pipe, a work jacket and a status window. What you become depends on the blessings you take.',
-    hp: 24, speed: 4.4, attack: { kind: 'melee', dmg: 2.2, reach: 2.0, rate: 0.6 },
+    hp: 24, speed: 3.8, attack: { kind: 'melee', dmg: 2.2, reach: 2.0, rate: 0.6 },
     ability: { id: 'shove', name: 'Shove', cooldown: 14, radius: 2.8, dmg: 2, push: 2.4 },
   },
   warrior: {
     name: 'Brawler', blurb: 'Fire axe and a work jacket. Holds the line up close. War Cry pulls the dead onto you while you shrug off half their damage.',
-    hp: 30, speed: 4.3, attack: { kind: 'melee', dmg: 3, reach: 2.2, rate: 0.55 },
+    hp: 30, speed: 4.0, attack: { kind: 'melee', dmg: 3, reach: 2.2, rate: 0.55 },
     ability: { id: 'warcry', name: 'War Cry', cooldown: 25, radius: 6, taunt: 4, guard: 0.5 },
   },
   archer: {
     name: 'Ranger', blurb: 'A crossbow and a hood. Fragile, but picks off the dead from far away. Volley rains bolts on the thickest crowd.',
-    hp: 18, speed: 4.6, attack: { kind: 'ranged', dmg: 1.5, reach: 6.5, rate: 0.85 },
+    hp: 18, speed: 4.3, attack: { kind: 'ranged', dmg: 1.5, reach: 6.5, rate: 0.85 },
     ability: { id: 'volley', name: 'Volley', cooldown: 28, radius: 2.2, dmg: 4, reach: 9 },
   },
   merchant: {
     name: 'Scavver', blurb: 'A poor shot with an old revolver, but runs the town by hand: picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays scrap.',
-    hp: 18, speed: 4.6, attack: { kind: 'ranged', dmg: 0.9, reach: 5, rate: 1.0 }, collects: true, discount: 0.1, extraOffer: 1, trader: true,
+    hp: 18, speed: 4.2, attack: { kind: 'ranged', dmg: 0.9, reach: 5, rate: 1.0 }, collects: true, discount: 0.1, extraOffer: 1, trader: true,
     ability: { id: 'bounty', name: 'Bounty', cooldown: 45, duration: 20, radius: 9, gold: 1, bigGold: 3 },
   },
 };
 HEROES.medic = {
   name: 'Medic', blurb: 'A flare pistol and a bag of bandages. Weak in a fight, but Patch Up mends the buildings around you and puts you back on your feet.',
-  hp: 26, speed: 4.5, attack: { kind: 'ranged', dmg: 1.1, reach: 5.5, rate: 0.85 },
+  hp: 26, speed: 4.1, attack: { kind: 'ranged', dmg: 1.1, reach: 5.5, rate: 0.85 },
   ability: { id: 'patch', name: 'Patch Up', cooldown: 22, radius: 6, heal: 0.25 },
 };
 export const HERO_ORDER = ['warrior', 'archer', 'merchant', 'medic'];

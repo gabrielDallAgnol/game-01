@@ -189,6 +189,17 @@ export function createView(canvas, game, opts = {}) {
     CFG.hiveGlow = 1;
     return fitTo(m, size);
   }
+  // special buildings read at a glance: a glowing frame round the lot in the colour of what it gives, and an icon
+  const SITE_LOOK = { substation: ['#ffd84a', '⚡'], fuel: ['#ffd84a', '⛽'], allotment: ['#8fe36a', '❀'], flats: ['#ff8ac0', '⌂'], school: ['#ff8ac0', '✎'], police: ['#ff5a4a', '★'],
+    market: ['#f0a040', '$'], clinic: ['#7fffd0', '✚'], radio: ['#7fd4ff', '◉'], eiffel: ['#f0b04a', '♛'], tvtower: ['#f0b04a', '♛'], christ: ['#f0b04a', '♛'], unknown: ['#8a8a8a', '?'] };
+  const iconMats = {};
+  const iconMat = kind => { const [col, ch] = SITE_LOOK[kind] || SITE_LOOK.unknown; return iconMats[kind] || (iconMats[kind] = new THREE.SpriteMaterial({ map: K.textTex(ch, { w: 96, h: 96, size: 62, bg: '#101418', fg: col }), transparent: true, depthTest: false })); };
+  function siteFrame(size) {
+    const g = new THREE.Group(), h = size / 2 + 0.55, th = 0.2, mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthWrite: false });
+    for (const [x, z, w, d] of [[0, -h, 2 * h + th, th], [0, h, 2 * h + th, th], [-h, 0, th, 2 * h], [h, 0, th, 2 * h]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), mat); m.position.set(x, 0.07, z); g.add(m); }
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(2 * h, 2 * h), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, depthWrite: false })); fill.rotation.x = -Math.PI / 2; fill.position.y = 0.05; g.add(fill);
+    g.userData = { mat, fill: fill.material }; return g;
+  }
   const lmViews = S.landmarks.map(l => {
     const g = new THREE.Group(); g.position.copy(W(l.x, l.y)); g.rotation.y = Math.atan2(C - l.x, C - l.y);
     let m;
@@ -198,7 +209,9 @@ export function createView(canvas, game, opts = {}) {
     const pole = new THREE.Group(); pole.add(part(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), LMAT.iron, 0, 0.8, 0)); const flag = new THREE.Mesh(flagGeo, flagMat); flag.position.set(0.36, 1.35, 0); pole.add(flag);
     pole.position.set(l.size / 2 + 0.3, 0, 0); pole.visible = false; g.add(pole);
     const mark = new THREE.Mesh(diaGeoL, diaWhite); mark.position.y = l.kind === 'eiffel' || l.kind === 'tvtower' ? 2.5 : l.kind === 'christ' ? 6 : 3.2; g.add(mark);
-    world.add(g); return { l, g, pole, flag, mark, m, kind: l.kind };
+    const frame = siteFrame(l.size); frame.rotation.y = -g.rotation.y; g.add(frame);
+    const icon = new THREE.Sprite(iconMat(l.kind)); icon.scale.set(1.1, 1.1, 1); icon.position.y = mark.position.y + 1.1; icon.renderOrder = 9; g.add(icon);
+    world.add(g); return { l, g, pole, flag, mark, m, kind: l.kind, frame, icon };
   });
   // ---------- supply drops: a crate under a canopy, red smoke you can see from afar, a ring while you open it ----------
   const dropViews = new Map();
@@ -231,6 +244,20 @@ export function createView(canvas, game, opts = {}) {
       }
       v.g.visible = S.phase === 'day'; v.bang.position.y = 2.2 + Math.sin(t * 3 + sp.id) * 0.15; v.ring.scale.setScalar(1 + (t * 0.8 % 1) * 0.6); v.ring.material.opacity = 0.8 * (1 - (t * 0.8 % 1));
     }
+    // the trial: a red beacon
+    const tr = S.story && S.story.trial;
+    if (tr && !tr.done) {
+      seenIds.add('trial'); let v = spotViews.get('trial');
+      if (!v) {
+        const g = new THREE.Group(); g.position.copy(W(tr.x, tr.y));
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.7, 10, 12, 1, true), new THREE.MeshBasicMaterial({ color: lc('#ff5a3c').multiplyScalar(0.9), transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        col.position.y = 5; g.add(col);
+        const bang = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex('⚔', { w: 64, h: 64, size: 46, bg: '#2a0e0a', fg: '#ff7a62' }), transparent: true, depthTest: false })); bang.scale.set(1, 1, 1); bang.renderOrder = 9; g.add(bang);
+        const ring = new THREE.Mesh(ringGeo(1.6, 1.8), new THREE.MeshBasicMaterial({ color: lc('#ff5a3c').multiplyScalar(1.5), transparent: true, opacity: 0.8, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; g.add(ring);
+        world.add(g); v = { g, bang, ring, col }; spotViews.set('trial', v);
+      }
+      v.bang.position.y = 2.6 + Math.sin(t * 3) * 0.15; v.ring.scale.setScalar(1 + (t * 0.6 % 1) * 0.4); v.ring.material.opacity = 0.8 * (1 - (t * 0.6 % 1));
+    }
     for (const [id, v] of spotViews) if (!seenIds.has(id)) { world.remove(v.g); spotViews.delete(id); }
   }
   function syncDrops(t) {
@@ -246,7 +273,10 @@ export function createView(canvas, game, opts = {}) {
   const questMat = new THREE.MeshBasicMaterial({ color: lc('#7fd4ff').multiplyScalar(1.8) });
   function updateLandmarks(t) {
     for (const v of lmViews) {
-      if (v.kind !== v.l.kind) { v.g.remove(v.m); v.m = siteModel(v.l.kind, v.l.size, v.l.id * 7); v.g.add(v.m); v.kind = v.l.kind; }
+      if (v.kind !== v.l.kind) { v.g.remove(v.m); v.m = siteModel(v.l.kind, v.l.size, v.l.id * 7); v.g.add(v.m); v.kind = v.l.kind; v.icon.material = iconMat(v.l.kind); }
+      { const open = !S.sealed[v.l.region] && !v.l.stripped && v.l.kind !== 'unknown', col = v.l.owned ? '#d9843a' : (SITE_LOOK[v.l.kind] || SITE_LOOK.unknown)[0], U = v.frame.userData;
+        v.frame.visible = open; v.icon.visible = open && !v.l.owned;
+        if (open) { U.mat.color.copy(lc(col)).multiplyScalar(v.l.owned ? 1.2 : 1.6 + 0.4 * Math.sin(t * 3 + v.l.id)); U.fill.color.copy(lc(col)); U.fill.opacity = v.l.owned ? 0.06 : 0.12; } }
       const quest = S.story && S.story.quests.some(q => q.site === v.l.id);
       v.g.visible = LANDMARKS[v.l.kind].signature || seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned;
       v.mark.visible = !v.l.owned && !v.l.stripped && v.l.kind !== 'unknown' && S.phase === 'day' && !S.sealed[v.l.region];
@@ -652,7 +682,7 @@ export function createView(canvas, game, opts = {}) {
     rain.count = n; rain.instanceMatrix.needsUpdate = true;
   }
   let focus = null, seenV = -1, zoneV = -1, shroudT = 0;
-  let dark = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
+  let dark = 0, sunT = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
 
   // which warm lights matter: the keep fire, lanterns on towers, lit homes; the nearest win the pool
   function lightSources() {
@@ -678,7 +708,9 @@ export function createView(canvas, game, opts = {}) {
     if ((S.seenVersion !== seenV || S.zoneVersion !== zoneV) && (shroudT -= dt) <= 0) { shroudT = 0.3; if (S.zoneVersion !== zoneV) repaint = true; seenV = S.seenVersion; zoneV = S.zoneVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }
     const night = S.phase === 'night' || S.phase === 'over';
-    dark += ((night ? 1 : 0) - dark) * Math.min(1, dt * 1.4);
+    // the sun: its place in the sky is the time of day; the last stretch of the day slides into dusk
+    const dayT = S.phase === 'day' ? game.dayFrac() : 1, duskK = S.phase === 'day' ? Math.max(0, (dayT - 0.8) / 0.2) * 0.45 : 0;
+    dark += ((night ? 1 : duskK) - dark) * Math.min(1, dt * (night ? 0.9 : 1.4));
 
     // camera follows the hero
     zoomCur += (zoom - zoomCur) * Math.min(1, dt * 8);
@@ -698,7 +730,8 @@ export function createView(canvas, game, opts = {}) {
       camera.position.set(camTarget.x, camTarget.y + dist * 0.76, camTarget.z + dist * 0.65);
     }
     camera.lookAt(camTarget); camera.updateMatrixWorld();
-    look.blend(dark, S.phase === 'night' && game.isBloodMoon(S.night), camTarget, Math.max(22, R * 1.7));
+    sunT += ((S.phase === 'day' ? dayT : sunT) - sunT) * Math.min(1, dt * 2); if (S.phase === 'day' && dayT < 0.02) sunT = dayT;
+    look.blend(dark, S.phase === 'night' && game.isBloodMoon(S.night), camTarget, Math.max(22, R * 1.7), sunT);
     // weather: fog thickens the night air; a storm throws lightning
     if (wxFog > 0.01) { scene.fog.color.lerp(fogCol, wxFog * 0.35); scene.background.copy(scene.fog.color); }
     if (S.weather === 'storm' && S.phase === 'night') { nextFlash -= dt; if (nextFlash <= 0) { flash = 1; flashN = 1; nextFlash = 3 + vis() * 8; if (opts.onFlash) opts.onFlash(); } }
@@ -843,7 +876,7 @@ export function createView(canvas, game, opts = {}) {
     if (b && b.type === 'keep') return { type: 'keep', ...p };
     if (b) return { type: 'building', id: b.id, ...p };
     const cx2 = Math.floor(p.x), cy2 = Math.floor(p.y);
-    if (cx2 >= 0 && cy2 >= 0 && cx2 < N && cy2 < N) { const i = idx(cx2, cy2), r = map.region[i]; if (r >= 0 && !S.claimed.has(r)) return { type: 'region', id: r, ...p }; if (r >= 0 && map.terrain[i] === T.FOREST && S.occ[i] < 0) return { type: 'rubble', ...p }; }
+    if (cx2 >= 0 && cy2 >= 0 && cx2 < N && cy2 < N) { const i = idx(cx2, cy2), r = map.region[i], t = map.terrain[i]; if (r >= 0 && (t === T.FOREST || t === T.ROCK) && S.occ[i] < 0 && game.zone()[i] === 1 && S.phase === 'day') return { type: 'rubble', ...p }; if (r >= 0 && !S.claimed.has(r)) return { type: 'region', id: r, ...p }; }
     return { type: 'ground', ...p };
   }
   function showMove(x, y) { moveMark.position.copy(W(x, y, 0.07)); moveMark.scale.set(1, 1, 1); moveMark.material.opacity = 0.9; }

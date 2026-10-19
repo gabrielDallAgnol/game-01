@@ -132,15 +132,16 @@ export function generateMap(seed, biome) {
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++)
     if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 7) terrain[idx(x, y)] = T.DIRT;
 
-  // 4. regions: town + a ring of 6 + an outer ring of 10
+  // 4. regions: town + a ring of 6 + an outer ring of 6 big far districts
   const seeds = [{ x: c, y: c, ring: 0 }];
   const off1 = rng.range(0, Math.PI * 2), off2 = rng.range(0, Math.PI * 2);
   if (biome === 'vale') {
     // bands across the V, each wider than the last: 4 near, 5 far
     const band = (n, r0, r1, ring) => { for (let k = 0; k < n; k++) { const f = (k + 0.5) / n * 2 - 1, an = -Math.PI / 2 + f * (VALE_HALF + 0.12) + rng.range(-0.06, 0.06), r = rng.range(r0, r1); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring }); } };
-    band(4, 20, 23, 1); band(5, 33, 37, 2);
+    band(4, 20, 23, 1); band(4, 33, 37, 2);
   } else for (let k = 0; k < 6; k++) { const an = off1 + k * Math.PI / 3 + rng.range(-0.22, 0.22), r = rng.range(19.5, 23); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 1 }); }
-  if (biome !== 'vale') for (let k = 0; k < 10; k++) { const an = off2 + k * Math.PI / 5 + rng.range(-0.18, 0.18), r = rng.range(31, 36); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 2 }); }
+  // far districts: six big ones (an expedition, not a stroll)
+  if (biome !== 'vale') for (let k = 0; k < 6; k++) { const an = off2 + k * Math.PI / 3 + rng.range(-0.15, 0.15), r = rng.range(33, 37); seeds.push({ x: c + Math.cos(an) * r, y: c + Math.sin(an) * r, ring: 2 }); }
   const region = new Int16Array(N * N).fill(-1);
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     if (terrain[idx(x, y)] === T.VOID) continue;
@@ -202,7 +203,7 @@ export function generateMap(seed, biome) {
 
   // 6. nests: fewer, and each one is a building that went bad. About half the districts have one;
   //    the hive sits at a building's door (solid block behind it), facing the street.
-  const want = biome === 'vale' ? { 1: 2, 2: 3 } : { 1: 3, 2: 5 };
+  const want = biome === 'vale' ? { 1: 2, 2: 2 } : { 1: 3, 2: 3 };
   const hasNest = new Set();
   for (const ring of [1, 2]) rng.shuffle(regions.filter(r => r.ring === ring)).slice(0, want[ring]).forEach(r => hasNest.add(r.id));
   for (const reg of regions) {

@@ -12,9 +12,10 @@ import { TRAITS, TREAT, RUN } from '../content/scavenge.js';
 import { createAudio } from './audio.js';
 import { createChronicler } from './story-ai.js';
 import { createSaves } from './saves.js';
-import { TITLES, ROLES, BARKS } from '../content/story.js';
+import { TITLES, ROLES, BARKS, QUEST_TEMPLATES } from '../content/story.js';
 import { RARITY, KITS } from '../content/districts.js';
 import { LEGACY, fameOf } from '../content/legacy.js';
+import { RULES } from '../content/season.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -62,16 +63,17 @@ export function startApp() {
     showCard('start', `<div class="eyebrow">An open-ended reclaiming${best ? ` · your best: night ${best}` : ''}</div>
       <h1>Hold Hollowmere</h1>
       <p>You woke up in a fallen city with a status window and a bus full of strangers. Build by day, hold the town hall by night, and open the quarantined districts one by one: people to save, power to restore, hives to burn.</p>
-      <p class="tiny" style="white-space:normal">Every build takes a free pair of hands · noise raises heat, and at the red mark a hive bursts · power runs the best towers, and a blackout switches them all off · blue arrows and beacons are your story.</p>
-      <details class="news"><summary>What's new (Oct 19)</summary><ul>
-        <li>The city is sealed: open districts through calls and routes. Blue arrows are quests, blue beacons are encounters.</li>
-        <li>Every build takes a free pair of hands; copies cost more. Power runs the best towers; heat makes hives burst.</li>
-        <li>Start as a Survivor; 2 blessings of a family = its Calling, a second family = a final class. Levels too.</li>
-        <li>Companions: tap the day counter to talk to them or take one with you.</li>
-        <li>Auto in the ⋯ menu plays for you. The run saves every dawn, on any device.</li>
+      <p class="tiny" style="white-space:normal">It starts small: your square, the streets around it, a bus full of strangers. The rest of the city (power, heat, the far districts, your class) arrives one episode at a time.</p>
+      <details class="news"><summary>What's new (Oct 19, afternoon)</summary><ul>
+        <li>Anime pacing: one new system per episode, each with a System window you read at your own pace.</li>
+        <li>A bigger home ward to explore from day 1; far districts are big expeditions that cost supplies.</li>
+        <li>Your choices decide your class: Heart, Brawn, Aim or Wits. At level 5, a trial in the city earns it.</li>
+        <li>The dead out there hunt you home. Ruined blocks can be knocked down to grow the town your way.</li>
+        <li>The sun crosses the sky instead of a timer. Seasons with a rule and a finale every 10 nights.</li>
+        <li>Story cards are short pages; the Chronicler (Claude) gets a moment to write instead of swapping text.</li>
       </ul></details>
       <h2>Your hero</h2>
-      <p class="tiny" style="white-space:normal">You start as a <b>Survivor</b>. Blessings come in four hero families: <b>Brawn</b>, <b>Aim</b>, <b>Wits</b> and <b>Heart</b>. Two of one family and the System offers its Calling (Brawler, Ranger, Scavver or Medic); two of a second family and you evolve into one of six final classes: Vanguard, Warlord, Deadeye, Warden, Marshal or Quartermaster.</p>
+      <p class="tiny" style="white-space:normal">You start as a <b>Survivor</b>. What you do decides what you become: rescues lean to <b>Heart</b>, fighting up close to <b>Brawn</b>, scouting to <b>Aim</b>, deals to <b>Wits</b>. At level 5 a trial earns your Calling (Medic, Brawler, Ranger or Scavver); at 12 your second family makes one of six final classes.</p>
       <h2>Difficulty</h2>
       <div class="choices">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="choice" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><b>${d.name}</b><span>${d.blurb}</span></button>`).join('')}</div>
       <h2>Your land</h2>
@@ -91,7 +93,7 @@ export function startApp() {
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); };
     $('#begin').onclick = () => { const o = opts[setup.pick]; begin(o.seed, o.biome); };
     saves.load().then(snap => {
-      if (!snap || card !== 'start' || !$('#contRow')) return;
+      if (!snap || snap.v !== 2 || card !== 'start' || !$('#contRow')) return;
       const row = $('#contRow'); row.hidden = false;
       row.innerHTML = `<button class="btn big" id="cont">Continue · day ${snap.night} in ${esc(snap.city || 'the city')}</button><span class="tiny">${saves.cloud() ? 'Saved to your account: works on any device' : 'Saved on this device'} · ${new Date(snap.savedAt).toLocaleString()}</span>`;
       $('#cont').onclick = () => begin(snap.mapSeed, snap.biome, snap);
@@ -111,11 +113,24 @@ export function startApp() {
     window.__game = game; window.__openSel = sel => openSel(sel);
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = !game.heroDef.ability;
-    if (snap) { toast(`[Run restored] Day ${snap.night} in ${game.map.name}. The dead did not wait for you.`, 'sys'); $('#autoBtn').setAttribute('aria-pressed', !!game.state.autopilot); $('#autoTag').hidden = !game.state.autopilot; }
-    else toast(`[Day 1 · ${game.map.name}] Your survivors carry plans for a home, a farm and a tower. Every build takes a free pair of hands.`, 'sys');
+    if (snap) { previouslyOn(); $('#autoBtn').setAttribute('aria-pressed', !!game.state.autopilot); $('#autoTag').hidden = !game.state.autopilot; }
+    else toast(`[Day 1 · ${game.map.name}] Your survivors carry plans for a **home**, a **farm** and a **tower**. Look around the streets near the square: there are people out there.`, 'sys');
     traderSeen = true; dawnT = 0.3;
   }
 
+  // coming back to a run: "previously on Hollowmere" (Claude tells it when on; else the chronicle's big moments)
+  function previouslyOn() {
+    const ST = game.state.story, offline = ST.chronicle.filter(c => c.imp >= 3).slice(-3).map(c => `Day ${c.day}: ${c.text}`);
+    const show = lines => queueWin({ eyebrow: '[Previously on Hollowmere]', title: `${game.map.name} · day ${game.state.night}`, lines: lines.length ? lines : ['You held the town. The dead did not wait for you.'] });
+    if (!chronicler.available()) { show(offline); return; }
+    paused = true; chronicler.recap(game.story().fullContext()).then(b => { show(b || offline); paused = false; });
+  }
+  // the Chronicler invents today's side quest from everything that happened (one a day, from day 2)
+  function inventToday() {
+    const S = game.state; if (!chronicler.available() || S.night < 2 || S.story.inventDay === S.night || inventToday.busy) return;
+    inventToday.busy = true;
+    chronicler.invent(game.story().fullContext(), QUEST_TEMPLATES).then(q => { inventToday.busy = false; if (q && game && !game.state.over) game.story().invent(q); });
+  }
   // ---------- cards ----------
   function showCard(kind, html, wide, arm = true) {
     card = kind; const c = $('#card'); c.innerHTML = html; c.classList.toggle('wide', !!wide); $('#overlay').hidden = false;
@@ -182,38 +197,55 @@ export function startApp() {
   }
   // ---------- story: encounters, the status window, companions ----------
   const esc = t => String(t ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  // encounters read like a visual novel: the scene in short pages (tap to go on), the choices on the last page.
+  // With the Chronicler on, the card waits for Claude's version (a few seconds at most) instead of swapping text later.
+  const encPage = new Map(), aiBusy = new Set(), AI_WAIT = 9000; let aiTimer = 0;
+  function pagesOf(text) {
+    const sents = String(text || '').replace(/\n+/g, ' ').split(/(?<=[.!?…"”\]])\s+(?=[A-Z"“[*(])/).filter(Boolean), out = []; let cur = '', n = 0;
+    for (const x of sents) { if (cur && (cur.length + x.length > 150 || n >= 2)) { out.push(cur); cur = x; n = 1; } else { cur = cur ? `${cur} ${x}` : x; n++; } }
+    if (cur) out.push(cur); return out.length ? out : [''];
+  }
+  const aiSkips = new Set(['gift', 'evolve', 'season', 'chapter', 'district']);
+  function aiFetch(enc) {
+    if (!enc || enc.ai != null || !chronicler.available() || aiSkips.has(enc.kind)) return;
+    enc.ai = 'pending'; enc.aiAt = performance.now(); const id = enc.id; aiBusy.add(id);
+    chronicler.rewrite(enc, game.story().context()).then(patch => {
+      aiBusy.delete(id); enc.ai = patch || 'none';
+      const top = game.state.story.encounters[0]; if (card === 'enc' && top && top.id === id && !encPage.has(id)) showEncounter();
+    });
+  }
   function showEncounter() {
     const S = game.state, enc = S.story.encounters[0]; if (!enc) return dawnFlow();
     paused = true; if (placing) stopPlacing(); closePanel();
     if (enc.ai === 'pending' && !aiBusy.has(enc.id)) enc.ai = null;   // a request lost to a reload
-    const P = enc.ai && typeof enc.ai === 'object' ? enc.ai : null;
-    const title = P ? P.title : enc.title, scene = P ? P.scene : enc.scene, line = P && P.line ? P.line : enc.speaker && enc.speaker.line;
-    const costTxt = c => !c.cost ? '' : [c.cost.gold ? `<span class="dot gold"></span>${c.cost.gold}` : '', c.cost.food ? `<span class="dot food"></span>${c.cost.food}` : ''].filter(Boolean).join(' ');
-    const sys = enc.kind === 'gift' || enc.kind === 'thread' && /^\[/.test(enc.eyebrow);
-    showCard('enc', `<div class="enc ${enc.kind}${sys ? ' sysw' : ''}"><div class="eyebrow sysline">${esc(enc.eyebrow || '')}${chronicler.available() ? `<span class="chr${enc.ai === 'pending' ? ' busy' : ''}" title="The Chronicler (Claude) writes this run's story">✦ ${enc.ai === 'pending' ? 'writing…' : 'Chronicler'}</span>` : ''}</div>
-      <h1 class="sm" id="encTitle">${esc(title)}</h1>
-      ${enc.speaker ? `<div class="speaker"><b>${esc(enc.speaker.name)}</b><span id="encLine">${esc(line || '')}</span></div>` : ''}
-      <p class="scene" id="encScene">${esc(scene).replace(/\n+/g, '<br><br>')}</p>
-      <div class="opts one encopts">${enc.choices.map(c => { const ok = !c.cost || game.story().can(c); const rar = c.rarity ? RARITY[c.rarity] : null;
-        return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span data-lbl="${c.id}">${esc(P && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}<span class="cost">${costTxt(c)}</span></span><span class="ds">${esc(c.hint || '')}</span></button>`; }).join('')}</div></div>`, true);
-    $$('[data-choice]').forEach(b => b.onclick = onArmed(() => { if (P && P.chronicle) enc.aiChron = P.chronicle; if (game.choose(b.dataset.choice)) { audio.play('claim'); afterEncounter(); } }));
-    if (enc.ai == null && chronicler.available() && enc.kind !== 'gift') {
-      enc.ai = 'pending'; const id = enc.id; aiBusy.add(id);
-      chronicler.rewrite(enc, game.story().context()).then(patch => {
-        aiBusy.delete(id); enc.ai = patch || 'none';
-        if (patch && card === 'enc' && game.state.story.encounters[0] && game.state.story.encounters[0].id === id) showEncounterText(patch);
-      });
+    aiFetch(enc);
+    const sys = enc.kind === 'gift' || enc.kind === 'evolve' || enc.kind === 'season' || (enc.kind === 'thread' && /^\[/.test(enc.eyebrow));
+    const badge = st => (chronicler.available() && !aiSkips.has(enc.kind) ? `<span class="chr${st ? ' busy' : ''}" title="The Chronicler (Claude) writes this run's story">✦ ${st || 'Chronicler'}</span>` : '');
+    if (enc.ai === 'pending' && performance.now() - enc.aiAt < AI_WAIT) {
+      showCard('enc', `<div class="enc ${enc.kind}${sys ? ' sysw' : ''}"><div class="eyebrow sysline">${esc(enc.eyebrow || '')}${badge('writing…')}</div>
+        <h1 class="sm">${esc(enc.title)}</h1><div class="writing" aria-label="The System is writing"><i></i><i></i><i></i></div>
+        <p class="tiny" style="white-space:normal">The Chronicler is writing this moment from your story…</p>
+        <div class="cardrow"><button class="btn ghost" id="encPlain">Read the plain version</button></div></div>`, true, false);
+      $('#encPlain').onclick = () => { enc.ai = 'none'; showEncounter(); };
+      clearTimeout(aiTimer); aiTimer = setTimeout(() => { const top = game.state.story.encounters[0]; if (card === 'enc' && top === enc && enc.ai === 'pending') { enc.ai = 'none'; showEncounter(); } }, AI_WAIT - (performance.now() - enc.aiAt) + 30);
+      return;
     }
-  }
-  const aiBusy = new Set();
-  function showEncounterText(P) {
-    const c = $('#card'); c.classList.add('rewrite');
-    setTimeout(() => {
-      if ($('#encTitle')) $('#encTitle').textContent = P.title; if ($('#encScene')) $('#encScene').textContent = P.scene; if (P.line && $('#encLine')) $('#encLine').textContent = P.line;
-      for (const [id, l] of Object.entries(P.labels)) { const el = c.querySelector(`[data-lbl="${id}"]`); if (el) el.textContent = l; }
-      const ch = c.querySelector('.chr'); if (ch) { ch.classList.remove('busy'); ch.textContent = '✦ Chronicler'; }
-      c.classList.remove('rewrite');
-    }, 220);
+    const P = enc.ai && typeof enc.ai === 'object' ? enc.ai : null;
+    const title = P ? P.title : enc.title, line = P && P.line ? P.line : enc.speaker && enc.speaker.line;
+    const pages = P && P.beats && P.beats.length ? P.beats : pagesOf(P ? P.scene : enc.scene);
+    const first = !encPage.has(enc.id), pg = Math.min(encPage.get(enc.id) || 0, pages.length - 1), last = pg >= pages.length - 1;
+    const costTxt = c => !c.cost ? '' : [c.cost.gold ? `<span class="dot gold"></span>${c.cost.gold}` : '', c.cost.food ? `<span class="dot food"></span>${c.cost.food}` : ''].filter(Boolean).join(' ');
+    const dots = pages.length > 1 ? `<div class="pgdots">${pages.map((_, k) => `<i class="${k === pg ? 'on' : k < pg ? 'past' : ''}"></i>`).join('')}</div>` : '';
+    const opts = last ? `<div class="opts one encopts">${enc.choices.map(c => { const ok = !c.cost || game.story().can(c); const rar = c.rarity ? RARITY[c.rarity] : null;
+        return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span>${esc(P && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}<span class="cost">${costTxt(c)}</span></span><span class="ds">${richHint(c.hint || '')}</span></button>`; }).join('')}</div>`
+      : `<div class="cardrow spread"><button class="btn ghost sm" id="encSkip">Skip to the choice</button><button class="btn big" id="encNext">Continue ▸</button></div>`;
+    showCard('enc', `<div class="enc ${enc.kind}${sys ? ' sysw' : ''}"><div class="eyebrow sysline">${esc(enc.eyebrow || '')}${badge(P ? '' : '')}</div>
+      <h1 class="sm">${esc(title)}</h1>
+      ${enc.speaker && pg === 0 ? `<div class="speaker"><b>${esc(enc.speaker.name)}</b><span>${rich(line || '')}</span></div>` : ''}
+      <p class="scene page" id="encScene">${rich(pages[pg])}</p>${dots}${opts}</div>`, true, first || last);
+    const next = () => { encPage.set(enc.id, pg + 1); showEncounter(); };
+    if (!last) { $('#encNext').onclick = onArmed(next); $('#encScene').onclick = onArmed(next); $('#encSkip').onclick = onArmed(() => { encPage.set(enc.id, pages.length - 1); showEncounter(); }); }
+    $$('[data-choice]').forEach(b => b.onclick = onArmed(() => { if (P && P.chronicle) enc.aiChron = P.chronicle; if (game.choose(b.dataset.choice)) { encPage.delete(enc.id); audio.play('claim'); afterEncounter(); } }));
   }
   function afterEncounter() { if (game.state.story.encounters.length) showEncounter(); else if (game.state.phase === 'day') dawnFlow(); else { hideCard(); paused = false; } }
 
@@ -223,7 +255,9 @@ export function startApp() {
     const hero = game.heroDef;
     showCard('status', `<div class="enc sysw"><div class="eyebrow sysline">[Status]</div>
       <h1 class="sm">${esc(hero.name)} · day ${S.night}</h1>
+      <div class="tiny" style="white-space:normal;margin:-4px 0 8px">Season ${S.season.n}: ${esc(S.season.name)}${ST.episode ? ` · Episode ${ST.episode.n}: ${esc(ST.episode.title)}` : ''}${S.season.rule ? ` · ${esc(RULES[S.season.rule].name)}` : ''}</div>
       <div class="statgrid"><span>Level <b>${S.lvl} · ${S.xp}/${game.xpNext()} xp</b></span><span>Health <b>${Math.ceil(S.hero.hp)}/${S.hero.maxHp}</b></span><span>Kills <b>${S.kills}</b></span><span>People <b>${game.pop()}</b></span><span>Districts <b>${game.map.regions.filter(r => !S.sealed[r.id]).length}/${game.map.regions.length}</b></span><span>Heat <b>${Math.round(S.heat)}</b></span><span>Power <b>${game.powerIn()}/${game.powerOut()}</b></span></div>
+      <h2>Your path</h2>${pathHtml()}
       <h2>Titles</h2><div class="titles">${ST.titles.length ? ST.titles.map(t => `<span class="title" title="${esc(TITLES[t].desc)}">${esc(TITLES[t].name)}</span>`).join('') : '<span class="tiny">None yet. The System is watching.</span>'}</div>
       <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<div class="comp"><b>${esc(n.name)}</b><span>${n.withHero ? 'Travels with you · post empty' : `${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}`}</span><span class="bond">${'♥'.repeat(Math.max(0, n.bond))}${'♡'.repeat(Math.max(0, 5 - n.bond))}</span><span class="acts"><button class="btn sm" data-chat="${n.id}">Talk</button><button class="btn sm ghost" data-follow="${n.id}" data-on="${n.withHero ? 0 : 1}">${n.withHero ? 'Back to post' : 'With me'}</button></span></div>`).join('') : '<span class="tiny">Nobody yet. Answer the calls: people are out there.</span>'}</div>
       <h2>Chronicle</h2><ol class="chron">${ST.chronicle.slice().reverse().slice(0, 14).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
@@ -233,6 +267,14 @@ export function startApp() {
     $('#aiTog').onchange = e => { chronicler.setEnabled(e.target.checked); };
     $$('[data-chat]').forEach(b => b.onclick = () => showChat(b.dataset.chat));
     $$('[data-follow]').forEach(b => b.onclick = () => { game.companionFollow(b.dataset.follow, b.dataset.on === '1'); showStatus(); });
+  }
+  // the path: what your choices say you are becoming
+  function pathHtml() {
+    const S = game.state, P = S.path, tot = Object.values(P).reduce((a, b) => a + b, 0) || 1, cls = S.heroClass;
+    const next = cls === 'survivor' ? `At level 5 the System offers the class your path points to (level ${S.lvl} now).` : !HEROES[cls].base ? 'At level 12 your second family decides your final class.' : 'Your class is complete.';
+    const tr = S.story.trial && !S.story.trial.done ? `<div class="tiny" style="white-space:normal;color:#ff9a80">${esc(S.story.trial.name)} waits at the red marker.</div>` : '';
+    return `<div class="path">${['hero', 'ranger', 'scavver', 'heart'].map(f => `<div class="pr" style="--fam:${FAMILIES[f].color}"><span>${FAMILIES[f].name}<i>${FAMILIES[f].path}</i></span><span class="pb"><i style="width:${Math.round(P[f] / tot * 100)}%"></i></span><b>${Math.round(P[f] / tot * 100)}%</b></div>`).join('')}</div>
+      <div class="tiny" style="white-space:normal;margin-top:4px">Rescues and mercy lean to Heart, fighting up close to Brawn, scouting and quiet to Aim, deals and salvage to Wits. ${next}</div>${tr}`;
   }
   const chats = {};
   function showChat(id) {
@@ -332,15 +374,38 @@ export function startApp() {
 
   // ---------- toasts ----------
   // a message that starts with [Something] is the System talking: it gets its own window
+  // kind 'win': the System opens a window that waits for you (read it at your own pace)
   function toast(msg, kind) {
-    const el = document.createElement('div'), sys = /^\[[^\]]+\]/.exec(msg);
+    const sys = /^\[[^\]]+\]/.exec(msg);
+    if (kind === 'win') { const body = sys ? msg.slice(sys[0].length).trim() : msg; queueWin({ eyebrow: sys ? sys[0] : '[System]', lines: body.split(/(?<=[.!?])\s+(?=[A-Z*"])/).filter(Boolean) }); return; }
+    const el = document.createElement('div');
     el.className = 'toast' + (sys || kind === 'sys' ? ' sys' : '') + (kind && kind !== 'sys' ? ' ' + kind : '');
-    if (sys) { const h = document.createElement('span'); h.className = 'sh'; h.textContent = sys[0]; el.append(h, document.createTextNode(msg.slice(sys[0].length).trim())); }
-    else el.textContent = msg;
+    if (sys) { const h = document.createElement('span'); h.className = 'sh'; h.textContent = sys[0]; const b = document.createElement('span'); b.innerHTML = rich(msg.slice(sys[0].length).trim()); el.append(h, b); }
+    else el.innerHTML = rich(msg);
+    el.onclick = () => el.remove();
     const box = $('#toasts'); box.appendChild(el); while (box.children.length > (document.body.classList.contains('compact') ? 2 : 3)) box.firstChild.remove();
-    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, sys ? 6500 : 3800);
+    const words = msg.split(/\s+/).length;
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, Math.max(sys ? 7000 : 4500, words * 330));
+  }
+  // **bold** in System text, and the numbers of a choice in bold
+  const rich = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  const richHint = t => rich(t).replace(/(^|[\s(])([+\-−]\s?\d+%?\s(?:more\s)?(?:scrap|food|people|person|heat|power|pairs? of hands|bond|health|damage|hero damage|keep health))/gi, '$1<b>$2</b>');
+  const wins = [];
+  function queueWin(w) { if (!wins.some(x => x.eyebrow === w.eyebrow && x.title === w.title)) wins.push(w); }
+  function showWin() {
+    const w = wins.shift(); if (!w) return; paused = true; if (placing) stopPlacing(); closePanel();
+    showCard('win', `<div class="enc sysw win"><div class="eyebrow sysline">${esc(w.eyebrow || '[System]')}</div>${w.title ? `<h1 class="sm">${esc(w.title)}</h1>` : ''}
+      <ul class="winl">${(w.lines || []).map(l => `<li>${rich(l)}</li>`).join('')}</ul>
+      <div class="cardrow"><button class="btn big" id="winOk">${wins.length ? `Next · ${wins.length} more` : 'Got it'}</button></div></div>`, true);
+    $('#winOk').onclick = onArmed(() => { if (wins.length) showWin(); else { hideCard(); paused = false; } });
   }
 
+  // every dawn is an episode: a title card, like an anime eyecatch
+  function showEpisode(e) {
+    const el = $('#episode'); if (!el) return;
+    el.innerHTML = `<span class="ep">Season ${e.season} · Episode ${e.n}</span><b>${esc(e.title)}</b>`; el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+    dawnT = Math.max(dawnT, 2.4); clearTimeout(showEpisode.t); showEpisode.t = setTimeout(() => { el.hidden = true; }, 2600);
+  }
   // ---------- build tray and placement ----------
   const stockTotal = () => Object.values(game.state.stock).reduce((a, b) => a + b, 0);
   const priceOf = t => (game.state.stock[t] || 0) > 0 ? 0 : game.buyCost(t);
@@ -350,16 +415,16 @@ export function startApp() {
     tray.hidden = S.phase !== 'day' || !!card;
     if (tray.hidden) { trayKey = ''; return; }
     const hands = game.handsFree();
-    const sig = [S.gold, JSON.stringify(S.stock), placing && placing.type, S.builders, game.keepLevel(), S.buildings.length, hands].join('|'); if (sig === trayKey) return; trayKey = sig;
+    const sig = [S.gold, JSON.stringify(S.stock), placing && placing.type, S.builders, S.foreman, S.autopilot, S.feat.power, game.keepLevel(), S.buildings.length, hands].join('|'); if (sig === trayKey) return; trayKey = sig;
     const FOCUS = { defence: 'Defence', balanced: 'Balanced', growth: 'Growth', off: 'Off' };
-    const bRow = S.builders ? `<div class="builders" role="group" aria-label="What your builders focus on"><span>Builders</span>${Object.entries(FOCUS).map(([k, v]) => `<button data-focus="${k}" aria-pressed="${S.builders === k}">${v}</button>`).join('')}</div>` : '';
+    const bRow = S.foreman || S.autopilot ? `<div class="builders" role="group" aria-label="What your builders focus on"><span>Foreman</span>${Object.entries(FOCUS).map(([k, v]) => `<button data-focus="${k}" aria-pressed="${(S.builders || 'off') === k}">${v}</button>`).join('')}</div>` : '';
     const hRow = `<div class="hands${hands ? '' : ' none'}">✋ ${hands ? `${hands} free ${hands === 1 ? 'pair' : 'pairs'} of hands today` : 'No free hands left today: they rest at dawn. More homes, more hands.'}</div>`;
-    tray.innerHTML = bRow + hRow + BUILD_ORDER.map(t => {
+    tray.innerHTML = bRow + hRow + BUILD_ORDER.filter(t => t !== 'generator' || S.feat.power).map(t => {
       const n = S.stock[t] || 0, cost = n ? 0 : game.buyCost(t), on = placing && placing.type === t;
       return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${(!n && S.gold < cost) || !hands ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
     }).join('') + TECH_ORDER.map(t => {
       const have = S.buildings.some(b => b.type === t), locked = game.keepLevel() < BUILDINGS[t].keep, cost = game.buyCost(t), on = placing && placing.type === t;
-      if (have) return '';
+      if (have || game.keepLevel() < 2) return '';
       return `<button class="tb tech ${t}${on ? ' on' : ''}" data-tray="${t}" ${locked || S.gold < cost || !hands ? 'aria-disabled="true"' : ''} title="${BUILDINGS[t].desc[0]}"><i></i><span class="tn">${SHORT[t]}</span>${locked ? '<span class="tc">Keep 2</span>' : `<span class="cost"><span class="dot gold"></span>${cost}</span>`}</button>`;
     }).join('');
   }
@@ -370,7 +435,7 @@ export function startApp() {
   $('#buildBtn').onclick = () => setDrawer(!$('#tray').classList.contains('open'));
   $('#menuBtn').onclick = () => { const side = $('.side'), open = !side.classList.contains('open'); side.classList.toggle('open', open); $('#menuBtn').setAttribute('aria-expanded', open); };
   $('#tray').addEventListener('click', e => {
-    const f = e.target.closest('[data-focus]'); if (f && game) { game.setBuilders(f.dataset.focus); trayKey = ''; renderTray(); toast(f.dataset.focus === 'off' ? 'Builders stand down. You build by hand.' : `Builders focus on ${f.dataset.focus}.`); return; }
+    const f = e.target.closest('[data-focus]'); if (f && game) { game.setBuilders(f.dataset.focus); trayKey = ''; renderTray(); toast(f.dataset.focus === 'off' ? 'The Foreman stands down. You build by hand.' : `The Foreman builds by himself now: ${f.dataset.focus}.`); return; }
     const b = e.target.closest('[data-tray]'); if (!b || !game || paused) return;
     const t = b.dataset.tray;
     if (placing && placing.type === t) { stopPlacing(); return; }
@@ -587,9 +652,9 @@ export function startApp() {
     if (selected.type === 'site') { renderSite(body, day); return; }
     if (selected.type === 'rubble') {
       const r = game.rubbleAt(selected.x, selected.y);
-      $('#pEyebrow').textContent = 'Your land'; $('#pTitle').textContent = 'Rubble';
-      body.innerHTML = `<div class="stat"><span>Blocks building. Slows the dead.</span><span>Clear it to make room. The dead cross open ground faster.</span></div>`
-        + (r.cells.length ? `<div class="opts one">${opt('opt-clear', 'data-clear="1"', `Clear ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of rubble`, r.cost, 'A 3×3 patch around this spot becomes paved ground.', S.gold < r.cost || !day)}</div>` : '<div class="tiny">Nothing left to clear here.</div>');
+      $('#pEyebrow').textContent = 'Your land'; $('#pTitle').textContent = r.blocks ? 'A ruined block' : 'Rubble';
+      body.innerHTML = `<div class="stat"><span>${r.blocks ? 'Walls block building and the dead alike.' : 'Blocks building. Slows the dead.'}</span><span>Knock it down to make room. The dead cross open ground faster.</span></div>`
+        + (r.cells.length ? `<div class="opts one">${opt('opt-clear', 'data-clear="1"', r.blocks ? `Knock down ${r.blocks} ${r.blocks === 1 ? 'bay' : 'bays'} of the block` : `Clear ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of rubble`, r.cost, r.blocks ? `A 3×3 patch becomes open ground. Takes a pair of hands${S.feat.heat ? '; the noise carries (+heat)' : ''}.` : 'A 3×3 patch around this spot becomes paved ground.', S.gold < r.cost || !day || (r.blocks && game.handsFree() < 1))}</div>` : '<div class="tiny">Nothing left to clear here.</div>');
       return;
     }
     const b = selB(); if (!b) { closePanel(); return; }
@@ -702,7 +767,7 @@ export function startApp() {
     $('#food').textContent = S.food; $('#foodNote').textContent = `+${game.foodPerDawn()} −${game.foodNeed()}`;
     $('#foodNote').classList.toggle('warn', game.foodPerDawn() + S.food < game.foodNeed());
     const hf = game.handsFree(); $('#hands').textContent = `${hf}/${game.handsMax()}`; $('#hands').classList.toggle('none', hf < 1);
-    const pin = game.powerIn(), pout = game.powerOut(); $('#pwrTxt').textContent = `${pin}/${pout}`; $('#pwr').classList.toggle('off', S.blackout);
+    const pin = game.powerIn(), pout = game.powerOut(); $('#pwrTxt').textContent = `${pin}/${pout}`; $('#pwr').classList.toggle('off', S.blackout); $('#pwr').hidden = !S.feat.power; $('.heat').hidden = !S.feat.heat;
     $('#blackout').hidden = !S.blackout; document.body.classList.toggle('bo', !!S.blackout); if (S.blackout) $('#boTxt').textContent = `${pout} needed · ${pin} made`;
     const ht = Math.round(S.heat); $('#heatFill').style.width = Math.min(100, S.heat) + '%'; $('#heatTxt').textContent = ht;
     const hel = $('.heat'); hel.classList.toggle('hot', S.heat >= HEAT.erupt || !!S.eruption); hel.classList.toggle('stir', S.heat >= HEAT.stir && S.heat < HEAT.erupt);
@@ -718,13 +783,18 @@ export function startApp() {
       bell.textContent = (bm ? 'Face the blood moon' : 'Ring the bell') + (bonus > 0 ? ` · +${bonus}` : '');
       const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
       const loose = S.mobs.filter(m => !m.roam).length;
-      $('#info').innerHTML = `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}<span class="clock${dusk <= 15 ? ' soon' : ''}">Dusk ${Math.floor(dusk / 60)}:${String(dusk % 60).padStart(2, '0')}</span>${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · Tonight <em>~${dead}</em><span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
+      $('#info').innerHTML = `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}${sunDial(game.dayFrac(), dusk <= 15)}${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · Tonight <em>~${dead}</em><span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();
     edge.top = tb.bottom + 10; edge.bot = innerHeight - db.top + 10;
   }
 
+  // the sun's arc across the day: where it stands is how much daylight is left
+  function sunDial(t, soon) {
+    const a = Math.PI * (1 - t), x = 22 + Math.cos(a) * 17, y = 19 - Math.sin(a) * 15;
+    return `<span class="sundial${soon ? ' soon' : ''}" title="The sun sets at dusk: then the night comes"><svg viewBox="0 0 44 22" width="40" height="20" aria-hidden="true"><path d="M5 19 A17 15 0 0 1 39 19" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="2" y1="19.5" x2="42" y2="19.5" stroke="currentColor" stroke-opacity=".5"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" class="sun"/></svg></span>`;
+  }
   // ---------- edge arrows ----------
   const edge = { top: 60, bot: 100, pool: [], tags: [] };
   function edgeMarks() {
@@ -755,6 +825,7 @@ export function startApp() {
       const p = view.project(sp.x, sp.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
       buckets.set(7000 + sp.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, quest: true, label: '!' });
     }
+    { const tr = S.story.trial; if (S.phase === 'day' && tr && !tr.done) { const p = view.project(tr.x, tr.y, 1.5); if (!(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(6999, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: true, quest: true, label: 'Trial' }); } }
     if (S.phase === 'day') for (const q of S.story.quests) {
       const p = view.project(q.x, q.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
       buckets.set(5000 + q.site, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, quest: true });
@@ -873,13 +944,17 @@ export function startApp() {
     try { audio.onEvents(events, game); audio.tick(game, dt); } catch (err) { /* sound must never stop the game */ }
     for (const e of events) {
       if (toastFor.has(e.t)) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);
+      if (e.t === 'window') queueWin(e);
+      if (e.t === 'encounter') aiFetch(S.story.encounters.find(x => x.id === e.id));
+      if (e.t === 'episode') showEpisode(e);
       if (e.t === 'claim' && selected && selected.type === 'region') closePanel();
-      if (e.t === 'dawn') { dawnT = DAWN_DELAY; traderSeen = false; endJoy(); const snap = game.snapshot(); if (snap) saves.save(snap).then(w => { lastSave = { day: snap.night, where: w }; }); }
+      if (e.t === 'dawn') { inventToday(); dawnT = DAWN_DELAY; traderSeen = false; endJoy(); const snap = game.snapshot(); if (snap) saves.save(snap).then(w => { lastSave = { day: snap.night, where: w }; }); }
       if (e.t === 'over') { saves.clear(); { const L = store.get('legacy', { fame: 0, owned: {} }); S.fameEarned = fameOf(S); L.fame += S.fameEarned; store.set('legacy', L); } endT = now + 2600; paused = false; closePanel(); stopPlacing(); view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && selected && selected.type === 'building' && !S.byId.get(selected.id)) closePanel();
     }
     // the dawn cards wait a moment so a last tap at night can't land on them
     if (dawnT > 0) dawnT -= dt;
+    if (!card && wins.length && dawnT <= 0 && !S.over) showWin();
     if (!card && dawnT <= 0 && needsDawn()) dawnFlow();
     if (!card && !paused && S.phase === 'day' && S.story.encounters.length) showEncounter();
     if (endT > 0 && now >= endT) { endT = -1; paused = true; showEnd(); }

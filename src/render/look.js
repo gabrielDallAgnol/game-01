@@ -87,12 +87,16 @@ export function createLook({ renderer, scene, camera, canvas }) {
   const c1 = new THREE.Color(), c2 = new THREE.Color(), v = new THREE.Vector3();
   const lc = (a, b, k) => c1.copy(L(a)).lerp(c2.copy(L(b)), k);
   const ln = (a, b, k) => a + (b - a) * k;
-  function blend(k, blood, target, span) {
-    const D = PRESETS.day, Nn = blood ? PRESETS.blood : PRESETS.night;
+  // the sun crosses the sky by day (t: 0 morning → 1 dusk): low and warm at both ends, high and white at noon
+  const warm = new THREE.Color(), dayDir = new THREE.Vector3();
+  function blend(k, blood, target, span, t = 0.4) {
+    const D = PRESETS.day, Nn = blood ? PRESETS.blood : PRESETS.night, arc = Math.sin(Math.PI * Math.min(1, Math.max(0, t))), edge = 1 - arc;
+    dayDir.set(-0.95 + 1.9 * t, 0.28 + 0.9 * arc, 0.42);
     scene.background.copy(lc(D.bg, Nn.bg, k)); scene.fog.color.copy(scene.background);
     hemi.color.copy(lc(D.hemiSky, Nn.hemiSky, k)); hemi.groundColor.copy(lc(D.hemiGnd, Nn.hemiGnd, k)); hemi.intensity = ln(D.hemi, Nn.hemi, k);
-    sun.color.copy(lc(D.sun, Nn.sun, k)); sun.intensity = ln(D.sunI, Nn.sunI, k);
-    v.set(ln(D.sunDir[0], Nn.sunDir[0], k), ln(D.sunDir[1], Nn.sunDir[1], k), ln(D.sunDir[2], Nn.sunDir[2], k)).normalize();
+    warm.copy(L(D.sun)).lerp(c2.copy(L(t > 0.5 ? '#ff9a58' : '#ffc890')), Math.pow(edge, 1.6));
+    sun.color.copy(warm).lerp(c2.copy(L(Nn.sun)), k); sun.intensity = ln(D.sunI * (0.62 + 0.38 * arc), Nn.sunI, k);
+    v.set(ln(dayDir.x, Nn.sunDir[0], k), ln(dayDir.y, Nn.sunDir[1], k), ln(dayDir.z, Nn.sunDir[2], k)).normalize();
     sun.position.copy(target).addScaledVector(v, 70); sun.target.position.copy(target);
     sc.left = -span; sc.right = span; sc.top = span; sc.bottom = -span; sc.updateProjectionMatrix();
     const g = passes.grade.uniforms, a = D.grade, b = Nn.grade;

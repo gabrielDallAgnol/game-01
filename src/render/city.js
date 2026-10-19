@@ -116,9 +116,11 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   });
   const hOfCell = f => GROUND_FLOOR + (f - 1) * FLOOR;
   const leaf = [K.M('olive', { flat: true }), K.M('olive2', { flat: true })];
-  clusters.forEach((cells, id) => {
-    const wall = WALLS[id % WALLS.length], trim = wall === 'stone' ? 'sand' : 'stone';
-    for (const i of cells) {
+  // ruins are built in 16×16 chunks with a per-cell random stream, so a block you knock down can be rebuilt without it
+  const clusterOf = new Int32Array(N * N).fill(-1); clusters.forEach((cells, id) => { for (const i of cells) clusterOf[i] = id; });
+  function ruinCell(statics, i) {
+    const id = clusterOf[i], rand = mulberry32(i * 7907 + 101), wall = WALLS[id % WALLS.length], trim = wall === 'stone' ? 'sand' : 'stone';
+    {
       const cx = i % N, cy = (i / N) | 0, x = cx - C + 0.5, z = cy - C + 0.5, f = floorsOf[i], h = hOfCell(f);
       statics.box(wall, 1.0, h, 1.0, x, 0, z, { r: 0.02 });
       let top = true;
@@ -153,7 +155,17 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
         for (let k2 = 0; k2 < 2; k2++) statics.cyl('rebar', 0.012, 0.012, 0.35 + rand() * 0.3, x + (rand() - 0.5) * 0.8, h, z + (rand() - 0.5) * 0.8, { seg: 4, rx: (rand() - 0.5) * 0.7, rz: (rand() - 0.5) * 0.7 });
       }
     }
-  });
+}
+  const RCH = 16, RCW = Math.ceil(N / RCH), ruinChunks = new Map();
+  function buildRuins(key) {
+    const old = ruinChunks.get(key); if (old) { world.remove(old); old.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); ruinChunks.delete(key); }
+    const cx0 = (key % RCW) * RCH, cy0 = Math.floor(key / RCW) * RCH, b = new K.B(); let any = false;
+    for (let y = cy0; y < Math.min(N, cy0 + RCH); y++) for (let x0 = cx0; x0 < Math.min(N, cx0 + RCH); x0++) { const i = idx(x0, y); if (map.terrain[i] !== T.ROCK || clusterOf[i] < 0) continue; any = true; ruinCell(b, i); }
+    if (!any) return;
+    const m = b.build(); world.add(m); ruinChunks.set(key, m);
+  }
+  const ruinKey = i => Math.floor(((i / N) | 0) / RCH) * RCW + Math.floor((i % N) / RCH);
+  new Set(clusters.flat().map(ruinKey)).forEach(buildRuins);
 
   // ---------- rubble fields (forest cells): debris, scrub, dead trees, wrecks ----------
   const forest = []; for (let i = 0; i < N * N; i++) if (map.terrain[i] === T.FOREST) forest.push(i);
@@ -240,6 +252,8 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   function clear(cells) {
     const set = new Set(cells);
     new Set(cells.map(chunkOf)).forEach(buildChunk);
+    const near = new Set(); for (const i of cells) for (const d of [0, 1, -1, N, -N]) if (i + d >= 0 && i + d < N * N) near.add(ruinKey(i + d));
+    near.forEach(buildRuins);
     for (const { m, cells: pc } of propMeshes) { let hit = false; pc.forEach((i, k) => { if (set.has(i)) { m.setMatrixAt(k, zero); hit = true; } }); if (hit) m.instanceMatrix.needsUpdate = true; }
     paint();
   }
