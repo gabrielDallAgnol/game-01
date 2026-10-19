@@ -660,7 +660,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (l.kind === 'tvtower' || L.reveal) { S.seen.fill(1); S.seenVersion++; } else reveal(l.x, l.y, l.kind === 'eiffel' ? 22 : 9);
     if (L.survivors) S.survivors += L.survivors;
     gainXp(15); addPath('scavver', 0.5);
-    if (L.manual) { S.picks.push(`manual:${L.manual}`); syncPicks(); toast(`[Field manual found] A blessing: pick one at once.`, 'good'); }
     S.stats.sites = (S.stats.sites || 0) + 1;
     ev('landmark', { id }); toast(`[Site claimed: ${L.name}] ${L.desc}`, 'good');
     if (story) { S.story.quests = S.story.quests.filter(q => q.site !== id); story.chron(`Claimed the ${L.name}.`, 3); }

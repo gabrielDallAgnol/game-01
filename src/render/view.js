@@ -15,8 +15,12 @@ const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
 const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
 const FOOT = { house: 2, farm: 2, tower: 1, workshop: 3, market: 3, generator: 2 };   // cells each building covers   // world units per metre of each kit model
 const HERO_RIG = { warrior: 'brawler', archer: 'ranger', merchant: 'scavver', steward: 'scavver', survivor: 'brawler', vanguard: 'brawler', warlord: 'brawler', deadeye: 'ranger', medic: 'scavver', warden: 'brawler', marshal: 'ranger', quartermaster: 'scavver' };
-const HOUSE_COLORS = ['#efe2c4', '#e3ecdf', '#f2dccb', '#e9e4f0'];   // your homes: fresh paint
-const ROOF_COLORS = ['#c8553d', '#2f8f88', '#3d6b9a', '#d9843a'];
+const UNIT = { hero: 1.7, companion: 1.45, ally: 1.3, dead: 1.25 };   // people read bigger than the buildings (Thronefall-style scale)
+// your homes by level: 1 bare scrap (the kit's own drab woods and tin), 2 one coat of muted paint, 3 bright paint and a coloured roof
+// (index i of each list goes together: wall, roof and, at level 3, the shutters and door)
+const HOUSE_COLORS = { 2: ['#a39783', '#8e9886', '#8b95a0', '#ad9a7c'], 3: ['#f2d27a', '#ee9a7a', '#9fd6c9', '#f4ead2', '#f2d27a', '#f4ead2', '#ee9a7a', '#9fd6c9'] };
+const ROOF_COLORS = { 2: ['#6e4a3e', '#4f585b', '#6b5a48', '#5d4a44'], 3: ['#c8553d', '#2f8f88', '#c8553d', '#3d6b9a', '#3d6b9a', '#2f8f88', '#3d6b9a', '#d9843a'] };
+const ACCENTS = ['#2f8f88', '#3d6b9a', '#3d6b9a', '#c8553d', '#c8553d', '#d9843a', '#2f8f88', '#2f8f88'];
 const HIVES = ['metro', 'petrol', 'hospital'];
 
 export function createView(canvas, game, opts = {}) {
@@ -378,12 +382,22 @@ export function createView(canvas, game, opts = {}) {
   function setBar(bar, x, y, z, f) { if (f >= 0.999 || f <= 0) { bar.visible = false; return; } bar.visible = true; bar.position.copy(W(x, z, y)); bar.quaternion.copy(camera.quaternion); bar.userData.fg.scale.x = f; }
 
   // ---------- buildings ----------
+  // models are built once per (type, level, look) and cloned: clones share geometry and materials
+  const modelCache = new Map();
   function model(type, level, b) {
+    const id = b ? b.id : 0, pal = HOUSE_COLORS[level], v = type === 'house' && pal ? id % pal.length : type === 'farm' ? id % 2 : type === 'wall' ? id % 3 : 0;
+    const links = type === 'wall' ? (b && b.links) || { e: true, w: true } : null;
+    const key = `${type}|${level}|${v}|${links ? links.key || [links.e, links.w, links.s, links.n].map(Number).join('') : ''}`;
+    const hit = modelCache.get(key); if (hit) return hit.clone();
+    const m = buildModel(type, level, v, links);
+    modelCache.set(key, m); return m.clone();
+  }
+  function buildModel(type, level, v, links) {
     let m;
-    if (type === 'house') m = K.townhouse({ level, seed: (b ? b.id : 1) * 13 + 5, color: HOUSE_COLORS[(b ? b.id : 0) % HOUSE_COLORS.length], roof: ROOF_COLORS[(b ? b.id * 7 : 0) % ROOF_COLORS.length], game: true });
-    else if (type === 'farm') m = K.farm({ level, seed: b ? b.id : 1 });
+    if (type === 'house') m = K.townhouse({ level, seed: v * 13 + 5, color: HOUSE_COLORS[level] && HOUSE_COLORS[level][v], roof: ROOF_COLORS[level] && ROOF_COLORS[level][v], accent: level === 3 ? ACCENTS[v] : undefined, game: true });
+    else if (type === 'farm') m = K.farm({ level, seed: v + 1, own: true, game: true, color: ['#8e9a88', '#8b95a0'][v], roof: ['#2f8f88', '#3d6b9a'][v] });
     else if (type === 'tower') m = K.tower({ level, game: true });
-    else if (type === 'wall') m = K.post(level, b ? b.links : { e: true, w: true }, b ? b.id : 1);
+    else if (type === 'wall') m = K.post(level, links, v);
     else if (type === 'workshop') {   // a corrugated shed with a sawtooth roof, a roller door and a chimney
       const B = new K.B();
       B.cbox('grey', 2.5, 1.1, 2.1, 0, 0, 0, { r: 0.04 });
@@ -469,24 +483,32 @@ export function createView(canvas, game, opts = {}) {
   }
   // what you built should feel cared for: bunting in bright colours, planters, a warm lamp, a little flag
   const CHEER = ['#f0a040', '#3fb8a8', '#f4ead2', '#e8667a', '#ffd166'], cheerGeo = {};
-  function cheer(type, n, id) {
-    const key = `${type}${n}`;
+  // Level 1 is survival: nothing. Level 2 gets a warm lamp and a pot of greens; level 3 the full set:
+  // pennants strung round the lot, planters full of flowers, the lamp. (The models carry their own flags and lights.)
+  function cheer(type, n, id, level) {
+    const lv = type === 'workshop' || type === 'market' ? 2 : level;
+    if (lv < 2) return null;
+    const h = n / 2 + 0.38, key = `${type}${n}L${lv}`;
     if (!cheerGeo[key]) {
-      const b = new K.B(), h = n / 2 + 0.38, r = K.rng(n * 31 + type.length);
-      // corner posts with a string of pennants between two of them
+      const b = new K.B(), r = K.rng(n * 31 + type.length);
       const posts = [[-h, -h], [h, -h], [h, h], [-h, h]];
-      for (const [x, z] of posts) b.box('#5a4630', 0.06, 1.2, 0.06, x, 0, z);
-      for (const [z, ax] of [[-h, 'x'], [h, 'x'], [-h, 'z'], [h, 'z']]) for (let k = 0; k <= 7; k++) { const t = k / 7, u = -h + 2 * h * t, sag = Math.sin(t * Math.PI) * 0.16; if (ax === 'x') b.cbox(CHEER[k % CHEER.length], 0.24, 0.24, 0.02, u, 1.02 - sag, z, { r: 0.002, rz: Math.PI / 4 }); else b.cbox(CHEER[(k + 2) % CHEER.length], 0.02, 0.24, 0.24, z, 1.02 - sag, u, { r: 0.002, rx: Math.PI / 4 }); }
-      // planters with flowers on the other two corners
-      for (const [x, z] of posts.slice(2)) { b.cbox('#8a5a3a', 0.34, 0.16, 0.34, x, 0, z, { r: 0.03 }); b.sph('#5c8a3c', 0.15, x, 0.2, z, { detail: 0 }); for (let k = 0; k < 3; k++) b.sph(CHEER[(k + Math.floor(r() * 4)) % CHEER.length], 0.05, x + (r() - 0.5) * 0.22, 0.32, z + (r() - 0.5) * 0.22, { detail: 0 }); }
-      cheerGeo[key] = b.build();
+      if (lv >= 3 && type !== 'tower') {
+        // corner posts with strings of pennants on all four sides
+        for (const [x, z] of posts) { b.box('#5a4630', 0.06, 1.2, 0.06, x, 0, z); b.sph(CHEER[0], 0.05, x, 1.22, z, { detail: 0 }); }
+        for (const [z, ax] of [[-h, 'x'], [h, 'x'], [-h, 'z'], [h, 'z']]) for (let k = 1; k < 8; k++) { const t = k / 8, u = -h + 2 * h * t, sag = Math.sin(t * Math.PI) * 0.16; if (ax === 'x') b.cbox(CHEER[k % CHEER.length], 0.24, 0.24, 0.02, u, 1.02 - sag, z, { r: 0.002, rz: Math.PI / 4 }); else b.cbox(CHEER[(k + 2) % CHEER.length], 0.02, 0.24, 0.24, z, 1.02 - sag, u, { r: 0.002, rx: Math.PI / 4 }); }
+        for (const [z, ax] of [[-h, 'x'], [h, 'x'], [-h, 'z'], [h, 'z']]) for (let k = 0; k < 8; k++) { const t0 = k / 8, t1 = (k + 1) / 8, y0 = 1.14 - Math.sin(t0 * Math.PI) * 0.16, y1 = 1.14 - Math.sin(t1 * Math.PI) * 0.16, u = -h + 2 * h * (t0 + t1) / 2, L = 2 * h / 8, rz = Math.atan2(y1 - y0, L); if (ax === 'x') b.cbox('#3b3631', L + 0.01, 0.012, 0.012, u, (y0 + y1) / 2, z, { r: 0.001, rz }); else b.cbox('#3b3631', 0.012, 0.012, L + 0.01, z, (y0 + y1) / 2, u, { r: 0.001, rx: -rz }); }
+        // planters with flowers on two corners
+        for (const [x, z] of posts.slice(2)) { b.cbox('#8a5a3a', 0.34, 0.16, 0.34, x, 0.08, z, { r: 0.03 }); b.sph('#5c8a3c', 0.15, x, 0.2, z, { detail: 0 }); for (let k = 0; k < 4; k++) b.sph(CHEER[(k + Math.floor(r() * 4)) % CHEER.length], 0.05, x + (r() - 0.5) * 0.22, 0.32, z + (r() - 0.5) * 0.22, { detail: 0 }); }
+      } else if (type !== 'tower') {
+        // a single pot of greens by the lamp: someone is looking after the place
+        const [x, z] = posts[3]; b.cbox('#6e5a48', 0.3, 0.14, 0.3, x, 0.07, z, { r: 0.03 }); b.sph('#56663f', 0.14, x, 0.2, z, { detail: 0 });
+      }
+      // the lamp: lights up at dusk with the windows
+      b.cyl('#3a3a3a', 0.02, 0.025, 0.9, h, 0, h, { seg: 5 });
+      cheerGeo[key] = b.build({ vc: true });
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), K.WIN); bulb.position.set(h, 0.95, h); cheerGeo[key].add(bulb);
     }
-    const out = new THREE.Group(); out.add(cheerGeo[key].clone());
-    // the warm lamp: lights up at dusk with the windows
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), K.WIN); bulb.position.set(n / 2 + 0.38, 0.95, n / 2 + 0.38); out.add(bulb);
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.9, 5), K.M('#3a3a3a')); pole.position.set(n / 2 + 0.38, 0.45, n / 2 + 0.38); out.add(pole);
-    if (type === 'house' || type === 'tower') { const f = new THREE.Mesh(flagGeo, flagMat); f.scale.setScalar(0.5); f.position.set(-0.2, type === 'tower' ? 2.9 : 1.9, 0); out.add(f); out.userData.flag = f; }
-    return out;
+    return cheerGeo[key].clone();
   }
   // building something is a small celebration: confetti and a "+1" that floats up
   const confetti = [], confMats = CHEER.map(c => new THREE.MeshBasicMaterial({ color: lc(c).multiplyScalar(1.2), side: THREE.DoubleSide })), confGeo = new THREE.PlaneGeometry(0.12, 0.07);
@@ -515,7 +537,7 @@ export function createView(canvas, game, opts = {}) {
         const relink = e && e.level === b.level;
         if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); }
         const g = new THREE.Group(), m = model(b.type, b.level, { id: b.id, links }); g.add(m);
-        if (FOOT[b.type]) { g.add(padFor(FOOT[b.type])); if (b.type !== 'wall') g.add(cheer(b.type, FOOT[b.type], b.id)); }
+        if (FOOT[b.type]) { g.add(padFor(FOOT[b.type])); if (b.type !== 'wall') { const c = cheer(b.type, FOOT[b.type], b.id, b.level); if (c) g.add(c); } }
         g.position.copy(W(b.x, b.y)); if (b.type === 'house' || b.type === 'farm') g.rotation.y = faceKeep(b.x, b.y);
         g.scale.set(1, relink ? 1 : 0.02, 1); world.add(g);
         e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type, rise: relink ? 1 : 0 }; bMeshes.set(b.id, e);
@@ -822,7 +844,7 @@ export function createView(canvas, game, opts = {}) {
     villagers.update(dt, time, dark);
     for (const a of S.allies) {
       const e = aMeshes.get(a.id); if (!e) continue;
-      e.g.position.copy(W(a.x, a.y)); e.g.rotation.y = a.face || 0;
+      e.g.position.copy(W(a.x, a.y)); e.g.rotation.y = a.face || 0; e.g.scale.setScalar(a.comp ? UNIT.companion : UNIT.ally);
       e.phase += dt * 8; e.pose(!a.attacking, e.phase, a.attacking ? (Math.sin(time * 10) * 0.5 + 0.5) : -1);
       setBar(e.bar, a.x, 1.25, a.y, a.hp / a.maxHp);
     }
@@ -835,7 +857,8 @@ export function createView(canvas, game, opts = {}) {
     for (const [id, f] of flameFor) if (!mobState.has(id)) { fx.remove(f); flames.push(f); flameFor.delete(id); }
 
     // hero
-    syncRig(); heroRig.g.visible = !h.dead; heroRig.g.position.copy(W(h.x, h.y));
+    // like Thronefall: people are drawn bigger than the buildings, so you can always pick them out
+    syncRig(); heroRig.g.visible = !h.dead; heroRig.g.position.copy(W(h.x, h.y)); heroRig.g.scale.setScalar(UNIT.hero);
     let df = h.face - heroRig.g.rotation.y; while (df > Math.PI) df -= Math.PI * 2; while (df < -Math.PI) df += Math.PI * 2; heroRig.g.rotation.y += df * Math.min(1, dt * 14);
     heroRig.pose(h.moving, time * 10, h.swing > 0 ? 1 - h.swing / 0.25 : -1);
     heroRing.visible = !h.dead; heroRing.position.copy(W(h.x, h.y, 0.05));
@@ -853,7 +876,7 @@ export function createView(canvas, game, opts = {}) {
       const fr = m.attacking ? 0 : (Math.sin(e.phase) > 0 ? 0 : 1);
       const lunge = m.attacking ? Math.max(0, Math.sin(time * 6 + e.phase)) * 0.25 : 0;
       const p = W(m.x, m.y, (m.rise - 1) * 1.1 + (m.attacking ? 0 : Math.abs(Math.sin(e.phase)) * 0.03));
-      crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, m.unique ? 1.35 : 1);
+      crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, (m.unique ? 1.35 : 1) * UNIT.dead);
       setBar(e.bar, m.x, 1.3 * Math.max(1, e.size), m.y, m.hp / m.maxHp);
     }
     for (const dd of [...dying]) {

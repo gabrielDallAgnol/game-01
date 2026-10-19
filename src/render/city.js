@@ -10,7 +10,8 @@ import { K } from './kit.js';
 import { bake, vcMat } from './figures.js';
 
 const GROUND = {
-  open: '#3a3936', paved: '#3c3b38', plaza: '#46443f', rubble: '#45433d', rock: '#2f2e2b', ford: '#8d887d', cliff: '#56534c', voidc: '#262522', bed: '#1c2527',
+  open: '#3a3936', paved: '#3c3b38', meadow: '#47513a', meadowOwn: '#4f5a3e',   // round the camp: trampled grass, not asphalt
+  plaza: '#46443f', rubble: '#45433d', rock: '#2f2e2b', ford: '#8d887d', cliff: '#56534c', voidc: '#262522', bed: '#1c2527',
   lot: '#2b2a28', street: '#6a665e', road: '#323336', roadOwn: '#343436', walk: '#55524c', park: '#4a573c', deck: '#6f6b63', deckOwn: '#7a7469', ramp: '#77736a',
 };
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
@@ -56,7 +57,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
       const t = map.terrain[i], x = i % N, y = (i / N) | 0;
       const own = game.zone()[i] === 1;
       const isWalk = t === T.GRASS && !map.road[i] && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const xx = x + dx, yy = y + dy; return xx >= 0 && yy >= 0 && xx < N && yy < N && map.road[idx(xx, yy)]; });
-      let key = map.lm[i] >= 0 ? 'plaza' : map.road[i] ? (own ? 'roadOwn' : 'road') : isWalk ? 'walk' : t === T.FOREST ? 'park' : map.high[i] ? (own ? 'deckOwn' : 'deck') : map.ramp[i] ? 'ramp' : t === T.GRASS ? (own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
+      let key = map.lm[i] >= 0 ? 'plaza' : map.road[i] ? (own ? 'roadOwn' : 'road') : isWalk ? 'walk' : t === T.FOREST ? 'park' : map.high[i] ? (own ? 'deckOwn' : 'deck') : map.ramp[i] ? 'ramp' : t === T.GRASS ? (Math.hypot(x - C, y - C) < 24 ? (own ? 'meadowOwn' : 'meadow') : own ? 'paved' : 'open') : t === T.DIRT ? 'plaza' : t === T.FOREST ? 'rubble' : t === T.ROCK ? 'rock' : t === T.WATER || t === T.FORD ? 'bed' : t === T.CLIFF ? 'cliff' : 'voidc';
       if (t === T.GRASS || t === T.DIRT || t === T.FOREST) {
         if (S.occ[i] >= 0) key = 'lot';
         else if (S.res[i] >= 0) key = 'street';   // the path that belongs to a building's lot
@@ -198,7 +199,9 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   const cellPos = (i, d, jitter = 0.3) => d.position.set((i % N) - C + 0.5 + (rand() - 0.5) * jitter, 0, ((i / N) | 0) - C + 0.5 + (rand() - 0.5) * jitter);
   const pickCells = (list, p) => list.filter(() => rand() < p);
   props(() => K.tree({ dead: true, seed: 3 }), pickCells(forest, 0.025), (i, d) => { cellPos(i, d); d.scale.setScalar(0.3 + rand() * 0.1); d.rotation.set(0, rand() * 6, 0); });
-  props(() => K.tree({ seed: 7, h: 5 }), pickCells(forest, 0.22), (i, d) => { cellPos(i, d); d.scale.setScalar(0.24 + rand() * 0.05); d.rotation.set(0, rand() * 6, 0); });
+  const nearC = i => Math.hypot((i % N) - C, ((i / N) | 0) - C) < 26;   // the woods round the camp are thicker
+  props(() => K.tree({ seed: 7, h: 5 }), forest.filter(i => rand() < (nearC(i) ? 0.55 : 0.22)), (i, d) => { cellPos(i, d); d.scale.setScalar((nearC(i) ? 0.28 : 0.24) + rand() * 0.06); d.rotation.set(0, rand() * 6, 0); });
+  props(() => K.tree({ seed: 19, h: 6 }), forest.filter(i => nearC(i) && rand() < 0.25), (i, d) => { cellPos(i, d); d.scale.setScalar(0.3 + rand() * 0.08); d.rotation.set(0, rand() * 6, 0); });
   props(() => K.bush({ seed: 5, n: 5 }), pickCells(forest, 0.18), (i, d) => { cellPos(i, d); d.scale.set(0.34 + rand() * 0.12, 0.22, 0.34 + rand() * 0.12); d.rotation.set(0, rand() * 6, 0); });
   // street trees along the sidewalks
   const walks = []; for (let i = 0; i < N * N; i++) { const x = i % N, y = (i / N) | 0; if (map.terrain[i] === T.GRASS && !map.road[i] && !map.high[i] && map.lm[i] < 0 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isRoad(x + dx, y + dy)) && (x + y) % 3 === 0) walks.push(i); }

@@ -709,14 +709,14 @@ export function startApp() {
     if (b.type === 'wall') {
       const run = game.wallRun(b.id), total = run.reduce((a, w) => a + game.upCostOf(w), 0);
       if (b.level < MAX_LEVEL) { const capped = b.level >= game.keepLevel(); html += opt('opt-upw', 'data-upw="1"', capped ? 'Raise the keep first' : `Upgrade this barricade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, capped ? null : total, capped ? `Nothing grows past the keep (level ${game.keepLevel()}).` : `${B.desc[b.level]} each. Short of scrap? The nearest posts go first.`, capped || S.gold < game.upCostOf(b) || !day); }
-      html += opt('opt-demo', 'data-demo="1"', 'Pull down this post', null, 'Opens a gap you can build a gate tower in.', !day);
+      { const back = Math.floor(game.costOf(b.type) / 2); html += opt('opt-demo', 'data-demo="1"', 'Pull down this post', null, `<b class="good">${back ? `+${back} scrap back` : 'No scrap back'}</b> · <b class="bad">a gap in the line</b>: the dead walk through until you fill it (a gate tower fits).`, !day); }
       body.innerHTML = html + '</div>'; selected.range = null; return;
     }
     const capped = b.level >= game.keepLevel(), maxL = B.maxLevel || MAX_LEVEL, needTech = b.level + 1 === 3 && UNLOCKS[b.type] && !game.hasTech(UNLOCKS[b.type]);
-    if (B.tech) { body.innerHTML = `<div class="stat"><span>${b.built < 1 ? `Under construction <b>${Math.floor(b.built * 100)}%</b>` : 'Working'}</span><span>${B.desc[0]}</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} scrap back.`, !day)}</div>`; selected.range = null; return; }
+    if (B.tech) { body.innerHTML = `<div class="stat"><span>${b.built < 1 ? `Under construction <b>${Math.floor(b.built * 100)}%</b>` : 'Working'}</span><span>${B.desc[0]}</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Pull down', null, `<b class="good">+${Math.floor(game.costOf(b.type) / 2)} scrap back</b> · <b class="bad">its bonus is gone</b>.`, !day)}</div>`; selected.range = null; return; }
     if (b.type === 'tower') { const on = game.manned(b), need = CREW_NEED[b.level - 1]; html = html.replace('</div><div class="opts two">', `<span>${on ? `Crew <b>${need}</b> on watch` : `<b class="bad">No crew</b>: needs ${need} people. Build or upgrade homes.`}</span></div><div class="opts two">`); }
     if (b.level < maxL) { const c = game.upCostOf(b); html += opt('opt-up', 'data-up="1"', capped ? `Raise the keep first` : needTech ? `Needs a ${SHORT[UNLOCKS[b.type]]}` : `Upgrade to level ${b.level + 1}`, capped || needTech ? null : c, capped ? `Nothing grows past the keep (level ${game.keepLevel()}).` : needTech ? `Build a ${SHORT[UNLOCKS[b.type]]} to unlock level 3.` : `${B.desc[b.level]} · ${game.maxHpOf(b.type, b.level + 1)} hp${b.type === 'tower' ? ` · needs ${CREW_NEED[b.level]} crew` : ''}${S.halfUpgrade ? ' · half price' : ''}`, capped || needTech || S.gold < c || !day); }
-    html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `Get ${Math.floor(game.costOf(b.type) / 2)} scrap back and free the space.`, !day);
+    html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `<b class="good">+${Math.floor(game.costOf(b.type) / 2)} scrap back</b> · <b class="bad">level ${b.level} lost</b> · the 3×3 lot is free again.`, !day);
     body.innerHTML = html + '</div>' + (b.level >= MAX_LEVEL ? '<div class="tiny">Fully upgraded.</div>' : '');
     selected.range = b.type === 'tower' ? game.towerStats(b).range : null;
   }
@@ -733,7 +733,7 @@ export function startApp() {
     if (btn.dataset.upw) { const n = game.upgradeWall(selected.id); if (n) toast(`${n} ${n === 1 ? 'post' : 'posts'} upgraded.`); }
     if (btn.dataset.demo) {
       if (btn.dataset.sure) { if (game.demolish(selected.id)) { toast('Pulled down.'); closePanel(); updateHud(); return; } }
-      else { btn.dataset.sure = '1'; btn.querySelector('.nm').textContent = 'Tap again to pull down'; return; }
+      else { btn.dataset.sure = '1'; btn.classList.add('sure'); btn.querySelector('.nm').textContent = 'Tap again to confirm'; return; }
     }
     if (btn.dataset.purge && game.planPurge(selected.id)) toast(`At nightfall you march on ${names[selected.id]}.`, 'good');
     if (btn.dataset.cancel) game.planPurge(null);

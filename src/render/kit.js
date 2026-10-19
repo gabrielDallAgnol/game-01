@@ -50,6 +50,11 @@ export const K = (() => {
   // shared materials the renderer animates by night: lit windows and searchlight lenses
   const WIN = new THREE.MeshStandardMaterial({ color: lin('#3c454a'), roughness: 0.4, emissive: lin('#ffb45c'), emissiveIntensity: 0 });
   const LENS = new THREE.MeshStandardMaterial({ color: lin('#d8d1c2'), roughness: 0.3, emissive: lin('#fff1d0'), emissiveIntensity: 0.2 });
+  // bulbs and lanterns follow the windows: their glow is read straight from WIN at render time (no per-frame work)
+  const glowWith = (m, k, base) => Object.defineProperty(m, 'emissiveIntensity', { get: () => base + WIN.emissiveIntensity * k, set() {}, configurable: true });
+  const BULB = glowWith(new THREE.MeshStandardMaterial({ color: lin('#f6e6bd'), roughness: 0.4, emissive: lin('#ffc468') }), 1.6, 0.12);
+  const LANTERN = glowWith(new THREE.MeshStandardMaterial({ color: lin('#7d6c50'), roughness: 0.5, emissive: lin('#ff9038') }), 0.5, 0);
+  const VCM = territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 }));
   const mats = new Map();
   function M(key, o = {}) {
     const id = key + JSON.stringify(o);
@@ -83,7 +88,7 @@ export const K = (() => {
       if (!gg.attributes.uv) gg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(gg.attributes.position.count * 2), 2));
       for (const k of Object.keys(gg.attributes)) if (!['position', 'normal', 'uv'].includes(k)) gg.deleteAttribute(k);
       const key = typeof mat === 'string' ? mat : mat.uuid;
-      if (!this.parts.has(key)) this.parts.set(key, { mat: typeof mat === 'string' ? M(mat) : mat, list: [] });
+      if (!this.parts.has(key)) this.parts.set(key, { mat: typeof mat === 'string' ? M(mat) : mat, list: [], plain: typeof mat === 'string' });
       this.parts.get(key).list.push(gg);
       return this;
     }
@@ -94,9 +99,22 @@ export const K = (() => {
     cyl(mat, rt, rb, h, x, y, z, o = {}) { return this.geo(mat, new THREE.CylinderGeometry(rt, rb, h, o.seg || 10, 1, !!o.open), x, y + h / 2, z, o.rx || 0, o.ry || 0, o.rz || 0); }
     sph(mat, r, x, y, z, o = {}) { return this.geo(mat, new THREE.IcosahedronGeometry(r, o.detail ?? 2), x, y, z, o.rx || 0, o.ry || 0, o.rz || 0, o.sx || 1, o.sy || 1, o.sz || 1); }
     add(obj) { this.extra.push(obj); return this; }
+    // vc: every plain colour (a palette key or '#hex' with default options) is merged into ONE vertex-coloured mesh,
+    // so a many-coloured model still costs a single draw call (used for the player's buildings).
     build(o = {}) {
       const g = new THREE.Group();
-      for (const { mat, list } of this.parts.values()) {
+      let parts = [...this.parts.values()];
+      if (o.vc) {
+        const rest = [], list = [];
+        for (const p of parts) {
+          if (!p.plain) { rest.push(p); continue; }
+          const c = p.mat.color;
+          for (const gg of p.list) { const n = gg.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } gg.setAttribute('color', new THREE.BufferAttribute(a, 3)); list.push(gg); }
+        }
+        if (list.length) rest.push({ mat: VCM, list });
+        parts = rest;
+      }
+      for (const { mat, list } of parts) {
         const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(list, false);
         const mesh = new THREE.Mesh(merged, mat);
         mesh.castShadow = o.cast ?? !mat.transparent; mesh.receiveShadow = true;
@@ -432,15 +450,57 @@ export const K = (() => {
   }
   function pallet(b, x, y, z, ry = 0) { for (let k = 0; k < 4; k++) b.cbox('wood', 1.2, 0.04, 0.12, x + Math.cos(ry) * 0 , y + 0.02, z, { r: 0.01, ry }); }
 
+  // ---------- helpers for the player's buildings: scrap at first, then paint, then pride ----------
+  const shade = (hex, k) => '#' + new THREE.Color(P[hex] || hex).offsetHSL(0, 0, k).getHexString();
+  const BLOOM = ['#e8667a', '#ffd166', '#f6efe0', '#f08a3c', '#b47ad6'];
+  const PEN = (() => { const s = new THREE.Shape(); s.moveTo(-0.17, 0); s.lineTo(0.17, 0); s.lineTo(0, -0.34); s.closePath(); return new THREE.ExtrudeGeometry(s, { depth: 0.02, bevelEnabled: false }); })();
+  /** a thin rod from p to q ([x, y, z]) */
+  function rod(b, mat, p, q, t = 0.03) {
+    const dx = q[0] - p[0], dy = q[1] - p[1], dz = q[2] - p[2], h = Math.hypot(dx, dz), L = Math.hypot(h, dy);
+    b.geo(mat, rboxGeo(L, t, t, 0.001), (p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2, 0, Math.atan2(-dz, dx), Math.atan2(dy, h));
+  }
+  function sagPts(p, q, n, sag) { const out = []; for (let k = 0; k <= n; k++) { const t = k / n; out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t - Math.sin(t * Math.PI) * sag, p[2] + (q[2] - p[2]) * t]); } return out; }
+  function cord(b, pts, mat = '#3b3631', t = 0.025) { for (let k = 1; k < pts.length; k++) rod(b, mat, pts[k - 1], pts[k], t); }
+  /** a string of pennants from p to q */
+  function bunting(b, p, q, n, sag, cols = BLOOM, s = 1) {
+    const pts = sagPts(p, q, n, sag), ry = Math.atan2(-(q[2] - p[2]), q[0] - p[0]); cord(b, pts);
+    for (let k = 1; k < pts.length - 1; k++) b.geo(cols[k % cols.length], PEN, pts[k][0], pts[k][1], pts[k][2], 0, ry, 0, s, s, s);
+  }
+  /** a string of bulbs that light up at dusk with the windows */
+  function lights(b, p, q, n, sag, s = 1) { const pts = sagPts(p, q, n, sag); cord(b, pts, '#2e2b28', 0.02); for (let k = 1; k < pts.length - 1; k++) b.sph(BULB, 0.08 * s, pts[k][0], pts[k][1] - 0.07 * s, pts[k][2], { detail: 0 }); }
+  function blooms(b, x, y, z, w, n, r, dz = 0.15) { for (let k = 0; k < n; k++) b.sph(BLOOM[Math.floor(r() * BLOOM.length)], 0.085 + r() * 0.045, x + (r() - 0.5) * w, y + r() * 0.08, z + (r() - 0.5) * dz, { detail: 0 }); }
+  /** a window box spilling flowers (front faces +z) */
+  function windowBox(b, x, y, z, w, r) { b.cbox('#8a5a3a', w, 0.2, 0.28, x, y, z, { r: 0.03 }); b.sph('#5c8a3c', 0.17, x - w / 4, y + 0.14, z, { detail: 0, sx: 1.5 }); b.sph('#4f7d34', 0.16, x + w / 4, y + 0.14, z, { detail: 0, sx: 1.5 }); blooms(b, x, y + 0.26, z + 0.04, w * 0.9, 5, r); }
+  function planter(b, x, z, s, r, flowers = true, y = 0) { b.box('#8a5a3a', 0.6 * s, 0.45 * s, 0.6 * s, x, y, z, { r: 0.05 }); b.sph(flowers ? '#5c8a3c' : '#56663f', 0.32 * s, x, y + 0.55 * s, z, { detail: 0 }); if (flowers) blooms(b, x, y + 0.75 * s, z, 0.45 * s, 5, r, 0.4 * s); }
+  /** a pole with a flag flying toward +x (turned by ry) */
+  function flag(b, x, y, z, h, w, col = 'amber', ry = 0) { b.cyl('#3a3a38', 0.035, 0.045, h, x, y, z, { seg: 6 }); const c = Math.cos(ry), s = Math.sin(ry); b.cbox(col, w, w * 0.62, 0.035, x + c * (w / 2 + 0.04), y + h - w * 0.34, z - s * (w / 2 + 0.04), { r: 0.005, ry }); }
+  function drum(b, col, x, z, s = 1, y = 0) { b.cyl(col, 0.3 * s, 0.3 * s, 0.9 * s, x, y, z, { seg: 10 }); for (const t of [0.28, 0.6]) b.cyl(shade(col, -0.07), 0.31 * s, 0.31 * s, 0.05 * s, x, y + t * s, z, { seg: 10 }); }
+  function bagRow(b, x, z, len, rows, ry, r, y0 = 0) { const c = Math.cos(ry), s = Math.sin(ry); for (let y = 0; y < rows; y++) { const off = (y % 2) * 0.3, n = Math.floor((len - off) / 0.6); for (let k = 0; k < n; k++) { const u = -len / 2 + off + 0.3 + k * 0.6; b.box('bag', 0.62, 0.26, 0.4, x + u * c, y0 + y * 0.24, z - u * s, { r: 0.11, ry: ry + (r() - 0.5) * 0.12 }); } } }
+  /** a corrugated sheet: side 0 faces +z, ±1 faces ±x */
+  function sheet(b, col, w, h, x, y, z, side = 0) {
+    const ridge = shade(col, -0.06), n = Math.max(2, Math.round(w / 0.24));
+    if (!side) { b.cbox(col, w, h, 0.03, x, y, z, { r: 0.004 }); for (let k = 0; k < n; k++) b.cbox(ridge, 0.05, h, 0.03, x - w / 2 + (k + 0.5) * w / n, y, z + 0.025, { r: 0.004 }); }
+    else { b.cbox(col, 0.03, h, w, x, y, z, { r: 0.004 }); for (let k = 0; k < n; k++) b.cbox(ridge, 0.03, h, 0.05, x + side * 0.025, y, z - w / 2 + (k + 0.5) * w / n, { r: 0.004 }); }
+  }
+  /** a gable roof as two slabs (ridge along z) with the gable ends filled in the wall colour */
+  function gable(b, w, d, H, pitch, roof, wall, o = {}) {
+    const ov = o.eave ?? 0.3, run = w / 2 + ov, a = Math.atan2(pitch, run), L = Math.hypot(run, pitch) + 0.08, t = o.t ?? 0.16;
+    for (const s of [-1, 1]) b.cbox(roof, L, t, d + (o.over ?? 0.5), s * run / 2, H + pitch / 2 + t / 2 * Math.cos(a), 0, { r: 0.03, rz: -s * a });
+    b.cbox(o.ridge || shade(roof, -0.1), 0.24, 0.2, d + (o.over ?? 0.5) + 0.04, 0, H + pitch + 0.08, 0, { r: 0.04 });
+    const s = new THREE.Shape(); s.moveTo(-w / 2, 0); s.lineTo(w / 2, 0); s.lineTo(0, pitch * (w / 2) / run); s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: d, bevelEnabled: false }); g.translate(0, 0, -d / 2); b.geo(wall, g, 0, H, 0);
+    return a;
+  }
+
   // ======================================================================
-  // PLAYER BUILDINGS (warm accent = yours)
+  // PLAYER BUILDINGS (warm accent = yours). Each level must read as progress from far away:
+  // 1 survival (scrap, drab), 2 holding on (repaired, a coat of muted paint), 3 thriving (bright paint, flowers, bunting, lights).
   // ======================================================================
-  /** a two/three storey townhouse; level 0 = ruin to restore, 1 boarded, 2 repaired, 3 fortified */
+  /** a home; level 0 = ruin to restore, 1 a scrap shack, 2 a repaired two-storey house, 3 a proud painted townhouse */
   function townhouse(o = {}) {
     const lvl = o.level ?? 1, r = rng(o.seed || 21), b = new B();
-    const w = o.w || 6.4, d = o.d || 7, floors = o.floors || (lvl >= 2 ? 3 : 2), fh = 2.9, wall = o.color || 'sand';
-    const H = floors * fh;
     if (lvl === 0) {
+      const w = o.w || 6.4, d = o.d || 7, fh = 2.9, wall = o.color || 'sand';
       // the ruin you can restore: a burnt-out shell with jagged walls, charred joists and rubble inside
       const jag = (x0, z0, len, axis, hMax, hMin) => {
         const n = Math.round(len / 0.8);
@@ -459,100 +519,220 @@ export const K = (() => {
       for (let k = 0; k < 6; k++) b.sph(leaf[k % 2], 0.5 + r() * 0.4, (r() - 0.5) * w * 1.2, 0.2, d / 2 + 0.6 + r(), { detail: 1, sy: 0.6 });
       return b.build();
     }
-    b.box(wall, w, H, d, 0, 0, 0, { r: 0.05 });
-    for (let f = 1; f < floors; f++) b.cbox('stone', w + 0.12, 0.18, d + 0.12, 0, f * fh, 0, { r: 0.04 });
-    // pitched roof (extruded gable)
-    const s = new THREE.Shape(); s.moveTo(-w / 2 - 0.35, 0); s.lineTo(w / 2 + 0.35, 0); s.lineTo(0, 2.0); s.closePath();
-    const rg = new THREE.ExtrudeGeometry(s, { depth: d + 0.5, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 1 }); rg.translate(0, 0, -(d + 0.5) / 2);
-    b.geo(o.roof || (lvl >= 2 ? 'roof2' : 'roof'), rg, 0, H, 0);
-    // front: windows per floor, door
-    const cols = [-w / 2 + 1.3, 0, w / 2 - 1.3];
-    for (let f = 0; f < floors; f++) for (let c = 0; c < 3; c++) {
-      if (f === 0 && c === 1) continue;
-      const x = cols[c], y = f * fh + 0.95, lit = lvl >= 2 && (o.night || o.game) && r() < 0.75;
-      const glass = lit ? (o.game ? WIN : M('lit', { emissive: '#ffb45c', ei: 2.2 })) : 'glass';
-      b.cbox(glass, 0.95, 1.3, 0.08, x, y + 0.65, d / 2 + 0.02, { r: 0.01 });
-      b.cbox('stone', 1.2, 0.09, 0.22, x, y - 0.03, d / 2 + 0.08, { r: 0.02 });
-      if (lvl === 1 || (lvl >= 3 && f === 0)) for (let k = 0; k < 3; k++) b.cbox('wood', 1.25, 0.18, 0.05, x, y + 0.25 + k * 0.42, d / 2 + 0.1, { r: 0.02, rz: (r() - 0.5) * 0.25 });
-      // back windows
-      b.cbox(glass, 0.95, 1.3, 0.08, x, y + 0.65, -d / 2 - 0.02, { r: 0.01 });
+    const glass = o.game ? WIN : 'glass';
+    if (lvl === 1) return shack(o, r, b);
+    if (lvl === 2) return homestead(o, r, b, glass);
+    return proudHouse(o, r, b, glass);
+  }
+  // level 1, survival: one room knocked together from weathered planks and tin, a tarp held down by tyres, boarded windows
+  function shack(o, r, b) {
+    const w = 4.8, d = 5.0, H = 2.55, ox = -0.45, fz = d / 2, WOOD = ['#6f675b', '#7b766c', '#5a5045', '#6a5a48', '#807769'];
+    b.box('#6d6a63', w + 0.25, 0.25, d + 0.25, ox, 0, 0, { r: 0.03 });
+    b.box('#554b41', w, H, d, ox, 0.25, 0, { r: 0.03 });
+    for (let y = 0.42; y < H + 0.2; y += 0.3) {
+      b.cbox(WOOD[Math.floor(r() * 5)], w + 0.05, 0.25, 0.05, ox + (r() - 0.5) * 0.12, y, fz + 0.02, { r: 0.005, rz: (r() - 0.5) * 0.04 });
+      for (const sx of [-1, 1]) b.cbox(WOOD[Math.floor(r() * 5)], 0.05, 0.25, d + 0.05, ox + sx * (w / 2 + 0.02), y, (r() - 0.5) * 0.12, { r: 0.005, rx: (r() - 0.5) * 0.04 });
     }
-    b.cbox('wood2', 1.1, 2.15, 0.1, 0, 1.08, d / 2 + 0.04, { r: 0.02 }); b.cbox('stone', 1.5, 0.15, 0.6, 0, 0.08, d / 2 + 0.3, { r: 0.03 });
-    // yours: a warm awning over the door
-    const aw = new THREE.Shape(); aw.moveTo(0, 0); aw.lineTo(1.1, 0); aw.lineTo(1.1, 0.06); aw.lineTo(0, 0.5); aw.closePath();
-    const ag = new THREE.ExtrudeGeometry(aw, { depth: 1.9, bevelEnabled: false }); ag.translate(0, 0, -0.95);
-    b.geo('amber', ag, 0, 2.35, d / 2 + 1.1, 0, -Math.PI / 2, 0);
-    if (lvl === 1) {
-      // tarp patching the roof, a ladder
-      b.cbox('amber', w * 0.55, 0.05, 2.2, -w * 0.15, H + 0.9, d * 0.18, { r: 0.02, rz: 0.55 });
-      for (let k = 0; k < 6; k++) b.cbox('wood', 0.5, 0.05, 0.05, w / 2 + 0.25, 0.3 + k * 0.45, d / 2 - 0.6, { r: 0.01 });
-      b.box('wood', 0.05, 2.8, 0.05, w / 2 + 0.25, 0, d / 2 - 0.85); b.box('wood', 0.05, 2.8, 0.05, w / 2 + 0.25, 0, d / 2 - 0.35);
+    // tin patches
+    sheet(b, 'rust', 1.4, 1.5, ox + 1.55, 1.05, fz + 0.06);
+    sheet(b, 'metal', 1.8, 1.6, ox + w / 2 + 0.06, 1.15, -0.9, 1);
+    sheet(b, '#5f6366', 1.5, 1.3, ox - w / 2 - 0.06, 1.0, 1.0, -1);
+    // a boarded window, a scrap door, one dim lantern
+    const wx = ox - 1.45;
+    b.cbox('#24211e', 0.95, 0.8, 0.04, wx, 1.6, fz + 0.05, { r: 0.004 });
+    b.cbox('#8a7356', 1.2, 0.16, 0.04, wx, 1.6, fz + 0.09, { r: 0.005, rz: 0.55 }); b.cbox('#7b6a52', 1.2, 0.16, 0.04, wx, 1.6, fz + 0.12, { r: 0.005, rz: -0.5 });
+    b.cbox('#6f675b', 1.15, 0.14, 0.04, wx, 1.25, fz + 0.1, { r: 0.005, rz: 0.06 });
+    const dx = ox + 0.15;
+    b.cbox('#4a3f35', 0.95, 1.95, 0.06, dx, 1.22, fz + 0.06, { r: 0.01 });
+    for (const y of [0.6, 1.9]) b.cbox('#5d5246', 0.98, 0.14, 0.04, dx, y, fz + 0.1, { r: 0.005 });
+    b.cbox('#2f2c29', 0.5, 0.05, 0.05, dx + 0.75, 2.4, fz + 0.2, { r: 0.004 });
+    b.cbox(LANTERN, 0.15, 0.22, 0.15, dx + 0.95, 2.22, fz + 0.2, { r: 0.02 }); b.cbox('#2f2c29', 0.2, 0.05, 0.2, dx + 0.95, 2.35, fz + 0.2, { r: 0.01 });
+    // a patchwork tin roof falling to the front
+    const a = 0.16, ry0 = H + 0.25 + 0.48, pw = (w + 0.8) / 3, TIN = ['metal', 'rust', '#5f6366'];
+    { const rise = d * Math.tan(a) + 0.05, s = new THREE.Shape(); s.moveTo(-fz, 0); s.lineTo(fz, 0); s.lineTo(fz, rise); s.closePath(); const g = new THREE.ExtrudeGeometry(s, { depth: w, bevelEnabled: false }); g.rotateY(Math.PI / 2); b.geo('#554b41', g, ox - w / 2, H + 0.25, 0); }
+    for (let k = 0; k < 3; k++) {
+      const col = TIN[(k + Math.floor(r() * 3)) % 3], x = ox - (w + 0.8) / 2 + (k + 0.5) * pw, y = ry0 + k * 0.03;
+      b.cbox(col, pw + 0.08, 0.06, d + 0.9, x, y, 0, { r: 0.005, rx: a });
+      for (let j = 0; j < 4; j++) b.cbox(shade(col, -0.06), 0.06, 0.05, d + 0.9, x - pw / 2 + (j + 0.5) * pw / 4, y + 0.05, 0, { r: 0.005, rx: a });
     }
-    if (lvl >= 2) {
-      // planters, a chimney, laundry
-      for (const x of [-w / 2 + 1.3, w / 2 - 1.3]) { b.box('wood2', 1.2, 0.35, 0.35, x, 0, d / 2 + 0.35, { r: 0.04 }); b.sph('olive', 0.35, x - 0.3, 0.45, d / 2 + 0.35, { detail: 1 }); b.sph('olive2', 0.3, x + 0.25, 0.45, d / 2 + 0.35, { detail: 1 }); }
-      b.box('stone', 0.6, 1.4, 0.6, w / 2 - 1.2, H + 0.6, -1.2, { r: 0.05 });
+    b.cbox('#59625e', 2.2, 0.04, 2.6, ox - 0.8, ry0 + 0.2, -0.6, { r: 0.01, rx: a, rz: 0.04 });
+    for (const [x, z] of [[ox - 1.3, -0.3], [ox - 0.3, -1.1]]) b.geo('tyre', new THREE.TorusGeometry(0.3, 0.12, 6, 10), x, ry0 + 0.24 - z * 0.16, z, Math.PI / 2 + a, 0, 0);
+    b.cyl('#3a3836', 0.1, 0.1, 1.4, ox + 1.5, H + 0.3, -1.5, { seg: 8 }); b.cyl('#2f2c29', 0.16, 0.16, 0.12, ox + 1.5, H + 1.7, -1.5, { seg: 8 });
+    // a tarp lean-to on the side: firewood, a drum, crates
+    const lx = ox + w / 2, top = H + 0.15, lo = 1.75, run = 1.45;
+    for (const z of [-1.3, 1.3]) b.box('#6a5a48', 0.1, lo, 0.1, lx + run, 0, z, { r: 0.02, rz: (r() - 0.5) * 0.08 });
+    b.cbox('#6b6650', Math.hypot(run, top - lo) + 0.15, 0.04, 3.0, lx + run / 2, (top + lo) / 2, 0, { r: 0.01, rz: -Math.atan2(top - lo, run) });
+    drum(b, 'rust', lx + 0.55, 0.8);
+    b.box('wood2', 0.7, 0.55, 0.6, lx + 0.6, 0, -0.6, { r: 0.03, ry: 0.2 }); b.box('#6f675b', 0.55, 0.45, 0.5, lx + 0.6, 0.55, -0.55, { r: 0.03, ry: -0.3 });
+    for (let k = 0; k < 6; k++) b.cyl('#6b5640', 0.09, 0.09, 1.0, lx + 1.0 + (k % 3) * 0.18, 0.1 + Math.floor(k / 3) * 0.17, -1.05, { rx: Math.PI / 2, seg: 6 });
+    // sandbags and a drum out front, a tyre against the wall
+    bagRow(b, ox + 1.85, fz + 0.75, 2.2, 2, 0, r);
+    drum(b, '#4f5a4c', ox - 0.55, fz + 0.45);
+    b.geo('tyre', new THREE.TorusGeometry(0.32, 0.13, 6, 10), ox - w / 2 - 0.2, 0.42, -1.4, 0, Math.PI / 2, 0.15);
+    return b.build({ vc: true });
+  }
+  // level 2, holding on: two storeys, patched with brick and fresh planks, a coat of muted paint, warm windows, a small flag
+  function homestead(o, r, b, glass) {
+    const w = 5.8, d = 6.2, fh = 2.7, H = fh * 2, fz = d / 2, wall = o.color || '#a39783', roof = o.roof || '#6e4a3e', trim = shade(wall, -0.13), brick = '#8a5a4a', wood = '#6a5848';
+    b.box('#77736b', w + 0.18, 0.4, d + 0.18, 0, 0, 0, { r: 0.03 });
+    b.box(wall, w, H, d, 0, 0, 0, { r: 0.04 });
+    for (let y = 0.75; y < H - 0.1; y += 0.45) { const c = shade(wall, -0.045); b.cbox(c, w + 0.03, 0.05, 0.03, 0, y, fz + 0.01, { r: 0.004 }); for (const sx of [-1, 1]) b.cbox(c, 0.03, 0.05, d + 0.03, sx * (w / 2 + 0.01), y, 0, { r: 0.004 }); }
+    b.cbox(trim, w + 0.12, 0.16, d + 0.12, 0, fh, 0, { r: 0.03 });
+    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box(trim, 0.18, H, 0.18, x * w / 2, 0, z * d / 2, { r: 0.02 });
+    // repairs: a brick patch, a few odd bricks, fresh planks on the side
+    b.cbox(brick, 1.3, 1.0, 0.04, -w / 2 + 0.8, 0.95, fz + 0.03, { r: 0.006 });
+    for (let k = 0; k < 6; k++) b.cbox(shade(brick, (r() - 0.5) * 0.08), 0.38, 0.16, 0.05, -w / 2 + 0.4 + (k % 3) * 0.42 + (Math.floor(k / 3) % 2) * 0.2, 0.62 + Math.floor(k / 3) * 0.55, fz + 0.05, { r: 0.004 });
+    for (let k = 0; k < 4; k++) b.cbox('#8a6f52', 0.04, 1.7, 0.26, w / 2 + 0.03, 3.7, -1.6 + k * 0.28, { r: 0.004 });
+    // windows: warm by night; one ground-floor window still half boarded
+    const win = (x, y, z, s = 1, ww = 0.9, wh = 1.2) => { b.cbox(glass, ww, wh, 0.06, x, y + wh / 2, z, { r: 0.008 }); b.cbox(trim, ww + 0.25, 0.09, 0.2, x, y - 0.03, z + s * 0.06, { r: 0.02 }); };
+    for (const x of [-1.75, 1.75]) { win(x, 0.95, fz + 0.02); for (const s of [-1, 1]) b.cbox('wood2', 0.4, 1.2, 0.05, x + s * 0.68, 1.55, fz + 0.06, { r: 0.006 }); }
+    b.cbox('#7b6a52', 1.05, 0.16, 0.04, -1.75, 1.6, fz + 0.1, { r: 0.004, rz: 0.12 });
+    for (const x of [-1.8, 0, 1.8]) { win(x, fh + 0.8, fz + 0.02); win(x, fh + 0.8, -fz - 0.02, -1); }
+    for (const x of [-1.75, 1.75]) win(x, 0.95, -fz - 0.02, -1);
+    for (const sx of [-1, 1]) for (const y of [0.95, fh + 0.8]) { b.cbox(glass, 0.06, 1.2, 0.9, sx * (w / 2 + 0.02), y + 0.6, 0.6, { r: 0.008 }); }
+    // the door under a small plank porch, a wall lamp
+    b.cbox(shade(wall, -0.28), 1.0, 2.1, 0.08, 0, 1.05 + 0.2, fz + 0.04, { r: 0.01 });
+    b.cbox(wood, 1.8, 0.08, 0.95, 0, 2.55, fz + 0.45, { r: 0.01, rx: 0.22 });
+    for (const s of [-1, 1]) rod(b, wood, [s * 0.8, 2.0, fz + 0.03], [s * 0.8, 2.5, fz + 0.75], 0.07);
+    b.cbox('#77736b', 1.4, 0.18, 0.6, 0, 0.09, fz + 0.35, { r: 0.03 });
+    b.cbox(glass, 0.14, 0.2, 0.12, 0.8, 2.15, fz + 0.1, { r: 0.02 });
+    // a tiled roof in a faded colour, a brick chimney, a small flag on the gable
+    const a = gable(b, w, d, H, 1.8, roof, wall);
+    for (let k = 0; k < 3; k++) { const s = 0.8 + r() * 1.8, x = s * Math.cos(a), y = H + 1.8 - s * Math.sin(a) + 0.18; b.cbox(shade(roof, (r() - 0.5) * 0.12), 0.7, 0.04, 0.8, x, y, (r() - 0.5) * 4, { r: 0.01, rz: -a }); }
+    b.box(brick, 0.6, 1.6, 0.6, -1.3, H + 0.5, -1.5, { r: 0.04 }); b.cbox('#5a4a40', 0.75, 0.12, 0.75, -1.3, H + 2.15, -1.5, { r: 0.02 });
+    b.cyl(glass, 0.32, 0.32, 0.05, 0, H + 0.62, fz + 0.01, { rx: Math.PI / 2, seg: 10 });
+    flag(b, 0, H + 1.7, fz + 0.15, 1.4, 0.75);
+    // a clothesline on the side, a box of vegetables, a painted rain barrel
+    const cx = -w / 2 - 0.6;
+    for (const z of [-2.3, 2.1]) b.box(wood, 0.08, 2.0, 0.08, cx, 0, z, { r: 0.02 });
+    const line = sagPts([cx, 1.95, -2.3], [cx, 1.95, 2.1], 6, 0.12); cord(b, line, '#d8d1c2', 0.02);
+    ['#c9c0a8', '#8a96a0', '#a3806a', '#b8b08f'].forEach((c, k) => { const p = line[k + 1]; b.cbox(c, 0.03, 0.6, 0.55, cx, p[1] - 0.32, p[2], { r: 0.005 }); });
+    b.box('wood', 1.2, 0.35, 0.55, 1.9, 0, fz + 0.75, { r: 0.03 });
+    for (let k = 0; k < 5; k++) b.sph(k % 3 === 2 ? '#a8743e' : '#6f8a4a', 0.16, 1.45 + k * 0.22, 0.42, fz + 0.75 + (r() - 0.5) * 0.15, { detail: 0 });
+    drum(b, '#5c6e78', -w / 2 + 0.25, fz + 0.5);
+    return b.build({ vc: true });
+  }
+  // level 3, thriving: three storeys in bright paint with white trim, shutters, window boxes, a balcony with lights, a banner
+  function proudHouse(o, r, b, glass) {
+    const w = 6.3, d = 6.6, fh = 2.7, H = fh * 3, fz = d / 2, wall = o.color || '#f2d27a', roof = o.roof || '#c8553d', acc = o.accent || '#2f8f88', trim = '#f6f0e2', pitch = 2.3;
+    b.box('#8f8a80', w + 0.2, 0.45, d + 0.2, 0, 0, 0, { r: 0.03 });
+    b.box(wall, w, H, d, 0, 0, 0, { r: 0.04 });
+    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box(trim, 0.28, H, 0.28, x * w / 2, 0, z * d / 2, { r: 0.03 });
+    for (let f = 1; f < 3; f++) b.cbox(trim, w + 0.16, 0.18, d + 0.16, 0, f * fh, 0, { r: 0.03 });
+    b.cbox(trim, w + 0.3, 0.26, d + 0.3, 0, H, 0, { r: 0.04 });
+    const win = (x, y, z, s = 1, sh = true, ww = 0.9, wh = 1.3) => {
+      b.cbox(glass, ww, wh, 0.06, x, y + wh / 2, z, { r: 0.008 });
+      b.cbox(trim, ww + 0.3, 0.1, 0.22, x, y - 0.04, z + s * 0.06, { r: 0.02 }); b.cbox(trim, ww + 0.24, 0.14, 0.12, x, y + wh + 0.08, z + s * 0.03, { r: 0.02 });
+      if (sh) for (const q of [-1, 1]) { b.cbox(acc, 0.38, wh, 0.05, x + q * (ww / 2 + 0.22), y + wh / 2, z + s * 0.04, { r: 0.006 }); for (let k = 0; k < 3; k++) b.cbox(shade(acc, -0.08), 0.32, 0.04, 0.03, x + q * (ww / 2 + 0.22), y + 0.25 + k * 0.4, z + s * 0.07, { r: 0.004 }); }
+    };
+    const cols = [-2.0, 0, 2.0];
+    // ground floor: two windows and the front door under a striped awning, lamps either side, planters
+    for (const x of [-2.0, 2.0]) { win(x, 0.95, fz + 0.02); windowBox(b, x, 0.82, fz + 0.18, 1.0, r); }
+    b.cbox(acc, 1.05, 2.2, 0.08, 0, 1.55, fz + 0.04, { r: 0.01 }); b.cbox(trim, 1.35, 2.45, 0.05, 0, 1.6, fz + 0.01, { r: 0.01 });
+    b.cbox(glass, 0.8, 0.3, 0.04, 0, 2.45, fz + 0.09, { r: 0.006 });
+    b.cbox('#8f8a80', 1.6, 0.2, 0.7, 0, 0.35, fz + 0.4, { r: 0.03 });
+    for (let k = 0; k < 6; k++) b.cbox(k % 2 ? trim : 'amber', 2.0 / 6 + 0.01, 0.05, 1.05, -1.0 + (k + 0.5) * 2.0 / 6, 3.0, fz + 0.5, { r: 0.005, rx: 0.38 });
+    for (const s of [-1, 1]) { b.cbox('#2f2c29', 0.08, 0.3, 0.08, s * 0.85, 2.35, fz + 0.12, { r: 0.01 }); b.sph(BULB, 0.12, s * 0.85, 2.2, fz + 0.18, { detail: 0 }); planter(b, s * 1.05, fz + 0.75, 0.9, r); }
+    // upper floors: shuttered windows with flower boxes; a balcony on the first floor with string lights
+    for (let f = 1; f < 3; f++) for (const x of cols) {
+      const y = f * fh + 0.75;
+      if (f === 1 && x === 0) { b.cbox(glass, 0.95, 2.0, 0.06, 0, f * fh + 0.2 + 1.0, fz + 0.02, { r: 0.008 }); b.cbox(trim, 1.2, 0.14, 0.12, 0, f * fh + 2.28, fz + 0.04, { r: 0.02 }); continue; }
+      win(x, y, fz + 0.02); windowBox(b, x, y - 0.14, fz + 0.18, 1.0, r);
     }
-    if (lvl >= 3) {
-      // fortified: solar panels, water tank, rooftop lookout rail, steel door
-      const slope = Math.atan2(2.0, w / 2 + 0.35);
-      for (let k = 0; k < 3; k++) for (let j = 0; j < 2; j++) {
-        const along = 0.9 + j * 1.15, x = along * Math.cos(slope), y = H + 2.0 - along * Math.sin(slope) + 0.1;
-        b.cbox(M('#2d3a48', { rough: 0.35 }), 1.05, 0.06, 1.5, x, y, -d / 2 + 1.3 + k * 1.6, { r: 0.02, rz: -slope });
-      }
-      // rooftop lookout on the -x slope with a rail
-      b.box('wood', 2.0, 0.12, 2.0, -w / 2 + 1.4, H + 0.9, 1.5, { r: 0.02 });
-      for (const [a, c] of [[-0.95, -0.95], [0.95, -0.95], [-0.95, 0.95], [0.95, 0.95]]) b.box('wood2', 0.08, 0.95, 0.08, -w / 2 + 1.4 + a, H + 1.0, 1.5 + c, { r: 0.01 });
-      b.cbox('amber', 0.05, 0.6, 0.9, -w / 2 + 0.5, H + 2.5, 1.5, { r: 0.01 }); b.box('metal', 0.04, 2.6, 0.04, -w / 2 + 0.45, H + 0.9, 1.05);
-      // steel shutters on the ground floor and a fenced yard
-      for (const x of [-w / 2 + 1.3, w / 2 - 1.3]) b.cbox('steel', 1.2, 1.5, 0.08, x, 1.6, d / 2 + 0.12, { r: 0.02 });
-      b.cyl('stone', 0.7, 0.7, 1.3, -w / 2 + 1.5, H + 0.6, -1.9, { seg: 14 }); b.cyl('amberDeep', 0.72, 0.72, 0.12, -w / 2 + 1.5, H + 1.9, -1.9, { seg: 14 });
-      b.cbox('steel', 1.15, 2.1, 0.12, 0, 1.06, d / 2 + 0.07, { r: 0.02 });
-    }
-    const g = b.build();
-    if (lvl >= 2 && o.night) { const l = new THREE.PointLight(lin('#ffb25a'), 0.9, 7, 2); l.position.set(0, 2.2, d / 2 + 1.6); g.add(l); }
-    return g;
+    const by = fh + 0.06, bz = fz + 0.45;
+    b.cbox(trim, 2.4, 0.14, 0.95, 0, by, bz, { r: 0.03 });
+    for (let k = 0; k <= 6; k++) b.box(acc, 0.06, 0.9, 0.06, -1.15 + k * 2.3 / 6, by, fz + 0.88, { r: 0.01 });
+    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) b.box(acc, 0.06, 0.9, 0.06, s * 1.15, by, fz + 0.1 + k * 0.26, { r: 0.01 });
+    b.cbox(trim, 2.4, 0.08, 0.1, 0, by + 0.95, fz + 0.88, { r: 0.01 });
+    windowBox(b, 0, by + 1.05, fz + 0.88, 2.0, r);
+    for (const s of [-1, 1]) rod(b, trim, [s * 1.1, by - 0.05, fz + 0.03], [s * 1.1, by - 0.75, fz + 0.03], 0.1);
+    lights(b, [-1.25, by + 2.45, fz + 0.15], [1.25, by + 2.45, fz + 0.15], 8, 0.2);
+    // back and sides: plain windows (they still glow at night)
+    for (let f = 0; f < 3; f++) for (const x of cols) win(x, f * fh + 0.85, -fz - 0.02, -1, false);
+    for (const sx of [-1, 1]) for (let f = 0; f < 3; f++) b.cbox(glass, 0.06, 1.2, 0.9, sx * (w / 2 + 0.02), f * fh + 0.85 + 0.6, sx > 0 ? -1.4 : 1.2, { r: 0.008 });
+    // a bright roof with a round attic window, string lights along the gable, a brick chimney, the town flag on top
+    const a = gable(b, w, d, H + 0.12, pitch, roof, wall, { eave: 0.4 });
+    b.cyl(trim, 0.52, 0.52, 0.06, 0, H + 0.95, fz + 0.01, { rx: Math.PI / 2, seg: 14 }); b.cyl(glass, 0.4, 0.4, 0.06, 0, H + 0.95, fz + 0.04, { rx: Math.PI / 2, seg: 14 });
+    for (const s of [-1, 1]) lights(b, [s * (w / 2 + 0.4), H + 0.2, fz + 0.32], [0, H + pitch + 0.25, fz + 0.32], 7, 0.08);
+    b.box('#b0533f', 0.65, 1.9, 0.65, 1.5, H + 0.6, -1.6, { r: 0.04 }); b.cbox(trim, 0.8, 0.14, 0.8, 1.5, H + 2.5, -1.6, { r: 0.02 });
+    flag(b, 0, H + pitch + 0.1, fz + 0.1, 2.0, 1.15);
+    // the town banner hung on the side, ivy and flowers climbing the other corner
+    b.cbox('#2f2c29', 0.5, 0.06, 1.5, w / 2 + 0.25, H - 0.35, 0.3, { r: 0.01 });
+    b.cbox('amber', 0.05, 3.2, 1.3, w / 2 + 0.18, H - 2.0, 0.3, { r: 0.006 });
+    b.cbox(trim, 0.06, 0.24, 1.32, w / 2 + 0.19, H - 0.95, 0.3, { r: 0.004 }); b.cyl(trim, 0.32, 0.32, 0.06, w / 2 + 0.2, H - 2.0, 0.3, { rz: Math.PI / 2, seg: 10 });
+    for (let k = 0; k < 7; k++) { const y = 0.5 + k * 0.85, z = fz - 0.25 - r() * 0.6; b.sph(k % 2 ? '#4f7d34' : '#5c8a3c', 0.35 + r() * 0.15, -w / 2 - 0.12, y, z, { detail: 0, sx: 0.5 }); }
+    blooms(b, -w / 2 - 0.25, 0.4, fz - 0.6, 0.15, 7, r, 0.8);
+    return b.build({ vc: true });
   }
 
-  /** watchtower: 1 sniper platform on scaffolding, 2 timber tower with roof, 3 steel turret with searchlight */
+  /** watchtower: 1 a scaffold-and-timber lookout, 2 a painted timber tower with a roof and flag, 3 a proud turret with banners */
   function tower(o = {}) {
-    const lvl = o.level || 1, b = new B(), H = lvl === 1 ? 4.2 : lvl === 2 ? 6.4 : 7.2;
-    if (lvl <= 2) {
-      const sz = lvl === 1 ? 2.2 : 2.6, legs = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
-      for (const [a, c] of legs) b.box('steel', 0.09, H, 0.09, a * sz / 2, 0, c * sz / 2, { r: 0.02 });
-      for (let y = 1.4; y < H; y += 1.4) { for (const [a, c] of [[0, 1], [0, -1]]) b.cbox('steel', sz, 0.06, 0.06, 0, y, c * sz / 2, { r: 0.01 }); for (const a of [1, -1]) b.cbox('steel', 0.06, 0.06, sz, a * sz / 2, y, 0, { r: 0.01 }); }
-      for (let y = 0.2; y < H - 0.6; y += 1.4) b.cbox('steel', 0.05, 0.05, Math.hypot(sz, 1.4), sz / 2, y + 0.7, 0, { r: 0.01, rx: Math.atan2(1.4, sz) });
-      b.box('wood', sz + 0.5, 0.12, sz + 0.5, 0, H, 0, { r: 0.02 });
-      if (lvl === 1) { const sb = sandbags(sz + 0.4, 2); sb.position.set(0, H + 0.12, sz / 2 + 0.05); b.add(sb); const sb2 = sandbags(sz + 0.4, 2); sb2.position.set(sz / 2 + 0.05, H + 0.12, 0); sb2.rotation.y = Math.PI / 2; b.add(sb2); }
-      else {
-        for (const [a, c] of legs) b.box('wood', 0.1, 1.9, 0.1, a * (sz / 2 + 0.15), H + 0.12, c * (sz / 2 + 0.15), { r: 0.02 });
-        for (const z of [-1, 1]) b.cbox('wood2', sz + 0.4, 0.9, 0.06, 0, H + 0.6, z * (sz / 2 + 0.2), { r: 0.02 });
-        for (const x of [-1, 1]) b.cbox('wood2', 0.06, 0.9, sz + 0.4, x * (sz / 2 + 0.2), H + 0.6, 0, { r: 0.02 });
-        const s = new THREE.Shape(); s.moveTo(-sz / 2 - 0.6, 0); s.lineTo(sz / 2 + 0.6, 0); s.lineTo(0, 1.0); s.closePath();
-        const rg = new THREE.ExtrudeGeometry(s, { depth: sz + 1.0, bevelEnabled: false }); rg.translate(0, 0, -(sz + 1.0) / 2);
-        b.geo('amberDeep', rg, 0, H + 2.0, 0);
-        for (let k = 0; k < 7; k++) b.cbox('wood', 0.5, 0.05, 0.05, 0, 0.3 + k * 0.62, sz / 2 + 0.25, { r: 0.01 });
-      }
+    const lvl = o.level || 1, b = new B(), r = rng(o.seed || 51);
+    let H;
+    if (lvl === 1) {
+      // survival: scaffold poles and odd timbers lashed together, a pallet deck, sandbags, a tarp against the wind
+      H = 3.9; const sz = 2.1, h = sz / 2;
+      for (const [a, c, m] of [[-1, -1, 'steel'], [1, -1, '#6a5a48'], [-1, 1, '#6a5a48'], [1, 1, 'metal']]) b.box(m, 0.11, H, 0.11, a * h, 0, c * h, { r: 0.02, rz: a * 0.02 });
+      rod(b, '#6f675b', [-h, 0.3, h], [h, 2.3, h], 0.08); rod(b, 'metal', [h, 0.5, -h], [h, 2.6, h], 0.06); rod(b, '#5a5045', [-h, 2.4, -h], [h, 0.4, -h], 0.08); rod(b, 'steel', [-h, 0.2, -h], [-h, 2.0, h], 0.06);
+      for (const y of [2.1]) { rod(b, '#6f675b', [-h, y, h], [h, y + 0.05, h], 0.07); rod(b, '#6f675b', [h, y, h], [h, y - 0.04, -h], 0.07); }
+      for (let k = 0; k < 4; k++) b.cbox(['#8a7356', '#6f675b', '#7b6a52'][k % 3], sz + 0.45, 0.1, 0.52, (r() - 0.5) * 0.12, H + 0.05, -h - 0.05 + k * 0.62, { r: 0.01, ry: (r() - 0.5) * 0.06 });
+      bagRow(b, 0, h + 0.05, sz + 0.3, 2, 0, r, H + 0.1); bagRow(b, h + 0.05, 0, sz + 0.3, 2, Math.PI / 2, r, H + 0.1);
+      for (const z of [-h - 0.1, h - 0.4]) b.box('#5a5045', 0.07, 1.25, 0.07, -h - 0.15, H + 0.1, z, { r: 0.01 });
+      b.cbox('#59625e', 0.04, 0.95, sz + 0.1, -h - 0.18, H + 0.75, -0.25, { r: 0.006, rz: 0.08 });
+      for (const s of [-0.25, 0.25]) rod(b, '#6a5a48', [s, 0, h + 0.75], [s, H, h + 0.2], 0.06);
+      for (let k = 1; k < 6; k++) { const t = k / 6; b.cbox('#7b6a52', 0.55, 0.05, 0.06, 0, H * t, h + 0.75 - 0.55 * t, { r: 0.005 }); }
+      b.cbox(LANTERN, 0.14, 0.2, 0.14, -h - 0.15, H + 1.45, h - 0.4, { r: 0.02 });
+      drum(b, 'rust', h + 0.5, -h - 0.2, 0.9); b.geo('tyre', new THREE.TorusGeometry(0.3, 0.12, 6, 10), -h - 0.3, 0.13, 0.4, Math.PI / 2, 0, 0);
+    } else if (lvl === 2) {
+      // holding on: a proper timber tower, braced, plank walls in a muted coat of paint, a shingle roof, a small flag
+      H = 6.2; const sz = 2.5, h = sz / 2, paint = '#7f8a74', timber = '#6a5848';
+      for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box(timber, 0.18, H, 0.18, a * h, 0, c * h, { r: 0.03 });
+      for (const y0 of [0.3, 3.2]) for (const [p, q] of [[[-h, y0, h], [h, y0 + 2.7, h]], [[h, y0, h], [-h, y0 + 2.7, h]], [[h, y0, -h], [h, y0 + 2.7, h]], [[h, y0, h], [h, y0 + 2.7, -h]], [[-h, y0, -h], [h, y0 + 2.7, -h]], [[-h, y0, -h], [-h, y0 + 2.7, h]]]) rod(b, 'wood2', p, q, 0.09);
+      for (const y of [3.05, H - 0.1]) { b.cbox('wood2', sz, 0.12, 0.12, 0, y, h, { r: 0.01 }); b.cbox('wood2', sz, 0.12, 0.12, 0, y, -h, { r: 0.01 }); b.cbox('wood2', 0.12, 0.12, sz, h, y, 0, { r: 0.01 }); b.cbox('wood2', 0.12, 0.12, sz, -h, y, 0, { r: 0.01 }); }
+      b.box('#7a6550', sz + 0.7, 0.14, sz + 0.7, 0, H, 0, { r: 0.02 });
+      const ph = h + 0.32;
+      for (const s of [-1, 1]) { b.cbox(paint, sz + 0.66, 1.0, 0.08, 0, H + 0.64, s * ph, { r: 0.01 }); b.cbox(paint, 0.08, 1.0, sz + 0.66, s * ph, H + 0.64, 0, { r: 0.01 }); }
+      for (const s of [-1, 1]) for (let k = 0; k < 3; k++) { const c = shade(paint, -0.06), y = H + 0.4 + k * 0.32; b.cbox(c, sz + 0.68, 0.03, 0.09, 0, y, s * ph, { r: 0.003 }); b.cbox(c, 0.09, 0.03, sz + 0.68, s * ph, y, 0, { r: 0.003 }); }
+      for (const s of [-1, 1]) { b.cbox('#4a3f35', sz + 0.74, 0.1, 0.16, 0, H + 1.17, s * ph, { r: 0.01 }); b.cbox('#4a3f35', 0.16, 0.1, sz + 0.74, s * ph, H + 1.17, 0, { r: 0.01 }); }
+      for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box(timber, 0.12, 2.1, 0.12, a * ph, H + 0.1, c * ph, { r: 0.02 });
+      b.cyl('#5e4c3f', 0.04, (ph + 0.35) * Math.SQRT2, 1.5, 0, H + 2.15, 0, { seg: 4, ry: Math.PI / 4 }); b.cyl('#4a3f35', (ph + 0.36) * Math.SQRT2, (ph + 0.36) * Math.SQRT2, 0.1, 0, H + 2.12, 0, { seg: 4, ry: Math.PI / 4 });
+      flag(b, 0, H + 3.55, 0, 1.1, 0.7);
+      b.cbox(glass(o), 0.16, 0.22, 0.16, h + 0.2, H + 1.95, h + 0.2, { r: 0.02 });
+      for (const s of [-0.28, 0.28]) b.box('#6a5848', 0.07, H, 0.07, s, 0, h + 0.18, { r: 0.01 });
+      for (let k = 1; k < 10; k++) b.cbox('#7b6a52', 0.6, 0.05, 0.06, 0, k * H / 10, h + 0.18, { r: 0.005 });
+      b.box('wood', 0.6, 0.5, 0.6, -h - 0.3, 0, h - 0.1, { r: 0.03, ry: 0.3 }); drum(b, '#5c6e78', h + 0.45, -h + 0.2, 0.9);
     } else {
-      // steel turret on a concrete base
-      b.box('stone', 3.4, 2.2, 3.4, 0, 0, 0, { r: 0.12 });
-      for (let k = 0; k < 4; k++) b.cbox('soot', 3.42, 0.08, 3.42, 0, 0.5 + k * 0.5, 0, { r: 0.02 });
-      b.cyl('grey', 1.0, 1.25, H - 2.2, 0, 2.2, 0, { seg: 16 });
-      for (let k = 0; k < 3; k++) b.cyl('dark', 1.07 + k * 0.03, 1.07 + k * 0.03, 0.08, 0, 3.0 + k * 1.2, 0, { seg: 16 });
+      // thriving: a turret on a painted base, a bright conical roof, the town banners, pennants and lights
+      H = 7.6; const acc = o.accent || '#2f8f88', cream = '#efe6d2', trim = '#f6f0e2', roofC = o.roof || '#c8553d';
+      b.box('#d9cfbb', 3.4, 2.2, 3.4, 0, 0, 0, { r: 0.12 });
+      b.cbox('#8f8a80', 3.46, 0.4, 3.46, 0, 0.2, 0, { r: 0.04 }); b.cbox('amber', 3.44, 0.3, 3.44, 0, 1.55, 0, { r: 0.02 });
+      b.cbox(trim, 3.6, 0.16, 3.6, 0, 2.2, 0, { r: 0.03 });
+      b.cyl(cream, 1.0, 1.25, H - 2.2, 0, 2.2, 0, { seg: 16 });
+      for (let k = 0; k < 2; k++) b.cyl(k ? acc : 'amber', 1.12 - k * 0.07, 1.12 - k * 0.07, 0.24, 0, 3.4 + k * 1.6, 0, { seg: 16 });
+      for (let k = 0; k < 3; k++) b.cbox(glass(o), 0.3, 0.55, 0.06, Math.sin(k * 2.1) * 1.1, 3.9 + k * 0.6, Math.cos(k * 2.1) * 1.1, { r: 0.01, ry: k * 2.1 });
       b.cyl('steel', 1.55, 1.3, 1.0, 0, H, 0, { seg: 8 });
-      b.cyl('dark', 1.6, 1.6, 0.12, 0, H + 1.0, 0, { seg: 8 });
+      b.cyl(acc, 1.6, 1.6, 0.14, 0, H + 1.0, 0, { seg: 8 });
       b.cbox('dark', 0.5, 0.42, 0.9, 0, H + 0.55, 1.3, { r: 0.06 });
       b.cbox('dark', 0.14, 0.14, 1.7, 0.09, H + 0.6, 2.4, { r: 0.04 }); b.cbox('dark', 0.14, 0.14, 1.7, -0.09, H + 0.6, 2.4, { r: 0.04 });
-      const sbt = sandbags(3.2, 2); sbt.position.set(0, 2.2, 1.55); b.add(sbt); const sbt2 = sandbags(3.2, 2); sbt2.position.set(1.55, 2.2, 0); sbt2.rotation.y = Math.PI / 2; b.add(sbt2);
-      b.cyl('amber', 1.32, 1.32, 0.2, 0, H - 0.2, 0, { seg: 16 });
-      // searchlight
       b.cyl('steel', 0.35, 0.42, 0.55, 0.9, H + 1.12, -0.5, { rx: -1.15, seg: 14 });
       b.cyl(o.game ? LENS : M('pale', { emissive: '#fff1d0', ei: o.night ? 6 : 0.2 }), 0.33, 0.33, 0.04, 0.9, H + 1.33, -0.12, { rx: -1.15, seg: 14 });
-      // razor wire on the base
-      for (let k = 0; k < 10; k++) b.geo('steel', new THREE.TorusGeometry(0.22, 0.015, 4, 10), -1.6 + k * 0.36, 2.35, 1.62, 0, 0.3, 0);
+      // the roof on four posts, lights around its eaves, the flag on top
+      for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2; b.box('#3a3a38', 0.09, 1.5, 0.09, Math.cos(a) * 1.45, H + 1.0, Math.sin(a) * 1.45, { r: 0.01 }); }
+      b.cyl(roofC, 0.05, 2.05, 1.6, 0, H + 2.5, 0, { seg: 8 }); b.cyl(trim, 2.08, 2.08, 0.14, 0, H + 2.44, 0, { seg: 8 });
+      for (let k = 0; k < 8; k++) { const a0 = k * Math.PI / 4, a1 = (k + 1) * Math.PI / 4, R = 2.08; lights(b, [Math.cos(a0) * R, H + 2.4, Math.sin(a0) * R], [Math.cos(a1) * R, H + 2.4, Math.sin(a1) * R], 2, 0.12); }
+      flag(b, 0, H + 3.95, 0, 1.7, 1.2);
+      // two long banners in the town colour hanging from the turret
+      for (const s of [-1, 1]) { b.cbox('amber', 0.05, 2.6, 0.75, s * 1.32, H - 1.4, 0, { r: 0.006 }); b.cbox(trim, 0.06, 0.18, 0.77, s * 1.33, H - 0.55, 0, { r: 0.004 }); b.geo('amber', PEN, s * 1.32, H - 2.7, 0, 0, Math.PI / 2, 0, 2.2, 1.2, 1); }
+      // bunting round the base, planters with flowers at its feet, sandbags only on the gun side
+      const c = 1.75;
+      for (const [x, z] of [[-c, -c], [c, -c], [c, c], [-c, c]]) b.box('#3a3a38', 0.07, 1.0, 0.07, x, 2.28, z, { r: 0.01 });
+      bunting(b, [-c, 3.2, c], [c, 3.2, c], 6, 0.18); bunting(b, [c, 3.2, -c], [c, 3.2, c], 6, 0.18); bunting(b, [-c, 3.2, -c], [-c, 3.2, c], 6, 0.18); bunting(b, [-c, 3.2, -c], [c, 3.2, -c], 6, 0.18);
+      bagRow(b, 0, 1.45, 2.6, 2, 0, r, 2.28);
+      for (const [x, z] of [[-1.95, 1.95], [1.95, 1.95], [1.95, -1.95], [-1.95, -1.95]]) planter(b, x, z, 0.8, r);
     }
-    const g = b.build(); g.userData.top = H; return g;
+    const g = b.build({ vc: true }); g.userData.top = H; return g;
   }
+  const glass = o => (o.game ? WIN : 'glass');
 
   /** barricades: 1 junk & chain-link, 2 wrecked cars + sandbags, 3 concrete T-walls + razor wire. len along x. */
   function barricade(o = {}) {
@@ -621,6 +801,8 @@ export const K = (() => {
         b.cbox('amber', dx ? 0.7 : 0.04, 0.26, dz ? 0.7 : 0.04, dx * half / 2, 1.5, dz * half / 2 + (dx ? 0.18 : 0), { r: 0.01 });
       }
       b.box('stone', 0.5, 3.3, 0.5, 0, 0, 0, { r: 0.05 });
+      b.cbox('amber', 0.54, 0.3, 0.54, 0, 2.6, 0, { r: 0.02 });
+      if (seed % 3 === 0) flag(b, 0, 3.3, 0, 1.3, 0.75);   // the town's pennant on every third post
     }
     g.add(b.build());
     return g;
@@ -636,39 +818,121 @@ export const K = (() => {
     return chainCache;
   }
 
-  /** farms: 1 raised beds in a park, 2 beds + polytunnel + water, 3 greenhouse + wind pump */
+  /** farms: 1 a scratched-out plot behind a scrap fence, 2 tidy beds + polytunnel + shed, 3 a red barn, greenhouse, bright crops, wind pump */
   function farm(o = {}) {
-    const lvl = o.level || 1, b = new B(), r = rng(o.seed || 41), w = o.w || 9, d = o.d || 8;
-    b.box('dry', w, 0.18, d, 0, 0, 0, { r: 0.04 });
-    const beds = lvl === 1 ? 3 : 4;
-    for (let k = 0; k < beds; k++) {
-      const z = -d / 2 + 1.2 + k * ((d - 2.4) / (beds - 1)), bw2 = lvl === 3 ? w * 0.4 : w - 1.6, x = lvl === 3 ? -w * 0.25 : 0;
-      b.box('wood2', bw2, 0.45, 1.2, x, 0.18, z, { r: 0.04 });
-      b.box('tar', bw2 - 0.2, 0.05, 1.0, x, 0.6, z, { r: 0.01 });
-      for (let c = 0; c < Math.floor(bw2 / 0.45); c++) b.sph(k % 2 ? 'olive' : 'moss', 0.17 + r() * 0.08, x - bw2 / 2 + 0.3 + c * 0.45, 0.78, z + (r() - 0.5) * 0.3, { detail: 1, sy: 0.8 });
-    }
-    if (lvl >= 2) {
-      for (let k = 0; k < 3; k++) b.cyl('amberDeep', 0.35, 0.35, 0.95, w / 2 - 0.6, 0.18, -d / 2 + 0.7 + k * 0.8, { seg: 12 });
-      // polytunnel or greenhouse
-      if (lvl === 2) {
-        const tg = new THREE.CylinderGeometry(1.4, 1.4, 4.2, 14, 1, true, 0, Math.PI); const g = new THREE.Mesh(tg, M('canvas', { opacity: 0.85, side: THREE.DoubleSide }));
-        g.rotation.z = Math.PI / 2; g.rotation.y = Math.PI / 2; g.position.set(-w / 2 + 2.0, 0.18, d / 2 - 1.6); g.castShadow = true; g.receiveShadow = true; b.add(g);
+    const lvl = o.level || 1, b = new B(), r = rng(o.seed || 41), w = o.w || 9, d = o.d || 8, own = !!o.own;
+    const fenceLine = (p, q, step, post) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]), n = Math.max(1, Math.round(L / step)), pts = []; for (let k = 0; k <= n; k++) { const t = k / n, x = p[0] + (q[0] - p[0]) * t, z = p[1] + (q[1] - p[1]) * t; pts.push([x, z]); post(x, z, k); } return pts; };
+    if (lvl === 1) {
+      // survival: dug-over ground, sparse muted rows, tyre planters, a scrap fence, a tarp over the sacks, a scarecrow
+      b.box('#5f5444', w - 0.8, 0.12, d - 0.8, 0, 0, 0, { r: 0.04 });
+      for (let k = 0; k < 4; k++) {
+        const z = -d / 2 + 1.7 + k * 1.15, x = -0.7, bw = w - 3.4;
+        b.cbox('#4e4436', bw, 0.16, 0.5, x, 0.16, z, { r: 0.06 });
+        for (let c = 0; c < 9; c++) if (r() < 0.6) b.sph(r() < 0.5 ? 'olive2' : 'dry', 0.12 + r() * 0.1, x - bw / 2 + 0.3 + c * ((bw - 0.6) / 8), 0.28, z + (r() - 0.5) * 0.2, { detail: 0, sy: 0.8 });
       }
+      for (const [x, z] of [[w / 2 - 1.0, d / 2 - 1.0], [w / 2 - 1.9, d / 2 - 0.9], [w / 2 - 1.4, d / 2 - 1.8]]) { b.geo('tyre', new THREE.TorusGeometry(0.36, 0.15, 6, 10), x, 0.24, z, Math.PI / 2, 0, 0); b.sph('#5f6a42', 0.26, x, 0.32, z, { detail: 0, sy: 0.7 }); }
+      // scrap fence: odd posts and sagging wire on two sides, a sheet of tin
+      const posts = ['#6a5a48', 'metal', '#7b766c', '#5a5045'];
+      const wire = pts => { for (const y of [0.45, 0.95]) for (let k = 1; k < pts.length; k++) cord(b, sagPts([pts[k - 1][0], y, pts[k - 1][1]], [pts[k][0], y, pts[k][1]], 2, 0.05), '#5a5650', 0.025); };
+      const post = (x, z) => b.box(posts[Math.floor(r() * 4)], 0.1, 1.0 + r() * 0.35, 0.1, x, 0, z, { r: 0.02, rx: (r() - 0.5) * 0.12, rz: (r() - 0.5) * 0.12 });
+      wire(fenceLine([-w / 2 + 0.3, -d / 2 + 0.3], [w / 2 - 0.3, -d / 2 + 0.3], 1.4, post));
+      wire(fenceLine([-w / 2 + 0.3, -d / 2 + 0.3], [-w / 2 + 0.3, d / 2 - 0.3], 1.4, post));
+      sheet(b, 'rust', 1.7, 1.0, 0.8, 0.6, -d / 2 + 0.36);
+      // the tarp lean-to with sacks and a drum
+      const tx = w / 2 - 1.2, tz = -d / 2 + 1.5;
+      for (const [x, z, hh] of [[tx + 0.85, tz - 1.1, 1.8], [tx + 0.85, tz + 1.1, 1.8], [tx - 0.85, tz - 1.1, 1.25], [tx - 0.85, tz + 1.1, 1.25]]) b.box('#6a5a48', 0.09, hh, 0.09, x, 0, z, { r: 0.02 });
+      b.cbox('#6b6650', 1.95, 0.04, 2.5, tx, 1.55, tz, { r: 0.01, rz: 0.3 });
+      for (let k = 0; k < 4; k++) b.sph('bag', 0.3, tx - 0.4 + (k % 2) * 0.55, 0.25 + Math.floor(k / 2) * 0.32, tz - 0.4 + (k % 3) * 0.35, { detail: 0, sy: 0.7 });
+      drum(b, 'rust', tx + 0.4, tz + 0.75);
+      // a scarecrow in rags
+      const sx = -1.2, sz2 = 0.5;
+      b.box('#6a5a48', 0.09, 2.3, 0.09, sx, 0, sz2, { r: 0.02 }); b.cbox('#6a5a48', 1.4, 0.08, 0.08, sx, 1.75, sz2, { r: 0.01 });
+      b.cbox('#5b5348', 0.7, 0.85, 0.28, sx, 1.45, sz2, { r: 0.04, rz: 0.06 }); b.cbox('#4e463c', 0.25, 0.4, 0.2, sx + 0.55, 1.6, sz2, { r: 0.03, rz: 0.4 });
+      b.sph('bag', 0.2, sx, 2.25, sz2, { detail: 0 }); b.cyl('#3a3633', 0.26, 0.26, 0.04, sx, 2.36, sz2, { seg: 8 }); b.cyl('#3a3633', 0.13, 0.15, 0.2, sx, 2.38, sz2, { seg: 8 });
+      b.cyl('metal', 0.14, 0.11, 0.28, -w / 2 + 1.1, 0.12, d / 2 - 0.9, { seg: 8 });
+    } else if (lvl === 2) {
+      // holding on: tidy raised beds full of green, a polytunnel, a little painted shed with a flag, a post-and-rail fence
+      b.box('#6f6048', w - 0.3, 0.16, d - 0.3, 0, 0, 0, { r: 0.04 });
+      const bx = 1.0, bw = w - 4.2;
+      for (const z of [-2.5, -0.8, 0.9]) {
+        b.box('wood2', bw, 0.42, 1.15, bx, 0.16, z, { r: 0.03 });
+        b.box('#3f362c', bw - 0.16, 0.05, 1.0, bx, 0.56, z, { r: 0.01 });
+        for (let c = 0; c < 8; c++) for (const dz of [-0.25, 0.25]) b.sph((c + (dz > 0)) % 2 ? '#6f8f45' : '#5d7f3a', 0.17 + r() * 0.06, bx - bw / 2 + 0.3 + c * ((bw - 0.6) / 7), 0.72, z + dz, { detail: 0, sy: 0.8 });
+      }
+      const tg = new THREE.CylinderGeometry(1.3, 1.3, 5.2, 12, 1, true, 0, Math.PI), tm = new THREE.Mesh(tg, M('canvas', { opacity: 0.85, side: THREE.DoubleSide }));
+      tm.rotation.x = Math.PI / 2; tm.rotation.y = Math.PI / 2; tm.position.set(-w / 2 + 1.75, 0.16, -0.4); tm.castShadow = true; tm.receiveShadow = true; b.add(tm);
+      for (let k = 0; k < 5; k++) b.geo('#cfc6ae', new THREE.TorusGeometry(1.3, 0.035, 4, 12, Math.PI), -w / 2 + 1.75, 0.16, -2.9 + k * 1.25, 0, 0, 0);
+      // the shed
+      const hx = w / 2 - 1.3, hz = d / 2 - 1.25, sw = o.color || '#8e9a88';
+      b.box(sw, 1.9, 1.9, 1.6, hx, 0.16, hz, { r: 0.03 });
+      for (let y = 0.5; y < 2.0; y += 0.4) b.cbox(shade(sw, -0.05), 1.93, 0.04, 1.63, hx, y, hz, { r: 0.004 });
+      b.cbox('#5a4d42', 2.3, 0.1, 2.0, hx, 2.25, hz, { r: 0.01, rx: 0.18 });
+      b.cbox('wood2', 0.7, 1.4, 0.05, hx - 0.3, 0.86, hz + 0.81, { r: 0.006 });
+      if (own) flag(b, hx + 0.8, 2.2, hz - 0.6, 1.1, 0.6);
+      drum(b, '#5c7080', w / 2 - 0.55, -d / 2 + 0.7); drum(b, '#5c7080', w / 2 - 1.2, -d / 2 + 0.6);
+      for (const [x, c] of [[-0.4, '#b77a40'], [0.35, '#6f8a4a']]) { b.box('wood', 0.65, 0.35, 0.5, x, 0.16, d / 2 - 0.8, { r: 0.03, ry: x }); for (let k = 0; k < 3; k++) b.sph(c, 0.13, x - 0.17 + k * 0.17, 0.55, d / 2 - 0.8, { detail: 0 }); }
+      // post-and-rail fence with a gap for the gate
+      const rails = (pts, gap) => { for (let k = 1; k < pts.length; k++) { if (gap && k === gap) continue; for (const y of [0.45, 0.85]) rod(b, '#7a6550', [pts[k - 1][0], y, pts[k - 1][1]], [pts[k][0], y, pts[k][1]], 0.06); } };
+      const post = (x, z) => b.box('#6a5848', 0.12, 1.0, 0.12, x, 0, z, { r: 0.02 });
+      const e = 0.2;
+      rails(fenceLine([-w / 2 + e, -d / 2 + e], [w / 2 - e, -d / 2 + e], 1.5, post));
+      rails(fenceLine([-w / 2 + e, -d / 2 + e], [-w / 2 + e, d / 2 - e], 1.5, post));
+      rails(fenceLine([w / 2 - e, -d / 2 + e], [w / 2 - e, d / 2 - e], 1.5, post));
+      rails(fenceLine([-w / 2 + e, d / 2 - e], [w / 2 - e, d / 2 - e], 1.5, post), 3);
+    } else {
+      // thriving: a red barn with white trim, a greenhouse, bright rows of pumpkins, tomatoes and sunflowers, a wind pump, beehives, a picket fence
+      b.box('#7f9a4f', w, 0.14, d, 0, 0, 0, { r: 0.04 });
+      // the barn (gable to the front)
+      const gx = -w / 2 + 1.7, gz = -d / 2 + 1.55, bw = 2.8, bd = 2.5, bh = 2.3, red = '#c0462f', white = '#f4efe4', roofC = o.roof || '#2f8f88';
+      b.box(red, bw, bh, bd, gx, 0.14, gz, { r: 0.03 });
+      for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box(white, 0.14, bh, 0.14, gx + x * bw / 2, 0.14, gz + z * bd / 2, { r: 0.02 });
+      { const s = new THREE.Shape(); s.moveTo(-bd / 2, 0); s.lineTo(bd / 2, 0); s.lineTo(0, 1.12); s.closePath(); const g = new THREE.ExtrudeGeometry(s, { depth: bw, bevelEnabled: false }); g.translate(0, 0, -bw / 2); g.rotateY(Math.PI / 2); b.geo(red, g, gx, bh + 0.14, gz); }
+      const run = bd / 2 + 0.25, ang = Math.atan2(1.35, run), Lr = Math.hypot(run, 1.35) + 0.06;
+      for (const s of [-1, 1]) b.cbox(roofC, bw + 0.4, 0.12, Lr, gx, bh + 0.14 + 0.68, gz + s * run / 2, { r: 0.02, rx: s * ang });
+      b.cbox(white, bw + 0.44, 0.14, 0.2, gx, bh + 0.14 + 1.38, gz, { r: 0.02 });
+      const fzb = gz + bd / 2;
+      b.cbox(white, 1.4, 1.75, 0.06, gx, 1.0, fzb + 0.01, { r: 0.005 }); b.cbox(shade(red, -0.08), 1.2, 1.55, 0.05, gx, 1.0, fzb + 0.03, { r: 0.005 });
+      rod(b, white, [gx - 0.55, 0.3, fzb + 0.06], [gx + 0.55, 1.7, fzb + 0.06], 0.08); rod(b, white, [gx + 0.55, 0.3, fzb + 0.06], [gx - 0.55, 1.7, fzb + 0.06], 0.08);
+      b.cbox(o.game ? WIN : 'glass', 0.05, 0.5, 0.5, gx + bw / 2 + 0.02, bh + 0.6, gz, { r: 0.005 });
+      if (own) flag(b, gx, bh + 1.5, gz, 1.3, 0.8, 'amber', -Math.PI / 2);
+      // the greenhouse
+      const hx = w / 2 - 2.0, hz = -d / 2 + 1.5, hw = 3.4, hd = 2.4;
+      b.box('steel', hw, 0.3, hd, hx, 0.14, hz, { r: 0.02 });
+      for (let k = 0; k <= 4; k++) { const x = hx - hw / 2 + k * hw / 4; b.box('steel', 0.06, 1.6, 0.06, x, 0.44, hz - hd / 2, { r: 0.01 }); b.box('steel', 0.06, 1.6, 0.06, x, 0.44, hz + hd / 2, { r: 0.01 }); }
+      const gm = new THREE.Mesh(new THREE.BoxGeometry(hw - 0.05, 1.6, hd - 0.05), M('#cfe3d6', { opacity: 0.32, rough: 0.15, depthWrite: false })); gm.position.set(hx, 1.24, hz); b.add(gm);
+      { const s = new THREE.Shape(); s.moveTo(-hd / 2, 0); s.lineTo(hd / 2, 0); s.lineTo(0, 0.9); s.closePath(); const rg = new THREE.ExtrudeGeometry(s, { depth: hw, bevelEnabled: false }); rg.translate(0, 0, -hw / 2); const rm = new THREE.Mesh(rg, M('#cfe3d6', { opacity: 0.38, rough: 0.15, depthWrite: false })); rm.rotation.y = Math.PI / 2; rm.position.set(hx, 2.04, hz); b.add(rm); }
+      for (let k = 0; k < 7; k++) { const x = hx + (r() - 0.5) * (hw - 0.6), z = hz + (r() - 0.5) * (hd - 0.6); b.sph('#5c8a3c', 0.3, x, 0.7, z, { detail: 0 }); if (k % 2) b.sph('#d8452f', 0.09, x + 0.15, 0.85, z + 0.15, { detail: 0 }); }
+      // crop rows: lettuce, tomatoes, pumpkins, cabbages
+      const x0 = -w / 2 + 1.6, x1 = w / 2 - 1.4;
+      [0.05, 1.05, 2.05, 3.0].forEach((z, row) => {
+        b.cbox('#4a3a2a', x1 - x0, 0.1, 0.7, (x0 + x1) / 2, 0.18, z, { r: 0.03 });
+        for (let c = 0; c < 10; c++) {
+          const x = x0 + 0.3 + c * (x1 - x0 - 0.6) / 9, zz = z + (r() - 0.5) * 0.12;
+          if (row === 0) b.sph('#8cc152', 0.2, x, 0.32, zz, { detail: 0, sy: 0.75 });
+          else if (row === 1) { b.sph('#5d8a3a', 0.24, x, 0.42, zz, { detail: 0, sy: 1.2 }); b.sph('#d8452f', 0.08, x + 0.12, 0.45, zz + 0.12, { detail: 0 }); b.sph('#e0562f', 0.08, x - 0.1, 0.6, zz + 0.1, { detail: 0 }); }
+          else if (row === 2) { if (c % 2) b.sph('#e8862e', 0.25, x, 0.33, zz, { detail: 0, sy: 0.72 }); else b.sph('#4f7d34', 0.22, x, 0.3, zz, { detail: 0, sy: 0.5, sx: 1.4 }); }
+          else b.sph('#9bc06a', 0.21, x, 0.32, zz, { detail: 0 });
+        }
+      });
+      // sunflowers along the side
+      for (let k = 0; k < 5; k++) { const x = -w / 2 + 0.7, z = -0.2 + k * 0.85, hh = 1.6 + r() * 0.5; b.box('#4f7d34', 0.06, hh, 0.06, x, 0.14, z, { r: 0.01 }); b.cyl('#ffd166', 0.26, 0.26, 0.06, x + 0.04, hh + 0.14, z, { rz: Math.PI / 2 - 0.4, seg: 10 }); b.cyl('#6b4a2a', 0.12, 0.12, 0.07, x + 0.06, hh + 0.14, z, { rz: Math.PI / 2 - 0.4, seg: 8 }); }
+      // the wind pump between barn and greenhouse
+      const px = -0.1, pz = -d / 2 + 0.75, PH = 6.4;
+      for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) rod(b, white, [px + a * 0.6, 0.14, pz + c * 0.6], [px + a * 0.12, PH, pz + c * 0.12], 0.07);
+      for (const y of [1.8, 3.6]) { const q = 0.6 - 0.48 * y / PH; rod(b, white, [px - q, y, pz + q], [px + q, y, pz + q], 0.05); rod(b, white, [px + q, y, pz - q], [px + q, y, pz + q], 0.05); }
+      for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; b.cbox(k % 2 ? white : 'amber', 0.2, 1.1, 0.04, px + Math.sin(a) * 0.62, PH + 0.3 + Math.cos(a) * 0.62, pz + 0.3, { r: 0.01, rz: -a }); }
+      b.cyl('#3a3a38', 0.12, 0.12, 0.2, px, PH + 0.3, pz + 0.2, { rx: Math.PI / 2, seg: 8 }); b.cbox(red, 0.04, 0.5, 0.8, px, PH + 0.3, pz - 0.5, { r: 0.006 });
+      // beehives
+      for (const z of [0.3, 1.3]) { const x = w / 2 - 0.55; b.box(white, 0.5, 0.55, 0.45, x, 0.14, z, { r: 0.03 }); b.cbox('#ffd166', 0.58, 0.08, 0.52, x, 0.72, z, { r: 0.02 }); }
+      // a white picket fence with flowers along it
+      const pick = (x, z) => b.box(white, 0.08, 0.75, 0.05, x, 0.14, z, { r: 0.01 });
+      const runP = (p, q, ax) => { const L = ax === 'x' ? q - p : q - p, n = Math.round(Math.abs(L) / 0.36); for (let k = 0; k <= n; k++) { const t = p + (q - p) * k / n; ax === 'x' ? pick(t, d / 2 - 0.15) : pick(ax, t); } };
+      runP(-w / 2 + 0.15, -0.7, 'x'); runP(0.7, w / 2 - 0.15, 'x');
+      for (const y of [0.42, 0.72]) { b.cbox(white, w / 2 - 0.85, 0.06, 0.04, (-w / 2 + 0.15 - 0.7) / 2, y, d / 2 - 0.12, { r: 0.005 }); b.cbox(white, w / 2 - 0.85, 0.06, 0.04, (w / 2 - 0.15 + 0.7) / 2, y, d / 2 - 0.12, { r: 0.005 }); }
+      for (const sx of [-1, 1]) { const x = sx * (w / 2 - 0.15); const n = 9; for (let k = 0; k <= n; k++) b.box(white, 0.05, 0.75, 0.08, x, 0.14, -0.5 + k * (d / 2 - 0.15 + 0.5) / n, { r: 0.01 }); for (const y of [0.42, 0.72]) b.cbox(white, 0.04, 0.06, d / 2 + 0.35, x + sx * 0.02, y, (d / 2 - 0.65) / 2, { r: 0.005 }); }
+      for (const [a, c] of [[-w / 2 + 0.5, -0.9], [0.9, w / 2 - 0.5]]) blooms(b, (a + c) / 2, 0.3, d / 2 - 0.45, c - a, 12, r, 0.3);
     }
-    if (lvl === 3) {
-      const gx = w * 0.2, gw = w * 0.5, gd = d - 1.2;
-      b.box('steel', gw, 0.3, gd, gx, 0.18, 0, { r: 0.02 });
-      for (let k = 0; k <= 4; k++) { const z = -gd / 2 + k * gd / 4; b.box('steel', 0.06, 2.0, 0.06, gx - gw / 2, 0.48, z, { r: 0.01 }); b.box('steel', 0.06, 2.0, 0.06, gx + gw / 2, 0.48, z, { r: 0.01 }); }
-      const glass = new THREE.Mesh(new THREE.BoxGeometry(gw - 0.05, 2.0, gd - 0.05), M('#cfe3d6', { opacity: 0.32, rough: 0.15, depthWrite: false })); glass.position.set(gx, 1.48, 0); b.add(glass);
-      const s = new THREE.Shape(); s.moveTo(-gw / 2, 0); s.lineTo(gw / 2, 0); s.lineTo(0, 1.1); s.closePath();
-      const rg = new THREE.ExtrudeGeometry(s, { depth: gd, bevelEnabled: false }); rg.translate(0, 0, -gd / 2);
-      const roof = new THREE.Mesh(rg, M('#cfe3d6', { opacity: 0.38, rough: 0.15, depthWrite: false })); roof.position.set(gx, 2.48, 0); b.add(roof);
-      for (let k = 0; k < 6; k++) b.sph('olive', 0.35, gx + (r() - 0.5) * (gw - 1), 0.75, (r() - 0.5) * (gd - 1), { detail: 1 });
-      // wind pump
-      b.box('steel', 0.1, 6, 0.1, -w / 2 + 1, 0.18, d / 2 - 1, { r: 0.02 });
-      for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; b.cbox('amber', 0.12, 1.3, 0.04, -w / 2 + 1 + Math.sin(a) * 0.65, 6.0 + Math.cos(a) * 0.65, d / 2 - 0.9, { r: 0.01, rz: -a }); }
-    }
-    return b.build();
+    return b.build({ vc: true });
   }
 
   /** the keep: 1 a bus and tarps around a fire, 2 a depot walled with containers, 3 + radio mast and searchlight */
