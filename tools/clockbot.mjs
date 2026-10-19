@@ -5,7 +5,7 @@ import { createGame } from '../src/sim/game.js';
 import { heroTick, chooseStory } from './bot.mjs';
 
 const diff = process.argv[2] || 'survivor', DAYS = +(process.argv[3] || 14), SEEDS = +(process.argv[4] || 4), hero = process.argv[5] || 'warrior', AUTO = process.argv[6] === 'auto';
-const biomes = ['riverbend', 'highland', 'lakeshore', 'vale'];
+const biomes = ['riverbend', 'riverbend', 'riverbend', 'riverbend'];   // one world while we test
 const out = [];
 const S0 = +(process.env.SEED_START || 0), STRIDE = +(process.env.SEED_STRIDE || 1);
 for (let s = S0; s < SEEDS; s += STRIDE) {

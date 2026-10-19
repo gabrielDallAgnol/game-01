@@ -322,6 +322,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function activeNests(n = S.night) {
     return map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !S.sealed[r.id] && S.wake[r.id] <= n).map(r => r.id);
   }
+  // hearing: a hive marches on the camp only if the camp is loud enough to be heard from there. A loud town (heat) draws the far city.
+  const HEAR = { base: 62, perHeat: 1.2 };
+  const hears = r => { const n = map.regions[r].nest; return Math.hypot(n.x - c, n.y - c) < HEAR.base + (S.feat.heat ? S.heat : 0) * HEAR.perHeat; };
+  const marchNests = (n = S.night) => activeNests(n).filter(hears);
   // pacing: forest hollows can be burned from day 1; city hives need a level 2 keep, the old core level 3
   const keepForRing = ring => (ring <= 1 ? 1 : Math.min(MAX_LEVEL, ring));
   function canPurge(r) {
@@ -396,7 +400,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const hs = WAVES.hpScale(n);
     let hp = nightBudget(n) * hpPerBudget(n) * hs;
     if (isBloodMoon(n)) hp += bossesFor(n).reduce((a, k, j) => a + MOBS[k].hp * (j === 0 && S.unique && !S.unique.slain && S.unique.night === n ? S.unique.mult : 1), 0) * hs;
-    { const every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / DIFF.threat; hp += activeNests(n).length * (WAVES.duration(n) * STREAM.nightMult / every) * 2.5 * hpPerBudget(n) * hs; }   // awake hives keep sending their dead all night
+    { const every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / DIFF.threat; hp += marchNests(n).length * (WAVES.duration(n) * STREAM.nightMult / every) * 2.5 * hpPerBudget(n) * hs; }   // awake hives keep sending their dead all night
     if (S.feat.heat && S.heat >= HEAT.erupt - 10) hp += (HEAT.burst + n) * DIFF.threat * 2.5 * hpPerBudget(n) * hs;
     if (purgeRegion !== null && purgeRegion !== undefined) hp += purgeBudget(purgeRegion, n) * hpPerBudget(n) * hs + MOBS.guardian.hp * hs;
     const dealt = (defenceDps() + heroDps() * 0.8) * WAVES.duration(n) * 1.6;
@@ -406,7 +410,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
 
   // ---------- waves ----------
   function makeWave(n) {
-    const nests = activeNests(n);
+    const nests = marchNests(n);
     if (!nests.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id)).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) nests.push(any[0].id); }
     if (n === 1 && S.purge === null && nests.length) return [{ kind: 'walker', nest: nests[0], t: 3, first: true }];
     // the whole valley is yours: the dead now come out of the dark woods at the edge
@@ -887,7 +891,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       while (streamAcc[r] >= every) {
         streamAcc[r] -= every;
         const [kind] = u[rng.weighted(u.map(([, m]) => m.weight))];
-        const m = spawnAtNest(kind, r); m.stream = r;
+        const m = spawnAtNest(kind, r);
+        if (hears(r) || rage[r] > 0) m.stream = r;
+        else { m.roam = { x: m.x, y: m.y, region: r }; if (S.mobs.filter(q => q.roam && q.roam.region === r).length > 30) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); } }   // too far to hear the camp: the city fills up instead
       }
     }
   }
@@ -1677,7 +1683,14 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }
     // sunrise comes on time: the night's dead do not vanish. Far from the town they lose interest and roam where they stand.
     if (S.phase === 'night' && !S.over && !S.queue.length && (S.qT > WAVES.duration(S.night) + NIGHT_TAIL || !S.mobs.some(m => !m.roam && m.stream === undefined))) {
-      for (const m of S.mobs) if (!m.roam && m.stream === undefined && !m.hunt && Math.hypot(m.x - c, m.y - c) > 22) { m.roam = { x: m.x, y: m.y, region: -1 }; m.lost = true; }
+      let burnt = 0;
+      for (const m of [...S.mobs]) {
+        if (m.roam || m.stream !== undefined || m.hunt) continue;
+        if (Math.hypot(m.x - c, m.y - c) > 22) { m.roam = { x: m.x, y: m.y, region: -1 }; m.lost = true; continue; }   // out in the woods: they wander
+        if (m.unique && S.unique) S.unique.escaped = true;   // at your walls: the sunrise burns the night's dead (the hives' stream keeps coming)
+        S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); burnt++;
+      }
+      if (burnt) toast(`The sun rises: **${burnt}** of the night's dead burn at your walls. The rest of the dead keep coming.`);
       dawn();
     }
   }
@@ -1691,7 +1704,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   function forecast(n = S.night) {
     refreshFlow();
-    let nests = activeNests(n);
+    let nests = marchNests(n);
     if (!nests.length) nests = edgeSpawns.map((_, k) => -1 - k);
     const w = nests.map(r => (S.wake[r] === n && n > 1 ? 0.5 : 1)), tw = w.reduce((a, b) => a + b, 0);
     const u = unlocked(n), wsum = u.reduce((a, [, m]) => a + m.weight, 0), avgCost = u.reduce((a, [, m]) => a + m.weight * m.cost, 0) / wsum;
