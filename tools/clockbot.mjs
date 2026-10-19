@@ -7,7 +7,8 @@ import { heroTick, chooseStory } from './bot.mjs';
 const diff = process.argv[2] || 'survivor', DAYS = +(process.argv[3] || 14), SEEDS = +(process.argv[4] || 4), hero = process.argv[5] || 'warrior', AUTO = process.argv[6] === 'auto';
 const biomes = ['riverbend', 'highland', 'lakeshore', 'vale'];
 const out = [];
-for (let s = 0; s < SEEDS; s++) {
+const S0 = +(process.env.SEED_START || 0), STRIDE = +(process.env.SEED_STRIDE || 1);
+for (let s = S0; s < SEEDS; s += STRIDE) {
   const t0 = Date.now();
   const g = createGame({ seed: 100 + s, mapSeed: 300 + s, biome: biomes[s % 4], hero, difficulty: diff });
   const S = g.state; S.builders = 'balanced'; if (AUTO) g.setAutopilot(true);

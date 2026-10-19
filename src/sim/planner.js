@@ -97,5 +97,5 @@ export function createPlanner(g) {
     try { ok = stepOnce(); } finally { S.quiet = false; }
     if (ok) S.stats.builderSteps = (S.stats.builderSteps || 0) + 1;
   }
-  return { tick, stepOnce };
+  return { tick, stepOnce, place, upgradeOne, wallLine };
 }

@@ -1279,7 +1279,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const loot = S.chests[0] || (S.phase === 'day' && h.hp > h.maxHp * 0.7 && S.drops.find(d => Math.hypot(d.x - c, d.y - c) < 20));
     if (loot) { api.heroTo(loot.x, loot.y); return; }
     // by day, with time and health to spare: the trial, then quests, then beacons
-    if (S.phase === 'day' && h.hp > h.maxHp * 0.7 && TIDE.dayLen - S.dayT > 25) {
+    if (S.phase === 'day' && !S.autoStay && h.hp > h.maxHp * 0.7 && TIDE.dayLen - S.dayT > 25) {
       const ST = S.story, tr = ST.trial && !ST.trial.done ? ST.trial : null;
       const goal = tr || ST.quests[0] || ST.spots.slice().sort((a, b) => Math.hypot(a.x - c, a.y - c) - Math.hypot(b.x - c, b.y - c))[0];
       if (goal) { api.heroTo(goal.x, goal.y + (goal.site !== undefined ? 2.5 : 0)); return; }
@@ -1700,7 +1700,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     forecast, mastered, mastery, isBloodMoon, drainEvents: () => S.events.splice(0),
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
   };
-  planner = createPlanner(api);
+  planner = createPlanner(api); api.planner = planner;
   if (restore) restoreSnap(restore);
   return api;
 }
