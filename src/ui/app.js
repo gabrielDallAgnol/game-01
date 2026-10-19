@@ -253,7 +253,7 @@ export function startApp() {
     const S = game.state, ST = S.story, comp = ST.npcs.filter(n => n.joined && n.alive);
     paused = true; if (placing) stopPlacing(); closePanel();
     const hero = game.heroDef;
-    showCard('status', `<div class="enc sysw"><div class="eyebrow sysline">[Status]</div>
+    showCard('status', `<button class="closex" id="stX" aria-label="Close">&times;</button><div class="enc sysw"><div class="eyebrow sysline">[Status]</div>
       <h1 class="sm">${esc(hero.name)} · day ${S.night}</h1>
       <div class="tiny" style="white-space:normal;margin:-4px 0 8px">Season ${S.season.n}: ${esc(S.season.name)}${ST.episode ? ` · Episode ${ST.episode.n}: ${esc(ST.episode.title)}` : ''}${S.season.rule ? ` · ${esc(RULES[S.season.rule].name)}` : ''}</div>
       <div class="statgrid"><span>Level <b>${S.lvl} · ${S.xp}/${game.xpNext()} xp</b></span><span>Health <b>${Math.ceil(S.hero.hp)}/${S.hero.maxHp}</b></span><span>Kills <b>${S.kills}</b></span><span>People <b>${game.pop()}</b></span><span>Districts <b>${game.map.regions.filter(r => !S.sealed[r.id]).length}/${game.map.regions.length}</b></span><span>Heat <b>${Math.round(S.heat)}</b></span><span>Power <b>${game.powerIn()}/${game.powerOut()}</b></span></div>
@@ -263,7 +263,7 @@ export function startApp() {
       <h2>Chronicle</h2><ol class="chron">${ST.chronicle.slice().reverse().slice(0, 14).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
       <div class="tiny" style="margin:6px 0;white-space:normal">${lastSave ? `Saved at dawn of day ${lastSave.day} (${lastSave.where === 'cloud' ? 'your account: any device' : 'this device'})` : 'The run saves itself every dawn.'}</div>
       <div class="cardrow spread"><label class="tiny aitog"><input type="checkbox" id="aiTog" ${chronicler.enabled() ? 'checked' : ''}> Chronicler (Claude writes the story) · ${({ on: 'on', off: 'off', denied: 'not allowed', absent: 'not available here' })[chronicler.status()]}</label><button class="btn" id="stClose">Back</button></div></div>`, true, false);
-    $('#stClose').onclick = () => { hideCard(); paused = false; };
+    $('#stClose').onclick = $('#stX').onclick = () => { hideCard(); paused = false; };
     $('#aiTog').onchange = e => { chronicler.setEnabled(e.target.checked); };
     $$('[data-chat]').forEach(b => b.onclick = () => showChat(b.dataset.chat));
     $$('[data-follow]').forEach(b => b.onclick = () => { game.companionFollow(b.dataset.follow, b.dataset.on === '1'); showStatus(); });
@@ -282,14 +282,14 @@ export function startApp() {
     const hist = chats[id] || (chats[id] = []);
     const ai = chronicler.available(), left = Math.max(0, 6 - n.chatToday);
     const bark = k => { const L = BARKS[k]; const t = L[(n.chatToday + hist.length + n.id.length) % L.length]; const open = S.landmarks.filter(l => !S.sealed[l.region] && l.kind !== 'unknown'); return t.replace('{want}', n.persona.want).replace('{fear}', n.persona.fear).replace('{heat}', Math.round(S.heat)).replace('{pop}', game.pop()).replace('{district}', open.length ? 'The street by the ' + open[open.length - 1].kind : 'The fence'); };
-    showCard('chat', `<div class="enc chat"><div class="eyebrow">${esc(ROLES[n.role].post)} · bond ${n.bond}/5${n.named ? ' · named' : ''}</div><h1 class="sm">${esc(n.name)}</h1>
+    showCard('chat', `<button class="closex" id="chX" aria-label="Back">&times;</button><div class="enc chat"><div class="eyebrow">${esc(ROLES[n.role].post)} · bond ${n.bond}/5${n.named ? ' · named' : ''}</div><h1 class="sm">${esc(n.name)}</h1>
       <p class="tiny">${esc(n.persona.traits.join(', '))} · ${esc(n.persona.quirk)}</p>
       <div class="msgs" id="msgs">${hist.map(m => `<div class="msg ${m.role}">${esc(m.content)}</div>`).join('') || `<div class="msg assistant">${esc(bark('you'))}</div>`}</div>
       ${ai ? `<form class="say" id="sayForm"><input id="sayIn" maxlength="160" autocomplete="off" placeholder="${left ? 'Say something…' : `${n.name.split(' ')[0]} has work to do. Tomorrow.`}" ${left ? '' : 'disabled'}><button class="btn" ${left ? '' : 'disabled'}>Say</button></form><div class="tiny">${left} more ${left === 1 ? 'talk' : 'talks'} today</div>`
         : `<div class="topics"><button class="btn ghost" data-topic="self">About you</button><button class="btn ghost" data-topic="city">The city</button><button class="btn ghost" data-topic="you">About me</button></div>`}
       <div class="cardrow" style="margin-top:10px"><button class="btn ghost" id="chatBack">Back</button></div></div>`, true, false);
     const box = $('#msgs'); box.scrollTop = box.scrollHeight;
-    $('#chatBack').onclick = () => showStatus();
+    $('#chatBack').onclick = $('#chX').onclick = () => showStatus();
     $$('[data-topic]').forEach(b => b.onclick = () => { hist.push({ role: 'user', content: b.textContent }, { role: 'assistant', content: bark(b.dataset.topic) }); showChat(id); });
     const form = $('#sayForm');
     if (form) form.onsubmit = async e => {
@@ -334,10 +334,10 @@ export function startApp() {
   function showLog() {
     if (!game || paused) return;
     paused = true; closePanel(); if (placing) stopPlacing();
-    showCard('log', `<div class="eyebrow">Run log · night ${game.state.night}</div><h1 class="sm">The town ledger</h1>${logTable()}
+    showCard('log', `<button class="closex" id="logX" aria-label="Close">&times;</button><div class="eyebrow">Run log · night ${game.state.night}</div><h1 class="sm">The town ledger</h1>${logTable()}
       <div class="cardrow"><button class="btn" id="logCopy">Copy log</button><button class="btn ghost" id="logClose">Back to town</button></div><textarea id="logJson" hidden readonly aria-label="Run log data"></textarea>`, true, false);
     $('#logCopy').onclick = e => copyLog(e.currentTarget);
-    $('#logClose').onclick = () => { hideCard(); paused = false; };
+    $('#logClose').onclick = $('#logX').onclick = () => { hideCard(); paused = false; };
   }
   function showEnd() {
     const S = game.state, st = S.stats, held = S.night - 1, prev = store.get('best', 0), best = Math.max(prev, S.night);
@@ -382,10 +382,17 @@ export function startApp() {
     el.className = 'toast' + (sys || kind === 'sys' ? ' sys' : '') + (kind && kind !== 'sys' ? ' ' + kind : '');
     if (sys) { const h = document.createElement('span'); h.className = 'sh'; h.textContent = sys[0]; const b = document.createElement('span'); b.innerHTML = rich(msg.slice(sys[0].length).trim()); el.append(h, b); }
     else el.innerHTML = rich(msg);
-    el.onclick = () => el.remove();
-    const box = $('#toasts'); box.appendChild(el); while (box.children.length > (document.body.classList.contains('compact') ? 2 : 3)) box.firstChild.remove();
-    const words = msg.split(/\s+/).length;
-    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, Math.max(sys ? 7000 : 4500, words * 330));
+    el.dataset.ms = Math.max(sys ? 7000 : 4500, msg.split(/\s+/).length * 330);
+    toastQ.push(el); if (toastQ.length > 6) toastQ.splice(0, toastQ.length - 6); pumpToasts();
+  }
+  // phones show one toast at a time (desktop three); the rest wait their turn instead of being dropped
+  const toastQ = [];
+  function pumpToasts() {
+    const box = $('#toasts'), cap = document.body.classList.contains('compact') ? 1 : 3;
+    while (toastQ.length && box.children.length < cap) {
+      const el = toastQ.shift(), done = () => { if (!el.parentNode) return; el.style.opacity = '0'; setTimeout(() => { el.remove(); pumpToasts(); }, 400); };
+      el.onclick = () => { el.remove(); pumpToasts(); }; box.appendChild(el); setTimeout(done, +el.dataset.ms);
+    }
   }
   // **bold** in System text, and the numbers of a choice in bold
   const rich = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
@@ -767,7 +774,7 @@ export function startApp() {
     $('#food').textContent = S.food; $('#foodNote').textContent = `+${game.foodPerDawn()} −${game.foodNeed()}`;
     $('#foodNote').classList.toggle('warn', game.foodPerDawn() + S.food < game.foodNeed());
     const hf = game.handsFree(); $('#hands').textContent = `${hf}/${game.handsMax()}`; $('#hands').classList.toggle('none', hf < 1);
-    const pin = game.powerIn(), pout = game.powerOut(); $('#pwrTxt').textContent = `${pin}/${pout}`; $('#pwr').classList.toggle('off', S.blackout); $('#pwr').hidden = !S.feat.power; $('.heat').hidden = !S.feat.heat;
+    const pin = game.powerIn(), pout = game.powerOut(); $('#pwrTxt').textContent = `${pin}/${pout}`; $('#pwr').classList.toggle('off', S.blackout); $('#pwr').hidden = !S.feat.power; $('.heat').hidden = !S.feat.heat; $('#threatPill').hidden = !S.feat.power && !S.feat.heat;
     $('#blackout').hidden = !S.blackout; document.body.classList.toggle('bo', !!S.blackout); if (S.blackout) $('#boTxt').textContent = `${pout} needed · ${pin} made`;
     const ht = Math.round(S.heat); $('#heatFill').style.width = Math.min(100, S.heat) + '%'; $('#heatTxt').textContent = ht;
     const hel = $('.heat'); hel.classList.toggle('hot', S.heat >= HEAT.erupt || !!S.eruption); hel.classList.toggle('stir', S.heat >= HEAT.stir && S.heat < HEAT.erupt);
@@ -780,10 +787,10 @@ export function startApp() {
       $('#info').innerHTML = S.over ? 'The keep has fallen' : `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}<em>${left}</em> dead left${S.hero.dead ? ` · you return in ${Math.ceil(S.hero.respawn)}s` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     } else {
       bell.hidden = false; const bonus = game.bellBonus(), dusk = Math.ceil(game.duskIn());
-      bell.textContent = (bm ? 'Face the blood moon' : 'Ring the bell') + (bonus > 0 ? ` · +${bonus}` : '');
+      bell.innerHTML = (bm ? 'Face the moon' : 'Ring bell') + (bonus > 0 ? `<span class="badge">+${bonus}</span>` : '');
       const fc = view.routes(), dead = fc.reduce((a, r) => a + r.count, 0), ratio = game.threatRatio();
       const loose = S.mobs.filter(m => !m.roam).length;
-      $('#info').innerHTML = `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}${sunDial(game.dayFrac(), dusk <= 15)}${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · Tonight <em>~${dead}</em><span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
+      $('#info').innerHTML = `${S.eruption ? `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span> · ` : ''}${sunDial(game.dayFrac(), dusk <= 15)}${loose ? ` · <em class="loose">${loose}</em> coming` : ''} · <span class="long">Tonight </span><em>~${dead}</em> dead<span class="long"> from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'}</span> · <span class="rating ${game.ratingOf(ratio)}">${game.ratingOf(ratio)}</span>${S.purge !== null ? ` · <span class="siege">siege at ${names[S.purge]}</span>` : ''}${S.weather !== 'clear' ? ` · <span class="wx ${S.weather}">${game.weather().name}</span>` : ''}`;
     }
     renderTray(); renderAbility();
     const tb = $('.top').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();

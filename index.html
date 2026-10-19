@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Hold Hollowmere</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -288,6 +289,65 @@ body.compact .tray .hands{grid-column:1/-1}
 .path{display:grid;gap:5px}.pr{display:grid;grid-template-columns:118px 1fr 38px;align-items:center;gap:8px;font-size:13px}.pr span i{font-style:normal;color:var(--muted);font-size:11px;margin-left:6px}
 .pb{height:7px;border-radius:4px;background:rgba(233,227,214,.1);overflow:hidden}.pb i{display:block;height:100%;background:var(--fam)}.pr b{font-family:var(--mono);font-size:12px;text-align:right}
 @media (prefers-reduced-motion:reduce){#episode.go{animation:none}.writing i{animation:none;opacity:.7}}
+
+/* ===== Apple HIG pass (docs/research/hig-ui.md): spacing 4/8/12/16/24, type 11–34, 44pt targets, sheets at the bottom ===== */
+:root{--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--r-chip:6px;--r-ctl:10px;--r-sheet:16px;--warn-text:#e8705c}
+*,*::before,*::after{box-sizing:border-box}
+.opt .ds,.encopts .opt .ds{font-size:15px;line-height:20px}
+.note{font:13px/18px var(--body);color:var(--muted);white-space:normal}
+.tiny[style*="white-space:normal"]{font-family:var(--body);font-size:13px;line-height:18px}
+.who span,.chron li span,.enc .chr{font-size:12px}
+.heat .lbl,.perk .rar,.opt .rarity{font-size:11px}
+#buildBtn,#bell,.place .btn{min-height:44px}
+#bell{white-space:nowrap;max-width:none}
+#bell .badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:rgba(0,0,0,.18);font-size:13px}
+.x,#pClose,#pCancel{width:44px;height:44px;font-size:22px}
+.side button{width:44px;height:44px}
+body.compact .btn{min-height:44px;padding:0 16px}
+.btn.sm{min-height:36px;position:relative}.btn.sm::after{content:"";position:absolute;inset:-4px}
+body.compact #dayPill,body.compact #resPill,body.compact #threatPill{min-height:44px;padding:0 12px}
+body.compact #goldNote,body.compact #foodNote,body.compact #popNote{display:none}
+body.compact #goldNote.warn,body.compact #foodNote.warn,body.compact #popNote.warn{display:inline;font-size:0}
+body.compact #goldNote.warn::after,body.compact #foodNote.warn::after,body.compact #popNote.warn::after{content:"!";font-size:13px;color:var(--warn-text);font-weight:700}
+body.compact #info{font:13px/18px var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.compact #info .long,body.compact #info .wx,body.compact #info .siege{display:none}
+body.compact #overlay{place-items:end center;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+.card{padding:20px 16px 16px;border-radius:var(--r-sheet)}
+.card .cardrow:last-child{position:sticky;bottom:-16px;padding-top:12px;padding-bottom:4px;background:linear-gradient(transparent,var(--panel-solid) 30%);z-index:2}
+.card .sysw .cardrow:last-child,.card:has(.sysw) .cardrow:last-child{background:linear-gradient(transparent,#0e141b 30%)}
+.bad,.tiny.warn,#hands.none,.crewrow .bad{color:var(--warn-text)}
+.top{flex-wrap:nowrap;align-items:center}
+.phead{flex-wrap:wrap}#pEyebrow{flex-basis:100%;order:-1}.phead b{font-size:20px}
+body.compact .opts,.opts.two{grid-template-columns:1fr;gap:8px}
+.opt{padding:12px;min-height:56px;border-radius:var(--r-ctl);gap:4px}
+.opt .nm,.encopts .opt .nm{font-size:17px}
+.card h1.sm{font-size:22px;line-height:28px}
+.card h1{font-size:34px;line-height:41px}
+.card h2{margin:24px 0 8px}
+.card p{font-size:17px;line-height:24px}
+.eyebrow{font-size:12px;letter-spacing:.08em}
+.btn{font-size:17px}.btn.big{font-size:17px;min-height:50px}
+.choice span,.pd{font-size:15px;line-height:20px}
+.perk b{font-size:20px}
+.winl{font-size:17px;line-height:24px;gap:12px}
+body.compact .statgrid{grid-template-columns:1fr 1fr;gap:12px}
+.toast{font:15px/20px var(--body);padding:8px 12px;border-radius:var(--r-sheet)}
+.toast.sys{font:15px/20px var(--body)}.toast.sys .sh{font-family:var(--mono);font-size:12px}
+body.compact .tray{padding:12px;gap:8px;border-radius:var(--r-sheet)}
+body.compact .tb{min-height:72px;border-radius:var(--r-ctl)}body.compact .tb .tn{font-size:15px;font-weight:600}body.compact .tb .cost{font-size:13px}
+.tray .hands{font:13px/18px var(--body)}
+body.compact .bar{padding:8px;border-radius:30px;gap:12px}
+#hud{padding-block:calc(8px + env(safe-area-inset-top,0px)) calc(8px + env(safe-area-inset-bottom,0px))}
+#panel,#tray{background:rgba(16,18,20,.9)}
+.ar span{font-size:12px}
+@media (pointer:coarse){#zIn,#zOut{display:none}}
+#episode{padding:16px 24px}#episode b{font-size:28px;line-height:34px}
+.ability .an{font-size:13px;font-weight:600}.ability .ac{font-size:15px}
+table.log{font-size:13px}
+.pill,.bar,.tb,.place,#panel,.toast{backdrop-filter:blur(12px)}
+.card .closex{position:absolute;right:8px;top:8px;width:44px;height:44px;background:none;border:0;color:var(--muted);font-size:24px;line-height:1;z-index:3}
+.card{position:relative}
+@media (prefers-reduced-motion:reduce){.ar.big,#crewBtn.alert,.heat.hot .hm,#blackout{animation:none!important}}
 </style>
 
 <canvas id="view" tabindex="0" aria-label="Map of Hollowmere"></canvas>
