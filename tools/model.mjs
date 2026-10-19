@@ -22,7 +22,7 @@ export function model(difficulty = 'survivor', nights = 20) {
   const rows = [];
   for (let n = 1; n <= nights; n++) {
     // ---- the day: hands, then the rules in order ----
-    let hands = HANDS.base + Math.ceil(Math.sqrt(pop()));
+    let hands = HANDS.base + Math.ceil(Math.sqrt(pop())) + Math.floor(pop() / 12);
     const spend = c => { if (hands < 1 || T.gold < c) return false; T.gold -= c; hands--; return true; };
     const foodIn = () => T.farms.reduce((a, l) => a + Math.round(BUILDINGS.farm.food[l - 1] * D.eco), 0);
     // 1. the town hall as soon as it is earned (scrap, food in store, people, a victory for level 3)

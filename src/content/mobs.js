@@ -21,7 +21,7 @@ export const WAVES = {
   territory: claimed => 1 + 0.12 * (claimed - 1),    // each claimed region beyond the core adds 12%
   plunder: ring => 6 + 6 * ring,                     // gold found in a burned nest
   bloodMoonEvery: 5,
-  bloodMoonMult: n => (n < 15 ? 1 : 1.3),      // the first blood moon is a warning shot: just its guardian
+  bloodMoonMult: n => (n < 15 ? 1 : 1.15),      // the first blood moon is a warning shot: just its guardian
   surges: n => 2 + Math.floor(n / 3),
   duration: n => Math.min(40, 14 + 1.4 * n),
   // a purge siege adds this share of the night's budget, scaled by the nest's ring
@@ -34,7 +34,7 @@ export const TIDE = {
   bellGold: 10,                // ringing early pays 1 gold per this many seconds left
   dayShare: n => 0,                    // replaced by the continuous stream (see STREAM in game.js)    // share of tonight's budget that trickles in by day (day 1 is the calm before)
   drift: 0.012,                        // per second: chance a roamer next to your land wanders in toward the town
-  opening: [0, 0.45, 0.6, 0.75, 0.85, 0.9, 0.95, 0.95, 0.95],   // the first nights ramp up (night 1 is a single dead)
+  opening: [0, 0.5, 0.75, 0.9],   // the first nights ramp up (night 1 is a single dead)
   first: { hp: 5, speed: 0.7 },        // the first dead: slow, tough, unforgettable
   roam: { perRing: [0, 5, 8], radius: 4.5, sight: 6, leash: 10, lose: 16, cap: 90, chase: { walker: 1.35, runner: 1.1, brute: 1.25, crawler: 1.2 } },   // a hunting roamer moves this much faster than it wanders
 };

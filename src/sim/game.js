@@ -24,7 +24,7 @@ export const TOWN_DRAW = { free: 12, per: 0.012 };
 export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/3
 // Heat: how much attention the town draws. It rests on a floor set by your noise (people, homes, guns, generators)
 // and spikes with gunfire and fighting. Past `stir` the dead nearby drift in; at `erupt` a hive bursts (with a warning).
-export const HEAT = { floorPer: 1.4, floorMax: 60, decay: 0.04, rise: 2.5, shot: 0.04, kill: 0.2, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
+export const HEAT = { floorPer: 1.4, floorMax: 70, combatMax: 77, decay: 0.04, rise: 2.5, shot: 0.04, kill: 0.2, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Difficulty: threat (how many dead), economy (what homes and farms give), heat (how fast attention builds).
 export const DIFFICULTY = {
   story:     { name: 'Story', blurb: 'For the story and the city. Fewer dead, richer homes.', threat: 0.55, eco: 1.25, heat: 0.7 },
@@ -102,7 +102,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const newCost = type => Math.max(1, Math.round(costOf(type) * (1 + (RISE[type] || 0) * copies(type))));
   const buyCost = type => newCost(type) * (S.mode === 'packs' && !BUILDINGS[type].tech ? PACK_RULES.premium : 1);
   // hands: every build or upgrade takes a free pair of hands for the rest of the day
-  const handsMax = () => HANDS.base + Math.ceil(Math.sqrt(pop())) + S.handsExtra + (S.legacy.hands || 0) + (S.landmarks || []).reduce((a, l) => a + (l.owned && LANDMARKS[l.kind].hands || 0), 0) + (story ? story.bonus.hands() : 0);
+  const handsMax = () => HANDS.base + Math.ceil(Math.sqrt(pop())) + Math.floor(pop() / 12) + S.handsExtra + (S.legacy.hands || 0) + (S.landmarks || []).reduce((a, l) => a + (l.owned && LANDMARKS[l.kind].hands || 0), 0) + (story ? story.bonus.hands() : 0);
   const handsFree = () => Math.max(0, handsMax() - S.handsUsed);
   const useHand = () => { if (handsFree() < 1) return fail('No free hands today. More people (homes) means more hands; they rest at dawn.'); S.handsUsed++; return true; };
   const upCostOf = (b) => { const c0 = costOf(b.type, b.level + 1); return S.halfUpgrade ? Math.max(1, Math.ceil(c0 / 2)) : c0; };
@@ -388,7 +388,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function threatRatio(n = S.night, purgeRegion = S.purge) {
     const hs = WAVES.hpScale(n);
     let hp = nightBudget(n) * hpPerBudget(n) * hs;
-    if (isBloodMoon(n)) hp += bossesFor(n).reduce((a, k) => a + MOBS[k].hp, 0) * hs;
+    if (isBloodMoon(n)) hp += bossesFor(n).reduce((a, k, j) => a + MOBS[k].hp * (j === 0 && S.unique && !S.unique.slain && S.unique.night === n ? S.unique.mult : 1), 0) * hs;
+    { const every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / DIFF.threat; hp += activeNests(n).length * (WAVES.duration(n) * STREAM.nightMult / every) * 2.5 * hpPerBudget(n) * hs; }   // awake hives keep sending their dead all night
+    if (S.feat.heat && S.heat >= HEAT.erupt - 10) hp += (HEAT.burst + n) * DIFF.threat * 2.5 * hpPerBudget(n) * hs;
     if (purgeRegion !== null && purgeRegion !== undefined) hp += purgeBudget(purgeRegion, n) * hpPerBudget(n) * hs + MOBS.guardian.hp * hs;
     const dealt = (defenceDps() + heroDps() * 0.8) * WAVES.duration(n) * 1.6;
     return hp / Math.max(1, dealt);
@@ -477,7 +479,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   function killMob(m, src) {
     const i = S.mobs.indexOf(m); if (i < 0) return;
-    S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); addHeat(HEAT.kill); S.salvage = (S.salvage || 0) + START.salvage * (MOBS[m.kind].size >= BIG ? 4 : 1);
+    S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); if (S.heat < HEAT.combatMax) addHeat(HEAT.kill); S.salvage = (S.salvage || 0) + START.salvage * (MOBS[m.kind].size >= BIG ? 4 : 1);
     if (S.bountyT > 0 && HC.ability && HC.ability.id === 'bounty' && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) <= HC.ability.radius + S.P.bountyRadius) {
       const big = MOBS[m.kind].size >= BIG, pay = (big ? HC.ability.bigGold * (mastery('warband') ? 3 : 1) : HC.ability.gold) + S.P.bountyGold;
       earn(pay); S.stats.bountyGold = (S.stats.bountyGold || 0) + pay; ev('bountyGold', { x: m.x, y: m.y, gold: pay });
@@ -519,7 +521,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function fire(from, x0, y0, target, dmg, src, speed = 18, extra = {}) {
     if (src !== 'hero' && has('hunter') && MOBS[target.kind] && MOBS[target.kind].size >= BIG) dmg *= 1.6;
     const p = { id: S.nextId++, x: x0, y: y0, z: from, target: target.id, tx: target.x, ty: target.y, dmg, src, speed, life: 2, enemy: false, ...extra };
-    S.projectiles.push(p); ev('shot', { id: p.id, src }); if (src !== 'hero') addHeat(HEAT.shot);
+    S.projectiles.push(p); ev('shot', { id: p.id, src }); if (src !== 'hero' && S.heat < HEAT.combatMax) addHeat(HEAT.shot);
   }
   function spit(m, target) {
     const tid = target === S.hero ? 'hero' : target.ally ? `a${target.id}` : target.id;
@@ -974,7 +976,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       while (free-- > 0) { const t = S.buildings.filter(b => b.type === 'tower' && b.level < MAX_LEVEL).sort((a, b) => a.level - b.level)[0]; if (!t) break; raise(t); toast('The guild raises a tower for free.', 'good'); }
     }
     closeLog({ goldIn, foodIn, foodNeed: need, fed: +fed.toFixed(2), claimedNow });
-    for (const b of [...S.buildings]) { if (b.ruined) { b.ruined = false; b.hp = b.maxHp; occupy(b); ev('rebuild', { id: b.id }); } b.hp = b.maxHp; b.fell = false; }
+    let rebuilt = 0, rebuildCost = 0, left = 0;
+    for (const b of [...S.buildings]) { if (b.ruined) { const rc = Math.ceil(costOf(b.type, b.level) / 4); if (S.gold >= rc) { S.gold -= rc; rebuildCost += rc; rebuilt++; b.ruined = false; b.hp = b.maxHp; occupy(b); ev('rebuild', { id: b.id }); } else { left++; continue; } } b.hp = b.maxHp; b.fell = false; }
+    if (rebuilt) toast(`Rebuilt ${rebuilt} ${rebuilt === 1 ? 'building' : 'buildings'} for ${rebuildCost} scrap.`, 'bad');
+    if (left) toast(`${left} ${left === 1 ? 'ruin waits' : 'ruins wait'} for scrap to rebuild.`, 'bad');
     liveTick = -1;
     keep.hp = Math.min(keep.maxHp, keep.hp + keep.maxHp * 0.25);
     S.hero.hp = S.hero.maxHp; S.hero.guardT = 0;
@@ -1075,7 +1080,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.offerSource = source;
     if (source.startsWith('mastery:')) { const fam = source.split(':')[1]; S.offer = MASTERIES[fam].map(m => `m:${m.id}`); return; }
     const manual = source.startsWith('manual:') ? source.split(':')[1] : null;   // a field manual found in a site: blessings of one family
-    let pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && (manual ? p.fam === manual && !p.pact : famOk(p.fam)));   // one kind of blessing; only special moments bring one
+    const usable = p => !/Bounty (lasts|kills|reaches|recharges|runs)|While Bounty/.test(p.desc) || (HC.ability && HC.ability.id === 'bounty');   // no blessings for an ability you do not have
+    let pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && usable(p) && (manual ? p.fam === manual && !p.pact : famOk(p.fam)));   // one kind of blessing; only special moments bring one
     if (manual && !pool.length) pool = PERKS.filter(p => (S.P.taken[p.id] || 0) < p.max && famOk(p.fam));
     const n = 3 + (source === 'dawn' ? (HC.extraOffer || 0) : 0);
     const odds = ODDS[manual ? 'chest' : source] || ODDS.dawn, out = [];
@@ -1695,7 +1701,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
     abilityCost, towerStats: b => towerStats(b), has,
     foodPerDawn: () => Math.round(S.buildings.reduce((a, b) => a + (b.type === 'farm' ? farmFood(b) : 0), 0) * prosper()),
-    goldPerDawn: () => Math.round((START.baseIncome + S.P.tax + S.buildings.reduce((a, b) => a + (b.type === 'house' ? houseGold(b) : 0), 0)) * prosper()) - upkeep(),
+    goldPerDawn: () => Math.round((START.baseIncome * DIFF.eco + S.P.tax + S.buildings.reduce((a, b) => a + (b.type === 'house' ? houseGold(b) : 0), 0)) * prosper()) - upkeep() + S.landmarks.reduce((a, l) => a + (l.owned ? LANDMARKS[l.kind].gold || 0 : 0), 0) + (owns('tvtower') ? 3 : 0) + (HC.quarter ? 4 : 0),
     upkeep, foodNeed, rerollCost: () => (S.reroll.free > 0 ? 0 : S.reroll.cost),
     forecast, mastered, mastery, isBloodMoon, drainEvents: () => S.events.splice(0),
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),

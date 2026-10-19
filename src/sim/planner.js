@@ -3,6 +3,7 @@
 // place a building from your packs or buy one, or upgrade one, as gold, food and crew allow.
 // Pure sim: deterministic, uses only the public game API.
 import { N, T, idx } from './mapgen.js';
+import { UNLOCKS as UNL } from '../content/buildings.js';
 
 export const FOCI = ['defence', 'balanced', 'growth', 'off'];
 const EVERY = 3;        // seconds between builder steps
@@ -40,19 +41,21 @@ export function createPlanner(g) {
     return false;
   }
   function wallLine() {
-    const f = g.forecast()[0]; if (!f) return false;
-    // where the route crosses ~7 cells from the keep, a short line across it
-    const p = f.path.find(q => Math.hypot(q[0] - town.x, q[1] - town.y) < 7.5); if (!p) return false;
-    const k = f.path.indexOf(p), q = f.path[Math.max(0, k - 2)], dx = p[0] - q[0], dy = p[1] - q[1];
-    const horiz = Math.abs(dx) < Math.abs(dy);   // route runs north-south: lay the line east-west
-    const [x, y] = [Math.floor(p[0]), Math.floor(p[1])];
-    return (horiz ? g.buildLine(x - 2, y, x + 2, y, 5) : g.buildLine(x, y - 2, x, y + 2, 5)) > 0;
+    // try each route in: where it crosses 6–11 cells from the keep, a line of up to 5 posts across it
+    for (const f of g.forecast()) for (const p of f.path) {
+      const d = Math.hypot(p[0] - town.x, p[1] - town.y); if (d < 6 || d > 11) continue;
+      const k = f.path.indexOf(p), q = f.path[Math.max(0, k - 2)], dx = p[0] - q[0], dy = p[1] - q[1];
+      const [x, y] = [Math.floor(p[0]), Math.floor(p[1])];
+      const along = Math.abs(dx) < Math.abs(dy) ? [[x - 2, y, x + 2, y]] : [[x, y - 2, x, y + 2]];
+      for (const [x0, y0, x1, y1] of along) if (g.buildLine(x0 + 0.5, y0 + 0.5, x1 + 0.5, y1 + 0.5, 5) > 0) return true;
+    }
+    return false;
   }
   function tech(type) { if (S.buildings.some(b => b.type === type) || g.keepLevel() < 2 || S.gold < g.buyCost(type) + RESERVE + 4) return false; return place(type); }
   const can = type => (S.stock[type] || 0) > 0 || S.gold >= g.buyCost(type) + RESERVE;
   function upgradeOne(type) {
     const cap = Math.min(3, g.keepLevel());
-    const b = S.buildings.filter(x => x.type === type && !x.ruined && x.level < cap).sort((a, c) => a.level - c.level || a.id - c.id)[0];
+    const cands = S.buildings.filter(x => x.type === type && !x.ruined && x.level < cap && !(x.level === 2 && UNL[type] && !g.hasTech(UNL[type]))).sort((a, c) => a.level - c.level || a.id - c.id), b = cands[0];
     if (!b || S.gold < g.upCostOf(b) + RESERVE) return false;
     if (type === 'tower' && g.crewing().free < 1) return false;
     if (type === 'tower' && g.powerIn() - g.powerOut() < 1) return ACT.power();   // never upgrade into a blackout

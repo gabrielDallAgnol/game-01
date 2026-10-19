@@ -126,7 +126,7 @@ export function createStory(ctx) {
     const offers = rng.shuffle(front.map(r => ctx.districtOffer(r))).sort((a, b) => a.ring - b.ring).slice(0, Math.min(3 + extra, front.length));
     const price = o => (o.ring >= 2 ? { gold: 8 + S.night / 2 | 0, food: 4 } : { gold: 5 });
     return { kind: 'district', eyebrow: DISTRICT_CALL.eyebrow, title: DISTRICT_CALL.title, scene: DISTRICT_CALL.scene, offers,
-      choices: offers.map(o => ({ id: `d${o.region}`, label: o.name, rarity: o.rarity, cost: price(o), hint: `${o.call} · ${o.dir}${o.ring >= 2 ? ' · far: a big district' : ''}${o.nest ? ' · a hive nests there' : ''}`, fx: [{ op: 'open', region: o.region, why: '' }] })).concat([{ id: 'later', label: DISTRICT_CALL.later.label, hint: DISTRICT_CALL.later.hint, fx: DISTRICT_CALL.later.fx }]) };
+      choices: offers.map(o => ({ id: `d${o.region}`, label: o.name, rarity: o.rarity, cost: price(o), hint: `${o.call}${o.lm && LM[o.lm] ? ` Inside: ${LM[o.lm].name} (${LM[o.lm].desc.split(':')[0].toLowerCase()}).` : ''} · ${o.dir}${o.ring >= 2 ? ' · far: a big district' : ''}${o.nest ? ' · a hive nests there' : ''}`, fx: [{ op: 'open', region: o.region, why: '' }] })).concat([{ id: 'later', label: DISTRICT_CALL.later.label, hint: DISTRICT_CALL.later.hint, fx: DISTRICT_CALL.later.fx }]) };
   }
   function siteEncounter(l) {
     const T = SITES[l.kind] || SITES.default, D = SITES.default, L = LM[l.kind], strip = 6 + 2 * (L.cost || 6);
@@ -152,7 +152,7 @@ export function createStory(ctx) {
     const ln = ['district', 'chapter', 'season', 'evolve', 'system'].includes(enc.kind) && !(enc.kind === 'district' && choiceId !== 'later') ? null : leanOf(c);
     if (ln && ctx.addPath) ctx.addPath(ln, enc.kind === 'thread' ? 1.5 : 1);
     if (enc.kind === 'district' && choiceId !== 'later' && ctx.addPath) ctx.addPath('ranger', 0.4);
-    if (enc.kind === 'site') { ST.quests = ST.quests.filter(q => q.site !== enc.site || choiceId === 'leave'); if (choiceId === 'leave') ST.visited[enc.site] = 'left'; }
+    if (enc.kind === 'site') { ST.quests = ST.quests.filter(q => q.site !== enc.site || choiceId === 'leave'); if (choiceId === 'leave') ST.visited[enc.site] = S.night; }
     if (ctx.gainXp) ctx.gainXp(enc.kind === 'thread' ? 25 : enc.kind === 'street' ? 12 : enc.kind === 'site' ? 0 : 5);
     const line = enc.aiChron || `${enc.title}: "${c.label.replace(/[[\]]/g, '')}"`;
     chron(line, enc.kind === 'thread' ? 4 : 2, enc.thread ? [enc.thread] : []);
@@ -308,7 +308,7 @@ export function createStory(ctx) {
     if (tr && !tr.done && !tr.started && !S.hero.dead && Math.hypot(S.hero.x - tr.x, S.hero.y - tr.y) < 3) { tr.started = true; ctx.spawnTrial(tr); toast(`[${tr.name}] Defeat the **trial warden**. It will not follow you home.`, 'bad'); }
     if (S.phase !== 'day' || ST.encounters.length || S.hero.dead) return;
     if (spotTick()) return;
-    for (const l of S.landmarks) if (ST.visited[l.id] === 'left' && !ctx.landmarkReach(l)) ST.visited[l.id] = false;   // walked away: it can ask again
+    for (const l of S.landmarks) if (typeof ST.visited[l.id] === 'number' && ST.visited[l.id] < S.night && !ctx.landmarkReach(l)) ST.visited[l.id] = false;   // left yesterday: it can ask again
     for (const l of S.landmarks) {
       if (l.owned || l.stripped || l.kind === 'unknown' || S.sealed[l.region] || ST.visited[l.id] || !ctx.landmarkReach(l)) continue;
       ST.visited[l.id] = true;

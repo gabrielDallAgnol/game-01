@@ -186,7 +186,7 @@ THREADS.lantern = {
       scene: 'Last night the lamp on the north corner went out. Then the next one, and the next, a line of darkness walking toward the keep. In the morning the bulbs are gone, and so are the poles. Tonight is a blood moon. [There is only one of it in the whole world.]',
       choices: [
         { id: 'bait', label: 'Light every lamp and draw it in', hint: 'It walks into your towers tonight instead of a guardian: tougher, slower, worth a legendary blessing and a title. +15 heat.', fx: [{ op: 'heat', n: 15 }, { op: 'unique', name: 'The Lantern-Eater', mult: 1.5 }, { op: 'advance' }] },
-        { id: 'dark', label: 'Douse the lights and hide', hint: 'Tonight is a normal blood moon. It will come back, angrier, on the next one.', fx: [{ op: 'unique', name: 'The Lantern-Eater', mult: 2.2, later: 5 }, { op: 'advance' }] },
+        { id: 'dark', label: 'Douse the lights and hide', hint: 'Tonight is a normal blood moon. It will come back, angrier, on the next one.', fx: [{ op: 'unique', name: 'The Lantern-Eater', mult: 1.6, later: 5 }, { op: 'advance' }] },
       ],
     },
     {

@@ -13,13 +13,14 @@
 //   {"build":{"house":2,"tower":1}}     build (the harness picks good spots, like the in-game Foreman)
 //   {"upgrade":{"tower":2,"house":1}}   upgrade the lowest-level buildings of a type
 //   {"walls":1}                         lay a barricade line across the main route in
+//   {"march":<region id>}               march on a hive tonight (ids listed under Hives) · {"build":{"workshop":1}} tech buildings too
 //   {"hero":"defend"|"explore"}         hero stays home, or also walks to quests, beacons and the trial by day
 //   {"wait":true}                       nothing; run on
 //   {"note":"why you did this"}         saved in the journal with the decision
 import { readFileSync, writeFileSync, mkdirSync, existsSync, appendFileSync } from 'node:fs';
 import { createGame, HEAT } from '../src/sim/game.js';
 import { BUILDINGS, KEEP } from '../src/content/buildings.js';
-import { PERKS, FAMILIES } from '../src/content/perks.js';
+import { PERKS, FAMILIES, MASTERIES } from '../src/content/perks.js';
 import { TIDE } from '../src/content/mobs.js';
 
 const [cmd, dir, a1, a2] = process.argv.slice(2);
@@ -33,13 +34,17 @@ function make(run) {
 }
 function apply(g, act, out) {
   const S = g.state, say = m => out && out.push(m);
+  const why = () => { const f = S.events.filter(e => e.t === 'fail').map(e => e.msg); S.events.length = 0; return f.length ? ` (${[...new Set(f)].join('; ')})` : ''; };
+  S.events.length = 0;
+  if (act.march !== undefined) say(g.planPurge(act.march) ? `marching on hive ${act.march} tonight` : `cannot march${why()}`);
   if (act.hero) S.autoStay = act.hero === 'defend';
   if (act.choose) say(g.choose(act.choose) ? `chose ${act.choose}` : `could not choose ${act.choose}`);
   if (act.perk) say(g.choosePerk(act.perk) ? `took blessing ${act.perk}` : `could not take ${act.perk}`);
   if (act.keep) say(g.upgradeKeep() ? `raised the town hall to ${g.keepLevel()}` : `town hall not raised (${g.keepNeeds().join(', ') || 'scrap or hands'})`);
-  for (const [t, n] of Object.entries(act.build || {})) { let k = 0; for (; k < n; k++) if (!g.planner.place(t)) break; say(`built ${k}/${n} ${t}`); }
-  for (const [t, n] of Object.entries(act.upgrade || {})) { let k = 0; for (; k < n; k++) if (!g.planner.upgradeOne(t)) break; say(`upgraded ${k}/${n} ${t}`); }
-  for (let k = 0; k < (act.walls || 0); k++) say(g.planner.wallLine() ? 'laid a barricade line' : 'no barricade line laid');
+  const reason = (t, up) => { const w = why(); if (w) return w; if (g.handsFree() < 1) return ' (no free hands)'; if (!up && S.gold < g.buyCost(t)) return ` (needs ${g.buyCost(t)} scrap)`; if (up) { const b = S.buildings.filter(x => x.type === t && x.level < 3).sort((p, q) => p.level - q.level)[0]; if (!b) return ' (nothing left to upgrade)'; if (b.level >= g.keepLevel()) return ` (raise the town hall to ${b.level + 1} first)`; if (b.level === 2 && !g.hasTech(t === 'tower' || t === 'wall' ? 'workshop' : 'market')) return ` (level 3 needs a ${t === 'tower' ? 'Workshop' : 'Market'})`; if (t === 'tower' && g.crewing().free < 1) return ' (no free people to crew it)'; if (S.gold < g.upCostOf(b)) return ` (needs ${g.upCostOf(b)} scrap)`; } return ' (no room in the build zone)'; };
+  for (const [t, n] of Object.entries(act.build || {})) { let k = 0; for (; k < n; k++) if (!g.planner.place(t)) break; say(`built ${k}/${n} ${t}${k < n ? reason(t, false) : ''}`); }
+  for (const [t, n] of Object.entries(act.upgrade || {})) { let k = 0; for (; k < n; k++) if (!g.planner.upgradeOne(t)) break; say(`upgraded ${k}/${n} ${t}${k < n ? reason(t, true) : ''}`); }
+  for (let k = 0; k < (act.walls || 0); k++) say(g.planner.wallLine() ? 'laid a barricade line' : `no barricade line laid${why() || (g.handsFree() < 1 ? ' (no free hands)' : ' (no open ground across the routes in)')}`);
 }
 // run until something needs a decision
 function runOn(g, sinceStep) {
@@ -49,10 +54,10 @@ function runOn(g, sinceStep) {
     if (S.phase === 'day' && (S.story.encounters.length || (S.pendingPicks > 0 && S.offer.length))) break;
     if (S.phase === 'day' && steps > 0 && S.night !== start.night && S.dayT > 0.5) break;   // a new day
     g.step(); steps++;
-    for (const e of S.events) if (e.t === 'toast' && /\[|bad/.test(`${e.msg}${e.kind}`)) msgs.push(e.msg.replace(/\*\*/g, ''));
+    for (const e of S.events) { if (e.t === 'toast') msgs.push(e.msg.replace(/\*\*/g, '')); if (e.t === 'window') msgs.push(`${e.eyebrow} ${e.title}: ${e.lines.join(' ').replace(/\*\*/g, '')}`); }
     S.events.length = 0;
   }
-  return { steps, msgs: msgs.slice(-8) };
+  return { steps, msgs: msgs.slice(-14) };
 }
 function replay(run) {
   const g = make(run); let msgs = [];
@@ -71,6 +76,7 @@ function summary(g, extra = []) {
   lines.push(`Town hall ${g.keepLevel()} (${Math.ceil(S.keep.hp)}/${S.keep.maxHp})${g.keepLevel() < 3 ? ` · next: ${KEEP.cost[g.keepLevel()]} scrap${g.keepNeeds().length ? ` + needs ${g.keepNeeds().join(', ')}` : ' (needs met)'}` : ''} · Buildings ${JSON.stringify(count)}`);
   lines.push(`Prices now: ${['house', 'farm', 'tower', 'wall'].concat(S.feat.power ? ['generator'] : []).map(t => `${t} ${g.buyCost(t)}`).join(', ')} · upgrades: ${['house', 'farm', 'tower'].map(t => { const b = S.buildings.filter(x => x.type === t && x.level < g.keepLevel()).sort((p, q) => p.level - q.level)[0]; return b ? `${t}→${b.level + 1} ${g.upCostOf(b)}` : null; }).filter(Boolean).join(', ') || 'none (raise the town hall)'}`);
   lines.push(`Tonight: ~${dead} dead from ${fc.length} ${fc.length === 1 ? 'hive' : 'hives'} · rating ${g.ratingOf(g.threatRatio())}${g.isBloodMoon(S.night) ? ' · BLOOD MOON' : ''} · tower dps ${g.defenceDps().toFixed(1)} · hero dps ${g.heroDps().toFixed(1)} · loose dead now ${S.mobs.filter(m => !m.roam).length}, roaming outside ${S.mobs.filter(m => m.roam).length}`);
+  { const hv = g.map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.sealed[r.id]).map(r => `${r.id}${g.canPurge(r.id) ? ' (can march)' : ''}`); if (hv.length) lines.push(`Hives in open districts: ${hv.join(', ')} — burning one counts as a victory for the town hall`); }
   lines.push(`Hero: ${g.heroDef.name} level ${S.lvl} (${S.xp}/${g.xpNext()} xp) · hp ${Math.ceil(S.hero.hp)}/${S.hero.maxHp} · path ${ST && g.story().pathText ? g.story().pathText() : ''} · mode ${S.autoStay ? 'defend' : 'explore'}${ST.trial && !ST.trial.done ? ` · TRIAL waiting: ${ST.trial.name}` : ''}`);
   const comp = ST.npcs.filter(n => n.joined && n.alive).map(n => n.name); if (comp.length) lines.push(`Companions: ${comp.join(', ')}`);
   if (ST.quests.length || ST.spots.length) lines.push(`Out in the city: ${ST.quests.length} quest(s), ${ST.spots.length} beacon(s) (the hero visits them in explore mode)`);
@@ -81,7 +87,7 @@ function summary(g, extra = []) {
     for (const c of e.choices) lines.push(`  - choose "${c.id}": ${c.label} — ${c.hint || ''}${c.cost ? ` (costs ${JSON.stringify(c.cost)})` : ''}${g.story().can(c) ? '' : ' [CANNOT AFFORD]'}`);
   } else if (S.phase === 'day' && S.pendingPicks > 0 && S.offer.length) {
     lines.push(`\nBLESSING (${S.offerSource}) pick one:`);
-    for (const id of S.offer) { const p = PERKS.find(q => q.id === id); lines.push(p ? `  - perk "${id}": ${p.name} [${FAMILIES[p.fam].name}, ${p.rarity}] ${p.desc}` : `  - perk "${id}"`); }
+    for (const id of S.offer) { const p = PERKS.find(q => q.id === id), m = id.startsWith('m:') ? Object.values(MASTERIES).flat().find(q => q.id === id.slice(2)) : null; lines.push(p ? `  - perk "${id}": ${p.name} [${FAMILIES[p.fam].name}, ${p.rarity}] ${p.desc}${p.pact ? ` PACT PRICE: ${p.cost}` : ''}` : m ? `  - perk "${id}": ${m.name} (mastery) ${m.desc}` : `  - perk "${id}"`); }
   } else if (!S.over) lines.push(`\nA NEW DAY. Plan it: build / upgrade / keep / walls / hero. Dusk falls by itself after ${TIDE.dayLen}s of day.`);
   return lines.join('\n');
 }
