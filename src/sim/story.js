@@ -117,7 +117,7 @@ export function createStory(ctx) {
     for (const role of Object.keys(T.cast)) castFor(tid, role);
     const speaker = st.speaker ? npc(th.cast[st.speaker]) : null;
     return { kind: 'thread', thread: tid, stage, eyebrow: fill(st.eyebrow, th), title: fill(st.title, th), scene: fill(st.scene, th), speaker: speaker ? { id: speaker.id, name: speaker.name, line: fill(st.line, th) } : null,
-      choices: st.choices.map(c => ({ id: c.id, label: fill(c.label, th), hint: fill(c.hint, th), cost: costOf(c), fx: c.fx })) };
+      choices: st.choices.map(c => { const rc = c.fx.find(f => f.op === 'recruit'), who = rc && th.cast[rc.role] && npc(th.cast[rc.role]); return { id: c.id, label: fill(c.label, th), hint: fill(c.hint, th), cost: costOf(c), fx: c.fx, npcName: who ? `${who.name.split(' ')[0]} joins` : undefined }; }) };
   }
   function districtEncounter() {
     const front = ctx.frontier().filter(r => S.kits[r] !== 'signature' || S.night >= 6); if (!front.length) return null;
@@ -359,7 +359,7 @@ export function createStory(ctx) {
     const beats = (Array.isArray(q.beats) ? q.beats : []).map(b => clip(String(b).replace(/\*\*/g, '§'), 200).replace(/§(.+?)§/g, '**$1**').replace(/§/g, '')).filter(b => b.length >= 8).slice(0, 3);
     if (!beats.length) return false;
     const labels = {}; for (const c of Array.isArray(q.choices) ? q.choices : []) if (c && T.choices.some(t => t.id === c.id)) labels[c.id] = clip(c.label, 44);
-    const choices = T.choices.map(t => { const fx = t.fx(S.night); return { id: t.id, label: labels[t.id] || t.label, hint: describe(fx, npc), cost: t.cost ? t.cost(S.night) : undefined, fx }; });
+    const choices = T.choices.map(t => { const fx = t.fx(S.night); return { id: t.id, label: labels[t.id] || t.label, hint: describe(fx, npc), cost: t.cost ? t.cost(S.night) : undefined, fx, npcName: npc && fx.some(f => f.op === 'recruitNew') ? `${npc.name.split(' ')[0]} joins` : undefined }; });
     const spot = ctx.findSpot(); if (!spot) return false;
     const kind = `ai${ST.nextId++}`; ST.gen = ST.gen || {};
     ST.gen[kind] = { eyebrow: clip(q.eyebrow, 40) ? `[${clip(q.eyebrow, 40)}]` : '[Side quest]', title: clip(q.title, 48) || 'A side quest', scene: beats.join(' '), beats, choices, npc, made: true, callback: clip(q.callback, 120) };
