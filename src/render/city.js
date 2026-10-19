@@ -217,8 +217,8 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   props(() => K.tree({ dead: true, seed: 3 }), pickCells(parks, 0.025), (i, d) => { cellPos(i, d); d.scale.setScalar(0.3 + rand() * 0.1); d.rotation.set(0, rand() * 6, 0); });
   // the woods: cheap low-poly pines (≈40 triangles) make the mass; a few round trees break it up
   const pine = (tone, tall) => { const b = new K.B(); b.cyl('#4a3626', 0.12, 0.16, 1.1, 0, 0, 0, { seg: 5 }); const L = tall ? 3 : 2; for (let k = 0; k < L; k++) b.cyl(tone, 0.02, 1.15 - k * 0.3, 1.5 - k * 0.2, 0, 0.8 + k * 0.95, 0, { seg: 6 }); return b.build(); };
-  props(() => pine('#2f5233', true), woods.filter(() => rand() < 0.22), (i, d) => { cellPos(i, d); d.scale.setScalar(0.85 + rand() * 0.45); d.rotation.set(0, rand() * 6, 0); });
-  props(() => pine('#3d6338', false), woods.filter(() => rand() < 0.2), (i, d) => { cellPos(i, d); d.scale.setScalar(0.7 + rand() * 0.35); d.rotation.set(0, rand() * 6, 0); });
+  props(() => pine('#2f5233', true), woods.filter(() => rand() < 0.22), (i, d) => { cellPos(i, d); d.scale.setScalar(0.55 + rand() * 0.25); d.rotation.set(0, rand() * 6, 0); });
+  props(() => pine('#3d6338', false), woods.filter(() => rand() < 0.2), (i, d) => { cellPos(i, d); d.scale.setScalar(0.45 + rand() * 0.2); d.rotation.set(0, rand() * 6, 0); });
   props(() => K.tree({ seed: 7, h: 5 }), woods.filter(() => rand() < 0.035).concat(parks.filter(() => rand() < 0.22)), (i, d) => { cellPos(i, d); d.scale.setScalar(0.26 + rand() * 0.06); d.rotation.set(0, rand() * 6, 0); });
   props(() => K.bush({ seed: 5, n: 5 }), pickCells(forest, 0.08), (i, d) => { cellPos(i, d); d.scale.set(0.34 + rand() * 0.12, 0.22, 0.34 + rand() * 0.12); d.rotation.set(0, rand() * 6, 0); });
   // street trees along the sidewalks
