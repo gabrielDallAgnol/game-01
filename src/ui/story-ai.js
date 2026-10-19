@@ -30,8 +30,9 @@ export function parseRewrite(p, enc) {
 }
 
 // ---------- invent a side quest from the whole run ----------
+const fxText = fx => fx.map(f => (f.op === 'survivors' ? `${f.n > 0 ? '+' : ''}${f.n} people` : f.op === 'food' ? `${f.n > 0 ? '+' : ''}${f.n} food` : f.op === 'gold' ? `+${f.n} scrap` : f.op === 'heat' ? (f.n > 0 ? 'more noise' : 'less noise') : f.op === 'flag' ? 'one more person finds the town later' : f.op === 'blessing' ? 'a rare blessing' : f.op === 'hurt' ? 'the hero gets hurt' : f.op === 'hands' ? 'one more worker for good' : f.op === 'perk' ? 'the hero grows stronger' : f.op === 'recruitNew' ? 'the character joins the town' : '')).filter(Boolean).join(', ');
 export function inventPrompt(ctx, templates) {
-  const menu = Object.entries(templates).map(([id, t]) => ({ id, what: t.desc, needsCharacter: !!t.who, choices: t.choices.map(c => c.id) }));
+  const menu = Object.entries(templates).map(([id, t]) => ({ id, what: t.desc, needsCharacter: !!t.who, choices: t.choices.map(c => ({ id: c.id, effect: fxText(c.fx(ctx.day || 1)) + (c.cost ? ` (costs ${c.cost(ctx.day || 1).gold} scrap)` : '') })) }));
   return `You are the Chronicler of "Hold Hollowmere", a zombie town-defence game. ${TONE}
 You decide what the hero finds in the city today. Read the whole run, then invent ONE side quest that grows out of it: a consequence of an earlier choice, a person connected to someone already met, a place tied to a district already opened, or a seed for something later. Not a random event: it must feel like the next episode of THIS story.
 Pick one TEMPLATE from the menu (the game owns every effect; you write words and, if the template needs one, invent the character).
@@ -41,7 +42,7 @@ PEOPLE MET: ${JSON.stringify(ctx.people || [])}
 STORY THREADS: ${JSON.stringify(ctx.threads || [])}
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle)}
 TEMPLATES: ${JSON.stringify(menu)}
-${SHORT} Never reuse a name from PEOPLE MET for a new character.
+${SHORT} The words must match each choice's effect (e.g. a rescue of +2 people is two or three people, not a crowd). Never reuse a name from PEOPLE MET for a new character.
 Reply with ONLY this JSON: {"template":"<template id>","callback":"≤16 words: which earlier event this grows from","eyebrow":"≤4 words, System style, no brackets","title":"≤6 words","beats":["2 or 3 beats, each ≤22 words, second person, present tense"],"choices":[{"id":"<template choice id>","label":"≤6 words"}],"character":{"name":"first and last name","epithet":"the ... (≤4 words)","role":"for recruit only: scout|medic|cook|mechanic|gunner","traits":["3 single words"],"quirk":"≤10 words","want":"≤10 words","fear":"≤8 words","secret":"≤20 words"} or null}`;
 }
 /** light checks only: the engine (story.invent) validates and clips everything again */
