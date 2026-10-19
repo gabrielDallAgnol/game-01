@@ -464,7 +464,7 @@ export const K = (() => {
     // pitched roof (extruded gable)
     const s = new THREE.Shape(); s.moveTo(-w / 2 - 0.35, 0); s.lineTo(w / 2 + 0.35, 0); s.lineTo(0, 2.0); s.closePath();
     const rg = new THREE.ExtrudeGeometry(s, { depth: d + 0.5, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 1 }); rg.translate(0, 0, -(d + 0.5) / 2);
-    b.geo(lvl >= 2 ? 'roof2' : 'roof', rg, 0, H, 0);
+    b.geo(o.roof || (lvl >= 2 ? 'roof2' : 'roof'), rg, 0, H, 0);
     // front: windows per floor, door
     const cols = [-w / 2 + 1.3, 0, w / 2 - 1.3];
     for (let f = 0; f < floors; f++) for (let c = 0; c < 3; c++) {

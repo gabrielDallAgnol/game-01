@@ -214,6 +214,42 @@ export function startApp() {
       const top = game.state.story.encounters[0]; if (card === 'enc' && top && top.id === id && !encPage.has(id)) showEncounter();
     });
   }
+  // cause → consequence: every choice shows what it does as coloured chips (green gains, red costs)
+  function chipsOf(c) {
+    const S = game.state, out = [], add = (cls, t) => out.push(`<span class="chip ${cls}">${t}</span>`), sg = n => (n > 0 ? `+${n}` : `−${-n}`);
+    if (c.cost && c.cost.gold) add('neg', `<i class="dot gold"></i>−${c.cost.gold}`);
+    if (c.cost && c.cost.food) add('neg', `<i class="dot food"></i>−${c.cost.food}`);
+    const PERK = { heroDmg: '⚔ hero', heroDmgMult: '⚔ hero', keepHp: '🏰 hall', heroHp: '❤ hero', towerDmg: '🗼 towers', heroSpeed: '👟 speed' };
+    for (const f of c.fx || []) {
+      if (f.op === 'gold') add(f.n > 0 ? 'pos' : 'neg', `<i class="dot gold"></i>${sg(f.n)}`);
+      else if (f.op === 'food') add(f.n > 0 ? 'pos' : 'neg', `<i class="dot food"></i>${sg(f.n)}`);
+      else if (f.op === 'survivors') add(f.n > 0 ? 'pos' : 'neg', `👥 ${sg(f.n)}`);
+      else if (f.op === 'heat' && S.feat.heat) add(f.n > 0 ? 'neg' : 'pos', `🔥 ${sg(f.n)}`);
+      else if (f.op === 'power') add('pos', `⚡ +${f.n}`);
+      else if (f.op === 'hands') add('pos', `✋ +${f.n} for good`);
+      else if (f.op === 'handsToday') add(f.n > 0 ? 'pos' : 'neg', `✋ ${sg(f.n)} today`);
+      else if (f.op === 'perk' && PERK[f.key]) add(f.mul && f.mul < 1 ? 'neg' : 'pos', `${PERK[f.key]} ↑`);
+      else if (f.op === 'flag' && f.key === 'beacon') add('pos', '👥 +1 later');
+      else if (f.op === 'flag' && f.key === 'garden') add('pos', '<i class="dot food"></i>+1 / dawn');
+      else if (f.op === 'flag' && f.key === 'scout') add('info', '🗺 better route');
+      else if (f.op === 'flag' && f.key === 'quiet') add('pos', '🔇 quieter');
+      else if (f.op === 'title') add('info', '🏅 title');
+      else if (f.op === 'blessing') add('pos', '✦ blessing');
+      else if (f.op === 'openFor' || f.op === 'open') add('info', '🗺 opens a district');
+      else if (f.op === 'recruit' || f.op === 'recruitNew') add('pos', `★ ${c.npcName || 'joins you'}`);
+      else if (f.op === 'lose') add('neg', '💔 leaves');
+      else if (f.op === 'bond') add(f.n > 0 ? 'pos' : 'neg', `♥ ${sg(f.n)}`);
+      else if (f.op === 'gamble') add('risk', `🎲 ${Math.round(f.p * 100)}%`);
+      else if (f.op === 'risen') add('neg', '☠ the dead rise');
+      else if (f.op === 'hurt') add('neg', '🩸 you get hurt');
+      else if (f.op === 'unique') add('risk', '👁 boss fight');
+      else if (f.op === 'fail') add('risk', f.after ? '⌛ they may not wait' : '✖ the story ends');
+      else if (f.op === 'trial') add('info', '⚔ trial');
+      else if (f.op === 'claimSite') add('pos', '🏳 yours for good');
+      else if (f.op === 'stripSite') add('pos', `<i class="dot gold"></i>+${f.n}`);
+    }
+    return out.length ? `<span class="chips">${out.join('')}</span>` : '';
+  }
   function showEncounter() {
     const S = game.state, enc = S.story.encounters[0]; if (!enc) return dawnFlow();
     paused = true; if (placing) stopPlacing(); closePanel();
@@ -237,7 +273,7 @@ export function startApp() {
     const costTxt = c => !c.cost ? '' : [c.cost.gold ? `<span class="dot gold"></span>${c.cost.gold}` : '', c.cost.food ? `<span class="dot food"></span>${c.cost.food}` : ''].filter(Boolean).join(' ');
     const dots = pages.length > 1 ? `<div class="pgdots">${pages.map((_, k) => `<i class="${k === pg ? 'on' : k < pg ? 'past' : ''}"></i>`).join('')}</div>` : '';
     const opts = last ? `<div class="opts one encopts">${enc.choices.map(c => { const ok = !c.cost || game.story().can(c); const rar = c.rarity ? RARITY[c.rarity] : null;
-        return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span>${esc(P && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}<span class="cost">${costTxt(c)}</span></span><span class="ds">${richHint(c.hint || '')}</span></button>`; }).join('')}</div>`
+        return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span>${esc(P && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}</span>${chipsOf(c)}<span class="ds">${richHint(c.hint || '')}</span></button>`; }).join('')}</div>`
       : `<div class="cardrow spread"><button class="btn ghost sm" id="encSkip">Skip to the choice</button><button class="btn big" id="encNext">Continue ▸</button></div>`;
     showCard('enc', `<div class="enc ${enc.kind}${sys ? ' sysw' : ''}"><div class="eyebrow sysline">${esc(enc.eyebrow || '')}${badge(P ? '' : '')}</div>
       <h1 class="sm">${esc(title)}</h1>

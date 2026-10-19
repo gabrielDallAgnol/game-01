@@ -7,7 +7,7 @@
 
 export const TONE = 'Tone: an earnest isekai/anime survival story (think Shangri-La Frontier, That Time I Got Reincarnated as a Slime): the hero woke up in a fallen modern city with a game-like status window; hope under dread; vivid, concrete, short sentences; PG-13 (no gore detail, nothing sexual); no real brands or real people; never mention AI or that this is a game. The System speaks only inside [square brackets].';
 export const clip = (s, n) => String(s ?? '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
-const SHORT = 'Keep it SHORT: it is read on a phone, one small page at a time. Mark the one most important phrase with **double asterisks**.';
+const SHORT = 'Write like a modern mobile game, not a novel: punchy, concrete, 8–16 words per beat, present tense. In every beat mark the 1–2 key words (who, what is at stake, what it costs) with **double asterisks**. Cause and consequence must be obvious at a glance.';
 
 // ---------- rewrite one encounter ----------
 export function rewritePrompt(enc, ctx) {
@@ -18,7 +18,7 @@ RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, people: ctx.people, sites:
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle)}
 ENCOUNTER: ${JSON.stringify({ kind: enc.kind, eyebrow: enc.eyebrow, title: enc.title, scene: enc.scene, speaker: enc.speaker ? { name: enc.speaker.name, line: enc.speaker.line } : null, choices })}
 ${SHORT}
-Reply with ONLY this JSON: {"title":"≤6 words","beats":["2 or 3 beats, each ≤22 words, second person, present tense; together they are the scene"],"line":${enc.speaker ? '"≤16 words, what the speaker says, in quotes"' : 'null'},"choices":[{"id":"<same id>","label":"≤6 words"}],"chronicle":"≤16 words, past tense, what this moment was"}`;
+Reply with ONLY this JSON: {"title":"≤6 words","beats":["2 or 3 beats, each ≤16 words, second person, present tense; together they are the scene"],"line":${enc.speaker ? '"≤16 words, what the speaker says, in quotes"' : 'null'},"choices":[{"id":"<same id>","label":"≤6 words"}],"chronicle":"≤16 words, past tense, what this moment was"}`;
 }
 export function parseRewrite(p, enc) {
   if (!p || typeof p !== 'object') return null;
@@ -43,7 +43,7 @@ STORY THREADS: ${JSON.stringify(ctx.threads || [])}
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle)}
 TEMPLATES: ${JSON.stringify(menu)}
 ${SHORT} The words must match each choice's effect (e.g. a rescue of +2 people is two or three people, not a crowd). Never reuse a name from PEOPLE MET for a new character.
-Reply with ONLY this JSON: {"template":"<template id>","callback":"≤16 words: which earlier event this grows from","eyebrow":"≤4 words, System style, no brackets","title":"≤6 words","beats":["2 or 3 beats, each ≤22 words, second person, present tense"],"choices":[{"id":"<template choice id>","label":"≤6 words"}],"character":{"name":"first and last name","epithet":"the ... (≤4 words)","role":"for recruit only: scout|medic|cook|mechanic|gunner","traits":["3 single words"],"quirk":"≤10 words","want":"≤10 words","fear":"≤8 words","secret":"≤20 words"} or null}`;
+Reply with ONLY this JSON: {"template":"<template id>","callback":"≤16 words: which earlier event this grows from","eyebrow":"≤4 words, System style, no brackets","title":"≤6 words","beats":["2 or 3 beats, each ≤16 words, second person, present tense"],"choices":[{"id":"<template choice id>","label":"≤6 words"}],"character":{"name":"first and last name","epithet":"the ... (≤4 words)","role":"for recruit only: scout|medic|cook|mechanic|gunner","traits":["3 single words"],"quirk":"≤10 words","want":"≤10 words","fear":"≤8 words","secret":"≤20 words"} or null}`;
 }
 /** light checks only: the engine (story.invent) validates and clips everything again */
 export function parseInvent(p, templates) {
@@ -60,7 +60,7 @@ The player is coming back to their run after a break. Write the "Previously on H
 RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, season: ctx.season, hero: ctx.hero, companions: (ctx.companions || []).map(c => c.name) })}
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle)}
 ${SHORT}
-Reply with ONLY this JSON: {"beats":["3 beats, each ≤22 words, second person, past tense for what happened and present tense for the last one (what waits now)"]}`;
+Reply with ONLY this JSON: {"beats":["3 beats, each ≤16 words, second person, past tense for what happened and present tense for the last one (what waits now)"]}`;
 }
 export const parseRecap = p => { const b = p && Array.isArray(p.beats) ? p.beats.map(x => clip(x, 200)).filter(x => x.length >= 8).slice(0, 4) : []; return b.length ? b : null; };
 

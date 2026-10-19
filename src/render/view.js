@@ -15,7 +15,8 @@ const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
 const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
 const FOOT = { house: 2, farm: 2, tower: 1, workshop: 3, market: 3, generator: 2 };   // cells each building covers   // world units per metre of each kit model
 const HERO_RIG = { warrior: 'brawler', archer: 'ranger', merchant: 'scavver', steward: 'scavver', survivor: 'brawler', vanguard: 'brawler', warlord: 'brawler', deadeye: 'ranger', medic: 'scavver', warden: 'brawler', marshal: 'ranger', quartermaster: 'scavver' };
-const HOUSE_COLORS = ['sand', 'bone', 'stone', 'pale'];
+const HOUSE_COLORS = ['#efe2c4', '#e3ecdf', '#f2dccb', '#e9e4f0'];   // your homes: fresh paint
+const ROOF_COLORS = ['#c8553d', '#2f8f88', '#3d6b9a', '#d9843a'];
 const HIVES = ['metro', 'petrol', 'hospital'];
 
 export function createView(canvas, game, opts = {}) {
@@ -379,7 +380,7 @@ export function createView(canvas, game, opts = {}) {
   // ---------- buildings ----------
   function model(type, level, b) {
     let m;
-    if (type === 'house') m = K.townhouse({ level, seed: (b ? b.id : 1) * 13 + 5, color: HOUSE_COLORS[(b ? b.id : 0) % HOUSE_COLORS.length], game: true });
+    if (type === 'house') m = K.townhouse({ level, seed: (b ? b.id : 1) * 13 + 5, color: HOUSE_COLORS[(b ? b.id : 0) % HOUSE_COLORS.length], roof: ROOF_COLORS[(b ? b.id * 7 : 0) % ROOF_COLORS.length], game: true });
     else if (type === 'farm') m = K.farm({ level, seed: b ? b.id : 1 });
     else if (type === 'tower') m = K.tower({ level, game: true });
     else if (type === 'wall') m = K.post(level, b ? b.links : { e: true, w: true }, b ? b.id : 1);
@@ -427,8 +428,16 @@ export function createView(canvas, game, opts = {}) {
   const dying = [], effects = [];
   const crowd = createCrowd(world); crowd.warm(['walker', 'runner']);
 
-  let heroRig = liveRig(K.heroes[HERO_RIG[S.heroClass] || 'brawler']()), rigClass = S.heroClass; world.add(heroRig.g);
-  function syncRig() { if (rigClass === S.heroClass) return; const want = HERO_RIG[S.heroClass] || 'brawler'; if (want !== HERO_RIG[rigClass]) { world.remove(heroRig.g); heroRig = liveRig(K.heroes[want]()); world.add(heroRig.g); } rigClass = S.heroClass; burst(S.hero.x, S.hero.y, 2.2, '#7fd4ff'); }
+  // x-ray: where a building hides the hero (or a companion), a glowing silhouette shows through it
+  const xrayMats = {};
+  function xray(g, col) {
+    const mat = xrayMats[col] || (xrayMats[col] = new THREE.MeshBasicMaterial({ color: lc(col).multiplyScalar(1.6), transparent: true, opacity: 0.6, depthWrite: false, depthFunc: THREE.GreaterDepth }));
+    const list = []; g.traverse(o => { if (o.isMesh && !o.userData.xray) list.push(o); });
+    for (const o of list) { const x = new THREE.Mesh(o.geometry, mat); x.userData.xray = true; x.renderOrder = 30; x.castShadow = false; o.add(x); }
+    return g;
+  }
+  let heroRig = liveRig(K.heroes[HERO_RIG[S.heroClass] || 'brawler']()), rigClass = S.heroClass; xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g);
+  function syncRig() { if (rigClass === S.heroClass) return; const want = HERO_RIG[S.heroClass] || 'brawler'; if (want !== HERO_RIG[rigClass]) { world.remove(heroRig.g); heroRig = liveRig(K.heroes[want]()); xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g); } rigClass = S.heroClass; burst(S.hero.x, S.hero.y, 2.2, '#7fd4ff'); }
   const heroBar = makeBar('h', 1.0);
   const arrowGeo = new THREE.BoxGeometry(0.04, 0.04, 0.6), spitGeo = new THREE.IcosahedronGeometry(0.13, 0);
   const arrowMat = new THREE.MeshBasicMaterial({ color: lc('#f0e2c4').multiplyScalar(1.5) }), spitMat = new THREE.MeshBasicMaterial({ color: lc('#b4ff4e').multiplyScalar(2) });
@@ -458,6 +467,42 @@ export function createView(canvas, game, opts = {}) {
     if (padGeo[n].mark) g.add(new THREE.Mesh(padGeo[n].mark, markMat)); else for (const gm of padGeo[n].marks) g.add(new THREE.Mesh(gm, markMat));
     return g;
   }
+  // what you built should feel cared for: bunting in bright colours, planters, a warm lamp, a little flag
+  const CHEER = ['#f0a040', '#3fb8a8', '#f4ead2', '#e8667a', '#ffd166'], cheerGeo = {};
+  function cheer(type, n, id) {
+    const key = `${type}${n}`;
+    if (!cheerGeo[key]) {
+      const b = new K.B(), h = n / 2 + 0.38, r = K.rng(n * 31 + type.length);
+      // corner posts with a string of pennants between two of them
+      const posts = [[-h, -h], [h, -h], [h, h], [-h, h]];
+      for (const [x, z] of posts) b.box('#5a4630', 0.06, 1.2, 0.06, x, 0, z);
+      for (const [z, ax] of [[-h, 'x'], [h, 'x'], [-h, 'z'], [h, 'z']]) for (let k = 0; k <= 7; k++) { const t = k / 7, u = -h + 2 * h * t, sag = Math.sin(t * Math.PI) * 0.16; if (ax === 'x') b.cbox(CHEER[k % CHEER.length], 0.24, 0.24, 0.02, u, 1.02 - sag, z, { r: 0.002, rz: Math.PI / 4 }); else b.cbox(CHEER[(k + 2) % CHEER.length], 0.02, 0.24, 0.24, z, 1.02 - sag, u, { r: 0.002, rx: Math.PI / 4 }); }
+      // planters with flowers on the other two corners
+      for (const [x, z] of posts.slice(2)) { b.cbox('#8a5a3a', 0.34, 0.16, 0.34, x, 0, z, { r: 0.03 }); b.sph('#5c8a3c', 0.15, x, 0.2, z, { detail: 0 }); for (let k = 0; k < 3; k++) b.sph(CHEER[(k + Math.floor(r() * 4)) % CHEER.length], 0.05, x + (r() - 0.5) * 0.22, 0.32, z + (r() - 0.5) * 0.22, { detail: 0 }); }
+      cheerGeo[key] = b.build();
+    }
+    const out = new THREE.Group(); out.add(cheerGeo[key].clone());
+    // the warm lamp: lights up at dusk with the windows
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), K.WIN); bulb.position.set(n / 2 + 0.38, 0.95, n / 2 + 0.38); out.add(bulb);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.9, 5), K.M('#3a3a3a')); pole.position.set(n / 2 + 0.38, 0.45, n / 2 + 0.38); out.add(pole);
+    if (type === 'house' || type === 'tower') { const f = new THREE.Mesh(flagGeo, flagMat); f.scale.setScalar(0.5); f.position.set(-0.2, type === 'tower' ? 2.9 : 1.9, 0); out.add(f); out.userData.flag = f; }
+    return out;
+  }
+  // building something is a small celebration: confetti and a "+1" that floats up
+  const confetti = [], confMats = CHEER.map(c => new THREE.MeshBasicMaterial({ color: lc(c).multiplyScalar(1.2), side: THREE.DoubleSide })), confGeo = new THREE.PlaneGeometry(0.12, 0.07);
+  function celebrate(x, y, label) {
+    for (let k = 0; k < 26; k++) { const m = new THREE.Mesh(confGeo, confMats[k % confMats.length]); m.position.copy(W(x, y, 0.6)); fx.add(m); const a = vis() * Math.PI * 2, s = 1.2 + vis() * 2.2; confetti.push({ m, vx: Math.cos(a) * s, vz: Math.sin(a) * s, vy: 3.2 + vis() * 2.5, spin: vis() * 12, t: 0 }); }
+    if (label) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(label, { w: 256, h: 64, size: 40, bg: 'rgba(0,0,0,0)', fg: '#ffd166' }), transparent: true, depthTest: false })); sp.scale.set(1.6, 0.4, 1); sp.position.copy(W(x, y, 2.2)); sp.renderOrder = 12; fx.add(sp); confetti.push({ m: sp, label: true, t: 0 }); }
+  }
+  function stepConfetti(dt) {
+    for (const c of [...confetti]) {
+      c.t += dt;
+      if (c.label) { c.m.position.y += dt * 0.9; c.m.material.opacity = Math.max(0, 1 - Math.max(0, c.t - 0.8) / 0.8); }
+      else { c.vy -= 9 * dt; c.m.position.x += c.vx * dt; c.m.position.y = Math.max(0.03, c.m.position.y + c.vy * dt); c.m.position.z += c.vz * dt; c.m.rotation.x += c.spin * dt; c.m.rotation.y += c.spin * 0.7 * dt; c.vx *= 0.97; c.vz *= 0.97; }
+      if (c.t > (c.label ? 1.6 : 1.4)) { fx.remove(c.m); confetti.splice(confetti.indexOf(c), 1); }
+    }
+  }
+  const NICE = { house: '+1 Home', farm: '+1 Farm', tower: '+1 Tower', generator: '+1 Generator', workshop: 'Workshop', market: 'Market' };
   const noPowerMat = new THREE.SpriteMaterial({ map: K.textTex('NO POWER', { w: 256, h: 64, size: 40, bg: '#3a0d08', fg: '#ff6a50', spacing: '2px' }), transparent: true, depthTest: false });
   function syncBuildings() {
     const seen = new Set();
@@ -469,11 +514,11 @@ export function createView(canvas, game, opts = {}) {
         const relink = e && e.level === b.level;
         if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); }
         const g = new THREE.Group(), m = model(b.type, b.level, { id: b.id, links }); g.add(m);
-        if (FOOT[b.type]) g.add(padFor(FOOT[b.type]));
+        if (FOOT[b.type]) { g.add(padFor(FOOT[b.type])); if (b.type !== 'wall') g.add(cheer(b.type, FOOT[b.type], b.id)); }
         g.position.copy(W(b.x, b.y)); if (b.type === 'house' || b.type === 'farm') g.rotation.y = faceKeep(b.x, b.y);
         g.scale.set(1, relink ? 1 : 0.02, 1); world.add(g);
         e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type, rise: relink ? 1 : 0 }; bMeshes.set(b.id, e);
-        if (!relink && b.type !== 'wall') dust(b.x, b.y, FOOT[b.type] || 1);
+        if (!relink && b.type !== 'wall') { dust(b.x, b.y, FOOT[b.type] || 1); if (time > 1) celebrate(b.x, b.y, e.level > 1 ? `Level ${b.level}!` : NICE[b.type]); }
         if (b.ruined) e.g.visible = false;
       }
       if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.g.scale.setScalar(1); burst(b.x, b.y, 1.2, '#d9843a'); }
@@ -538,7 +583,7 @@ export function createView(canvas, game, opts = {}) {
     for (const a of S.allies) {
       seen.add(a.id);
       if (!aMeshes.has(a.id)) {
-        const r = liveRig(mercRig()); world.add(r.g); const e = { ...r, bar: makeBar('h', 0.6), phase: vis() * 6 };
+        const r = liveRig(mercRig()); if (a.comp) xray(r.g, '#f0b060'); world.add(r.g); const e = { ...r, bar: makeBar('h', 0.6), phase: vis() * 6 };
         if (a.comp) { e.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(a.name.toUpperCase(), { w: 256, h: 64, size: 36, bg: '#2a1a0c', fg: '#f0b060', spacing: '2px' }), transparent: true, depthTest: false })); e.tag.scale.set(1.3, 0.32, 1); e.tag.renderOrder = 21; fx.add(e.tag); }
         aMeshes.set(a.id, e); burst(a.x, a.y, 0.8, a.comp ? '#f0b060' : '#d9843a');
       }
@@ -805,7 +850,7 @@ export function createView(canvas, game, opts = {}) {
     crowd.end();
     for (const f of [...effects]) { f.t += dt; if (!f.line) { const s = 0.5 + f.t * f.r * 2.2; f.m.scale.set(s, s, s); } f.m.material.opacity = Math.max(0, 0.9 - f.t * 1.4); if (f.t > 0.7) { fx.remove(f.m); effects.splice(effects.indexOf(f), 1); } }
     for (const g of cMeshes.values()) { g.rotation.y += dt; g.position.y = 0.08 + Math.abs(Math.sin(time * 3)) * 0.12; }
-    stepPuffs(dt);
+    stepPuffs(dt); stepConfetti(dt);
 
     // buildings
     for (const b of S.buildings) {
