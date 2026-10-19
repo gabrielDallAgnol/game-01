@@ -53,6 +53,11 @@ export const SITES = {
     claim: 'Make it ours', strip: 'Strip it for scrap', leave: 'Leave it for now',
   },
   flats: { scene: 'Barricades, **fourteen floors up**. A family of five, two old men. **Out of water.** Still alive.', claim: 'Bring them home', strip: 'Take the water, go' },
+  farmstead: { scene: 'A barn with the doors **barred from inside**. Chickens in the yard. Furrows still straight. Someone **was here this week**.', claim: 'Work the fields', strip: 'Take the stores' },
+  lumber: { scene: 'Stacked timber, a **cold saw**, and boot prints in the sawdust. The axes are **gone**.', claim: 'Run the camp', strip: 'Haul the timber home' },
+  quarry: { scene: 'A pit of grey stone and a crane gone to rust. A crew is **camped on the ledge**, ropes pulled up.', claim: 'Bring the crew in', strip: 'Take the tools' },
+  lodge: { scene: 'Antlers over the door. **Smoke racks**, snares, a cold stove. A rifle rack with **one gap**.', claim: 'Make it a hunting post', strip: 'Take the meat and traps' },
+  cabin: { scene: 'A **ranger cabin** with the shutters nailed. A dog barks. A voice: **"Who sent you?"**', claim: 'Bring them home', strip: 'Take their supplies' },
   allotment: { scene: 'Beans and potatoes under nets. A painted sign: **TAKE WHAT YOU NEED. LEAVE WHAT YOU CAN.**', claim: 'Fence it and farm it', strip: 'Harvest it all now' },
   market: { scene: 'Shutters up. **Nobody looted this.** Tins, tools, batteries, a **pharmacy** behind glass.', claim: 'Run it as a market', strip: 'Take everything now' },
   police: { scene: 'The armory held. **Rifles in racks.** The duty log stops the night the **city fell**.', claim: 'Arm the towers', strip: 'Sell the guns for scrap' },
@@ -141,7 +146,7 @@ export const THREADS = {
     stages: [
       {
         id: 'drawings', at: 'dawn', eyebrow: '[Signal: children]', title: 'Drawings on the glass',
-        scene: 'New drawings in the **school windows**, two blocks out. Suns. Houses. A big orange flag. **Your flag.**',
+        scene: 'New drawings in the **school windows** on the edge of the city. Suns. Houses. A big orange flag. **Your flag.**',
         choices: [
           { id: 'go', label: 'Cut a way through', hint: 'Opens the school district today. Go yourself.', fx: [{ op: 'openFor', kit: 'school' }, { op: 'advance' }] },
           { id: 'wait', label: 'Refuse more mouths', hint: 'Not now. Someday the drawings will stop.', fx: [{ op: 'fail', after: 4 }] },
@@ -234,8 +239,8 @@ export const AMBIENT = [
   { id: 'dog', when: S => S.night >= 3, eyebrow: '[Event]', title: 'A dog at the gate',
     scene: 'A grey dog followed you home. **Ribs showing**, one ear torn, **tail going like mad**. It won\'t leave.',
     choices: [{ id: 'keep', label: 'Let it in', hint: 'Barks at the dead: hero 8% faster. Town sleeps better: +1 food each dawn.', fx: [{ op: 'perk', key: 'heroSpeed', mul: 1.08 }, { op: 'flag', key: 'garden' }] }, { id: 'shoo', label: 'Shoo it away', hint: 'One more mouth is too many.', fx: [] }] },
-  { id: 'flag', when: S => S.night >= 4, eyebrow: '[Event]', title: 'Your flag on the overpass',
-    scene: 'Someone painted **your flag** on the overpass. Three metres tall. Seen for miles. **So are you.**',
+  { id: 'flag', when: S => S.night >= 4, eyebrow: '[Event]', title: 'Your flag on the old road',
+    scene: 'Someone painted **your flag** on a road sign by the trees. Three metres tall. Seen for miles. **So are you.**',
     choices: [{ id: 'leave', label: 'Leave it up', hint: 'Survivors find you: +2 people next dawn. +10 heat.', fx: [{ op: 'heat', n: 10 }, { op: 'flag', key: 'beacon' }, { op: 'flag', key: 'beacon' }] }, { id: 'paint', label: 'Paint over it', hint: 'Heat -10.', fx: [{ op: 'heat', n: -10 }] }] },
   { id: 'fever', when: S => S.night >= 4, eyebrow: '[Warning]', title: 'Fever in the bunks',
     scene: 'Four of your people, **coughing and burning up**. Not bitten. Just sick, the kind that **used to be nothing**.',

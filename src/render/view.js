@@ -721,7 +721,7 @@ export function createView(canvas, game, opts = {}) {
       if (e.t === 'firstDead') focus = { id: e.id, t: 5 };
       if (e.t === 'hitHive') { const n = map.regions[e.region].nest; burst(n.x, n.y, 1.4, '#9dff4a'); }
       if (e.t === 'bountyGold') burst(e.x, e.y, 0.6, '#f0c050');
-      if (e.t === 'pickup') { burst(e.x, e.y, 0.5, e.kind === 'scrap' ? '#f0a040' : '#9fe08a'); floatLabel(e.x, e.y, e.kind === 'scrap' ? '+1 scrap' : '+1 food', e.kind === 'scrap' ? '#ffc070' : '#b4f09a'); }
+      if (e.t === 'pickup') { burst(e.x, e.y, 0.5, e.kind === 'scrap' ? '#f0a040' : '#9fe08a'); floatLabel(e.x, e.y, `+${e.n || 1} ${e.kind === 'scrap' ? 'scrap' : 'food'}`, e.kind === 'scrap' ? '#ffc070' : '#b4f09a'); }
       if (e.t === 'scavGo') sendWalkers(e.site, e.n, false);
       if (e.t === 'scavBack') sendWalkers(e.site, e.n, true);
       if (e.t === 'explode') burst(e.x, e.y, e.r, '#a3c65c');

@@ -51,4 +51,4 @@ export const KEEP = {
   desc: ['Shoots · range 8', '+40 health · harder arrows · range 9', '+50 health · two arrows · range 10'],
 };
 
-export const START = { gold: 16, food: 6, baseIncome: 8, foodPerCitizen: 1, survivors: 3, salvage: 0.4 };   // salvage: scrap per dead put down
+export const START = { gold: 16, food: 9, baseIncome: 8, foodPerCitizen: 1, survivors: 3, salvage: 0.4 };   // salvage: scrap per dead put down

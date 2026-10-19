@@ -318,7 +318,7 @@ export function createStory(ctx) {
     }
   }
   function start() {
-    chron('Woke up in the fallen city with a bus full of strangers.', 5);
+    chron('Woke up in the woods outside the fallen city, with a bus full of strangers.', 5);
     placeSpots(); episode();
   }
   /** bonuses companions and story give the town */

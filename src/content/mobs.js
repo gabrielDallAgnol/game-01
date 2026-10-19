@@ -5,7 +5,7 @@ export const MOBS = {
   walker:    { name: 'Walker',    hp: 3,  speed: 1.5,  dmg: 2,  cost: 1,   from: 1, weight: 10, size: 1 },
   runner:    { name: 'Runner',    hp: 2,  speed: 3.0,  dmg: 1,  cost: 1.2, from: 3, weight: 4,  size: 0.85 },
   crawler:   { name: 'Crawler',   hp: 3,  speed: 1.8,  dmg: 2,  cost: 1.5, from: 4, weight: 3,  size: 0.8, climbs: true },
-  brute:     { name: 'Brute',     hp: 18, speed: 0.95, dmg: 6,  cost: 5,   from: 7, weight: 1.5, size: 1.6, dropsChest: 0.2 },
+  brute:     { name: 'Brute',     hp: 18, speed: 0.95, dmg: 6,  cost: 5,   from: 7, weight: 1.5, size: 1.6, dropsChest: 0.08 },
   spitter:   { name: 'Spitter',   hp: 3,  speed: 1.3,  dmg: 2,  cost: 2,   from: 7, weight: 2,  size: 0.95, range: 5, rate: 1.6 },
   bloater:   { name: 'Bloater',   hp: 8,  speed: 1.0,  dmg: 0,  cost: 2.5, from: 9, weight: 2,  size: 1.35, burst: { dmg: 10, radius: 2.4 } },
   screamer:  { name: 'Screamer',  hp: 5,  speed: 1.6,  dmg: 1,  cost: 3,   from: 11, weight: 1,  size: 1.05, aura: { speed: 1.35, radius: 4.5 } },
@@ -31,7 +31,7 @@ export const BRAIN = {
 };
 // Burning a hive: the dead inside pour out after you. Tools buy you time.
 export const ESCAPE = {
-  horde: n => 4 + Math.floor(n / 2),                                   // dead in a hive's death throes
+  horde: n => 6 + n,                                   // dead in a hive's death throes
   flare: { cost: 4, t: 20, name: 'Flare', desc: 'They chase the light for **20 s**.' },
   smoke: { cost: 3, t: 25, name: 'Smoke', desc: 'They lose your scent unless they bump into you.' },
   run:   { name: 'Just run', desc: 'They come after you **right away**.' },
