@@ -67,6 +67,7 @@ export function createApi(G) {
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
     // [nests] the hive that keeps a site locked (-1: free), a hive's rage ({ rage, lv, hot, near } or null), its guards
     siteLock: id => G.lockedBy(S.landmarks[id]), nestRage: r => S.nestRage[r] || null, nestGuards: r => G.nestGuards(r),
+    hiveEdge: (r, x, y) => G.nestEdge(map.regions[r], x, y), hiveInReach: (x, y, reach) => { const r = G.hiveInReach(x, y, reach); return r ? r.id : -1; },   // [nests] reach is measured to the edge; a strike needs clear sight
   };
   return api;
 }
