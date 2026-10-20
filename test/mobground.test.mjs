@@ -51,7 +51,11 @@ test('every spawn source lands on reachable ground, the night\'s and the hives\'
       for (const q of spawned) assert.ok(groundOk(map, q.x, q.y), `seed ${seed}: source ${r} spawned a ${q.kind} at ${q.x.toFixed(1)},${q.y.toFixed(1)} off the camp's ground`);
       S.mobs.length = before;
     }
-    // the roamers of every open district
+    // the roamers of every district, the city's walled blocks too: open them all and let a night pass (they rise at dawn)
+    for (const r of map.regions) S.sealed[r.id] = 0; S.sealVersion++;
+    S.mobs.length = 0; S.queue = []; tidy(g); S.phase = 'day'; S.dayT = 0; g.startNight(); S.queue = []; S.qT = g.nightLen();
+    for (let k = 0; k < 40 && S.phase === 'night'; k++) g.step(DT);
+    assert.equal(S.phase, 'day', `seed ${seed}: no dawn`);
     for (const m of S.mobs) if (!MOBS[m.kind].animal) assert.ok(groundOk(map, m.x, m.y), `seed ${seed}: a roamer at ${m.x.toFixed(1)},${m.y.toFixed(1)} off the camp's ground`);
   }
 });
