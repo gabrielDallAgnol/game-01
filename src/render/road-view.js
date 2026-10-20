@@ -208,7 +208,7 @@ export function createRoadView({ world, fx, game, W, K, lc, makeBar, setBar, bur
 
   // ---------- traps: embers and flare fires drawn from the sim's state; on a Pied Piper night every trap is marked ----------
   const fires = new Map(), marks = new Map();
-  const TRAP_LABEL = { outpost: 'TRAP · FIRE RING', embers: 'TRAP · EMBERS', ford: 'TRAP · FORD', pyre: 'TRAP · FLARE FIRE' };
+  const TRAP_LABEL = { outpost: 'TRAP · FIRE RING', embers: 'TRAP · EMBERS', ford: 'TRAP · FORD', pyre: 'TRAP · PITCH FIRE' };
   const trapRingMat = () => new THREE.MeshBasicMaterial({ color: lc('#ffc070').multiplyScalar(1.35), transparent: true, opacity: 0, depthWrite: false });
   function syncTraps(time, dark) {
     const mi = road.missions, seenF = new Set();

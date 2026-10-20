@@ -163,7 +163,7 @@ export function createMissions(ctx, getRoad) {
     for (const st of road.stations) if (st.lit) out.push({ kind: 'outpost', id: st.id, name: st.name, x: st.x, y: st.y, r: road.ringOf(st) + TR.outpostPad });
     for (const em of embers) out.push({ kind: 'embers', id: `e${em.x | 0}_${em.y | 0}`, name: 'Burning hollow', x: em.x, y: em.y, r: MISSION.embers.r });
     for (const f of fords) if (seen(f.x, f.y)) out.push({ kind: 'ford', id: `f${f.id}`, name: 'The ford', x: f.x, y: f.y, r: TR.fordR });
-    for (const p of pyres) out.push({ kind: 'pyre', id: `p${p.id}`, name: 'Flare fire', x: p.x, y: p.y, r: TR.pyreR, t: p.t });
+    for (const p of pyres) out.push({ kind: 'pyre', id: `p${p.id}`, name: 'Pitch fire', x: p.x, y: p.y, r: TR.pyreR, t: p.t });
     return out;
   }
   /** the nearest trap out of the camp (null when there is none) */

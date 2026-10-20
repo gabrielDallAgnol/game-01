@@ -91,7 +91,7 @@ const CSS = `
 .rd-plan .btn{background:var(--cyan);color:#04121d;border-radius:2px;font:600 13px/1 var(--mono);letter-spacing:.08em;min-height:40px}
 `;
 
-const TRAP_NAME = { outpost: 'fire ring', embers: 'embers', ford: 'ford', pyre: 'flare fire' };
+const TRAP_NAME = { outpost: 'fire ring', embers: 'embers', ford: 'ford', pyre: 'pitch fire' };
 
 export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere = () => true }) {
   const road = game.road; if (!road) return null;
@@ -108,7 +108,9 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   const win = mk('div', 'rd-win'); win.hidden = true;
   const tool = mk('button', 'rd-tool'); tool.hidden = true;
   const tag = mk('div', 'rd-tag'); tag.hidden = true;
-  const kit = mk('div', 'rd-kit'); kit.innerHTML = `<button data-k="flare" aria-label="Throw a flare">${icon('flame')}<b>Flare</b><span></span></button><button data-k="smoke" aria-label="Light smoke">${icon('smoke')}<b>Smoke</b><span></span></button>`; kit.hidden = true;
+  // the field tools (Flare, Smoke) are cut (CUT.tools): game.tools() is null and the kit stays empty and hidden
+  const kitOn = !!(game.tools && game.tools());
+  const kit = mk('div', 'rd-kit'); if (kitOn) kit.innerHTML = `<button data-k="flare" aria-label="Throw a flare">${icon('flame')}<b>Flare</b><span></span></button><button data-k="smoke" aria-label="Light smoke">${icon('smoke')}<b>Smoke</b><span></span></button>`; kit.hidden = true;
   let hordeT = 0, ledT = 0, sigKit = '';
   const arrows = [];
   let trip = null, tripT = 0, sigSt = '', sigWin = '', sigTool = '', hudT = 0;
@@ -203,9 +205,10 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     const cx = near.reduce((a, m) => a + m.x, 0) / near.length, cy = near.reduce((a, m) => a + m.y, 0) / near.length, d = Math.hypot(cx - h.x, cy - h.y) || 1;
     return [cx + (cx - h.x) / d * 6, cy + (cy - h.y) / d * 6];   // beyond the pack: they turn away from you to chase the light
   }
-  kit.querySelector('[data-k="flare"]').onclick = () => { const [x, y] = flareSpot(); if (game.useFlare(x, y)) { sigKit = ''; renderKit(); } };
-  kit.querySelector('[data-k="smoke"]').onclick = () => { if (game.useSmoke()) { sigKit = ''; renderKit(); } };
+  if (kitOn) kit.querySelector('[data-k="flare"]').onclick = () => { const [x, y] = flareSpot(); if (game.useFlare(x, y)) { sigKit = ''; renderKit(); } };
+  if (kitOn) kit.querySelector('[data-k="smoke"]').onclick = () => { if (game.useSmoke()) { sigKit = ''; renderKit(); } };
   function renderKit() {
+    if (!kitOn) return;
     const h = S.hero, T = game.tools ? game.tools() : null;
     const hunted = S.mobs.some(m => (m.hunt || m.piped) && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < 16);
     const cooling = T && (!T.flare.ready || !T.smoke.ready);
