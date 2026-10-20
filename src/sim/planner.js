@@ -97,7 +97,7 @@ export function createPlanner(g) {
     const towers = S.buildings.filter(b => b.type === 'tower' && !b.ruined), n = towers.length, want = wantTowers();
     if (n < Math.min(want, 3)) return ACT.tower() || ACT.upTower();
     if (g.crewing().free < 1 && ACT.spec()) return true;   // [towers] short of people: make the manned towers better
-    if (n >= want) return ACT.upTower() || ACT.spec() || ACT.tower();
+    if (n >= want) return ACT.spec() || ACT.upTower() || ACT.tower();   // [towers] enough towers: a role before another level
     const up = towers.filter(b => !(g.raiseBlock && g.raiseBlock(b.id))).sort((a, c) => a.level - c.level || a.id - c.id)[0];
     const newV = TD(1) / g.buyCost('tower'), upV = up ? (TD(up.level + 1) - TD(up.level)) / g.upCostOf(up) : 0;
     return upV >= newV ? ACT.upTower() || ACT.tower() : ACT.tower() || ACT.upTower();
