@@ -55,6 +55,10 @@ export function createView(canvas, game, opts = {}) {
   function hiveModel(kind) {
     CFG.hiveGlow = 0;
     let g;
+    if (kind === 'hollow') {   // a forest hollow: earth, roots and a burrow (no building); its burnt twin waits hidden
+      g = K.hollow({ seed: 41 }); CFG.hiveGlow = 1; g.scale.multiplyScalar(1.35);
+      const burnt = K.hollow({ seed: 41, cleared: true, burnt: true }); burnt.visible = false; g.add(burnt); g.userData.burnt = burnt; return g;
+    }
     if (kind === 'metro') { g = K.metro({}); g.scale.setScalar(0.42); }
     else if (kind === 'petrol') { g = K.petrol({}); g.scale.setScalar(0.24); }
     else {
@@ -75,13 +79,14 @@ export function createView(canvas, game, opts = {}) {
   }
   const hives = new Map(); let nestKey = '', nearNests = new Set();
   for (const r of map.regions) if (r.nest) {
-    const kind = HIVES[r.id % HIVES.length], g = new THREE.Group(); g.position.copy(Wv(r.nest.x, r.nest.y)); g.rotation.y = r.nest.back ? Math.atan2(-r.nest.back[0], -r.nest.back[1]) : Math.atan2(C - r.nest.x, C - r.nest.y);
+    const kind = r.ring === 1 ? 'hollow' : HIVES[r.id % HIVES.length], g = new THREE.Group(); g.position.copy(Wv(r.nest.x, r.nest.y)); g.rotation.y = r.nest.back ? Math.atan2(-r.nest.back[0], -r.nest.back[1]) : Math.atan2(C - r.nest.x, C - r.nest.y);
     g.add(hiveModel(kind));
     const decal = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshBasicMaterial({ map: glowTex, color: lc('#8fff3a'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
     decal.rotation.x = -Math.PI / 2; decal.position.y = 0.05; decal.renderOrder = 3; g.add(decal);
     const haze = [];
     for (let k = 0; k < 5; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: lc('#9dff4a'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); sp.scale.setScalar(1.6 + k * 0.4); sp.position.set(Math.cos(k * 2.1) * 0.8, 0.6 + k * 0.45, Math.sin(k * 2.1) * 0.8); g.add(sp); haze.push(sp); }
-    world.add(g); hives.set(r.id, { g, decal, haze, glow: 0 });
+    const model = g.children[0];
+    world.add(g); hives.set(r.id, { g, decal, haze, glow: 0, cleared: !S.nestAlive[r.id], model, burnt: model.userData.burnt || null, eyes: model.userData.eyes || null, pit: model.userData.pit || null });
   }
 
   // ---------- scavenge sites: a cache of supplies at a doorway into the ruins ----------
@@ -964,6 +969,11 @@ export function createView(canvas, game, opts = {}) {
       hv.g.scale.setScalar(swell ? 1 + 0.04 * Math.sin(time * 9) + 0.08 * (1 - S.eruption.t / 40) : 1);
       const siege = S.purge === r, colr = swell ? lc('#ff5a3a') : siege ? lc('#e3a54a') : lc('#8fff3a');
       hv.decal.material.color.copy(colr); hv.decal.material.opacity = hv.glow * (0.35 + dark * 0.55);
+      if (hv.burnt && hv.burnt.visible !== !!hv.cleared) { hv.burnt.visible = !!hv.cleared; for (const ch of hv.model.children) if (ch !== hv.burnt) ch.visible = !hv.cleared; }
+      if (hv.eyes) {   // a hollow's eyes: always watching (dim by day), blinking pair by pair; gone once it burns
+        for (const e of hv.eyes) { const p = e.userData.pair, blink = Math.sin(time * 0.9 + p * 2.3 + r) > 0.96 ? 0.05 : 1; e.visible = !hv.cleared; e.material.opacity = (0.35 + 0.65 * dark) * (0.55 + 0.45 * Math.min(1, hv.glow)) * blink; }
+        hv.pit.visible = !hv.cleared; hv.pit.material.opacity = (0.25 + 0.75 * dark) * (0.5 + 0.5 * Math.min(1, hv.glow));
+      }
       hv.haze.forEach((s, k) => { s.material.color.copy(colr); s.material.opacity = hv.glow * (0.12 + dark * 0.22) * (0.8 + 0.2 * Math.sin(time * 1.5 + k)); s.position.y = 0.6 + k * 0.45 + Math.sin(time * 0.7 + k) * 0.1; });
     }
 

@@ -1382,6 +1382,46 @@ ${o.fragColor || ''}`)
     if (!o.cleared) { const c = car({ wreck: true, seed: 8 }); c.position.set(-1, 0.12, 2.5); c.rotation.y = 1.4; g.add(c); hiveFx(g, 0, 0.12, 0, 4.5, o.night); }
     return g;
   }
+  // A forest hollow: not a building. A dark mound of earth and roots over a burrow, a dead tree, old bones; the rot-green
+  // lives only in the burrow's mouth and the eyes in it (and the haze over it, by night). Units: cells (the view scales ×1.35).
+  function hollow(o = {}) {
+    const g = new THREE.Group(), b = new B(), rr = rng(o.seed || 41);
+    // burnt: the same hollow after the fire (ash and charcoal, no moss, no eyes)
+    const B0 = o.burnt;
+    const EARTH = B0 ? '#2b2724' : '#3a322a', EARTH2 = B0 ? '#211e1b' : '#2f2923', ROOT = B0 ? '#1e1b19' : '#3d3128', MOSS = B0 ? '#4a4540' : '#3c4430', ROCK = '#57534b', BONE = '#bdb39d';
+    // the mound: lumps of dark earth, mossed on top
+    b.sph(EARTH, 2.3, 0, -0.35, -0.2, { detail: 1, sy: 0.5, sz: 0.9 });
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2 + 0.4, d = 1.3 + rr() * 0.5; b.sph(k % 2 ? EARTH2 : EARTH, 0.7 + rr() * 0.45, Math.cos(a) * d, 0.05, Math.sin(a) * d * 0.85 - 0.2, { detail: 1, sy: 0.55 + rr() * 0.25, ry: rr() * 3 }); }
+    b.sph(MOSS, 1.35, -0.3, 0.55, -0.55, { detail: 1, sy: 0.32, sx: 1.2 }); b.sph(MOSS, 0.7, 1.0, 0.45, -0.1, { detail: 1, sy: 0.35 });
+    // the burrow: a black mouth under an earth lip, facing the camp
+    b.sph('#141210', 0.85, 0, 0.32, 1.55, { detail: 1, sx: 1.15, sy: 0.62, sz: 0.5 });
+    b.sph(EARTH2, 0.62, -0.75, 0.42, 1.55, { detail: 1, sy: 0.7 }); b.sph(EARTH2, 0.58, 0.78, 0.38, 1.5, { detail: 1, sy: 0.7 });
+    b.cbox(EARTH, 1.9, 0.32, 0.7, 0, 0.82, 1.35, { r: 0.14, rx: -0.25 });
+    // roots arching over the mouth and down the flanks
+    const root = (x0, z0, x1, z1, h, r0) => {
+      const dx = x1 - x0, dz = z1 - z0, L = Math.hypot(dx, dz), ry = Math.atan2(dx, dz);
+      const SEG = 5; for (let s = 0; s < SEG; s++) { const t0 = s / SEG, t1 = (s + 1) / SEG, y0 = Math.sin(t0 * Math.PI) * h, y1 = Math.sin(t1 * Math.PI) * h, seg = Math.hypot(L / SEG, y1 - y0) + 0.04;
+        b.geo(ROOT, new THREE.CylinderGeometry(r0 * (1 - t1 * 0.5), r0 * (1 - t0 * 0.5), seg, 5), x0 + dx * (t0 + t1) / 2, (y0 + y1) / 2 + 0.25, z0 + dz * (t0 + t1) / 2, Math.PI / 2 - Math.atan2(y1 - y0, L / SEG), ry, 0); }
+    };
+    root(-1.3, 1.1, 1.25, 1.2, 0.95, 0.09); root(-1.6, -0.4, -0.6, 1.7, 0.7, 0.075); root(1.5, -0.6, 0.6, 1.8, 0.75, 0.075); root(-0.4, -1.6, 1.8, 0.4, 0.8, 0.07);
+    // a dead tree leaning out of the back of the mound
+    b.cyl(ROOT, 0.14, 0.26, 3.1, 0.7, 0.2, -1.0, { seg: 7, rz: -0.12, rx: -0.08 });
+    b.cyl(ROOT, 0.05, 0.1, 1.3, 0.95, 2.3, -1.1, { seg: 5, rz: -0.9 }); b.cyl(ROOT, 0.04, 0.08, 1.1, 0.55, 2.6, -1.05, { seg: 5, rz: 0.75, rx: 0.3 }); b.cyl(ROOT, 0.03, 0.07, 0.9, 0.85, 3.0, -0.8, { seg: 5, rx: 0.8 });
+    // rocks, and the bones of what went in
+    for (const [x, z, r0] of [[-1.9, 1.0, 0.32], [1.9, 0.9, 0.26], [-1.2, 1.9, 0.18], [2.1, -0.9, 0.3]]) b.sph(ROCK, r0, x, r0 * 0.4, z, { detail: 0, sy: 0.7, ry: x });
+    b.sph(BONE, 0.13, 0.55, 0.12, 2.15, { detail: 1, sy: 0.85 }); b.cbox(BONE, 0.55, 0.05, 0.05, -0.4, 0.05, 2.2, { r: 0.02, ry: 0.5 }); b.cbox(BONE, 0.42, 0.05, 0.05, -0.25, 0.05, 2.35, { r: 0.02, ry: -0.3 });
+    for (let k = 0; k < 4; k++) b.cyl(BONE, 0.02, 0.025, 0.32, 0.95 + k * 0.09, 0.02, 1.95, { seg: 4, rz: 0.9, ry: 0.3 });
+    g.add(b.build({ ao: 1.2, aoMin: 0.55 }));
+    if (!o.cleared) {
+      // the rot-green: deep in the mouth, and the eyes (the view dims them by day, blinks them, and puts them out when it burns)
+      const pit = glowDecal('#8fff3a', 0.9, 1.6); pit.rotation.x = 0; pit.position.set(0, 0.36, 1.32); g.add(pit);
+      const eyes = [];
+      for (const [x, y, s0] of [[-0.32, 0.42, 1], [0.12, 0.3, 0.8], [0.42, 0.48, 0.9]]) for (const e of [-0.07, 0.07]) { const sp = glowSprite('#b4ff4e', 0.17 * s0 * (CFG.eyeScale ?? 1), 2.2); sp.position.set(x + e * s0, y, 1.62); sp.userData.pair = eyes.length >> 1; g.add(sp); eyes.push(sp); }
+      g.userData.eyes = eyes; g.userData.pit = pit;
+      hiveFx(g, 0, 0, 1.2, 2.2, o.night);
+    }
+    return g;
+  }
   function police(o = {}) {
     const g = new THREE.Group();
     g.add(apartment({ w: 16, d: 11, floors: 3, color: 'stone', trim: 'sand', ruin: o.cleared ? 0 : 0.25, seed: 55, shop: false, burnt: !o.cleared }));
@@ -1759,5 +1799,5 @@ ${o.fragColor || ''}`)
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(swl) * 0.7, step(0.0, swd)) + vec3(1.6, 0.85, 0.3) * smoothstep(0.35, 0.0, abs(swd));` });
   SWEEP.userData.y = sweepY;
 
-  return { hall, home, VCM, flattenVC, ruinOf, SWEEP, P, M, T, setMask, setMaskArrays, setFootprints, territory, EMITW, WIN, LENS, lin, rng, B, weeds, beam, place, post, rboxGeo, sign, textTex, glowDecal, glowSprite, apartment, rubble, streets, grass, car, bus, container, sandbags, jersey, lamp, trafficLight, busStop, tree, bush, barrelFire, townhouse, tower, barricade, farm, keep, hospital, metro, petrol, police, figure, heroes, dead, folk, FIGMAT, zoneCells, chevrons, ghost, ring, chainMat };
+  return { hall, home, VCM, flattenVC, ruinOf, SWEEP, P, M, T, setMask, setMaskArrays, setFootprints, territory, EMITW, WIN, LENS, lin, rng, B, weeds, beam, place, post, rboxGeo, sign, textTex, glowDecal, glowSprite, apartment, rubble, streets, grass, car, bus, container, sandbags, jersey, lamp, trafficLight, busStop, tree, bush, barrelFire, townhouse, tower, barricade, farm, keep, hospital, metro, petrol, police, hollow, figure, heroes, dead, folk, FIGMAT, zoneCells, chevrons, ghost, ring, chainMat };
 })();
