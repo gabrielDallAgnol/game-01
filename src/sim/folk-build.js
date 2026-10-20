@@ -307,7 +307,7 @@ export function createFolkBuild(G) {
     const f = F(), j = f.job;
     return { on: f.on, fund: Math.floor(f.fund), beauty: f.beauty, props: f.props, total: f.total, regen: Math.round(Math.min(FOLK.regenMax, f.beauty * FOLK.regen) * 100), share: FOLK.share, ver: f.ver,
       nextDraw: FOLK.draw[f.drawn] ?? null,
-      job: j ? { kind: j.kind, type: j.type || null, prop: j.prop || null, name: j.name, need: j.need, why: NEEDS[j.need] || '', x: j.x, y: j.y, cells: j.cells, cost: j.cost, paid: Math.floor(j.paid), pct: Math.round(100 * Math.min(1, j.work)), waiting: j.paid < j.cost && j.work >= j.paid / Math.max(1, j.cost) - 1e-6 } : null };
+      job: j ? { kind: j.kind, type: j.type || null, prop: j.prop || null, name: j.name, short: j.kind === 'prop' ? PROPS[j.prop].name : j.kind === 'rebuild' ? `Rebuild ${BUILDINGS[j.type].name.toLowerCase()}` : BUILDINGS[j.type].name, need: j.need, why: NEEDS[j.need] || '', x: j.x, y: j.y, cells: j.cells, cost: j.cost, paid: Math.floor(j.paid), pct: Math.round(100 * Math.min(1, j.work)), waiting: j.paid < j.cost && j.work >= j.paid / Math.max(1, j.cost) - 1e-6 } : null };
   }
   /** the dawn ledger's line: what the folk kept and built since the last dawn (then the counters restart) */
   function folkLedger() { const f = F(), out = { folk: { took: f.took, built: f.built.slice(), fund: Math.floor(f.fund), on: f.on } }; f.took = 0; f.built = []; return out; }
