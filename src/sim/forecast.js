@@ -29,9 +29,7 @@ export function createForecast(G) {
   }
   function forecast(n = S.night) {
     G.refreshFlow();
-    let nests = G.marchNests(n);
-    if (!nests.length) nests = G.edgeSpawns.map((_, k) => -1 - k);
-    const w = nests.map(r => (S.wake[r] === n && n > 1 ? 0.5 : 1)), tw = w.reduce((a, b) => a + b, 0);
+    const src = G.nightSources(n), nests = src.nests, w = src.wts;   // the same sources the wave is drawn from (fronts included)
     const u = G.unlocked(n), wsum = u.reduce((a, [, m]) => a + m.weight, 0), avgCost = u.reduce((a, [, m]) => a + m.weight * m.cost, 0) / wsum;
     const total = n === 1 && S.purge === null ? G.N1_COUNT : G.nightBudget(n) / avgCost;
     if (n === 1) { nests.splice(1); if (S.purge === null && nests.length) { const b = G.n1Edge(nests[0]); if (b !== nests[0]) { nests.push(b); w.splice(0, w.length, 1 + TIDE.night1.packA.length, TIDE.night1.packB.length); } } }
@@ -78,7 +76,15 @@ export function createForecast(G) {
     const lossP = standing ? atRisk * (homes.length / standing) * (homes.length ? folk / homes.length : 0) / 2 : 0;
     const perTower = towersUp ? cr.need / towersUp : 1, deficit = cr.need - (cr.people - lossP);
     const short = Math.max(silent, deficit > 0 ? Math.min(towersUp, Math.ceil(deficit / Math.max(1, perTower))) : 0);
-    return { hall, atRisk, brutes, dead, ratio: +ratio.toFixed(2), night: n, bloodMoon: isBloodMoon(n), crew: { need: cr.need, people: cr.people, silent, short } };
+    return { hall, atRisk, brutes, dead, ratio: +ratio.toFixed(2), night: n, bloodMoon: isBloodMoon(n), crew: { need: cr.need, people: cr.people, silent, short }, from: fromDirs(n) };
+  }
+
+  // ---------- where tonight's dead come from: ['NE', 'S'], most first (short compass words for the strip) ----------
+  const SHORT_DIR = { north: 'N', 'north-east': 'NE', east: 'E', 'south-east': 'SE', south: 'S', 'south-west': 'SW', west: 'W', 'north-west': 'NW' };
+  function fromDirs(n = S.night) {
+    const by = new Map();
+    for (const f of forecast(n)) { if (!f.count) continue; const d = SHORT_DIR[G.compass(f.x, f.y)]; by.set(d, (by.get(d) || 0) + f.count); }
+    return [...by.entries()].sort((a, b) => b[1] - a[1]).map(([d]) => d);
   }
 
   // ---------- queries for UI and bots ----------
@@ -91,5 +97,5 @@ export function createForecast(G) {
       wakes: reg.neighbors.filter(n => map.regions[n].nest && !S.claimed.has(n) && S.wake[n] > S.night).length,
     };
   }
-  return { threatRatio, ratingOf, forecast, forecastStrip, regionInfo };
+  return { threatRatio, ratingOf, forecast, forecastStrip, fromDirs, regionInfo };
 }

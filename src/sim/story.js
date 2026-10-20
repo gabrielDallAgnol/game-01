@@ -541,7 +541,7 @@ export function createStory(ctx) {
   function nightLine(q = S.queue || []) {
     const sides = new Map(); let brutes = 0, total = 0, unique = null;
     for (const e of q) {
-      const reg = map.regions[e.nest], p = reg && reg.nest ? reg.nest : map.town; const d = dirOf(p.x, p.y);
+      const reg = map.regions[e.nest], p = e.nest < 0 && S.edgeSpawns && S.edgeSpawns[-1 - e.nest] ? S.edgeSpawns[-1 - e.nest] : reg && reg.nest ? reg.nest : map.town; const d = dirOf(p.x, p.y);   // a pack out of the deep woods: its edge
       sides.set(d, (sides.get(d) || 0) + 1); total++;
       if (e.kind === 'brute') brutes++; if (e.unique && S.unique) unique = S.unique.name;
     }
@@ -550,6 +550,7 @@ export function createStory(ctx) {
     if (total <= 1) line = T.one;
     else if (ord.length === 1) line = T.side.replace('{N}', word(total)).replace('{dir}', ord[0][0]);
     else if (ord.length === 2) line = T.two.replace('{N}', word(ord[0][1])).replace('{dir}', ord[0][0]).replace('{M}', word(ord[1][1])).replace('{dir2}', ord[1][0]);
+    else if (ord.length === 3 && T.three) line = T.three.replace('{N}', word(total)).replace('{dir}', ord[0][0]).replace('{dir2}', ord[1][0]).replace('{dir3}', ord[2][0]);
     else line = T.many.replace('{N}', word(total));
     if (brutes === 1) line += T.brute; else if (brutes > 1) line += T.brutes.replace('{B}', word(brutes));
     if (unique) line += T.unique.replace('{name}', unique);

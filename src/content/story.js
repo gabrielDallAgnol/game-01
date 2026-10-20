@@ -422,6 +422,7 @@ export const NIGHT_TEXT = {
   one: 'One of them.',
   side: '{N}, from the {dir}.',
   two: '{N} from the {dir}. {M} from the {dir2}.',
+  three: '{N}, from the {dir}, the {dir2} and the {dir3}.',
   many: '{N}. From every side.',
   brute: ' A brute walks with them.',
   brutes: ' {B} brutes walk with them.',

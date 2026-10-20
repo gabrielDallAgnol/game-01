@@ -1,6 +1,6 @@
 // Where the dead come from: which hives are awake and hear the camp, the night's budget, the wave list,
 // spawning, the day's stragglers, dusk (startNight), the purge march, and the light clock (timeOfDay).
-import { CUT, ZONE } from './state.js';
+import { CUT, FRONTS, ZONE } from './state.js';
 import { MAX_LEVEL } from '../content/buildings.js';
 import { MOBS, TIDE, WAVES } from '../content/mobs.js';
 import { PASSABLE, idx, inside } from './mapgen.js';
@@ -60,14 +60,43 @@ export function createWaves(G) {
     return (todLast = S.phase === 'night' ? D + (1 - D) * Math.min(1, S.qT / nightLen()) : D * (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4));
   }
   const N1_COUNT = 1 + TIDE.night1.packA.length + TIDE.night1.packB.length;
-  function makeWave(n) {
+  // ---------- fronts: every night the dead come from at least two sides (three from night 5) ----------
+  // When the awake hives that hear the camp all lie on one side (night 2 has one hollow awake), packs come out of the
+  // deep woods on the far side, like night 1's second pack. The night's budget is the same; only where it walks from.
+  const srcPos = r => (r < 0 ? edgeSpawns[-1 - r] : map.regions[r].nest);
+  const angOf = r => { const p = srcPos(r); return Math.atan2(p.y - c, p.x - c); };
+  const gap = (a, b) => { const d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; };
+  /** how many sides the sources cover: sources less than FRONTS.side apart count as one side */
+  function sideCount(srcs) { const reps = []; for (const r of srcs) { const a = angOf(r); if (reps.every(b => gap(a, b) >= FRONTS.side)) reps.push(a); } return reps.length; }
+  /** tonight's sources and their weights (no rng: the forecast reads the same list the wave is drawn from) */
+  function nightSources(n = S.night) {
     const nests = marchNests(n);
     if (!nests.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id)).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) nests.push(any[0].id); }
-    if (n === 1 && S.purge === null && nests.length) { const N1 = TIDE.night1, b = n1Edge(nests[0]);   // hand-authored: the first dead, its pack, then a pack from the far woods
-      return [{ kind: 'walker', nest: nests[0], t: N1.first, first: true }, ...N1.packA.map(t => ({ kind: 'walker', nest: nests[0], t })), ...N1.packB.map(t => ({ kind: 'walker', nest: b, t }))]; }
     // the whole valley is yours: the dead now come out of the dark woods at the edge
     if (!nests.length) edgeSpawns.forEach((_, k) => nests.push(-1 - k));
     const wts = nests.map(r => (S.wake[r] === n && n > 1 ? 0.5 : 1));
+    const want = FRONTS.want(n);
+    while (nests.length && sideCount(nests) < want) {
+      // the deep woods farthest round from every source (≥100° when there is one, the nearest of those)
+      let best = -1, bg = -1, bd = Infinity;
+      edgeSpawns.forEach((e, k) => {
+        if (nests.includes(-1 - k)) return;
+        const a = Math.atan2(e.y - c, e.x - c), g = Math.min(...nests.map(r => gap(a, angOf(r)))), far = Math.hypot(e.x - c, e.y - c);
+        const better = g >= FRONTS.far ? (bg < FRONTS.far || far < bd) : (bg < FRONTS.far && g > bg);
+        if (better) { best = k; bg = g; bd = far; }
+      });
+      if (best < 0 || bg < FRONTS.side) break;
+      nests.push(-1 - best); wts.push(FRONTS.pack);
+    }
+    return { nests, wts };
+  }
+  const sourceDirs = srcs => srcs.map(r => { const p = srcPos(r); return G.compass(p.x, p.y); });
+  function makeWave(n) {
+    const first = n === 1 && S.purge === null ? marchNests(n) : null;
+    if (first && !first.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id)).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) first.push(any[0].id); }
+    if (first && first.length) { const N1 = TIDE.night1, b = n1Edge(first[0]);   // hand-authored: the first dead, its pack, then a pack from the far woods
+      return [{ kind: 'walker', nest: first[0], t: N1.first, first: true }, ...N1.packA.map(t => ({ kind: 'walker', nest: first[0], t })), ...N1.packB.map(t => ({ kind: 'walker', nest: b, t }))]; }
+    const { nests, wts } = nightSources(n);
     const u = unlocked(n), list = [];
     let budget = nightBudget(n);
     while (budget > 0.5) {
@@ -75,6 +104,10 @@ export function createWaves(G) {
       const [kind, m] = ok[rng.weighted(ok.map(([, mm]) => mm.weight))];
       list.push({ kind, nest: nests[rng.weighted(wts)] }); budget -= m.cost;
     }
+    // every front gets a real pack: a source the dice left thin takes dead from the biggest one
+    { const minEach = Math.min(FRONTS.min, Math.floor(list.length / Math.max(1, nests.length)));
+      const count = r => list.filter(e => e.nest === r).length;
+      for (const r of nests) while (count(r) < minEach) { const big = nests.reduce((a, b) => (count(b) > count(a) ? b : a)); if (count(big) <= minEach) break; (list.find(e => e.nest === big && e.kind !== 'brute') || list.find(e => e.nest === big)).nest = r; } }
     const dur = WAVES.duration(n), surges = WAVES.surges(n);
     const q = list.map((e, k) => ({ ...e, t: Math.floor(k * surges / list.length) / surges * dur + rng.range(0, 2.5) }));
     if (isBloodMoon(n)) { const bs = bossesFor(n); const uq = S.unique && !S.unique.slain && S.unique.night === n; bs.forEach((kind, k) => q.push({ kind, unique: uq && k === 0, finale: k === 0 && S.season && n === S.season.end && S.season.finaleHive === undefined, nest: nests[rng.int(nests.length)], t: dur * 0.6 + rng.range(0, 6) })); }
@@ -141,5 +174,5 @@ export function createWaves(G) {
     }
     S.dayQueue.sort((a, b) => a.t - b.t);
   }
-  return { edgeSpawns, activeNests, hearR, hears, marchNests, keepForRing, canPurge, unlocked, hpPerBudget, bossesFor, effN, hpS, nightBudget, purgeBudget, n1Edge, nightLen, timeOfDay, N1_COUNT, spawnMob, spawnAtNest, planPurge, startNight, planDay };
+  return { edgeSpawns, activeNests, hearR, hears, marchNests, keepForRing, canPurge, unlocked, hpPerBudget, bossesFor, effN, hpS, nightBudget, purgeBudget, n1Edge, nightSources, sourceDirs, nightLen, timeOfDay, N1_COUNT, spawnMob, spawnAtNest, planPurge, startNight, planDay };
 }

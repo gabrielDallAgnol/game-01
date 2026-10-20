@@ -491,8 +491,12 @@ test('burning a hive: the horde comes at once (no pause), with runners and a bru
   assert.ok(horde.length >= 6 + 4 - 2, `a horde of ${horde.length}`);
   assert.ok(horde.filter(m => m.kind === 'runner').length >= 2 && horde.some(m => m.kind === 'brute'), 'no runners or brute from night 4');
   assert.ok(horde.every(m => m.hunt), 'the horde does not come for you');
+  // the field tools are cut (CUT.tools): no buttons, the calls fail quietly; the dormant code is tested with the flag off
+  S.hero.x = reg.nest.x + 2; S.hero.y = reg.nest.y; S.gold = 10; S.food = 5;
+  assert.ok(!S.events.some(e => e.t === 'toast' && /flare|smoke/i.test(e.msg)), 'a toast still offers the cut tools');
+  assert.equal(g.useFlare(), false); assert.equal(g.useSmoke(), false); assert.equal(g.tools(), null); assert.equal(S.gold, 10);
+  CUT.tools = false; try {
   // a flare: 4 scrap, the dead near you chase the light; then a cooldown
-  S.hero.x = reg.nest.x + 2; S.hero.y = reg.nest.y; S.gold = 10;
   assert.ok(g.useFlare(reg.nest.x + 9, reg.nest.y)); assert.equal(S.gold, 6);
   assert.ok(S.mobs.filter(m => m.lure).length >= 3, 'the flare lured nobody');
   assert.equal(g.useFlare(), false, 'the flare ignored its cooldown'); assert.ok(!g.tools().flare.ready);
@@ -501,6 +505,7 @@ test('burning a hive: the horde comes at once (no pause), with runners and a bru
   assert.ok(g.useSmoke()); assert.equal(S.food, 2); assert.ok(horde.every(m => !m.hunt && m.smoke > 0));
   // the old escape() call still works as a thin wrapper
   S.hero.hp = S.hero.maxHp = 1e6; for (let k = 0; k < 60 * 21; k++) g.step(); S.gold = 10; assert.ok(g.escape('flare'));
+  } finally { CUT.tools = true; }
 });
 
 test('districts: sealed at the start, opened by choice, identity decided when offered', withOpenRoad(() => {
@@ -790,7 +795,7 @@ test('engine calls for contracts.js and the UI: setDifficulty, endRun with a rea
 test('events: the type is never overwritten by a payload; hits and deaths carry src and dmg', () => {
   const g = createGame({ seed: 16, hero: 'warrior' }); readyDay(g); const S = g.state;
   const reg = g.map.regions.find(r => r.nest && r.ring === 1); for (let k = 0; k < 900 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
-  S.gold = 10; S.events.length = 0; assert.ok(g.useFlare()); const f = lastEv(S, 'flare'); assert.ok(f && f.dur === TOOLS.flare.t, 'the flare event lost its type');
+  CUT.tools = false; try { S.gold = 10; S.events.length = 0; assert.ok(g.useFlare()); const f = lastEv(S, 'flare'); assert.ok(f && f.dur === TOOLS.flare.t, 'the flare event lost its type'); } finally { CUT.tools = true; }
   S.night = 3; g.startNight(); S.events.length = 0;
   for (let k = 0; k < 60 * 60 && !S.events.some(e => e.t === 'die' && e.src === 'hero'); k++) { const m = S.mobs.find(q => !q.roam); if (m) g.heroTo(m.x, m.y); g.step(); }
   const hit = S.events.find(e => e.t === 'hitM'); assert.ok(hit && hit.src && hit.dmg > 0, JSON.stringify(hit));
@@ -833,4 +838,27 @@ test('nests defend themselves: a guard pack wakes, rage climbs while you stay an
   assert.ok(S.mobs.every(m => m.guard !== reg.id), 'guards left behind at a burned hive');
   S.hero.x = site.x; S.hero.y = site.y + site.size / 2 + 1;
   assert.equal(g.claimLandmark(site.id), true, 'cannot claim the freed site');
+});
+
+// Oct 20 feedback: "the first night they come from two sides, the second just from one". Every night now has fronts:
+// at least two sides from night 1, three from night 5 (a pack from the deep woods when the awake hives lie on one side).
+test('fronts: nights 1–5 each bring the dead from at least two compass directions; the strip names them', () => {
+  for (let s = 1; s <= 8; s++) {
+    for (const burnNearest of [false, true]) for (let n = 1; n <= 5; n++) {
+      const g = createGame({ seed: 100 + s, mapSeed: 300 + s, hero: 'warrior' }), S = g.state, c = g.map.town;
+      readyDay(g); S.night = n;
+      if (burnNearest) { const near = g.map.regions.filter(r => r.nest && r.ring === 1).sort((p, q) => Math.hypot(p.nest.x - c.x, p.nest.y - c.y) - Math.hypot(q.nest.x - c.x, q.nest.y - c.y))[0]; S.nestAlive[near.id] = false; S.claimed.add(near.id); }
+      const from = g.forecastStrip().from;
+      assert.ok(from.length >= 2, `seed ${s} night ${n}${burnNearest ? ' (nearest burned)' : ''}: the forecast names ${from.join(',')}`);
+      assert.ok(g.startNight(), 'no dusk');
+      const dirs = new Map(), angs = [];
+      for (const q of S.queue) { const p = q.nest < 0 ? S.edgeSpawns[-1 - q.nest] : g.map.regions[q.nest].nest; const a = Math.atan2(p.y - c.y, p.x - c.x); const d = Math.round(a / (Math.PI / 4)); dirs.set(d, (dirs.get(d) || 0) + 1); angs.push(a); }
+      const sides = [...dirs.keys()].length;
+      assert.ok(sides >= (n >= 5 ? 3 : 2), `seed ${s} night ${n}: the dead come from ${sides} direction(s) ${JSON.stringify([...dirs])}`);
+      // not two neighbouring directions on the same side: some pair at least ~80° apart, and every side brings a real pack
+      const spread = Math.max(...angs.map(a => Math.max(...angs.map(b => { const d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; }))));
+      assert.ok(spread >= 1.4, `seed ${s} night ${n}: all on one side (${spread.toFixed(2)} rad)`);
+      if (n > 1) assert.ok([...dirs.values()].every(k => k >= 2), `seed ${s} night ${n}: a token side ${JSON.stringify([...dirs])}`);
+    }
+  }
 });
