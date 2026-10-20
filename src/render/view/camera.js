@@ -38,6 +38,14 @@ export function createCamera(V) {
       prevHx = h.x; prevHy = h.y;
       if (fm) { focus.t -= dt; camGoal.copy(Wv(fm.x, fm.y)); }
       else if (!h.dead) camGoal.copy(Wv(h.x, h.y)).add(lead);
+      // [cinema] begin: the look-at shot eases the camera to a place and back on a fixed curve, no spring
+      const cine = V.cinema, cb = cine ? cine.blend() : 0;
+      if (cine && cine.active()) {
+        const tg = cine.target(), zk = cine.zoomK(); camGoal.lerp(Wv(tg.x, tg.y), cb); camTarget.copy(camGoal); camVel.set(0, 0, 0);
+        camera.position.set(camTarget.x, camTarget.y + dist * zk * (0.76 + 0.05 * dolly), camTarget.z + dist * zk * (0.65 - 0.06 * dolly));
+        camera.lookAt(camTarget); camera.updateMatrixWorld(); return { R: R * zk, dist: dist * zk };
+      }
+      // [cinema] end
       // critically damped spring (ω ≈ 6)
       if (camTarget.distanceToSquared(camGoal) > 900) { camTarget.copy(camGoal); camVel.set(0, 0, 0); }
       const w2 = 36, dmp = 12; camVel.x += ((camGoal.x - camTarget.x) * w2 - camVel.x * dmp) * Math.min(dt, 0.05); camVel.y += ((camGoal.y - camTarget.y) * w2 - camVel.y * dmp) * Math.min(dt, 0.05); camVel.z += ((camGoal.z - camTarget.z) * w2 - camVel.z * dmp) * Math.min(dt, 0.05);

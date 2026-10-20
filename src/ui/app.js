@@ -21,10 +21,11 @@ import { createHud } from './hud.js';
 import { createPlacing } from './placing.js';
 import { createPanels } from './panels.js';
 import { createInput } from './input.js';
+import { createCinema } from './cinema.js';
 
 export { FLAGS };
 // the UI modules, in creation order (each registers its own DOM handlers when created)
-const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput];
+const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema];
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
@@ -37,7 +38,7 @@ export function startApp() {
     lastSave: null,                      // { day, where } of the last dawn save
     pendingLedger: null, dawnLine: '', ledgerUp: false,   // the dawn's ledger hand-off between the loop and the toasts
   };
-  let acc = 0, last = performance.now(), hudT = 0;
+  let acc = 0, last = performance.now(), hudT = 0, cineK = 1;
   let dawnAt = 0, endT = -1;   // cards wait until performance.now() passes dawnAt
   let calmT = 0, waitT = 0;   // seconds of calm (no dead near the hero or the Camp), seconds a card has waited
   const holdCards = sec => { dawnAt = Math.max(dawnAt, performance.now() + sec * 1000); };
@@ -56,7 +57,7 @@ export function startApp() {
   const {
     aiFetch, classBeat, closePanel, dockH, edgeMarks, endJoy, hideCard, inventToday, joyIn, lossLine, noteLoss, refreshPanel,
     refreshZone, showDusk, showEncounter, showEnd, showEpisode, showStart, stopPlacing, tickMini, toast, updateGhost,
-    updateHud, watchFrames
+    updateHud, watchFrames, cinemaFrame
   } = ui;
 
   document.addEventListener('visibilitychange', () => { if (document.hidden && ui.game && !ui.game.state.over) { const snap = ui.game.snapshot(); if (snap) saves.save(snap); } });
@@ -70,9 +71,10 @@ export function startApp() {
     const S = ui.game.state;
     const kx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), ky = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
     ui.game.setHeroInput(kx || joyIn.x, ky || joyIn.y);
-    if (!ui.paused) { acc += dt * ui.speed; let n = 0; while (acc >= STEP && !ui.paused && n++ < 240) { ui.game.step(STEP); acc -= STEP; if (S.over) break; } if (n >= 240) acc = 0; }
+    if (!ui.paused) { acc += dt * ui.speed * cineK; let n = 0; while (acc >= STEP && !ui.paused && n++ < 240) { ui.game.step(STEP); acc -= STEP; if (S.over) break; } if (n >= 240) acc = 0; }
     else acc = 0;
     const events = ui.game.drainEvents();
+    cineK = cinemaFrame(events, dt);   // [cinema] a look-at shot slows the sim while it plays
     try { audio.onEvents(events, ui.game); audio.tick(ui.game, dt); } catch (err) { /* sound must never stop the game */ }
     let windowAtDawn = false;
     for (const e of events) {

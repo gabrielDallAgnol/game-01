@@ -113,6 +113,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `view/weather.js` | rain, fog, lightning, ambient particles |
 | `view/lights.js` | time-of-day clock (sets `V.dark`), light pools, windows, lenses, rim, mist, blackout |
 | `view/picking.js` | `groundAt`, `pick`, `project` |
+| `view/cinema.js` | the look-at shot: camera eases to a place and back, beam, ring and tag (`lookAt`, `skipLook`, `looking`) |
 | `kit.js` + `kit/` | the city kit: `config` (CFG), `palette`, `territory` (mask and shader hook), `materials`, `rng`, `builder` (B), `helpers`, `city`, `street`, `craft`, `houses`, `defences`, `farm`, `keep`, `frontier` (hall, home), `hives`, `rig`, `people`, `overlays`, `flatten` |
 | `city.js` | woods, ground, streets and ruins from the cell map; streaming |
 | `look.js` | lights, sky, post-processing, quality levels |
@@ -135,6 +136,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `placing.js` | build tray, placing, palisade lines |
 | `panels.js` | selection panel |
 | `input.js` | touch, mouse, keys |
+| `cinema.js` | first-time hive shots (the first hollow, city hive, burst): queues them past cards, slows the sim, tap skips |
 | `system.js`, `icons.js`, `audio.js`, `saves.js` | the System's voice, icon set, synthesised sound, cloud saves |
 | `story-ai.js` | the Chronicler: Claude rewrites words only; every answer is validated |
 | `road-ui.js` | road and mission HUD (`[road]` feature) |

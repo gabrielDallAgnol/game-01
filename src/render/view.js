@@ -33,6 +33,7 @@ import { createWeather } from './view/weather.js';
 import { createLights } from './view/lights.js';
 import { createEvents } from './view/events.js';
 import { createPicking } from './view/picking.js';
+import { createCinema } from './view/cinema.js';
 // [road] begin
 import { createRoadView } from './road-view.js';
 // [road] end
@@ -82,6 +83,7 @@ export function createView(canvas, game, opts = {}) {
   const lights = createLights(V);
   const events = createEvents(V);
   const picking = createPicking(V);
+  const cinema = V.cinema = createCinema(V);   // [cinema] the look-at shot (camera.js reads it)
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -93,6 +95,7 @@ export function createView(canvas, game, opts = {}) {
     const dayT = S.phase === 'day' ? game.dayFrac() : 1;
     const skyNow = lights.clock(dt, dayT);
 
+    cinema.update(dt);
     const { R, dist } = cam.update(dt, dayT);
     weather.fog(dt, dist);
     city.stream(cam.camTarget.x, cam.camTarget.z, R * Math.max(1.7, camera.aspect * 1.4) + 4, R * 4.2 + 5, R * 2.3 + 4);
@@ -130,6 +133,7 @@ export function createView(canvas, game, opts = {}) {
     debug: { K, look, fx: fx2, city, snap: lights.snap },   // snap: jump the light to the current time of day (tests, screenshots)
     scene, camera, info: () => new Promise(res => { const I = renderer.info; I.autoReset = false; requestAnimationFrame(() => { I.reset(); requestAnimationFrame(() => { const o = { calls: I.render.calls, tris: I.render.triangles, geos: I.memory.geometries }; I.autoReset = true; res(o); }); }); }),   // one whole frame (all passes)
     setZoom: cam.setZoom, getZoom: cam.getZoom,
+    lookAt: (x, y, o) => { V.focus = null; cinema.look(x, y, o); }, skipLook: cinema.skip, looking: cinema.active,   // [cinema]
     setQuality: q => { look.setQuality(q); resize(); }, quality: () => look.quality(),
   };
 }

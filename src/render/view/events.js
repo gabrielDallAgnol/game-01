@@ -13,7 +13,7 @@ export function createEvents(V) {
     for (const e of events) {
       if (e.t === 'claim') { city.setTerritory(); V.repaint = true; const h = hives.get(e.region); if (h) { const n = map.regions[e.region].nest; burst(n.x, n.y, 4, '#d9843a'); h.cleared = true; } }
       if (e.t === 'clear') { city.clear(e.cells); for (const i of e.cells) burst((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.5, '#b8ae9c'); }
-      if (e.t === 'firstDead') V.focus = { id: e.id, t: 5 };
+      if (e.t === 'firstDead' && !V.cinema.active()) V.focus = { id: e.id, t: 5 };
       if (e.t === 'hitHive') { const n = map.regions[e.region].nest; burst(n.x, n.y, 1.4, '#9dff4a'); }
       if (e.t === 'bountyGold') burst(e.x, e.y, 0.6, '#f0c050');
       if (e.t === 'pickup') { burst(e.x, e.y, 0.5, e.kind === 'scrap' ? '#f0a040' : '#9fe08a'); floatLabel(e.x, e.y, `+${e.n || 1} ${e.kind === 'scrap' ? 'scrap' : 'food'}`, e.kind === 'scrap' ? '#ffc070' : '#b4f09a'); }
