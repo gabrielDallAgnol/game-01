@@ -7,16 +7,16 @@ export const SYSTEM = {
   intro: 'You **survived** night one. Pick a **gift** for it.',
   // night 1, hand-authored: the System arrives when the first of the dead reaches you (Solo Leveling, episode 2)
   dayOne: 'Light the fire. **One of them is coming.**',
-  arrival: ['[Status window]', 'Survivor · Lv 1 · HP {hp}', '[Skill acquired: Shove]', 'Push the dead back. Tap the round button.'],
+  arrival: ['[Status window]', 'Survivor · Lv 1 · HP {hp}', '[Skill acquired: Shove]', 'Push the dead back. Tap the round button.', '[Quest] Survive the night. A **gift** waits at dawn.'],
   arrivalTitle: 'The window only you can see',
   firstLight: '[Title acquired: First Light]',
 };
 
 // The first gift: offered inside the System's arrival window on night one
 export const GIFT = {
-  title: 'Choose your starting gift',
-  eyebrow: '[Choose one]',
-  scene: 'Your reward for night one. **Pick one.**',
+  title: 'Pick a gift',
+  eyebrow: '[Reward: night one survived]',
+  scene: 'You held the first night. One gift, **yours for good**.',
   choices: [
     { id: 'lantern', label: 'The Lantern of Dawn', hint: 'You hit 15% harder.', fx: [{ op: 'perk', key: 'heroDmgMult', mul: 1.15 }, { op: 'title', id: 'lantern' }] },
     { id: 'boots', label: 'The Quiet Boots', hint: 'The dead notice you later. A quieter Camp.', fx: [{ op: 'flag', key: 'quiet' }, { op: 'title', id: 'quiet' }] },

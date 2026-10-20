@@ -81,7 +81,7 @@ test('the dawn budget: at most one story card and one System window a dawn, noth
   }
 });
 
-test('night 1: a short first day, then the System arrives when the first dead reaches you, with the gift inside', () => {
+test('night 1: a short first day, then the System arrives when the first dead reaches you; the gift waits for dawn 2', () => {
   const g = frontier(3), S = g.state;
   assert.ok(Math.abs(g.duskIn() - 40) < 1, `day 1 is ${g.duskIn()} s, not ~40`);
   assert.ok(TIDE.dayLen > 60);
@@ -96,10 +96,14 @@ test('night 1: a short first day, then the System arrives when the first dead re
   assert.ok(scene && scene.id === 'night1' && scene.line === 'One of them.', JSON.stringify(scene));
   assert.ok(arrived, 'the System never arrived');
   assert.equal(S.phase, 'night');
-  assert.deepEqual(arrived.choices.map(c => c.id), ['lantern', 'boots', 'will']);
+  assert.deepEqual(arrived.choices.map(c => c.id), ['fight'], 'a decision in the middle of the first fight');
   assert.ok(arrived.lines.some(l => /Skill acquired: Shove/.test(l)) && arrived.lines.some(l => /HP \d+/.test(l)));
-  g.choose('will');
-  assert.ok(S.story.titles.includes('firstLight') && S.story.titles.includes('will'));
+  g.choose('fight'); assert.ok(S.story.titles.includes('firstLight'));
+  // dawn 2: the gift, as the reward for surviving
+  S.night = 2; S.phase = 'day'; g.story().dawn(); g.story().flush();
+  const gift = S.story.encounters.find(e => e.kind === 'gift'); assert.ok(gift, 'no gift at dawn 2');
+  assert.deepEqual(gift.choices.map(c => c.id), ['lantern', 'boots', 'will']);
+  S.story.encounters = [gift]; g.choose('will'); assert.ok(S.story.titles.includes('will'));
 });
 
 test('night copy scales with the wave', () => {

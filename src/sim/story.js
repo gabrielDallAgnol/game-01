@@ -378,7 +378,7 @@ export function createStory(ctx) {
   function dawn() {
     ST.day = S.night; deeds();
     ST.later = ST.later.filter(x => x.until >= S.night);
-    if (S.night >= 2 && !ST.n1.arrived && !ST.gifted) { ST.gifted = true; ST.n1.arrived = true; offer({ kind: 'gift', eyebrow: GIFT.eyebrow, title: GIFT.title, scene: `${SYSTEM.intro} ${GIFT.scene}`, choices: GIFT.choices.map(c => ({ ...c })) }, 12, 9); chron('The status window opened.', 4); }
+    if (S.night >= 2 && !ST.gifted) { const fresh = !ST.n1.arrived; ST.gifted = true; ST.n1.arrived = true; offer({ kind: 'gift', eyebrow: GIFT.eyebrow, title: GIFT.title, scene: fresh ? `${SYSTEM.intro} ${GIFT.scene}` : GIFT.scene, choices: GIFT.choices.map(c => ({ ...c })) }, 12, 9); if (fresh) chron('The status window opened.', 4); }
     for (const n of ST.npcs) n.chatToday = 0;
     if (ST.threads.hummer && ST.threads.hummer.status === 'open' && ST.threads.hummer.stage === 1) S.food = Math.max(0, S.food - 1);   // the caged one eats
     S.food += (ST.garden || 0) + (ST.flags.garden ? 1 : 0) + bonus.food();
@@ -537,10 +537,10 @@ export function createStory(ctx) {
     }
   }
   function arrival() {
-    ST.n1.arrived = true; ST.gifted = true;
+    ST.n1.arrived = true;   // the gift comes at dawn 2, as the reward for surviving: no decision in the middle of the first fight
     const lines = SYSTEM.arrival.map(l => l.replace('{hp}', Math.ceil(S.hero.maxHp)));
     push({ kind: 'arrival', eyebrow: '[Status window]', title: SYSTEM.arrivalTitle, scene: lines.join(' '), lines, after: SYSTEM.firstLight,
-      choices: GIFT.choices.map(c => ({ ...c, fx: c.fx.concat([{ op: 'title', id: 'firstLight' }]) })) });
+      choices: [{ id: 'fight', label: 'Fight', hint: 'Shove: the round button.', fx: [{ op: 'title', id: 'firstLight' }] }] });
     chron('The status window opened in the air as the first of the dead reached you.', 5);
     ev('arrival', {});
   }

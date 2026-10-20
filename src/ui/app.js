@@ -74,6 +74,7 @@ export function startApp() {
   // [road] end
   let card = null;             // which card is open
   let dawnAt = 0, endT = -1;   // cards wait until performance.now() passes dawnAt
+  let calmT = 0, waitT = 0;   // seconds of calm (no dead near the hero or the Camp), seconds a card has waited
   const holdCards = sec => { dawnAt = Math.max(dawnAt, performance.now() + sec * 1000); };
   const keys = {};
   let setup = { hero: 'survivor', mode: 'classic', difficulty: store.get('difficulty', 'survivor'), runSeed: Math.floor(Math.random() * 1e6), pick: 0 };
@@ -397,7 +398,7 @@ export function startApp() {
       await typeOn($('#arEb'), enc.eyebrow, speed());
       await typeOn($('#arT'), enc.title, speed());
       for (let k = 0; k < lines.length; k++) { await typeOn($(`#arL${k}`), lines[k], speed()); if (!skip && !reduced()) await new Promise(r => setTimeout(r, 160)); }
-      await typeOn($('#arG0'), '[Choose your starting gift]', speed());
+      if (enc.choices.length > 1) await typeOn($('#arG0'), '[Choose your starting gift]', speed());
       if ($('#arr')) $('#arr').classList.add('ready');
     })();
     $$('[data-gift]').forEach(b => b.onclick = e => {
@@ -1159,7 +1160,13 @@ export function startApp() {
     }
     if (roadUI && events.length) roadUI.onEvents(events);
     if (windowAtDawn) game.story().release();
-    if (!card && now >= dawnAt && S.story.encounters.length && !S.over) showEncounter();
+    // decisions wait for a calm moment: never while the hero fights or the dead are close (the night-1 arrival may
+    // type itself out); a card that waited long enough opens once the hero itself is out of reach
+    { const near = (x, y, r) => S.mobs.some(m => !m.dying && (m.rise === undefined || m.rise >= 1) && Math.hypot(m.x - x, m.y - y) < r);
+      const h = S.hero, fight = !h.dead && near(h.x, h.y, 12), camp = near(game.map.town.x, game.map.town.y, 12);
+      calmT = fight || camp ? 0 : calmT + dt; waitT = S.story.encounters.length ? waitT + dt : 0; }
+    const calmOk = calmT > 2.5 || (waitT > 25 && !(S.hero && !S.hero.dead && S.mobs.some(m => Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 6))) || (S.story.encounters[0] && S.story.encounters[0].kind === 'arrival');
+    if (!card && now >= dawnAt && S.story.encounters.length && !S.over && calmOk) showEncounter();
     if (endT > 0 && now >= endT) { endT = -1; paused = true; showEnd(); }
     if (placing && placing.zone.ver !== S.occVersion) { refreshZone(); updateGhost(); }
     view.frame(dt, { events, selected, ghost: placing && placing.ghost, zone: placing && placing.zoneMask });
