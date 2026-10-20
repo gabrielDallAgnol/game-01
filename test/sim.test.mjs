@@ -768,7 +768,7 @@ test('contracts: stacked rules, a finale, and a won contract steps the difficult
   assert.equal(S.diffNight, 0.4 * 11); assert.ok(Math.abs(g.effNight() - (before - 4.4)) < 1e-9);
   assert.equal(g.contractWon(), false, 'a contract paid twice');
   // a season that runs out: the finale is lost
-  const h = createGame({ seed: 10 }); readyDay(h); const T = h.state; T.night = T.season.end; T.keep.hp = T.keep.maxHp = 1e6; nextDawn(h);
+  const h = createGame({ seed: 10 }); readyDay(h); const T = h.state; T.night = T.season.end; h.startNight(); for (let k = 0; T.phase === 'night' && k < 60 * 400; k++) { T.keep.hp = T.keep.maxHp; h.step(); }   // the hall can't fall here (level-ups re-derive its max hp)
   const L = lastEv(T, 'finale'); assert.ok(L && L.won === false, 'no lost finale when the season ended');
   assert.equal(T.season.n, 2); assert.deepEqual(T.season.rules, T.story.rules || [], 'a new season carries only the rules a contract signed (the season\'s own rule is offered, not imposed)');
   assert.ok(T.story.encounters.some(e => e.kind === 'contract') || T.story.later.some(x => x.enc.kind === 'contract'), 'no contract offered for the new season');
