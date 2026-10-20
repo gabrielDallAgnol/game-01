@@ -71,12 +71,12 @@ export function createBlessings(G) {
     const F = FAMILIES[f]; if (!F.hero) return true;
     const cls = S.heroClass, H = HEROES[cls];
     if (cls === 'survivor' || !H.base && !S.evo.final) return true;
-    return [H.base || cls, S.evo.second].includes(F.hero);
+    return [H.base || cls, S.evo.second, S.evo.calling].includes(F.hero);   // the Calling's family stays open: tiers stack
   }
   function famWeight(f) {
     const F = FAMILIES[f]; if (!F.hero) return f === 'bow' ? 0.7 : 1;
     const cls = S.heroClass; if (cls === 'survivor') return 1.3;
-    return F.hero === (HEROES[cls].base || cls) ? 2 : 0.6;
+    return F.hero === (HEROES[cls].base || cls) || F.hero === S.evo.calling ? 2 : 0.6;
   }
   function reroll() {
     if (!S.offer.length || S.offerSource.startsWith('mastery:')) return false;

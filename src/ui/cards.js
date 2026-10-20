@@ -194,7 +194,9 @@ export function createCards(ui) {
         <span class="jhead"><span class="jglyph">${icon(j.icon || 'star')}</span><span class="jname">${esc(j.name)}</span></span>
         ${j.famName ? `<span class="jfam${j.yours ? ' on' : ''}">${j.yours ? 'Your path · ' : ''}${esc(j.famName)} ${j.pct}%</span>` : ''}
         <span class="jwho">${esc(j.who)}</span>
-        <ul class="jperks">${j.perks.map(p => `<li>${esc(p)}</li>`).join('')}</ul></button>`;
+        ${j.gain ? `<span class="jlab gain">You gain</span><ul class="jperks gain">${j.gain.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+        <span class="jlab keep">You keep${j.keepFrom ? ` · ${esc(j.keepFrom)}` : ''}</span><ul class="jperks keep">${j.keep.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`
+          : `<ul class="jperks">${j.perks.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`}</button>`;
     showCard('enc', `<div class="job t${t}${again ? ' shown' : ''}">${crack}
       <div class="eyebrow"><span id="jEb"></span></div>
       <h1 class="jt">${esc(enc.title)}</h1>

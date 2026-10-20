@@ -13,7 +13,7 @@ import { Rng, hashSeed } from './rng.js';
 import { generateMap, PASSABLE, idx, inside, LANDMARKS } from './mapgen.js';
 import { BUILDINGS, KEEP } from '../content/buildings.js';
 import { TIDE } from '../content/mobs.js';
-import { HEROES } from '../content/heroes.js';
+import { HEROES, heroKit } from '../content/heroes.js';
 import { KITS } from '../content/districts.js';
 import { createScavenge } from './scavenge.js';
 import { createPlanner } from './planner.js';
@@ -57,7 +57,7 @@ const MODULES = [createCore, createEconomy, createBuildings, createBuild, create
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';
   const map = generateMap(mapSeed ?? seed, biome);
-  const HC = HEROES[hero], DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
+  const HC = heroKit(hero), DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
   const c = map.town.x;
   const S = createState({ seed, biome, map, hero, mode, clock, difficulty, legacy, HC });
   const keep = { id: 0, type: 'keep', x: c, y: c, r: 2.3, level: 1, hp: KEEP.hp[0], maxHp: KEEP.hp[0], cd: 0, ruined: false, cells: [], boltT: 3 };

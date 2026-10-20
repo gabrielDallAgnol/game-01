@@ -13,7 +13,7 @@ import { TIDE } from '../content/mobs.js';
 import { PERKS, MASTERIES } from '../content/perks.js';
 import { createContracts } from './contracts.js';
 import { siteOk } from './spots.js';
-import { CLASS_TIERS, CLASS_INFO, CALLINGS } from '../content/heroes.js';
+import { CLASS_TIERS, CLASS_INFO, CALLINGS, finalDelta, LEGENDS } from '../content/heroes.js';
 
 export const DAY_ONE = 40;   // seconds: day 1 is short (TIDE.dayLen stays the rule for every other day: the story gives day 1 a head start)
 // which slot each kind of card takes in the dawn budget
@@ -321,7 +321,9 @@ export function createStory(ctx) {
     const P = S.path, tot = Object.values(P).reduce((a, b) => a + b, 0) || 1, pct = f => Math.round(((P[f] || 0) / tot) * 100);
     const lead = Object.keys(P).sort((a, b) => P[b] - P[a])[0];
     const jobs = opts.map(o => { const H = ctx.heroes[o.cls], I = CLASS_INFO[o.cls] || {}, fam = tier === 2 ? famOfCls(o.second) : famOfCls(o.cls);
-      return { cls: o.cls, name: H.name, who: I.who || H.blurb, perks: (I.perks || []).slice(0, 3), icon: I.icon || null, fam, famName: fam ? FAMN[fam] : null, pct: fam ? pct(fam) : 0, yours: fam === lead }; });
+      // tiers stack: from the advanced tier on, the card says exactly what you keep and what you gain
+      const D = tier === 2 ? finalDelta(o.cls, S.evo.calling || from) : tier === 3 ? { keep: [`Everything your ${ctx.heroes[from].name} has`], keepFrom: ctx.heroes[from].name, gain: (LEGENDS[H.calling] || {}).perks || [] } : null;
+      return { cls: o.cls, name: H.name, who: I.who || H.blurb, perks: (I.perks || []).slice(0, 3), icon: I.icon || null, fam, famName: fam ? FAMN[fam] : null, pct: fam ? pct(fam) : 0, yours: fam === lead, ...(D ? { keep: D.keep, keepFrom: D.keepFrom, gain: D.gain } : {}) }; });
     const boss = T.boss;
     offer({ kind: 'evolve', from, tier, jobs, boss, path: pathText(), eyebrow: T.eyebrow, title: T.title,
       scene: tier === 1 ? 'Your choices picked a side. **Choose your class.** Then beat its trial.' : tier === 2 ? 'Your class can **grow**. Pick what it becomes. Then beat its trial.' : 'One last form. **Legendary.** Beat the trial to take it.',

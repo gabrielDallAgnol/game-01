@@ -30,13 +30,14 @@ HEROES.medic = {
 };
 export const HERO_ORDER = ['warrior', 'archer', 'merchant', 'medic'];
 // final classes: a Calling plus a second hero family. Each keeps its Calling's ability and adds one twist.
+// (these are the class defaults; the hero you actually play is FINAL_KIT below, built on top of your Calling)
 Object.assign(HEROES, {
   vanguard: { ...HEROES.warrior, name: 'Vanguard', base: 'warrior', blurb: 'Brawler who learned to throw: every swing also strikes a second dead within reach.', hp: 34, attack: { kind: 'melee', dmg: 3.4, reach: 2.5, rate: 0.55 }, twin: true },
   warlord: { ...HEROES.warrior, name: 'Warlord', base: 'warrior', blurb: 'War Cry pays: every dead that falls near you while it lasts pays 1 scrap. Tougher than anyone.', hp: 42, cryPays: 1 },
   warden: { ...HEROES.warrior, name: 'Warden', base: 'warrior', blurb: 'Brawler with a medic\'s heart: buildings within 5 of you take 30% less damage.', hp: 40, ward: 0.7 },
   marshal: { ...HEROES.archer, name: 'Marshal', base: 'archer', blurb: 'Ranger who leads: towers within 6 of you shoot 25% faster.', hp: 26, marshal: 1.25 },
   quartermaster: { ...HEROES.medic, name: 'Quartermaster', base: 'medic', blurb: 'Keeps everyone fed and patched: +4 scrap and +2 food every dawn, and Patch Up mends the whole town.', hp: 26, quarter: true },
-  deadeye: { ...HEROES.archer, name: 'Deadeye', base: 'archer', blurb: 'Ranger who sells the shot: reach 8, and every dead your Volley kills pays 2 scrap.', hp: 26, attack: { kind: 'ranged', dmg: 3.6, reach: 8, rate: 0.7 }, volleyPays: 2 },
+  deadeye: { ...HEROES.archer, name: 'Deadeye', base: 'archer', blurb: 'Ranger who sells the shot: reach 8, shots pierce 2 dead, brutes take double, and every dead your Volley kills pays 2 scrap.', hp: 26, attack: { kind: 'ranged', dmg: 3.6, reach: 8, rate: 0.7 }, volleyPays: 2, pierce: 2, bruteCrit: 2 },
 });
 // no Calling deals less than the Survivor (2.2 / 0.6 s ≈ 3.7 a second): a job change is never a downgrade
 // which hero family leads to which Calling, and which pair to which final class
@@ -72,7 +73,7 @@ export const CLASS_INFO = {
   warlord: { tier: 2, icon: 'fist', who: 'A Brawler who gets paid.', perks: ['War Cry kills pay 1 scrap each', 'Toughest of all: 42 health'], look: { cape: '#5a1414', mantle: '#c99a3a', helmet: '#3a3a3e' } },
   warden: { tier: 2, icon: 'shield', who: 'A Brawler who shields the Camp.', perks: ['Buildings near you take 30% less damage', '40 health'], look: { cape: '#2e4f7a', mantle: '#d8d4cc', helmet: '#9aa0a6' } },
   marshal: { tier: 2, icon: 'tower', who: 'A Ranger who leads the towers.', perks: ['Towers near you shoot 25% faster', 'Crossbow and Volley stay'], look: { hood: '#2e4f7a', coat: '#2e4f7a', mantle: '#c99a3a' } },
-  deadeye: { tier: 2, icon: 'eye', who: 'A Ranger who sells the shot.', perks: ['Reach 8: hits from further', 'Volley kills pay 2 scrap each'], look: { hood: '#1f2a24', coat: '#1f2a24', scarf: '#c23b2e' } },
+  deadeye: { tier: 2, icon: 'eye', who: 'A Ranger who sells the shot.', perks: ['Shots pierce 2 dead; double damage to brutes', 'Reach 8: hits from further', 'Ability kills pay 2 scrap'], look: { hood: '#1f2a24', coat: '#1f2a24', scarf: '#c23b2e' } },
   quartermaster: { tier: 2, icon: 'food', who: 'Keeps everyone fed and patched.', perks: ['+4 scrap and +2 food every dawn', 'Patch Up mends the whole Camp'], look: { top: '#e8e4dc', scarf: '#c99a3a', pack: '#3a5a7a', cap: '#3a5a7a' } },
 };
 // the legendary form of each Calling: its ability becomes a signature, its look transforms (stats on top of the
@@ -83,18 +84,65 @@ export const LEGENDS = {
   merchant: { name: 'Kingpin', who: 'The city pays you to live.', hpAdd: 10, dmgMult: 1.3, ability: { name: 'Gold Rush', duration: 30, radius: 12, gold: 2, bigGold: 6, cooldown: 40 }, perks: ['Gold Rush: every kill near you pays double, for 30 s', '+30% damage, +10 health'], look: { cap: '#e6b84a', pack: '#2a1240', scarf: '#e6b84a' }, glow: '#ffd77a' },
   medic: { name: 'Saint of Hollowmere', who: 'Where you stand, nothing falls.', hpAdd: 14, dmgMult: 1.3, ability: { name: 'Sanctuary', radius: 12, heal: 0.5, cooldown: 18 }, perks: ['Sanctuary: mends every building in 12 cells by half', '+30% damage, +14 health'], look: { top: '#f4f0e6', scarf: '#e6b84a', cap: '#e6b84a' }, glow: '#fff2cc' },
 };
+// ---------- tiers stack: the advanced class is built ON the Calling you took ----------
+// You never lose what your Calling gave you: its weapon, its ability (and the blessings that feed it), its passives
+// (Scavver: scrap pickup, 10% off, the dawn trader, +1 blessing choice; Ranger: speed). The advanced class adds on
+// top: +50% damage (FINAL_DMG, every source of hero damage scales), the longer reach of its family, more health, and
+// its signature. FINAL_KIT[adv][calling] → the hero the sim plays; HEROES[adv] stays the class's id and default.
+export const FINAL_DMG = 1.5;
+const KEEP_KEYS = ['collects', 'trader'], MAX_KEYS = ['discount', 'extraOffer', 'speed'];
+// the signatures, in plain words; `ab` = the ability you kept (a twist tied to an ability follows the one you have)
+const SIGNATURE = {
+  vanguard: () => ['Every hit also strikes a second dead'],
+  warlord: ab => [ab === 'bounty' ? 'Bounty kills pay +1 scrap more' : 'War Cry kills pay 1 scrap each'],
+  warden: () => ['Buildings within 5 of you take 30% less damage'],
+  marshal: () => ['Towers within 6 of you shoot 25% faster'],
+  deadeye: ab => ['Shots pierce: they hit 2 more dead behind', 'Double damage to brutes and bosses', ab === 'bounty' ? 'Bounty kills pay +2 scrap more' : 'Volley kills pay 2 scrap each'],
+  quartermaster: ab => ['+4 scrap and +2 food every dawn', ab === 'bounty' ? 'Bounty covers the whole Camp' : 'Patch Up mends the whole Camp'],
+};
+// what each Calling gives you, in plain words (the "You keep" list)
+const CALLING_KEEPS = {
+  warrior: ['War Cry', 'Your axe'],
+  archer: ['Volley', 'Your crossbow', 'Fast on foot'],
+  merchant: ['Bounty', 'Scrap pickup from the dead', 'Buildings 10% off', 'Dawn trader, +1 blessing choice'],
+  medic: ['Patch Up', 'Your sidearm'],
+};
+function buildFinal(adv, calling) {
+  const F = HEROES[adv], C = HEROES[calling] || HEROES[F.base];
+  const CA = C.attack, FA = F.attack;
+  const reach = CA && FA && CA.kind === FA.kind ? Math.max(CA.reach, FA.reach) : CA && CA.reach;
+  const K = { ...F, calling: C === HEROES[calling] ? calling : F.base, dmgMult: FINAL_DMG,
+    attack: CA ? { ...CA, reach } : FA, ability: C.ability, hp: Math.max(F.hp, C.hp + 4) };
+  for (const k of KEEP_KEYS) if (C[k] || F[k]) K[k] = C[k] || F[k];
+  for (const k of MAX_KEYS) if (C[k] || F[k]) K[k] = Math.max(C[k] || 0, F[k] || 0);
+  return K;
+}
+export const FINAL_KIT = {};
+for (const [pair, adv] of Object.entries(FINALS)) for (const calling of pair.split('+')) (FINAL_KIT[adv] = FINAL_KIT[adv] || {})[calling] = buildFinal(adv, calling);
+/** the hero the sim plays: a Calling or the Survivor as it is; an advanced class built on the Calling you took */
+export function heroKit(cls, calling) {
+  const H = HEROES[cls]; if (!H || !H.base || H.legend) return H;
+  return (FINAL_KIT[cls] && FINAL_KIT[cls][calling]) || (FINAL_KIT[cls] && FINAL_KIT[cls][H.base]) || H;
+}
+/** the job-change card at the advanced tier: exactly what you keep and what you gain (never a silent trade) */
+export function finalDelta(adv, calling) {
+  const K = heroKit(adv, calling), C = HEROES[K.calling], gain = [`+${Math.round((FINAL_DMG - 1) * 100)}% damage`];
+  if (K.attack && C.attack && K.attack.reach > C.attack.reach) gain.push(`Reach ${K.attack.reach} (was ${C.attack.reach})`);
+  if (K.hp > C.hp) gain.push(`+${K.hp - C.hp} health`);
+  gain.push(...SIGNATURE[adv](K.ability && K.ability.id));
+  return { keep: CALLING_KEEPS[K.calling].map(x => x), keepFrom: C.name, gain };
+}
+
 // one legendary class per advanced class and the Calling you took to get there (it keeps the advanced twist and
 // takes the Calling's signature): id `<advanced>_<legend>`, e.g. warlord_kingpin. LEGEND_OF[adv][calling] → id
 export const LEGEND_OF = {};
 for (const [pair, adv] of Object.entries(FINALS)) {
-  const A = HEROES[adv];
   for (const calling of pair.split('+')) {
-    const L = LEGENDS[calling]; if (!A || !L) continue;
+    const A = FINAL_KIT[adv] && FINAL_KIT[adv][calling], L = LEGENDS[calling]; if (!A || !L) continue;
     const id = `${adv}_${L.name.toLowerCase().split(' ')[0]}`;
-    // the signature is the Calling's own move, made legendary
+    // the signature is the Calling's own move, made legendary; everything the advanced class had stays
     HEROES[id] = { ...A, name: L.name, blurb: L.who, legend: true, legendOf: adv, calling, hp: A.hp + L.hpAdd,
-      attack: A.attack ? { ...A.attack, dmg: +(A.attack.dmg * L.dmgMult).toFixed(2) } : A.attack, ability: { ...HEROES[calling].ability, ...L.ability },
-      collects: A.collects || HEROES[calling].collects };
+      attack: A.attack ? { ...A.attack, dmg: +(A.attack.dmg * L.dmgMult).toFixed(2) } : A.attack, ability: { ...HEROES[calling].ability, ...L.ability } };
     CLASS_INFO[id] = { tier: 3, icon: 'star', who: L.who, perks: [...L.perks, `Keeps the ${A.name}'s twist`], look: L.look, glow: L.glow };
     (LEGEND_OF[adv] = LEGEND_OF[adv] || {})[calling] = id;
   }

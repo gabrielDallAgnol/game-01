@@ -1,9 +1,9 @@
 // The hero: levels and xp, the ability, class evolution and the path, walking and pathing, the autopilot,
 // attacking, companions and sellswords, max health.
 import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../content/season.js';
-import { CUT, DIRS8, LEVEL, MinHeap, REGEN } from './state.js';
+import { BIG, CUT, DIRS8, LEVEL, MinHeap, REGEN } from './state.js';
 import { FAMILIES } from '../content/perks.js';
-import { FINALS, HEROES, LEGEND_OF, MERC } from '../content/heroes.js';
+import { FINALS, HEROES, LEGEND_OF, MERC, heroKit } from '../content/heroes.js';
 import { MOBS, TIDE } from '../content/mobs.js';
 import { N, T, idx, inside } from './mapgen.js';
 
@@ -68,8 +68,9 @@ export function createHero(G) {
   /** become another class: the Calling, then the final class */
   function evolve(cls) {
     const H = HEROES[cls]; if (!H) return false;
-    const was = G.HC.name; S.heroClass = cls; G.HC = H; S.ability.cd = 0;
-    if (H.legend) S.evo.legend = cls; else if (H.base) S.evo.final = cls; else S.evo.calling = cls;
+    const was = G.HC.name, prev = S.heroClass; S.heroClass = cls; S.ability.cd = 0;
+    if (H.legend) S.evo.legend = cls; else if (H.base) { S.evo.final = cls; if (!S.evo.calling && HEROES[prev] && !HEROES[prev].base && prev !== 'survivor') S.evo.calling = prev; } else S.evo.calling = cls;
+    G.HC = heroKit(cls, S.evo.calling);   // tiers stack: the advanced class keeps everything the Calling gave
     refreshMaxSoon(); ev('evolve', { cls });
     toast(`[Class evolution: ${was} → ${H.name}]`, 'good');
     return true;
@@ -233,9 +234,13 @@ export function createHero(G) {
           else { G.hitMob(best, dmg, 'hero'); if (G.HC.twin) { const sec = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - h.x, o.y - h.y) - 0.3 * MOBS[o.kind].size < reach); if (sec) G.hitMob(sec, dmg * 0.7, 'hero'); } }
           ev('swing');
         } else {
-          const shot = m => G.fire(1.4, h.x, h.y, m, dmg * (mastery('sniper') && m.hp >= m.maxHp ? 2 : 1), 'hero', 24);
+          const shot = m => G.fire(1.4, h.x, h.y, m, dmg * (mastery('sniper') && m.hp >= m.maxHp ? 2 : 1) * (G.HC.bruteCrit && MOBS[m.kind].size >= BIG ? G.HC.bruteCrit : 1), 'hero', 24);
           shot(best);
-          if (S.P.pierce) { const behind = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - best.x, o.y - best.y) < 1.8); if (behind) shot(behind); }
+          if (G.HC.pierce) {   // the Deadeye: the bolt goes through, into the next dead behind (and the next)
+            let from = best; const hit = [best];
+            for (let k = 0; k < G.HC.pierce + (S.P.pierce ? 1 : 0); k++) { let nx = null, nd = 1.8; for (const o of S.mobs) { if (o.rise < 1 || hit.includes(o)) continue; const d = Math.hypot(o.x - from.x, o.y - from.y); if (d < nd && Math.hypot(o.x - h.x, o.y - h.y) >= Math.hypot(from.x - h.x, from.y - h.y) - 0.5) { nd = d; nx = o; } } if (!nx) break; hit.push(nx); shot(nx); from = nx; }
+          } else if (S.P.pierce) { const behind = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - best.x, o.y - best.y) < 1.8); if (behind) shot(behind); }
+          if (G.HC.twin) { const sec = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - h.x, o.y - h.y) < reach); if (sec) G.fire(1.4, h.x, h.y, sec, dmg * 0.7, 'hero', 24); }
           if (cleave || (S.P.sentinel && !moving && h.attacks % 3 === 0)) for (const m of S.mobs.filter(o => o !== best && Math.hypot(o.x - h.x, o.y - h.y) < reach).slice(0, 2)) shot(m);
         }
       }
