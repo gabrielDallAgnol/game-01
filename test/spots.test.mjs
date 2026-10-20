@@ -32,7 +32,9 @@ test(`objectives stay inside the playable world (${SEEDS} seeds × ${NIGHTS} nig
     S.builders = 'balanced'; g.setAutopilot(true);
     const at = (kind, x, y) => {
       seen[kind] = (seen[kind] || 0) + 1;
-      const why = plainOk(g, x, y) || (spotOk(map, S.sealed, x, y) ? null : 'spotOk');
+      // stations are placed once for the whole run; act 1's fence (S.actGate) may stand in front of them by design
+      const gated = kind === 'station' && S.actGate && S.actGate.includes(map.region[idx(Math.floor(x), Math.floor(y))]);
+      const why = gated ? (spotOk(map, false, x, y) ? null : 'spotOk (fences ignored)') : plainOk(g, x, y) || (spotOk(map, S.sealed, x, y) ? null : 'spotOk');
       if (why) { const k = `seed ${seed} ${kind} (${x.toFixed(1)}, ${y.toFixed(1)}): ${why}`; if (!bad.has(k)) { bad.add(k); badKinds[kind] = (badKinds[kind] || 0) + 1; } }
     };
     const site = (kind, l) => { seen[kind] = (seen[kind] || 0) + 1; if (!siteOk(map, S.sealed, l)) { const k2 = `seed ${seed} ${kind} site ${l.id} (${l.x}, ${l.y}): no open ground beside it`; if (!bad.has(k2)) { bad.add(k2); badKinds[kind] = (badKinds[kind] || 0) + 1; } } };
