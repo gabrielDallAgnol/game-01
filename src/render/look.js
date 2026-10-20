@@ -42,7 +42,7 @@ const GRADES = [
   // night: navy world; warm hues (fire, windows, the lantern) keep their colour and lift, everything else goes cold and quiet
   { lift: [0.012, 0.022, 0.05], gamma: [1.06, 1.02, 0.96], gain: [0.86, 0.94, 1.06], sat: 0.62, pastel: 0.0, contrast: 1.08, shadowTint: [0.2, 0.32, 0.62], highTint: [0.8, 0.9, 1.0], split: 0.3, keepWarm: 1.0, keepGreen: 0.9, keepCyan: 0.9, keepRed: 0.9 },
   // blood moon: maroon shadows, red cast; fire and rot-green still read
-  { lift: [0.05, 0.01, 0.02], gamma: [0.98, 1.06, 1.04], gain: [1.08, 0.86, 0.86], sat: 0.7, pastel: 0.0, contrast: 1.1, shadowTint: [0.62, 0.16, 0.22], highTint: [1.0, 0.7, 0.66], split: 0.32, keepWarm: 1.0, keepGreen: 0.8, keepCyan: 0.6, keepRed: 1.0 },
+  { lift: [0.022, 0.004, 0.012], gamma: [1.04, 1.1, 1.06], gain: [0.98, 0.8, 0.82], sat: 0.65, pastel: 0.0, contrast: 1.1, shadowTint: [0.62, 0.16, 0.22], highTint: [1.0, 0.7, 0.66], split: 0.32, keepWarm: 1.0, keepGreen: 0.8, keepCyan: 0.6, keepRed: 1.0 },
 ];
 function hueOf(r, g, b) {
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 1e-5) return 0;
