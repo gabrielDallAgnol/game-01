@@ -535,8 +535,10 @@ test('evolution: three tiers by level, each earned by a trial with a named boss'
 test('the class tiers land in order on the XP curve, and no Calling deals less than the Survivor', () => {
   const xpTo = lv => { let x = 0; for (let l = 1; l < lv; l++) x += LEVEL.xp(l); return x; };
   assert.ok(xpTo(CALLING_LVL) < xpTo(FINAL_LVL) && xpTo(FINAL_LVL) < xpTo(LEGEND_LVL) && LEGEND_LVL <= LEVEL.max);
-  // calibrated on the autopilot bot (tools: feedback xp runs): ~night 9, ~22, ~37 for a steady player
-  assert.ok(xpTo(CALLING_LVL) >= 250 && xpTo(CALLING_LVL) <= 450, `Calling needs ${xpTo(CALLING_LVL)} xp`);
+  // calibrated on the autopilot bot: ~390 xp by night 9, ~2000 by night 22, then ~200 a night (tiers at ~9, ~22, ~37)
+  assert.ok(xpTo(CALLING_LVL) >= 300 && xpTo(CALLING_LVL) <= 480, `Calling needs ${xpTo(CALLING_LVL)} xp`);
+  assert.ok(xpTo(FINAL_LVL) >= 1600 && xpTo(FINAL_LVL) <= 2500, `the advanced class needs ${xpTo(FINAL_LVL)} xp`);
+  assert.ok(xpTo(LEGEND_LVL) >= 4500 && xpTo(LEGEND_LVL) <= 6500, `the legendary class needs ${xpTo(LEGEND_LVL)} xp`);
   const dps = h => HEROES[h].attack.dmg / HEROES[h].attack.rate;
   for (const h of ['warrior', 'archer', 'merchant', 'medic']) assert.ok(dps(h) >= dps('survivor'), `${h}: ${dps(h).toFixed(2)} < survivor ${dps('survivor').toFixed(2)}`);
 });

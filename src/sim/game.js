@@ -71,9 +71,9 @@ export const DIFFICULTY = {
 };
 export const FOREMAN = { buildings: 6, keep: 3 };   // the Foreman: a toggle, never on by itself
 // hero levels: XP from the dead you put down yourself, sites, quests and districts. Each level: a little harder, a little tougher.
-// three class tiers (15 / 30 / 45) land around nights 9, 21 and 37 for a steady player (bot-measured XP ≈ 37.5·(n−2)^1.15);
-// each level is a small step (a third of the old one), so the hero's strength at a given night stays where it was
-export const LEVEL = { xp: lv => Math.round(6.5 * Math.pow(lv, 0.68) - 1), dmg: 0.03, hp: 1.3, max: 50, blessEvery: 15 };   // the town learns to build by itself once it is this established
+// three class tiers (15 / 30 / 45) land around nights 9, 22 and ~37 for the autopilot bot (measured: ~390 xp by night 9,
+// ~2000 by night 22, then ~200 a night); each level is a small step (a third of the old one)
+export const LEVEL = { xp: lv => Math.round(1.2 * Math.pow(lv, 1.44) + 4), dmg: 0.03, hp: 1.3, max: 50, blessEvery: 15 };
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
 export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
