@@ -58,7 +58,7 @@ export const TIDE = {
   bellGold: 10,                // ringing early pays 1 gold per this many seconds left
   dayShare: n => 0,                    // replaced by the continuous stream (see STREAM in game.js)    // share of tonight's budget that trickles in by day (day 1 is the calm before)
   drift: 0.012,                        // per second: chance a roamer next to your land wanders in toward the town
-  nightLen: 72,                // seconds every night lasts (the moon's path across the sky; it used to be the surges + a 30 s tail)
+  nightLen: 72,                // seconds every night lasts : the moon crosses the whole sky before dawn
   opening: [0, 0.5, 0.75, 0.9],   // the first nights ramp up (night 1 is a single dead)
   first: { hp: 5, speed: 0.7 },        // the first dead: slow, tough, unforgettable
   roam: { perRing: [0, 3, 12], radius: 4.5, sight: 6, leash: 10, lose: 16, cap: 150, animals: { deer: 4, wolves: 2 }, chase: { walker: 1.35, runner: 1.1, brute: 1.25, crawler: 1.2 } },   // a hunting roamer moves this much faster than it wanders

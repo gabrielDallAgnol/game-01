@@ -6,6 +6,7 @@ import { generateMap, validateMap, mapChoices, BIOMES, N, idx, PASSABLE } from '
 import { createGame as newGame, LEVEL, NOISE, HEAT, TENSION, PRESENCE, TOOLS, CUT } from '../src/sim/game.js';
 import { HEROES } from '../src/content/heroes.js';
 import { BUILDINGS } from '../src/content/buildings.js';
+import { TIDE } from '../src/content/mobs.js';
 import { playRun } from '../tools/bot.mjs';
 
 test('the frontier map generates valid worlds across 20 seeds', () => {
@@ -341,6 +342,22 @@ test('tides: night 1 is a single tough dead, dusk falls on its own, roamers wand
   assert.ok(first.maxHp > 3);
   for (let k = 0; S.phase === 'night' && k < 60 * 300; k++) g.step();
   assert.equal(S.phase, 'day', 'roamers kept the night from ending');
+});
+
+test('no early dawn: a cleared night lasts its full length; the time of day runs on without a jump', () => {
+  const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
+  let prev = g.timeOfDay(), maxJump = 0;
+  const tick = () => { g.step(); const t = g.timeOfDay(); let d = t - prev; if (d < -0.5) d += 1; maxJump = Math.max(maxJump, Math.abs(d)); prev = t; };
+  for (let k = 0; k < 60 * 130 && S.phase === 'day'; k++) tick();
+  assert.equal(S.phase, 'night');
+  S.hero.maxHp = S.hero.hp = 1e6;
+  // kill every dead the moment it comes: the night must still run its full length
+  let ended = null;
+  for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) { for (let i = S.mobs.length - 1; i >= 0; i--) if (!S.mobs[i].roam) S.mobs.splice(i, 1); tick(); if (S.phase !== 'night') ended = S.qT; }
+  assert.equal(S.phase, 'day', 'the night never ended');
+  assert.ok(ended >= TIDE.nightLen - 0.05, `dawn came early at ${ended}`);
+  assert.ok(maxJump < 0.002, `the clock jumped by ${maxJump}`);
+  assert.ok(g.timeOfDay() < 0.01, 'a new day starts at sunrise');
 });
 
 test('no bell: dusk comes with the sun, and the day carries on into the night', () => {
