@@ -22,10 +22,13 @@ import { createPlacing } from './placing.js';
 import { createPanels } from './panels.js';
 import { createInput } from './input.js';
 import { createCinema } from './cinema.js';
+// [pacify] begin
+import { createHomeward } from './homeward.js';
+// [pacify] end
 
 export { FLAGS };
 // the UI modules, in creation order (each registers its own DOM handlers when created)
-const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema];
+const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createHomeward];   // [pacify] appended
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
@@ -111,7 +114,7 @@ export function startApp() {
     if (ui.roadUI) ui.roadUI.tick(dt);
     // [road] end
     tickMini(dt);
-    hudT -= dt; if (hudT <= 0) { updateHud(); hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
+    hudT -= dt; if (hudT <= 0) { updateHud(); ui.tickHome();   /* [pacify] the way home */ hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
   }
   requestAnimationFrame(frame);
   addEventListener('resize', () => { dockH(); callouts.place(); });

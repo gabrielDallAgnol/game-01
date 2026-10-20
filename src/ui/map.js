@@ -25,6 +25,18 @@ export function createMap(ui) {
     }
     ctx.putImageData(im, 0, 0); return cv;
   }
+  // [pacify] begin: pacified ground is washed warm, with a thin amber edge where the quiet land ends
+  function tintPacified(cv, pz, hide) {
+    const ctx = cv.getContext('2d'), im = ctx.getImageData(0, 0, N, N), d = im.data, W = [255, 196, 120];
+    for (let i = 0; i < N * N; i++) {
+      if (!pz[i] || (hide && hide(i))) continue;
+      const x = i % N, y = (i / N) | 0, edge = x === 0 || y === 0 || x === N - 1 || y === N - 1 || !pz[i - 1] || !pz[i + 1] || !pz[i - N] || !pz[i + N];
+      const k = edge ? 0.62 : 0.16;
+      for (let ch = 0; ch < 3; ch++) d[i * 4 + ch] = d[i * 4 + ch] * (1 - k) + W[ch] * k * (edge ? 1 : 0.85);
+    }
+    ctx.putImageData(im, 0, 0);
+  }
+  // [pacify] end
   function drawMinimap(canvas, m) {
     const b = mapBox(m), w = b.x1 - b.x0 + 1, h = b.y1 - b.y0 + 1, src = paintWorld(document.createElement('canvas'), m, null), s = 2;
     canvas.width = w * s; canvas.height = h * s; const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
@@ -34,15 +46,17 @@ export function createMap(ui) {
   let worldCv = null, worldV = -1, worldB = null, miniT = 0;
   function worldNow() {
     const S = ui.game.state;
-    const hide = hidden(), key = `${S.seenVersion}|${hide ? 1 : 2}`;
+    const pz = ui.game.pacifyMap ? ui.game.pacifyMap() : null;   // [pacify]
+    const hide = hidden(), key = `${S.seenVersion}|${hide ? 1 : 2}|${S.pacifyVersion || 0}`;
     if (!worldCv) { worldCv = document.createElement('canvas'); worldV = -1; }
-    if (worldV !== key) { worldV = key; worldB = mapBox(ui.game.map, hide); paintWorld(worldCv, ui.game.map, S.seen, hide); }
+    if (worldV !== key) { worldV = key; worldB = mapBox(ui.game.map, hide); paintWorld(worldCv, ui.game.map, S.seen, hide); if (pz) tintPacified(worldCv, pz, hide); }
     return worldCv;
   }
   function marks(ctx, ox, oy, s, big) {
     const S = ui.game.state, m = ui.game.map, dot = (x, y, r, col, ring) => { ctx.beginPath(); ctx.arc((x - ox) * s, (y - oy) * s, r, 0, 7); if (ring) { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); } else { ctx.fillStyle = col; ctx.fill(); } };
     const seenAt = (x, y) => S.seen[idx(Math.floor(x), Math.floor(y))] === 1;
     for (const r of m.regions) if (r.nest && seenAt(r.nest.x, r.nest.y)) dot(r.nest.x, r.nest.y, big ? 5 : 3, S.nestAlive[r.id] ? (r.ring === 1 ? '#b4ff4e' : '#ff5a4a') : '#6b6b6b');
+    if (ui.game.smothered) for (const r of m.regions) if (r.nest && ui.game.smothered(r.id)) dot(r.nest.x, r.nest.y, big ? 8 : 5, '#ffc478', true);   // [pacify] asleep on your ground: it will not wake
     // places to claim: small and quiet (optional); owned ones a plain amber dot
     if (big) for (const l of S.landmarks) if (seenAt(l.x, l.y)) dot(l.x, l.y, l.owned ? 4 : 3.5, l.owned ? '#d9a35a' : 'rgba(214,222,226,.7)', !l.owned);
     // objectives: OPTIONAL ones small and neutral; MAIN ones a gold double ring and a "MAIN · what" tag, even unexplored
@@ -95,7 +109,7 @@ export function createMap(ui) {
     const objs = ui.game.story().objectives(), main = objs.filter(o => o.priority === 'main' && o.x !== undefined);
     const mainRow = main.length ? `<div class="lg-main"><b>Main</b>${main.map(o => `<span><i class="o" style="border-color:#ffd36a;box-shadow:0 0 6px rgba(255,211,106,.6)"></i>${esc(o.label)}: ${esc(o.title)}</span>`).join('')}</div>` : '';
     return `${mainRow}<div class="legend"><span class="lg-h">Optional</span><span><i class="o" style="border-color:rgba(214,222,226,.7)"></i>Place to claim</span><span><i style="background:#a9c6d6"></i>Beacon</span><span><i style="background:#e0886a"></i>Supply drop</span></div>
-      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span>${hidden() ? '' : '<span><i style="background:#ff5a4a"></i>City hive</span>'}<span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>`;
+      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span>${hidden() ? '' : '<span><i style="background:#ff5a4a"></i>City hive</span>'}<span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span><span><i style="background:rgba(255,196,120,.45);box-shadow:inset 0 0 0 1px #ffc478"></i>Pacified: no hive wakes</span></div>`;
   }
   function showMap() {
     const S = ui.game.state, src = worldNow(), b = worldB, w = b.x1 - b.x0 + 1, hh = b.y1 - b.y0 + 1, s = 2, act1 = !!hidden();
