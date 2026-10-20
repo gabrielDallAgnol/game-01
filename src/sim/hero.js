@@ -1,0 +1,269 @@
+// The hero: levels and xp, the ability, class evolution and the path, walking and pathing, the autopilot,
+// attacking, companions and sellswords, max health.
+import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../content/season.js';
+import { CUT, DIRS8, LEVEL, MinHeap } from './state.js';
+import { FAMILIES } from '../content/perks.js';
+import { FINALS, HEROES, LEGEND_OF, MERC } from '../content/heroes.js';
+import { MOBS, TIDE } from '../content/mobs.js';
+import { N, T, idx, inside } from './mapgen.js';
+
+export function createHero(G) {
+  const { S, c, earn, ev, fail, has, keep, live, map, mastery, owns, rng, rule, syncPicks, toast } = G;
+  const heroMax = () => Math.round((G.HC.hp + S.P.heroHp + LEVEL.hp * ((S.lvl || 1) - 1) + (mastery('champion') ? 25 : 0)) * S.P.heroHpMult);
+  function gainXp(n) {
+    if (S.lvl >= LEVEL.max) return; S.xp += n;
+    while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] +${Math.round(LEVEL.dmg * 100)}% damage, +${Math.round(LEVEL.hp)} health.`, 'good'); }
+    checkEvolution();
+    if (S.lvl % LEVEL.blessEvery === 0 && S.lvl > (S.blessLvl || 0)) { S.blessLvl = S.lvl; S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); toast(`[Level ${S.lvl}] The System grants a blessing.`, 'good'); }
+  }
+
+  // ---------- abilities ----------
+  function abilityCost() { const A = G.HC.ability; return A.cost ? Math.max(1, A.cost + A.costStep * S.ability.hires - S.P.hireDiscount) : 0; }
+  function useAbility(x, y) {
+    const A = G.HC.ability, h = S.hero;
+    if (!A || S.over) return false;
+    if (A.id !== 'patch' && !S.mobs.some(m => !m.roam || Math.hypot(m.x - h.x, m.y - h.y) < 10)) return fail('No dead nearby.');
+    if (S.ability.cd > 0 || h.dead) return false;
+    if (A.id === 'warcry') {
+      const rad = A.radius + S.P.abilityRadius;
+      for (const m of S.mobs) if (Math.hypot(m.x - h.x, m.y - h.y) < rad && m.kind !== 'gravelord') m.tauntT = A.taunt;
+      h.guardT = A.taunt; ev('warcry', { x: h.x, y: h.y, r: rad });
+    } else if (A.id === 'volley') {
+      let tx = x, ty = y;
+      if (tx === undefined || Math.hypot(tx - h.x, ty - h.y) > A.reach) {
+        let best = null, bn = 0;
+        for (const m of S.mobs) { if (Math.hypot(m.x - h.x, m.y - h.y) > A.reach) continue; const n = S.mobs.filter(o => Math.hypot(o.x - m.x, o.y - m.y) < A.radius).length; if (n > bn) { bn = n; best = m; } }
+        if (!best) return fail('No dead in range.');
+        tx = best.x; ty = best.y;
+      }
+      const dmg = A.dmg * S.P.abilityDmg * Math.sqrt(G.hpS(S.night)), rad = A.radius + S.P.abilityRadius;
+      for (const m of [...S.mobs]) if (Math.hypot(m.x - tx, m.y - ty) < rad) G.hitMob(m, dmg, G.HC.volleyPays ? 'volley' : 'hero');
+      ev('volley', { x: tx, y: ty, r: rad });
+    } else if (A.id === 'patch') {
+      const rad = (G.HC.quarter ? 99 : A.radius) + S.P.abilityRadius, heal = A.heal * S.P.abilityDmg;
+      for (const b of live().concat(keep.ruined ? [] : [keep])) if (Math.hypot(b.x - h.x, b.y - h.y) < rad) b.hp = Math.min(b.maxHp, b.hp + b.maxHp * heal);
+      h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.4); for (const a of S.allies) a.hp = a.maxHp;
+      if (mastery('saint')) for (const m of [...S.mobs]) if (Math.hypot(m.x - h.x, m.y - h.y) < Math.min(rad, 7)) G.hitMob(m, 6, 'hero');
+      ev('volley', { x: h.x, y: h.y, r: Math.min(rad, 8) });
+    } else if (A.id === 'shove') {
+      const rad = A.radius + S.P.abilityRadius;
+      for (const m of [...S.mobs]) { const d = Math.hypot(m.x - h.x, m.y - h.y); if (d > rad || m.kind === 'gravelord') continue; const k = A.push * (1 - d / rad * 0.5) / Math.max(0.3, MOBS[m.kind].size); const nx = m.x + (m.x - h.x) / (d || 1) * k, ny = m.y + (m.y - h.y) / (d || 1) * k; if (G.standable(m, nx, ny)) { m.x = nx; m.y = ny; } m.cd = Math.max(m.cd, 0.8); G.hitMob(m, A.dmg * S.P.abilityDmg, 'hero'); }
+      ev('warcry', { x: h.x, y: h.y, r: rad });
+    } else if (A.id === 'bounty') {
+      S.bountyT = A.duration + S.P.bountyTime + (mastery('warband') ? 10 : 0);
+      ev('bounty', { dur: S.bountyT }); toast('Bounty is on: every kill near you pays scrap.', 'good');
+    } else if (A.id === 'hire') {
+      const cost = abilityCost();
+      const count = A.count + S.P.hireExtra + (mastery('warband') ? 2 : 0), max = A.max + (mastery('warband') ? 6 : 0) + S.P.hireExtra * 3;
+      if (S.allies.length + count > max) return fail('You cannot pay more sellswords right now.');
+      if (S.gold < cost) return fail(`Sellswords cost ${cost} scrap.`);
+      S.gold -= cost; S.stats.goldSpent += cost; S.ability.hires++; S.stats.mercsHired += count;
+      for (let k = 0; k < count; k++) {
+        const a = { id: S.nextId++, ally: true, x: h.x + rng.range(-0.8, 0.8), y: h.y + rng.range(-0.8, 0.8), hp: MERC.hp + S.P.mercHp, maxHp: MERC.hp + S.P.mercHp, cd: 0, face: 0, attacking: false };
+        S.allies.push(a); ev('ally', { id: a.id });
+      }
+    }
+    S.ability.cd = A.cooldown * S.P.abilityCd * (A.id === 'volley' && mastery('hail') ? 0.5 : 1); return true;
+  }
+  /** become another class: the Calling, then the final class */
+  function evolve(cls) {
+    const H = HEROES[cls]; if (!H) return false;
+    const was = G.HC.name; S.heroClass = cls; G.HC = H; S.ability.cd = 0;
+    if (H.legend) S.evo.legend = cls; else if (H.base) S.evo.final = cls; else S.evo.calling = cls;
+    refreshMaxSoon(); ev('evolve', { cls });
+    toast(`[Class evolution: ${was} → ${H.name}]`, 'good');
+    return true;
+  }
+  // ---------- the path: what you do decides what you become ----------
+  // Every decision and deed leans the hero toward a family (Brawn, Aim, Wits, Heart). At CALLING_LVL the System
+  // reads the path and offers the Calling you have been living (as a trial); at FINAL_LVL the second family
+  // decides the final class.
+  const PATH_FAMS = ['hero', 'ranger', 'scavver', 'heart'];
+  function addPath(fam, n) { if (!PATH_FAMS.includes(fam) || !n) return; S.path[fam] = Math.max(0, +(S.path[fam] + n).toFixed(3)); }
+  const pathRank = (skip = []) => PATH_FAMS.filter(f => !skip.includes(FAMILIES[f].hero)).sort((a, b) => S.path[b] - S.path[a]);
+  function checkEvolution() {
+    if (!G.story || S.over || S.story.encounters.some(e => e.kind === 'evolve') || (S.story.trial && !S.story.trial.done)) return;
+    const cls = S.heroClass;
+    if (cls === 'survivor') {
+      if (S.lvl < CALLING_LVL || S.evo.offered.calling) return;
+      const [a, b] = pathRank();
+      const opts = [FAMILIES[a].hero, FAMILIES[b].hero];   // always two Callings: the path you lived, and the next one
+      S.evo.offered.calling = true; G.story.offerTrial(opts.map(c => ({ cls: c })), cls);
+    } else if (!HEROES[cls].base && !CUT.finalClass) {   // the final class is parked
+      if (S.lvl < FINAL_LVL || S.evo.offered.final) return;
+      const ranked = pathRank([cls]).map(f => FAMILIES[f].hero).filter(h => FINALS[[cls, h].sort().join('+')]);
+      if (!ranked.length) return;
+      const opts = ranked.slice(0, 2).map(h => ({ cls: FINALS[[cls, h].sort().join('+')], second: h }));
+      S.evo.offered.final = true; G.story.offerTrial(opts, cls);
+    } else if (HEROES[cls].base && !HEROES[cls].legend) {   // tier 3: the legendary form of the Calling you took
+      const id = LEGEND_OF[cls] && LEGEND_OF[cls][S.evo.calling || HEROES[cls].base];
+      if (S.lvl < LEGEND_LVL || S.evo.offered.legend || !id) return;
+      S.evo.offered.legend = true; G.story.offerTrial([{ cls: id, legend: true }], cls);
+    }
+  }
+
+  // ---------- walking: the hero's ground and paths round buildings ----------
+  const walkable = (x, y) => { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return false; return G.heroOk(idx(cx, cy)); };
+  /** shortest walk to a point, around buildings (8 directions, no squeezing past corners) */
+  function heroPath(tx, ty) {
+    const h = S.hero, s = idx(Math.floor(h.x), Math.floor(h.y));
+    let goal = idx(Math.floor(tx), Math.floor(ty));
+    if (!inside(Math.floor(tx), Math.floor(ty))) return null;
+    // a clear straight walk needs no planning
+    const L = Math.hypot(tx - h.x, ty - h.y), steps = Math.ceil(L / 0.3);
+    let clear = true; for (let k = 1; k <= steps && clear; k++) if (!walkable(h.x + (tx - h.x) * k / steps, h.y + (ty - h.y) * k / steps)) clear = false;
+    if (clear) return [{ x: tx, y: ty }];
+    const dist = new Float32Array(N * N).fill(Infinity), prev = new Int32Array(N * N).fill(-1), open = new MinHeap(); open.push(0, s); dist[s] = 0;
+    // A* on the grid; the goal may be a building cell: stop at the closest reachable cell
+    let best = s, bestD = Math.hypot(tx - h.x, ty - h.y);
+    while (open.size) {
+      const i = open.pop(); if (open.lastKey > dist[i] + Math.hypot((i % N) + 0.5 - tx, ((i / N) | 0) + 0.5 - ty) + 1e-6) continue;
+      const x = i % N, y = (i / N) | 0, dg = Math.hypot(x + 0.5 - tx, y + 0.5 - ty);
+      if (dg < bestD) { bestD = dg; best = i; }
+      if (i === goal || dist[i] > 300) break;
+      for (const [dx, dy, len] of DIRS8) {
+        const xx = x + dx, yy = y + dy; if (!inside(xx, yy)) continue;
+        const j = idx(xx, yy); if (!G.heroOk(j)) continue;
+        if (dx && dy && (!G.heroOk(idx(x + dx, y)) || !G.heroOk(idx(x, y + dy)))) continue;
+        const nd = dist[i] + len; if (nd < dist[j]) { dist[j] = nd; prev[j] = i; open.push(nd + Math.hypot((j % N) + 0.5 - tx, ((j / N) | 0) + 0.5 - ty), j); }
+      }
+    }
+    const path = []; for (let i = best; i !== s && i >= 0; i = prev[i]) path.push({ x: (i % N) + 0.5, y: ((i / N) | 0) + 0.5 });
+    path.reverse();
+    if (best === goal && G.heroOk(goal)) path[path.length - 1] = { x: tx, y: ty };
+    return path;
+  }
+  // ---------- companions at your side: one at a time, and their post stands empty while they travel with you ----------
+  function spawnCompanion(n) {
+    const h = S.hero, k = S.P.compBuff || 1, hp = Math.round((24 + n.bond * 4 + (n.named ? 14 : 0)) * k);
+    const a = { id: S.nextId++, ally: true, comp: n.id, name: n.name.split(' ')[0], x: h.x + 0.6, y: h.y + 0.6, hp, maxHp: hp, dmg: (2.5 + n.bond * 0.4 + (n.named ? 2 : 0)) * k, cd: 0, face: 0, attacking: false };
+    S.allies.push(a); ev('ally', { id: a.id });
+  }
+  function companionFollow(id, on) {
+    const n = S.story.npcs.find(q => q.id === id); if (!n || !n.alive || !n.joined) return false;
+    if (on) { const others = S.story.npcs.filter(o => o !== n && o.withHero); while (others.length >= G.partySize()) companionFollow(others.shift().id, false); n.withHero = true; if (!S.allies.some(a => a.comp === n.id)) spawnCompanion(n); toast(`${n.name} travels with you. Their post stands empty until they return.`, 'good'); }
+    else { n.withHero = false; for (const a of S.allies.filter(q => q.comp === n.id)) { S.allies.splice(S.allies.indexOf(a), 1); ev('allyGone', { id: a.id }); } }
+    return true;
+  }
+  // ---------- autopilot: the hero plays by itself (defends the town, fetches crates, rests when hurt) ----------
+  let autoT = 0, handT = 0;
+  function autoHero(dt) {
+    const h = S.hero; if (h.dead || (handT -= dt) > 0 || (autoT -= dt) > 0) return; autoT = 0.3;
+    const home = { x: c, y: c + 3.5 };
+    const A = G.HC.ability, near = r => S.mobs.filter(m => m.rise >= 1 && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < r).length;
+    if (A && S.ability.cd <= 0 && near(A.id === 'volley' ? 9 : 5) >= 4 && (A.id !== 'warcry' || h.hp > h.maxHp * 0.5)) useAbility();
+    if (h.hp < h.maxHp * 0.35) { G.api.heroTo(home.x, home.y); return; }
+    const threats = S.mobs.filter(m => m.rise >= 1 && (!m.roam || Math.hypot(m.x - c, m.y - c) < 12) && Math.hypot(m.x - c, m.y - c) < 15);
+    if (threats.length && G.HC.attack) {
+      threats.sort((a, b) => Math.hypot(a.x - c, a.y - c) - Math.hypot(b.x - c, b.y - c));
+      const m = threats[0], reach = G.HC.attack.reach * 0.8;
+      if (Math.hypot(m.x - h.x, m.y - h.y) > reach) G.api.heroTo(m.x, m.y);
+      return;
+    }
+    const loot = S.chests[0] || (S.phase === 'day' && h.hp > h.maxHp * 0.7 && S.drops.find(d => Math.hypot(d.x - c, d.y - c) < 55));
+    if (loot) { G.api.heroTo(loot.x, loot.y); return; }
+    // by day, with time and health to spare: the trial, then quests, then beacons
+    if (S.phase === 'day' && !S.autoStay && h.hp > h.maxHp * 0.7 && TIDE.dayLen - S.dayT > 25) {
+      const ST = S.story, tr = ST.trial && !ST.trial.done ? ST.trial : null;
+      const goal = tr || ST.quests[0] || ST.spots.slice().sort((a, b) => Math.hypot(a.x - c, a.y - c) - Math.hypot(b.x - c, b.y - c))[0];
+      if (goal) { G.api.heroTo(goal.x, goal.y + (goal.site !== undefined ? 2.5 : 0)); return; }
+    }
+    if (Math.hypot(h.x - home.x, h.y - home.y) > 2) G.api.heroTo(home.x, home.y);
+  }
+  function setHeroInput(x, y) { S.hero.input.x = x; S.hero.input.y = y; if (x || y) handT = 2; }
+  function unstickHero() {
+    const h = S.hero; if (walkable(h.x, h.y)) return;
+    for (let r = 1; r <= 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const x = Math.floor(h.x) + dx + 0.5, y = Math.floor(h.y) + dy + 0.5; if (walkable(x, y)) { h.x = x; h.y = y; return; }
+    }
+  }
+  function stepHero(dt) {
+    const h = S.hero;
+    if (h.dead) { h.respawn -= dt; if (h.respawn <= 0) G.heroBack(); return; }
+    h.guardT = Math.max(0, h.guardT - dt); h.noiseT = Math.max(0, (h.noiseT || 0) - dt);
+    if (S.nightFlags.lastT > 0) S.nightFlags.lastT -= dt;
+    let dx = h.input.x, dy = h.input.y, moving = false;
+    if (dx || dy) { h.target = null; const l = Math.hypot(dx, dy); dx /= l; dy /= l; moving = true; }
+    else if (h.target) {
+      // follow the planned path; the next waypoint is skipped once we reach it
+      if (h.path && h.path.length) { const w = h.path[0]; if (Math.hypot(w.x - h.x, w.y - h.y) < 0.2) h.path.shift(); }
+      const w = h.path && h.path.length ? h.path[0] : (h.path ? null : h.target);
+      if (!w) { h.target = null; h.path = null; }
+      else { dx = w.x - h.x; dy = w.y - h.y; const l = Math.hypot(dx, dy); if (l < 0.15 && !(h.path && h.path.length > 1)) { h.target = null; h.path = null; dx = dy = 0; } else if (l > 1e-4) { dx /= l; dy /= l; moving = true; } }
+    }
+    if (moving) {
+      const ti = idx(Math.floor(h.x), Math.floor(h.y)), ground = map.road[ti] ? 1.4 : map.terrain[ti] === T.FOREST && !G.inZone(ti) ? 0.72 : 1;   // the old road is quick; the woods are slow
+      const sp = G.HC.speed * S.P.heroSpeed * ground * (rule('winter') ? 0.92 : 1) * dt; if (S.P.runHeal) h.hp = Math.min(h.maxHp, h.hp + S.P.runHeal * dt);
+      const tryMove = (nx, ny) => { if (!walkable(nx, ny)) return false; h.x = nx; h.y = ny; return true; };
+      if (!tryMove(h.x + dx * sp, h.y + dy * sp)) { if (!tryMove(h.x + dx * sp, h.y)) if (!tryMove(h.x, h.y + dy * sp)) { h.target = null; h.path = null; } }
+      h.face = Math.atan2(dx, dy); h.moving = true;
+    } else h.moving = false;
+    h.cd -= dt; h.swing = Math.max(0, h.swing - dt);
+    const A = G.HC.attack;
+    if (A && h.cd <= 0) {
+      const reach = A.reach + S.P.heroRange, dmg = G.heroDmg() * (S.nightFlags.lastT > 0 ? 2 : 1);
+      let best = null, bd = reach;
+      for (const m of S.mobs) { if (m.rise < 1) continue; const d = Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size; if (d < bd) { bd = d; best = m; } }
+      // [road] begin
+      if (best && G.road && G.road.preferHive(best, reach)) best = null;   // lantern off on a Hunt: leave the sleeping dead, strike the hive
+      // [road] end
+      if (!best) {
+        // nothing to fight: strike a hive in reach
+        const hv = map.regions.find(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - h.x, r.nest.y - h.y) < reach + 1.4);
+        if (hv && G.hitHive(hv.id, dmg)) { h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.face = Math.atan2(hv.nest.x - h.x, hv.nest.y - h.y); ev(A.kind === 'melee' ? 'swing' : 'shot', { src: 'hero' }); }
+      }
+      if (best) {
+        h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.noiseT = 3; if (!moving) h.face = Math.atan2(best.x - h.x, best.y - h.y);
+        const cleave = mastery('whirlwind') || (has('wardance') && h.attacks % 3 === 0);
+        if (A.kind === 'melee') {
+          if (cleave) S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size < reach).forEach(m => G.hitMob(m, dmg, 'hero'));
+          else { G.hitMob(best, dmg, 'hero'); if (G.HC.twin) { const sec = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - h.x, o.y - h.y) - 0.3 * MOBS[o.kind].size < reach); if (sec) G.hitMob(sec, dmg * 0.7, 'hero'); } }
+          ev('swing');
+        } else {
+          const shot = m => G.fire(1.4, h.x, h.y, m, dmg * (mastery('sniper') && m.hp >= m.maxHp ? 2 : 1), 'hero', 24);
+          shot(best);
+          if (S.P.pierce) { const behind = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - best.x, o.y - best.y) < 1.8); if (behind) shot(behind); }
+          if (cleave || (S.P.sentinel && !moving && h.attacks % 3 === 0)) for (const m of S.mobs.filter(o => o !== best && Math.hypot(o.x - h.x, o.y - h.y) < reach).slice(0, 2)) shot(m);
+        }
+      }
+    }
+    h.hp = Math.min(h.maxHp, h.hp + dt * ((S.phase === 'day' ? (S.P.noDayHeal ? 0 : 3) : S.P.heroRegen) + (owns('clinic') ? 2 : 0) + (G.story ? G.story.bonus.regen() : 0)));
+    for (const ch of [...S.chests]) {
+      if (Math.hypot(ch.x - h.x, ch.y - h.y) > 1.3) continue;
+      S.chests.splice(S.chests.indexOf(ch), 1); ev('chestOpen', { id: ch.id }); S.stats.chests++;
+      if ((S.chestsToday = (S.chestsToday || 0) + 1) > 1) { earn(5); toast('Another chest: **+5 scrap** (one chest blessing a day is the most).', 'good'); continue; }
+      S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) G.rollOffer();
+    }
+    if (G.HC.collects) for (const p of [...S.purses]) {
+      if (Math.hypot(p.x - h.x, p.y - h.y) > 1.2) continue;
+      S.purses.splice(S.purses.indexOf(p), 1); earn(p.value); S.stats.pursesGold += p.value; ev('purseTaken', { id: p.id, value: p.value });
+    }
+  }
+  function stepAllies(dt) {
+    const h = S.hero;
+    for (const a of [...S.allies]) {
+      if (a.hp <= 0 && a.comp && mastery('lifeline')) { a.hp = a.maxHp; continue; }
+      if (a.hp <= 0) { S.allies.splice(S.allies.indexOf(a), 1); ev('allyGone', { id: a.id, died: true }); if (a.comp) toast(`${a.name} is down. They will be back on their feet at dawn.`, 'bad'); continue; }
+      a.cd -= dt; a.attacking = false;
+      let best = null, bd = Infinity;
+      for (const m of S.mobs) { if (m.rise < 1) continue; if (Math.hypot(m.x - h.x, m.y - h.y) > MERC.leash + 2) continue; const d = Math.hypot(m.x - a.x, m.y - a.y); if (d < bd) { bd = d; best = m; } }
+      if (best) {
+        if (bd > MERC.reach) moveAlly(a, best.x, best.y, MERC.speed * dt);
+        else { a.attacking = true; a.face = Math.atan2(best.x - a.x, best.y - a.y); if (a.cd <= 0) { a.cd = MERC.rate; G.hitMob(best, (a.dmg || MERC.dmg) + S.P.mercDmg, 'merc'); ev('swingAlly', { id: a.id }); } }
+      } else if (Math.hypot(h.x - a.x, h.y - a.y) > 2) moveAlly(a, h.x, h.y, MERC.speed * dt);
+    }
+  }
+  function moveAlly(a, tx, ty, s) {
+    const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy); if (d < 1e-4) return;
+    const nx = a.x + dx / d * Math.min(s, d), ny = a.y + dy / d * Math.min(s, d);
+    if (walkable(nx, ny)) { a.x = nx; a.y = ny; } else if (walkable(nx, a.y)) a.x = nx; else if (walkable(a.x, ny)) a.y = ny;
+    a.face = Math.atan2(dx, dy);
+  }
+  function refreshMaxSoon() { refreshMax(); }
+  const refreshMax = () => {
+    for (const b of S.buildings) { const m = G.maxHpOf(b.type, b.level); if (!b.ruined) b.hp += m - b.maxHp; b.maxHp = m; }
+    const km = G.keepMaxHp(); keep.hp = Math.min(km, keep.hp + Math.max(0, km - keep.maxHp)); keep.maxHp = km;
+    const hm = heroMax(); S.hero.hp = Math.min(hm, S.hero.hp + Math.max(0, hm - S.hero.maxHp)); S.hero.maxHp = hm;
+  };
+  return { heroMax, gainXp, abilityCost, useAbility, evolve, PATH_FAMS, addPath, checkEvolution, heroPath, spawnCompanion, companionFollow, autoHero, setHeroInput, unstickHero, stepHero, stepAllies, refreshMax };
+}
