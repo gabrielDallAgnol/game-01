@@ -487,11 +487,20 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const ratingOf = ratio => RATING.find(([lim]) => ratio < lim)[1];
 
   // ---------- waves ----------
+  /** night 1's second pack: out of the deep woods on another side of the camp than the first hive (≥100° round) */
+  function n1Edge(r) {
+    const p = r < 0 ? edgeSpawns[-1 - r] : map.regions[r].nest, a0 = Math.atan2(p.y - c, p.x - c);
+    let best = -1, bd = Infinity;
+    edgeSpawns.forEach((e, k) => { let d = Math.abs(Math.atan2(e.y - c, e.x - c) - a0); if (d > Math.PI) d = 2 * Math.PI - d; const far = Math.hypot(e.x - c, e.y - c); if (d >= 1.75 && far < bd) { bd = far; best = k; } });
+    return best < 0 ? r : -1 - best;
+  }
   const nightLen = () => TIDE.nightLen; let todLast = 0.25;   // every night lasts its full length: the moon crosses the sky, cleared or not
+  const N1_COUNT = 1 + TIDE.night1.packA.length + TIDE.night1.packB.length;
   function makeWave(n) {
     const nests = marchNests(n);
     if (!nests.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id)).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) nests.push(any[0].id); }
-    if (n === 1 && S.purge === null && nests.length) return [{ kind: 'walker', nest: nests[0], t: 3, first: true }];
+    if (n === 1 && S.purge === null && nests.length) { const N1 = TIDE.night1, b = n1Edge(nests[0]);   // hand-authored: the first dead, its pack, then a pack from the far woods
+      return [{ kind: 'walker', nest: nests[0], t: N1.first, first: true }, ...N1.packA.map(t => ({ kind: 'walker', nest: nests[0], t })), ...N1.packB.map(t => ({ kind: 'walker', nest: b, t }))]; }
     // the whole valley is yours: the dead now come out of the dark woods at the edge
     if (!nests.length) edgeSpawns.forEach((_, k) => nests.push(-1 - k));
     const wts = nests.map(r => (S.wake[r] === n && n > 1 ? 0.5 : 1));
@@ -1038,6 +1047,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const hiveMax = r => Math.round(STREAM.hiveHp * (map.regions[r].ring <= 1 ? 1.8 : 1 + 0.6 * (map.regions[r].ring - 1)) * hpS(S.night));
   function stepStream(dt) {
     if (!S.clock || S.night < 2 && !(S.phase === 'night' && S.qT > 15)) return;
+    if (S.phase === 'night' && S.qT > WAVES.duration(S.night) + NIGHT_TAIL && !Object.values(rage).some(v => v > 0)) return;   // the hour before dawn is quiet: the hives rest (nights are longer than the old surge + tail)
     const n = S.night, every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / DIFF.threat, mult = S.phase === 'night' ? STREAM.nightMult : 1;
     const nests = new Set(activeNests(n)); for (const r in rage) if (rage[r] > 0) { nests.add(+r); rage[r] -= dt; }
     const u = unlocked(Math.max(1, n - 1));
@@ -2025,11 +2035,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (!nests.length) nests = edgeSpawns.map((_, k) => -1 - k);
     const w = nests.map(r => (S.wake[r] === n && n > 1 ? 0.5 : 1)), tw = w.reduce((a, b) => a + b, 0);
     const u = unlocked(n), wsum = u.reduce((a, [, m]) => a + m.weight, 0), avgCost = u.reduce((a, [, m]) => a + m.weight * m.cost, 0) / wsum;
-    const total = n === 1 && S.purge === null ? 1 : nightBudget(n) / avgCost;
-    if (n === 1) nests.splice(1);
+    const total = n === 1 && S.purge === null ? N1_COUNT : nightBudget(n) / avgCost;
+    if (n === 1) { nests.splice(1); if (S.purge === null && nests.length) { const b = n1Edge(nests[0]); if (b !== nests[0]) { nests.push(b); w.splice(0, w.length, 1 + TIDE.night1.packA.length, TIDE.night1.packB.length); } } }
+    const tw2 = w.slice(0, nests.length).reduce((a, b) => a + b, 0);
     const out = nests.map((r, k) => {
       const p = r < 0 ? edgeSpawns[-1 - r] : map.regions[r].nest;
-      return { nest: r, x: p.x, y: p.y, count: Math.round(total * w[k] / tw), siege: false, boss: false, path: tracePath(p.x, p.y) };
+      return { nest: r, x: p.x, y: p.y, count: Math.round(total * w[k] / tw2), siege: false, boss: false, path: tracePath(p.x, p.y) };
     });
     if (S.purge !== null && n === S.night) {
       const p = map.regions[S.purge].nest, extra = Math.round(purgeBudget(S.purge, n) / avgCost) + 1;
@@ -2055,7 +2066,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const stream = n < 5 ? 0 : marchNests(n).length * WAVES.duration(n) * STREAM.nightMult / every;
     const bosses = isBloodMoon(n) ? bossesFor(n).length : 0;
     const brutes = Math.round((budget + stream * 1.3) * ((MOBS.brute.from <= n ? MOBS.brute.weight : 0) / wc)) + bosses;
-    const dead = n === 1 && S.purge === null ? 1 : Math.round(budget / (wc / u.reduce((a, [, m]) => a + m.weight, 0)) + stream + bosses);
+    const dead = n === 1 && S.purge === null ? N1_COUNT : Math.round(budget / (wc / u.reduce((a, [, m]) => a + m.weight, 0)) + stream + bosses);
     const standing = S.buildings.filter(b => !b.ruined).length;
     const last = S.log.length ? S.log[S.log.length - 1] : null, lastLost = last ? (last.lost || []).length : 0;
     const grow = last && last.night ? nightBudget(n) / Math.max(1, nightBudget(last.night)) : 1;

@@ -328,7 +328,7 @@ test('blessings: a dawn pick every other day, never more than two picks a dawn',
   for (const c of counts) assert.ok(c <= 2, `${c} picks in one dawn`);
 });
 
-test('tides: night 1 is a single tough dead, dusk falls on its own, roamers wander the wild', () => {
+test('tides: night 1 is a tough first dead then two packs from two sides, dusk falls on its own, roamers wander the wild', () => {
   const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
   for (const r of g.frontier()) g.openDistrict(r);
   assert.ok(S.mobs.some(m => m.roam), 'no roaming dead in the open districts');
@@ -336,7 +336,9 @@ test('tides: night 1 is a single tough dead, dusk falls on its own, roamers wand
   assert.ok(S.mobs.filter(m => m.roam).every(m => !S.claimed.has(m.roam.region)));
   for (let k = 0; k < 60 * 101 && S.phase === 'day'; k++) g.step();
   assert.equal(S.phase, 'night', 'dusk did not fall');
-  assert.equal(S.queue.length, 1); assert.ok(S.queue[0].first);
+  assert.equal(S.queue.length, 1 + TIDE.night1.packA.length + TIDE.night1.packB.length); assert.ok(S.queue[0].first, 'the first dead walks ahead');
+  assert.ok(S.queue.slice(1).every(q => !q.first && q.t > S.queue[0].t + 5), 'the packs come after the first dead');
+  assert.equal(new Set(S.queue.map(q => q.nest)).size, 2, 'night 1 comes from two directions');
   for (let k = 0; k < 60 * 6; k++) g.step();
   const first = S.mobs.find(m => m.first); assert.ok(first, 'the first dead never came');
   assert.ok(first.maxHp > 3);
