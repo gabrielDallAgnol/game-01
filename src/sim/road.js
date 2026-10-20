@@ -64,7 +64,7 @@ export function placeStations(map) {
     for (let pass = 0; pass < 6; pass++) for (const i of cells) if (!map.reach[i]) { const x = i % N, y = (i / N) | 0; if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => inside(x + dx, y + dy) && map.reach[idx(x + dx, y + dy)])) map.reach[i] = 1; }
     // two pads for forward towers, either side of the fire along the road; the prop sits behind the fire
     const pads = [-1, 1].map(s => ({ x: Math.floor(fx + best.tx * 2.4 * s + best.nx * 0.6) + 0.5, y: Math.floor(fy + best.ty * 2.4 * s + best.ny * 0.6) + 0.5 }));
-    out.push({ id: def.id, kind: def.kind, name: def.name, blurb: def.blurb, at: def.at, x: fx, y: fy, region: map.region[idx(Math.floor(fx), Math.floor(fy))],
+    out.push({ id: def.id, kind: def.kind, name: def.name, short: def.short, blurb: def.blurb, at: def.at, x: fx, y: fy, region: map.region[idx(Math.floor(fx), Math.floor(fy))],
       prop: { x: fx + best.nx * 2.1, y: fy + best.ny * 2.1, face: Math.atan2(best.tx, best.ty) }, normal: { x: best.nx, y: best.ny }, pads, road: { x: best.rx, y: best.ry } });
   }
   return out;
@@ -457,7 +457,13 @@ export function createRoad(ctx) {
     syncPeople(); stepTrail(); stepEscort(); stepConvoys(dt); stepStations(dt); stepAmbush(dt);
     missions.tick(dt); scanEvents();
   }
-  function dawn() { missions.dawn(); for (const st of stations) if (st.lit) st.hp = st.maxHp; R.outT = 0; }
+  function dawn() {
+    missions.dawn(); for (const st of stations) if (st.lit) st.hp = st.maxHp; R.outT = 0;
+    // a lit outpost is a beacon: while the camp has lost people, wanderers follow its fire in (one a dawn per fire)
+    const lit = stations.filter(st => st.lit), owed = Math.max(0, (S.mourned || 0) - (S.stats.peopleBack || 0));
+    const n = Math.min(owed, lit.length * ROAD.beacon);
+    if (n > 0) { addPeople(n); S.stats.peopleBack = (S.stats.peopleBack || 0) + n; ev('beacon', { n }); toast(`[Outpost] ${n === 1 ? 'A wanderer' : `${n} wanderers`} followed the fire${lit.length === 1 ? ` at ${lit[0].name}` : 's on the road'} to the Camp. **+${n} ${n === 1 ? 'person' : 'people'}**.`, 'good'); }
+  }
   function hiveMult(r) { return missions.hiveMult(r); }
   function attach(a) {
     api = a; missions.attach(a);

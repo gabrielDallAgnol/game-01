@@ -583,15 +583,22 @@ test('ruins persist: a fallen building stays a ruin (no income, its lot kept) un
   assert.equal(g.rebuildAll(), 1); assert.equal(g.ruins().length, 0);
 });
 
-test('a fallen home loses its people for good: half rise with the dead, and rebuilding brings nobody back', () => {
+test('a fallen home: half its people rise with the dead for good, the rest flee to the Camp and move back in when it is rebuilt', () => {
   const g = createGame({ seed: 5 }); readyDay(g); const S = g.state; S.gold = 300;
   const h = put(g, 'house'); prepKeep(g); assert.ok(g.upgradeKeep()); assert.ok(g.upgrade(h.id)); const home = S.byId.get(h.id);
+  assert.equal(home.folk, BUILDINGS.house.pop[1], 'an upgraded home holds its new family');
   const pop0 = g.pop(), risen0 = S.mobs.filter(m => m.kind === 'risen').length;
   g.hitBuilding(home.id, 999);
   const lost = BUILDINGS.house.pop[1] / 2;
-  assert.equal(g.pop(), pop0 - lost); assert.equal(S.mourned, lost);
+  assert.equal(g.pop(), pop0 - lost); assert.equal(S.mourned, lost); assert.equal(S.homeless, BUILDINGS.house.pop[1] - lost);
   assert.equal(S.mobs.filter(m => m.kind === 'risen').length - risen0, lost, 'the families did not rise');
   assert.ok(g.rebuild(home.id)); assert.equal(g.pop(), pop0 - lost, 'rebuilding brought the dead back');
+  assert.equal(S.homeless, 0); assert.equal(home.folk, BUILDINGS.house.pop[1] - lost, 'the homeless did not move back in');
+  // it falls again: it can only lose the people who live there now (no spiral below zero)
+  g.hitBuilding(home.id, 999); assert.equal(g.pop(), pop0 - lost - Math.round((BUILDINGS.house.pop[1] - lost) / 2));
+  // a save keeps the families and the homeless
+  const snap = g.snapshot(); const g2 = createGame({ seed: 5, restore: JSON.parse(JSON.stringify(snap)) });
+  assert.equal(g2.pop(), g.pop()); assert.equal(g2.state.homeless, S.homeless);
 });
 
 test('the hall falls over ~30 s: at most 3% a second, half that with the hero on its steps', () => {

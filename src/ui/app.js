@@ -930,6 +930,8 @@ export function startApp() {
       const bits = [`<span class="st ${f.hall}">Camp: ${word[f.hall] || f.hall}</span>`];
       if (f.atRisk) bits.push(`<span>~${f.atRisk} ${f.atRisk === 1 ? 'building' : 'buildings'} at risk</span>`);
       if (f.brutes) bits.push(`<span>${f.brutes} ${f.brutes === 1 ? 'brute' : 'brutes'}</span>`);
+      if (f.crew && f.crew.silent) bits.push(`<span class="st fall">${f.crew.silent} ${f.crew.silent === 1 ? 'tower' : 'towers'} unmanned</span>`);
+      else if (f.crew && f.crew.short) bits.push(`<span class="st risk">crew thin</span>`);
       return bits.join('<span class="sep">·</span>');
     }
     // without the honest forecast from the game: the threat rating and tonight's count

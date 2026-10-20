@@ -2,10 +2,10 @@
 
 // Four stations on the old road, nearest first. `at` is the distance from the camp along the road's axis.
 export const STATIONS = [
-  { id: 'bus', kind: 'bus', name: 'The Stalled Bus', at: 46, blurb: 'A school bus died on the verge. Somebody kept a fire going in a drum beside it.' },
-  { id: 'ranger', kind: 'ranger', name: 'The Ranger Tower', at: 78, blurb: 'A fire lookout over the trees. The stairs are still sound.' },
-  { id: 'toll', kind: 'toll', name: 'The Toll Gate', at: 108, blurb: 'A toll booth at the old bridge, its barrier down across the road.' },
-  { id: 'substation', kind: 'substation', name: 'The Substation', at: 136, blurb: 'Transformers humming behind a chain fence, right where the city begins.' },
+  { id: 'bus', kind: 'bus', name: 'The Stalled Bus', short: 'Bus stop', at: 46, blurb: 'A school bus died on the verge. Somebody kept a fire going in a drum beside it.' },
+  { id: 'ranger', kind: 'ranger', name: 'The Ranger Tower', short: 'Lookout', at: 78, blurb: 'A fire lookout over the trees. The stairs are still sound.' },
+  { id: 'toll', kind: 'toll', name: 'The Toll Gate', short: 'Toll gate', at: 108, blurb: 'A toll booth at the old bridge, its barrier down across the road.' },
+  { id: 'substation', kind: 'substation', name: 'The Substation', short: 'Substation', at: 136, blurb: 'Transformers humming behind a chain fence, right where the city begins.' },
 ];
 
 export const ROAD = {
@@ -24,6 +24,7 @@ export const ROAD = {
   bigK: 3,            // a big one inside the ring hits the fire this many times harder
   towers: 2,          // forward towers an outpost takes
   revealR: 11,
+  beacon: 1,          // while the camp has lost people, each lit outpost brings one back at dawn
   out: 26,            // past this distance from the camp, you are "out"
 };
 

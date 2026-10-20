@@ -151,9 +151,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const upCostOf = (b) => { const c0 = costOf(b.type, b.level + 1); return S.halfUpgrade ? Math.max(1, Math.ceil(c0 / 2)) : c0; };
   const maxHpOf = (type, level) => Math.round(BUILDINGS[type].hp[level - 1] * (1 + S.P.allHp + (type === 'wall' ? S.P.wallHp : 0)));
   const keepMaxHp = () => Math.round((KEEP.hp[keep.level - 1] + S.P.keepHp) * S.P.keepHpMult);
-  // people: survivors plus the homes' families, minus the families lost when their homes fell. The loss is for good:
-  // a rebuilt home pays scrap again, but only new homes and upgrades bring new people.
-  const pop = () => Math.max(0, S.survivors + S.buildings.reduce((s, b) => s + (b.type === 'house' ? BUILDINGS.house.pop[b.level - 1] : 0), 0) - (S.mourned || 0));
+  // people: survivors, the families in the homes (b.folk) and the homeless who fled a fallen home to the Camp.
+  // A fallen home loses half its people (they rise with the dead, for good); the rest flee to the Camp and move back in
+  // when you rebuild it. New homes and upgrades bring new people; convoys, rescues and lit outposts bring people back.
+  const houseCap = b => BUILDINGS.house.pop[b.level - 1];
+  const pop = () => Math.max(0, S.survivors + (S.homeless || 0) + S.buildings.reduce((s, b) => s + (b.type === 'house' ? (b.folk ?? houseCap(b)) : 0), 0));
   const near = (b, type, r) => S.buildings.some(o => o !== b && o.type === type && !o.ruined && Math.hypot(o.x - b.x, o.y - b.y) <= r);
   const hasTech = t => !S.blackout && S.buildings.some(b => b.type === t && !b.ruined && b.built >= 1);
   // ---------- power (CUT: only a "Lights Out" season rule brings it back) ----------
@@ -317,6 +319,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const b = { id: id ?? S.nextId++, type, level, x, y, rot: type === 'wall' ? rot : 0, r: type === 'wall' ? 0.6 : type === 'tower' ? 0.6 : 1.0,
       hp: maxHpOf(type, level), maxHp: maxHpOf(type, level), cd: 0, ruined: false, fell: false, nearWater: nearWaterAt(x, y), shotN: 0, rainT: 0 };
     b.built = BUILDINGS[type].buildTime && id === undefined ? 0 : 1;
+    if (type === 'house') b.folk = BUILDINGS.house.pop[level - 1];   // a new home comes with its family (raise() and restore adjust this)
     S.buildings.push(b); S.byId.set(b.id, b); occupy(b); liveTick = -1;
     reveal(x, y, type === 'tower' ? 8 : 5);
     ev('build', { id: b.id });
@@ -555,13 +558,14 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (has('salvage') && b.type !== 'wall') earn(Math.max(1, Math.floor(investOf(b) * (combo('salvage', 'mortar') ? 0.4 : 0.25))));
     if (b.type === 'house' && S.P.shelter) { S.stats.housesLost++; toast('A home fell. Its families hid in the safe room.', 'bad'); }
     else if (b.type === 'house') {
-      // a fallen home loses its people for good: half of them rise with the dead (the rest scatter into the camp)
-      const n = BUILDINGS.house.pop[b.level - 1] / 2, people = n; S.mourned = (S.mourned || 0) + people;
+      // a fallen home: half its people rise with the dead (lost for good), the rest flee to the Camp (homeless until it is rebuilt)
+      const folk = b.folk ?? houseCap(b), n = Math.round(folk / 2), people = n, fled = folk - n; S.mourned = (S.mourned || 0) + people;
+      b.folk = 0; S.homeless = (S.homeless || 0) + fled; S.stats.fled = (S.stats.fled || 0) + fled;
       S.cur.risen += n; S.stats.risen += n; S.stats.housesLost++; S.stats.peopleLost = (S.stats.peopleLost || 0) + people;
-      (S.cur.rose || (S.cur.rose = [])).push({ id: b.id, n, people });
+      (S.cur.rose || (S.cur.rose = [])).push({ id: b.id, n, people, fled });
       for (let k = 0; k < n; k++) { const m = spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1), { instant: false }); m.rise = 0.4; }
       crewCache = null;
-      toast(`A home fell. ${n === 1 ? 'One of its people rises' : `${n} of its people rise`} with the dead: lost for good.`, 'bad');
+      toast(n ? `A home fell. ${n === 1 ? 'One of its people rises' : `${n} of its people rise`} with the dead${fled ? `; ${fled} fled to the Camp` : ''}.` : `A home fell${fled ? `; ${fled} fled to the Camp` : ''}. Rebuild it to take them in.`, 'bad');
     } else toast(`${BUILDINGS[b.type].name} destroyed. It stays a ruin until you rebuild it.`, 'bad');
   }
   /** what a building cost to put up at its level (its rebuild price is half of this) */
@@ -729,11 +733,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     S.gold -= cost; S.halfUpgrade = false; S.cur.spent += cost; S.cur.upgraded.push(`${b.type}${b.level + 1}`); S.stats.upgraded++; S.stats.goldSpent += cost;
     raise(b); return true;
   }
-  function raise(b) { removeBuilding(b); const nb = placeBuilding(b.type, b.x, b.y, b.rot, b.level + 1, b.id); nb.hp = Math.min(nb.maxHp, nb.hp); return nb; }
+  function raise(b) { removeBuilding(b); const nb = placeBuilding(b.type, b.x, b.y, b.rot, b.level + 1, b.id); nb.hp = Math.min(nb.maxHp, nb.hp); if (b.type === 'house') nb.folk = (b.folk ?? houseCap(b)) + houseCap(nb) - houseCap(b); return nb; }
   function demolish(id) {
     if (S.over) return false;
     const b = S.byId.get(id); if (!b || b.type === 'keep') return fail('Cannot demolish that.');
-    if (!b.ruined) earn(Math.floor(costOf(b.type) / 2)); removeBuilding(b); return true;   // clearing a ruin pays nothing
+    if (!b.ruined) earn(Math.floor(costOf(b.type) / 2)); if (b.type === 'house' && b.folk) { S.homeless = (S.homeless || 0) + b.folk; crewCache = null; } removeBuilding(b); return true;   // clearing a ruin pays nothing; a pulled-down home's family moves to the Camp
   }
   // ---------- ruins: a fallen building stays on its lot (no income, no defence) until you rebuild it by hand ----------
   function rebuild(id) {
@@ -745,6 +749,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (!useHand()) return false;
     S.gold -= cost; S.cur.spent += cost; S.stats.goldSpent += cost; S.stats.rebuilt = (S.stats.rebuilt || 0) + 1; (S.cur.rebuilt || (S.cur.rebuilt = [])).push(b.type);
     b.ruined = false; b.fell = false; b.hp = b.maxHp; occupy(b); liveTick = -1; crewCache = null; unstickHero();
+    if (b.type === 'house') { const k = Math.min(houseCap(b), S.homeless || 0); b.folk = (b.folk || 0) + k; S.homeless = (S.homeless || 0) - k; }   // the homeless move back in
     ev('rebuild', { id: b.id, cost }); return true;
   }
   const REBUILD_ORDER = { tower: 0, house: 1, farm: 2, workshop: 3, market: 3, wall: 4, generator: 5 };
@@ -2051,7 +2056,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const share = Math.max(0, Math.min(1, (ratio - FORECAST.r0) * FORECAST.slope));
     const atRisk = Math.min(standing, Math.round(Math.max(standing * share, lastLost * grow * FORECAST.last * (ratio > FORECAST.r0 ? 1 : 0.5))));
     const hall = ratio < FORECAST.safe ? 'safe' : ratio < FORECAST.fall ? 'risk' : 'fall';
-    return { hall, atRisk, brutes, dead, ratio: +ratio.toFixed(2), night: n, bloodMoon: isBloodMoon(n) };
+    // crew: towers without their full crew stay silent. Now, and after the homes this night is likely to take.
+    const cr = crewing(), towersUp = S.buildings.filter(b => b.type === 'tower' && !b.ruined).length, silent = towersUp - cr.manned.size;
+    const homes = S.buildings.filter(b => b.type === 'house' && !b.ruined), folk = homes.reduce((a, b) => a + (b.folk ?? houseCap(b)), 0);
+    const lossP = standing ? atRisk * (homes.length / standing) * (homes.length ? folk / homes.length : 0) / 2 : 0;
+    const perTower = towersUp ? cr.need / towersUp : 1, deficit = cr.need - (cr.people - lossP);
+    const short = Math.max(silent, deficit > 0 ? Math.min(towersUp, Math.ceil(deficit / Math.max(1, perTower))) : 0);
+    return { hall, atRisk, brutes, dead, ratio: +ratio.toFixed(2), night: n, bloodMoon: isBloodMoon(n), crew: { need: cr.need, people: cr.people, silent, short } };
   }
 
   // ---------- queries for UI and bots ----------
@@ -2106,7 +2117,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, reroll: S.reroll, halfUpgrade: S.halfUpgrade,
       landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),
       evo: S.evo, path: S.path, feat: S.feat, noiseChoice: S.noiseChoice || 0, mourned: S.mourned || 0, diffNight: S.diffNight || 0, tools: S.tools, carry: S.hero.carry, ledger: S.ledger || null, pickups: S.pickups, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, eruption: S.eruption, heatCool: S.heatCool, sawBlackout: !!S.sawBlackout, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT,
-      buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0, b.ruined ? 1 : 0]), keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)] };
+      buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0, b.ruined ? 1 : 0, b.type === 'house' ? (b.folk ?? -1) : -1]), homeless: S.homeless || 0, keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)] };
   }
   function restoreSnap(R) {
     Object.assign(S, { night: R.night, gold: R.gold, food: R.food, kills: R.kills, stock: R.stock, survivors: R.survivors, heat: R.heat, foreman: R.foreman, builders: R.builders, autopilot: R.autopilot,
@@ -2120,7 +2131,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     for (const e of S.story.encounters) if (!e.ai || typeof e.ai !== 'object') e.ai = null;
     for (const i of R.cleared || []) map.terrain[i] = map.terrain[i] === T.ROCK ? T.DIRT : T.GRASS;
     for (const b of [...S.buildings]) removeBuilding(b);
-    for (const [id, type, level, x, y, rot, ru] of R.buildings) { const b = placeBuilding(type, x, y, rot, level, id); if (ru) { b.ruined = true; b.hp = 0; vacate(b, true); } }
+    let oldFolk = false;
+    for (const [id, type, level, x, y, rot, ru, folk] of R.buildings) { const b = placeBuilding(type, x, y, rot, level, id); if (ru) { b.ruined = true; b.hp = 0; vacate(b, true); } if (type === 'house') { if (folk === undefined) oldFolk = true; b.folk = folk >= 0 ? folk : ru ? 0 : houseCap(b); } }
+    S.homeless = R.homeless || 0;
+    if (oldFolk) {   // a save from before homes had families of their own: keep its head count (homes' capacity − the mourned)
+      const was = S.survivors + S.buildings.reduce((a, b) => a + (b.type === 'house' ? houseCap(b) : 0), 0) - (R.mourned || 0), now = pop();
+      if (was > now) S.homeless += was - now; else S.survivors = Math.max(0, S.survivors - (now - was));
+    }
     Object.assign(S, { noiseChoice: R.noiseChoice || 0, mourned: R.mourned || 0, diffNight: R.diffNight || 0, tools: R.tools || { flare: 0, smoke: 0 }, ledger: R.ledger || null });
     if (R.carry) S.hero.carry = { scrap: R.carry.scrap || 0, food: R.carry.food || 0 };
     if (!S.season.rules) S.season.rules = S.season.rule ? [S.season.rule] : [];
