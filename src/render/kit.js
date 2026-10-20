@@ -124,6 +124,7 @@ ${o.fragColor || ''}`)
   float own = tM.r, wild = (1.0 - smoothstep(0.25, 0.75, own)) * tAmount;
   vec3 c = gl_FragColor.rgb; float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   gl_FragColor.rgb = mix(c, mix(vec3(l), c, 0.55) * vec3(0.92, 0.97, 1.06) * tDark, wild);
+  float tPool = 0.0;
 #ifdef STANDARD
   if (tLightK > 0.001) {
     vec2 lUv = (vTWorld.xz - tLightO) / tLightS; lUv.y = 1.0 - lUv.y;
@@ -131,6 +132,7 @@ ${o.fragColor || ''}`)
     vec3 lp = texture2D(tLight, lUv).rgb * (tLightK * eg.x * eg.y);
     float up = dot(normal, (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
     gl_FragColor.rgb += diffuseColor.rgb * lp * exp(-max(vTWorld.y, 0.0) * 0.32) * (0.5 + 0.5 * max(up, 0.0));
+    tPool = dot(lp, vec3(0.33));
   }
 #endif
 #ifdef T_EMIT
@@ -138,6 +140,11 @@ ${o.fragColor || ''}`)
 #endif
 #ifdef T_RIM
   float rim = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 2.4);
+#ifdef T_FLASH
+  // the dead beyond the light: no moon rim, so only their eyes show until they step into a pool of light
+  rim *= mix(1.0, clamp(tPool * 2.5, 0.05, 1.0), tNight);
+  gl_FragColor.rgb *= mix(1.0, 0.45 + 0.55 * clamp(tPool * 3.0, 0.0, 1.0), tNight * 0.8);
+#endif
   gl_FragColor.rgb += tRim.rgb * rim * tRim.a;
 #endif
 #ifdef T_FLASH
@@ -1301,7 +1308,7 @@ ${o.fragColor || ''}`)
     const H = wh + 0.35, pitch = lvl === 2 ? 1.9 : 2.2, roof = lvl === 2 ? ['#5a4636', '#4f4a44', '#5d4a3a', '#6a5040'][v] : ['#7a4a36', '#3d5a5c', '#6a3a30', '#4a5a3c'][v];
     // windows and door on the front (+z)
     const win = (x, y, z, s = 1, ww = 1.0, hh = 0.95) => { b.cbox(WIN, ww, hh, 0.08, x, y, z, { r: 0.01 }); b.cbox(TIMBER[0], ww + 0.24, 0.1, 0.2, x, y - hh / 2 - 0.04, z + s * 0.06, { r: 0.02 }); b.cbox(TIMBER[0], ww + 0.24, 0.1, 0.16, x, y + hh / 2 + 0.04, z + s * 0.04, { r: 0.02 }); };
-    win(ox - 1.5, 1.65, d / 2 + 0.17); win(ox + 1.5, 1.65, d / 2 + 0.17); win(ox, 1.65, -d / 2 - 0.17, -1); win(ox + w / 2 + 0.17, 1.65, 0, 1, 0.08, 0.8);
+    win(ox - 1.5, 1.65, d / 2 + 0.17); win(ox + 1.5, 1.65, d / 2 + 0.17); win(ox - 1.2, 1.65, -d / 2 - 0.17, -1); win(ox + 1.2, 1.65, -d / 2 - 0.17, -1); b.cbox(WIN, 0.08, 0.9, 1.0, ox + w / 2 + 0.17, 1.65, 0.3, { r: 0.01 }); b.cbox(WIN, 0.08, 0.9, 1.0, ox - w / 2 - 0.17, 1.65, 0.6, { r: 0.01 });
     b.cbox('#4a3626', 0.95, 1.9, 0.08, ox, 1.3, d / 2 + 0.18, { r: 0.01 });
     // the gable roof (ridge along x), gable ends in planks, a stone chimney
     { const run = d / 2 + 0.45, a = Math.atan2(pitch, run), Lr = Math.hypot(run, pitch) + 0.1;

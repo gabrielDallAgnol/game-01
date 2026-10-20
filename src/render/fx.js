@@ -31,9 +31,9 @@ export function createFx({ renderer, scene }) {
   const P = quadGeo(PN, { aP: 3, aV: 3, aT: 4, aC: 4, aM: 4 });   // start; velocity; birth, life, size0, size1; colour + additive; gravity, drag, wobble, spin
   for (let i = 0; i < PN; i++) P.a.aT.array[i * 4 + 1] = -1;     // dead
   const pMat = new THREE.ShaderMaterial({
-    uniforms: { uTime: time },
+    uniforms: { uTime: time, uLit: { value: 1 } },
     vertexShader: `
-      attribute vec3 aP, aV; attribute vec4 aT, aC, aM; uniform float uTime;
+      attribute vec3 aP, aV; attribute vec4 aT, aC, aM; uniform float uTime, uLit;
       varying vec4 vC; varying vec2 vQ; varying float vF;
       void main(){
         float age = uTime - aT.x, t = age / aT.y;
@@ -47,7 +47,8 @@ export function createFx({ renderer, scene }) {
         vec2 q = position.xy; vQ = q;
         mv.xy += mat2(cos(a), -sin(a), sin(a), cos(a)) * q * s;
         gl_Position = projectionMatrix * mv;
-        vC = aC; vF = (1.0 - smoothstep(0.65, 1.0, t)) * smoothstep(0.0, 0.06, t);
+        vC = aC; vF = (1.0 - smoothstep(0.5, 1.0, t)) * smoothstep(0.0, 0.06, t);
+        if (fract(aC.a) < 0.25) { vC.rgb *= uLit; vF *= 0.75; }   // dust, smoke, blood take the scene's light; sparks and embers glow
       }`,
     fragmentShader: `
       varying vec4 vC; varying vec2 vQ; varying float vF;
@@ -66,7 +67,7 @@ export function createFx({ renderer, scene }) {
     //          colour        mode  size0 size1 life  speed up   grav drag wob spin
     blood:  { c: '#b8402e', m: 0, s0: 0.11, s1: 0.06, life: 0.55, sp: 2.6, up: 2.2, g: 9, dr: 1.5, w: 0, spin: 0 },
     ichor:  { c: '#7a7484', m: 0, s0: 0.12, s1: 0.06, life: 0.5, sp: 2.4, up: 2.0, g: 9, dr: 1.5, w: 0, spin: 0 },
-    dust:   { c: '#c9bca2', m: 0, s0: 0.22, s1: 0.6, life: 0.9, sp: 1.3, up: 0.6, g: -0.3, dr: 3.5, w: 0, spin: 1 },
+    dust:   { c: '#b9ad95', m: 0, s0: 0.14, s1: 0.4, life: 0.75, sp: 1.3, up: 0.5, g: -0.3, dr: 3.5, w: 0, spin: 1 },
     smoke:  { c: '#6d6a70', m: 0, s0: 0.35, s1: 1.2, life: 2.6, sp: 0.4, up: 1.1, g: -0.15, dr: 0.8, w: 0.25, spin: 0.4 },
     spark:  { c: '#ffd08a', m: 0.5, s0: 0.06, s1: 0.02, life: 0.35, sp: 5.5, up: 3.0, g: 12, dr: 2.5, w: 0, spin: 0, k: 4 },
     ember:  { c: '#ff9a40', m: 0.5, s0: 0.05, s1: 0.02, life: 1.6, sp: 0.35, up: 1.2, g: -0.6, dr: 0.6, w: 0.25, spin: 0, k: 3 },
@@ -162,7 +163,7 @@ export function createFx({ renderer, scene }) {
       void main(){ float t = (uTime - aB.x) / aB.y; if (aB.y <= 0.0 || t < 0.0 || t > 1.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
         float e = 1.0 - pow(1.0 - t, 3.0); vec3 p = position * aA.w * (0.25 + 0.75 * e); p.y = 0.0;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(p + aA.xyz, 1.0); vC = aC; vA = (1.0 - t) * 0.9; }`,
-    fragmentShader: 'varying vec3 vC; varying float vA; void main(){ gl_FragColor = vec4(vC * vA, 0.0); }',
+    fragmentShader: 'varying vec3 vC; varying float vA; void main(){ gl_FragColor = vec4(vC * vA * 0.6, 0.0); }',
     transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
   });
   const rMesh = new THREE.Mesh(Rg, rMat); rMesh.frustumCulled = false; rMesh.renderOrder = 6; group.add(rMesh);
@@ -250,8 +251,9 @@ export function createFx({ renderer, scene }) {
     time, emit, label, ring, stain, pools,
     blobs: { begin() { bn = 0; }, add: blob, end(k) { blobs.count = bn; blobs.instanceMatrix.needsUpdate = true; blobMat.uniforms.uK.value = k; } },
     /** per frame: advance the clock and upload what changed */
-    update(t) {
-      time.value = t; K.T.time.value = t;
+    /** lit: how much daylight the unlit particles (dust, smoke, blood) catch: 1 day … ~0.2 night */
+    update(t, lit = 1) {
+      time.value = t; K.T.time.value = t; pMat.uniforms.uLit.value = lit;
       if (pDirty) { for (const k of ['aP', 'aV', 'aT', 'aC', 'aM']) P.a[k].needsUpdate = true; pDirty = false; }
       if (lDirty) { for (const k of ['aP', 'aG', 'aT', 'aC']) Lq.a[k].needsUpdate = true; lDirty = false; }
       if (rDirty) { rA.needsUpdate = rB.needsUpdate = rC.needsUpdate = true; rDirty = false; }

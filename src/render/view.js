@@ -572,8 +572,8 @@ export function createView(canvas, game, opts = {}) {
     for (const [id, g] of cMeshes) if (!seen.has(id)) { world.remove(g); cMeshes.delete(id); }
   }
   // construction dust rolling out from the footprint, and ground rings (pooled: fx.js)
-  function dust(x, y, n) { const p = W(x, y, 0.12); fx2.emit('dust', p.x, p.y, p.z, 10 + n * 6, { spread: n * 0.42, size: 0.9 + n * 0.2 }); burst(x, y, 0.6 + n * 0.5, '#e08a3c'); }
-  function burst(x, y, r, color) { const p = W(x, y, 0.08); fx2.ring(p.x, p.y, p.z, Math.max(0.6, 0.5 + r * 1.1), color, 0.5 + Math.min(0.4, r * 0.05)); }
+  function dust(x, y, n) { const p = W(x, y, 0.12); fx2.emit('dust', p.x, p.y, p.z, 8 + n * 4, { spread: n * 0.42, size: 0.8 + n * 0.15 }); burst(x, y, 0.6 + n * 0.5, '#e08a3c'); }
+  function burst(x, y, r, color) { const p = W(x, y, 0.08); fx2.ring(p.x, p.y, p.z, Math.max(0.5, 0.35 + r * 0.8), color, 0.45 + Math.min(0.35, r * 0.04)); }
 
   // ---------- sellswords, purses ----------
   const aMeshes = new Map(), puMeshes = new Map();
@@ -990,7 +990,7 @@ export function createView(canvas, game, opts = {}) {
       else if (dark < 0.3 && vis() < 0.35) fx2.emit('pollen', rx, 0.3 + vis() * 1.5, rz, 1);
     }
     fx2.blobs.end(0.42 - 0.12 * dark);
-    fx2.update(animT);
+    fx2.update(animT, 1 - 0.78 * dark);
     look.render(time);
   }
 
