@@ -1,7 +1,7 @@
 // Hives: the endless stream of dead from awake hives, the hero hitting and burning one, the horde that follows,
 // bursting when the camp is too loud, and the field tools (flare, smoke).
 import { ESCAPE, MOBS, WAVES } from '../content/mobs.js';
-import { HEAT, NIGHT_TAIL, STREAM, TOOLS } from './state.js';
+import { CUT, HEAT, NIGHT_TAIL, STREAM, TOOLS } from './state.js';
 import { N } from './mapgen.js';
 
 export function createHives(G) {
@@ -87,11 +87,13 @@ export function createHives(G) {
     for (const kind of kinds) { const m = G.spawnAtNest(kind, r); m.rise = 0.6; m.hunt = true; m.horde = r; ids.push(m.id); }
     S.stats.hordes = (S.stats.hordes || 0) + 1;
     ev('horde', { region: r, x: n.x, y: n.y, n: kinds.length, ids });
-    toast(`[The hive is ash] **${kinds.length} dead** pour out after you. A **flare** (${TOOLS.flare.cost} scrap) pulls them away; **smoke** (${TOOLS.smoke.cost} food) hides your scent.`, 'bad');
+    if (CUT.tools) toast(`[The hive is ash] **${kinds.length} dead** pour out after you. Run for the towers.`, 'bad');
+    else toast(`[The hive is ash] **${kinds.length} dead** pour out after you. A **flare** (${TOOLS.flare.cost} scrap) pulls them away; **smoke** (${TOOLS.smoke.cost} food) hides your scent.`, 'bad');
   }
   /** throw a flare: the dead near you (or near the point) chase the light for 20 s. x, y: where it lands (default: ahead of you). */
   function useFlare(x, y) {
     const h = S.hero, F = TOOLS.flare;
+    if (CUT.tools) return false;   // [cut] the field tools are switched off
     if (S.over || h.dead) return false;
     if (S.tools.flare > 0) return fail(`The next flare is ready in ${Math.ceil(S.tools.flare)} s.`);
     if (S.gold < F.cost) return fail(`A flare costs ${F.cost} scrap.`);
@@ -111,6 +113,7 @@ export function createHives(G) {
   /** light smoke: the dead near you lose your scent (they find it again only if they bump into you) */
   function useSmoke() {
     const h = S.hero, M = TOOLS.smoke;
+    if (CUT.tools) return false;   // [cut] the field tools are switched off
     if (S.over || h.dead) return false;
     if (S.tools.smoke > 0) return fail(`The next smoke is ready in ${Math.ceil(S.tools.smoke)} s.`);
     if (S.food < M.cost) return fail(`Smoke takes ${M.cost} food (wet leaves and fat).`);
@@ -123,6 +126,6 @@ export function createHives(G) {
   }
   /** the old escape card's call, kept for old callers: 'flare' / 'smoke' use the tool, 'run' does nothing */
   function escape(kind) { return kind === 'flare' ? useFlare() : kind === 'smoke' ? useSmoke() : kind === 'run'; }
-  const toolsInfo = () => Object.fromEntries(Object.entries(TOOLS).map(([k, T2]) => [k, { cost: T2.cost, pay: k === 'flare' ? 'scrap' : 'food', cd: Math.max(0, S.tools[k] || 0), cdMax: T2.cd, t: T2.t, ready: !(S.tools[k] > 0), afford: (k === 'flare' ? S.gold : S.food) >= T2.cost }]));
+  const toolsInfo = () => CUT.tools ? null : Object.fromEntries(Object.entries(TOOLS).map(([k, T2]) => [k, { cost: T2.cost, pay: k === 'flare' ? 'scrap' : 'food', cd: Math.max(0, S.tools[k] || 0), cdMax: T2.cd, t: T2.t, ready: !(S.tools[k] > 0), afford: (k === 'flare' ? S.gold : S.food) >= T2.cost }]));
   return { burnHive, stepStream, hitHive, hiveHealth, warnEruption, erupt, useFlare, useSmoke, escape, toolsInfo };
 }

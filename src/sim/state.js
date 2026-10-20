@@ -24,11 +24,13 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 // across the routes soaked 50 damage in all; the dead walk round a line. They come back with a ring-building tool.
 // missions: the dusk choice (Hold / The Hunt / The Pied Piper) is gone; every night is a plain hold. The code in
 // sim/missions.js stays (traps, embers, the captain still work); only the offer and the choice are switched off.
+// tools: the Flare and Smoke buttons are gone (Oct 20: "no idea what they do"); useFlare/useSmoke fail quietly,
+// the code, the fx and the tuning stay in sim/hives.js and TOOLS below.
 // earlyRoad: the road and the city are no longer open from day 1. Act 1 is the woods (burn every forest hollow); the
 // road and the city stay behind the quarantine fence until then (sim/acts.js).
 // the save format: v4 (Oct 20) carries ruins, Noise, tools, contracts and the road; older saves are ignored at the start screen
 export const SAVE_V = 4;
-export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true, missions: true, earlyRoad: true };
+export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true, missions: true, earlyRoad: true, tools: true };
 // Heat (old name, same meter): see NOISE below. `stir`, `erupt`, `warn`, `cool`, `burst` still apply.
 export const HEAT = { floorPer: 1.4, floorMax: 70, combatMax: 77, decay: 0.1, rise: 2.5, shot: 0.03, kill: 0.15, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Noise: ONE meter (0–100). It rests on a floor set by loud CHOICES (level 3 towers, the market and workshop,
@@ -46,6 +48,10 @@ export const NOISE = {
 export const TENSION = { hallCap: 0.03, hallGuard: 0.5, guardR: 3, respawn: 30, downRate: 0.75, rebuild: 0.5 };
 // The hero's presence: towers near the hero shoot faster and further; whatever the hero hits is Marked for the towers.
 export const PRESENCE = { r: 6, rate: 1.3, range: 2, markT: 4, mark: 1.3 };
+// Fronts: the dead come from at least `want(n)` sides a night (sources closer than `side` radians are one side). When
+// the awake hives lie on one side, a pack walks out of the deep woods ≥`far` round (weight `pack` of a hive), and each
+// source gets at least `min` of the night's dead. Same budget: only where it comes from.
+export const FRONTS = { want: n => (n >= 5 ? 3 : 2), side: 1.4, far: 1.75, pack: 0.5, min: 3 };
 // Field tools (any time, no pause): a flare lures the dead near you to a point; smoke makes them lose your scent.
 export const TOOLS = { flare: { cost: 4, t: 20, cd: 20, r: 14, throw: 9 }, smoke: { cost: 3, t: 25, cd: 20, r: 10 } };
 // Season rules that used to be weather (rolled at dawn, now a contract's rule): what they do to a night

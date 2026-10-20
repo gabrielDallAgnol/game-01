@@ -95,6 +95,7 @@ export function createHud(ui) {
     const word = { safe: 'safe', risk: 'at risk', fall: 'may fall' };
     if (f && f.hall) {
       const bits = [`<span class="st ${f.hall}">Camp: ${word[f.hall] || f.hall}</span>`];
+      if (f.from && f.from.length) bits.push(`<span class="from">From ${f.from.length === 1 ? f.from[0] : `${f.from.slice(0, -1).join(', ')} and ${f.from[f.from.length - 1]}`}</span>`);
       if (f.atRisk) bits.push(`<span>~${f.atRisk} ${f.atRisk === 1 ? 'building' : 'buildings'} at risk</span>`);
       if (f.brutes) bits.push(`<span>${f.brutes} ${f.brutes === 1 ? 'brute' : 'brutes'}</span>`);
       if (f.crew && f.crew.silent) bits.push(`<span class="st fall">${f.crew.silent} ${f.crew.silent === 1 ? 'tower' : 'towers'} unmanned</span>`);

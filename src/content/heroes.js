@@ -24,7 +24,7 @@ export const HEROES = {
   },
 };
 HEROES.medic = {
-  name: 'Medic', blurb: 'A flare pistol and a bag of bandages. Weak in a fight, but Patch Up mends the buildings around you and puts you back on your feet.',
+  name: 'Medic', blurb: 'A bag of bandages and a steady hand. Weak in a fight, but Patch Up mends the buildings around you and puts you back on your feet.',
   hp: 28, speed: 4.1, attack: { kind: 'ranged', dmg: 2.6, reach: 5.5, rate: 0.7 },
   ability: { id: 'patch', name: 'Patch Up', cooldown: 22, radius: 6, heal: 0.25 },
 };

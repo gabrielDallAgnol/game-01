@@ -25,7 +25,6 @@ export const WHATS_NEW = [
   '**Seasons are contracts.** The System offers a rule and a finale. Win it and the city eases off; lose it and the run ends with its name.',
   '**One Noise meter.** The louder the Camp, the more dead come and the farther the hives hear you (the ring on the map).',
   '**Ruins stay ruins** until you rebuild them: tap one, or **Rebuild all** at dawn.',
-  '**Flare and Smoke** buttons when the dead are on you or a hive has just burned.',
   'A **lantern-lit** world: warm fires, cold nights, a frontier camp that grows from a stalled bus.',
   'Fewer, sharper systems: power, hands, barricades, weather and the trader are gone for now.',
 ];
