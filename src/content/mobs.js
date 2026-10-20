@@ -5,7 +5,7 @@ export const MOBS = {
   walker:    { name: 'Walker',    hp: 3,  speed: 1.5,  dmg: 2,  cost: 1,   from: 1, weight: 10, size: 1 },
   runner:    { name: 'Runner',    hp: 2,  speed: 3.0,  dmg: 1,  cost: 1.2, from: 3, weight: 4,  size: 0.85 },
   crawler:   { name: 'Crawler',   hp: 3,  speed: 1.8,  dmg: 2,  cost: 1.5, from: 4, weight: 3,  size: 0.8, climbs: true },
-  brute:     { name: 'Brute',     hp: 18, speed: 0.95, dmg: 6,  cost: 5,   from: 7, weight: 1.5, size: 1.6, dropsChest: 0.08 },
+  brute:     { name: 'Brute',     hp: 18, speed: 0.95, dmg: 6,  cost: 5,   from: 7, weight: 1.5, size: 1.6, dropsChest: 0.04 },
   spitter:   { name: 'Spitter',   hp: 3,  speed: 1.3,  dmg: 2,  cost: 2,   from: 7, weight: 2,  size: 0.95, range: 5, rate: 1.6 },
   bloater:   { name: 'Bloater',   hp: 8,  speed: 1.0,  dmg: 0,  cost: 2.5, from: 9, weight: 2,  size: 1.35, burst: { dmg: 10, radius: 2.4 } },
   screamer:  { name: 'Screamer',  hp: 5,  speed: 1.6,  dmg: 1,  cost: 3,   from: 11, weight: 1,  size: 1.05, aura: { speed: 1.35, radius: 4.5 } },
@@ -37,9 +37,11 @@ export const ESCAPE = {
   run:   { name: 'Just run', desc: 'They come after you **right away**.' },
 };
 
+// the climb the budget carries now that the dead toughen slowly (hpScale ≈ 1.035ⁿ): night n brings (1 + k(n−1))× the old count
+export const BUDGET_CLIMB = 0.075;
 export const WAVES = {
-  budget: n => 5 + 2.2 * n + 0.36 * n * n,          // mob-cost points per night
-  hpScale: n => Math.pow(1.06, n - 1) * (1 + 0.04 * (n - 1)),   // exponential: endless runs always end
+  budget: n => (5 + 2.2 * n + 0.36 * n * n) * (1 + BUDGET_CLIMB * (n - 1)),   // mob-cost points per night: more dead, not tougher ones
+  hpScale: n => Math.pow(1.035, n - 1),   // the dead toughen slowly: growth has to help (the budget, not the hp, carries the climb)
   territory: claimed => 1 + 0.12 * (claimed - 1),    // each claimed region beyond the core adds 12%
   plunder: ring => 6 + 6 * ring,                     // gold found in a burned nest
   bloodMoonEvery: 5,

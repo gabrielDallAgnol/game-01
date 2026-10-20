@@ -3,7 +3,7 @@
 // place a building from your packs or buy one, or upgrade one, as gold, food and crew allow.
 // Pure sim: deterministic, uses only the public game API.
 import { N, T, idx } from './mapgen.js';
-import { UNLOCKS as UNL } from '../content/buildings.js';
+import { UNLOCKS as UNL, BUILDINGS } from '../content/buildings.js';
 
 export const FOCI = ['defence', 'balanced', 'growth', 'off'];
 const EVERY = 3;        // seconds between builder steps
@@ -58,7 +58,7 @@ export function createPlanner(g) {
     const cands = S.buildings.filter(x => x.type === type && !x.ruined && x.level < cap && !(x.level === 2 && UNL[type] && !g.hasTech(UNL[type]))).sort((a, c) => a.level - c.level || a.id - c.id), b = cands[0];
     if (!b || S.gold < g.upCostOf(b) + RESERVE) return false;
     if (type === 'tower' && g.crewing().free < 1) return false;
-    if (type === 'tower' && g.powerIn() - g.powerOut() < 1) return ACT.power();   // never upgrade into a blackout
+    if (g.raiseBlock && /power/.test(g.raiseBlock(b.id))) return ACT.power();   // never upgrade into a blackout
     return g.upgrade(b.id);
   }
   function keepUp() { return g.keepLevel() < 3 && S.buildings.some(b => b.level >= g.keepLevel()) && g.upgradeKeep(); }
@@ -71,17 +71,38 @@ export function createPlanner(g) {
     upTower: () => upgradeOne('tower'),
     upHouse: () => upgradeOne('house'),
     keep: () => keepUp(),
-    power: () => can('generator') && place('generator'),
+    power: () => (!g.cut || !g.cut.power || g.rule('lightsOut')) && can('generator') && place('generator'),
+    // ruins first: a ruined tower or home is the cheapest strength the town can buy back (half its cost)
+    rebuild: () => { if (S.phase !== 'day' || !g.ruins) return false; const r = g.ruins().find(x => x.type !== 'wall' && S.gold >= x.cost + RESERVE) || g.ruins().find(x => S.gold >= x.cost + RESERVE); return !!(r && g.rebuild(r.id)); },
     workshop: () => tech('workshop'),
     market: () => tech('market'),
   };
   // the keep comes first once the town needs it (level 2 from night 3, level 3 from night 7);
   // towers: enough of them for the night, then make them better instead of more
   ACT.keepEarly = () => g.keepLevel() < 3 && !g.keepNeeds().length && ACT.keep();   // as soon as the town has earned it
-  ACT.defend = () => { const n = S.buildings.filter(b => b.type === 'tower').length, want = Math.min(12, 2 + Math.ceil(S.night * 0.6)); return n < want ? ACT.tower() || ACT.upTower() : ACT.upTower() || ACT.tower(); };
+  // work toward the next hall: the people and the food income it asks for
+  const wantTowers = () => Math.min(12, 2 + Math.ceil(S.night * 0.6));
+  ACT.keepPush = () => {
+    if (g.keepLevel() >= 3) return false;
+    if (S.buildings.filter(b => b.type === 'tower' && !b.ruined).length < wantTowers() - 1) return false;   // never at the cost of tonight's defence
+    const need = g.keepNeeds().join(' ');
+    if (/food income/.test(need) && ACT.farm()) return true;
+    if (/people/.test(need) && g.foodPerDawn() - g.foodNeed() >= 1 && can('house') && place('house')) return true;
+    return false;
+  };
+  // towers: a few for coverage, then whatever buys the most damage per scrap (a new tower, or the cheapest upgrade)
+  const TD = l => BUILDINGS.tower.dmg[l - 1] / BUILDINGS.tower.rate[l - 1];
+  ACT.defend = () => {
+    const towers = S.buildings.filter(b => b.type === 'tower' && !b.ruined), n = towers.length, want = wantTowers();
+    if (n < Math.min(want, 3)) return ACT.tower() || ACT.upTower();
+    if (n >= want) return ACT.upTower() || ACT.tower();
+    const up = towers.filter(b => !(g.raiseBlock && g.raiseBlock(b.id))).sort((a, c) => a.level - c.level || a.id - c.id)[0];
+    const newV = TD(1) / g.buyCost('tower'), upV = up ? (TD(up.level + 1) - TD(up.level)) / g.upCostOf(up) : 0;
+    return upV >= newV ? ACT.upTower() || ACT.tower() : ACT.tower() || ACT.upTower();
+  };
   const PLAN = {
-    defence: ['keepEarly', 'defend', 'workshop', 'wall', 'house', 'upHouse'],
-    growth: ['keepEarly', 'house', 'upHouse', 'market', 'defend', 'wall'],
+    defence: ['keepEarly', 'keepPush', 'defend', 'workshop', 'wall', 'house', 'upHouse'],
+    growth: ['keepEarly', 'keepPush', 'house', 'upHouse', 'market', 'defend', 'wall'],
   };
 
   function stepOnce() {
@@ -89,6 +110,7 @@ export function createPlanner(g) {
     const net = g.foodPerDawn() - g.foodNeed();
     if ((net < 0 || (net < 1 && S.food < 4)) && ACT.farm()) return true;
     if (S.blackout && ACT.power()) return true;
+    if (ACT.rebuild()) return true;
     const list = focus === 'balanced' ? PLAN[(flip = !flip) ? 'defence' : 'growth'] : PLAN[focus];
     for (const a of list) if (ACT[a]()) return true;
     return false;

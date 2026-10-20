@@ -13,9 +13,10 @@ export const BUILDINGS = {
     name: 'Tower', cost: [6, 8, 14], upkeep: [0, 1, 2], hp: [24, 36, 50], range: [7, 8.5, 10], dmg: [1, 1.8, 2.6], rate: [0.9, 0.75, 0.6],
     desc: ['Shoots · range 7', 'Faster · range 8.5 · upkeep 1', 'Heavy bolts · range 10 · upkeep 2'],
   },
+  // barricades are real walls: the dead chew through them post by post. No salvage; a fallen post is a ruin you rebuild.
   wall: {
-    name: 'Barricade', cost: [1, 2, 3], hp: [30, 60, 100], blocks: true,
-    desc: ['One barricade post · 30 hp · you walk through, the dead do not', 'Wrecks and sandbags · 60 hp', 'Concrete and razor wire · 100 hp'],
+    name: 'Barricade', cost: [2, 3, 4], hp: [40, 90, 160], blocks: true,
+    desc: ['One barricade post · 40 hp · you walk through, the dead must chew through', 'Wrecks and sandbags · 90 hp', 'Concrete and razor wire · 160 hp'],
   },
   // power: loud, but it keeps the lights (and the best guns) on
   generator: {
@@ -32,12 +33,15 @@ export const BUILDINGS = {
     desc: ['Unlocks level 3 homes and farms. Every home pays 1 more scrap.'],
   },
 };
-export const BUILD_ORDER = ['house', 'farm', 'tower', 'wall', 'generator'];
+// (the generator is out of the build list while power is cut: CUT.power in sim/game.js; a Lights Out rule brings it back)
+export const BUILD_ORDER = ['house', 'farm', 'tower', 'wall'];
+export const BUILD_ORDER_POWER = ['house', 'farm', 'tower', 'wall', 'generator'];
 // power: what the keep makes on its own, and what each building draws (by level). Short on power = blackout:
 // every powered building switches off until supply is back (Red Alert style).
 export const POWER = { keep: [3, 4, 5], draw: { tower: [0, 1, 2], workshop: [2], market: [1] } };
-// each extra copy of a building costs more: the town has to choose, not spam
-export const RISE = { house: 0.2, farm: 0.15, tower: 0.25, wall: 0, generator: 0.5, workshop: 0, market: 0 };
+// each extra copy of a building costs more: the town has to choose, not spam. Towers climb in a straight line
+// (+25% of the base per tower you have); homes and farms climb and flatten; barricades +1 scrap per dozen posts.
+export const RISE = { house: 0.2, farm: 0.15, tower: 0.25, wall: 0, wallEvery: 12, generator: 0.5, workshop: 0, market: 0 };
 // hands: every build or upgrade needs a free pair of hands for the day: 2 + √people
 export const HANDS = { base: 2 };   // + the square root of your people (diminishing: a big town is not a fast town)
 export const TECH_ORDER = ['workshop', 'market'];
@@ -45,8 +49,9 @@ export const UNLOCKS = { tower: 'workshop', wall: 'workshop', house: 'market', f
 export const MAX_LEVEL = 3;
 
 export const KEEP = {
-  // a town hall has to be earned: scrap, plus food in store, people, and (for level 3) a hive burned or a site held
-  need: [null, { food: 6, people: 8 }, { food: 18, people: 18, won: 1 }],
+  // a town hall has to be earned: scrap, people, a food income with room to spare (foodNet: food a dawn beyond what
+  // everyone eats) and, for level 3, a hive burned or a site held. It costs scrap only: no food is taken.
+  need: [null, { foodNet: 2, people: 8 }, { foodNet: 6, people: 18, won: 1 }],
   cost: [0, 20, 50], hp: [80, 120, 170], dmg: [3, 4, 5], range: [8, 9, 10], rate: 1.0, shots: [1, 1, 2],
   desc: ['Shoots · range 8', '+40 health · harder arrows · range 9', '+50 health · two arrows · range 10'],
 };
