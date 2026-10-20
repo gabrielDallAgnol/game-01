@@ -41,8 +41,10 @@ export const CONVOY = {
   names: ['Mara', 'Tomas', 'Ines', 'Old Pell', 'Rui', 'Hanne', 'Dov', 'Lise', 'Bo', 'Nadia', 'Kofi', 'Jun', 'Sabe', 'Oren', 'Tilde', 'Yusuf', 'Wren', 'Ada', 'Piet', 'Lucia'],
 };
 
-// Road danger: if you stay out, the clever dead wait on your road home.
-export const AMBUSH = { after: 40, every: 55, ahead: 18, minNight: 2, warn: '[Movement on the road ahead]', wait: 90 };
+// Road danger: if you stay out, the clever dead wait on your road home. Once a trip at most (back on your land resets
+// it), and never on the short stretch from the Camp to the Ranger Tower (`quiet`, along the road): there the Bus is the
+// one stop.
+export const AMBUSH = { after: 40, every: 55, ahead: 18, minNight: 2, warn: '[Movement on the road ahead]', wait: 90, quiet: 86, perTrip: 1 };
 
 // Night missions: one choice at dusk. On a Pied Piper night a flare is a pitch flare: it burns where it lands (`traps.pyre*`).
 export const MISSIONS = {
