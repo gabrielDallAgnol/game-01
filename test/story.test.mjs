@@ -239,7 +239,7 @@ test('objectives: one priority each; the contract, the trial and story quests ar
   const list = st.objectives();
   assert.ok(list.every(q => q.priority === 'main' || q.priority === 'optional'));
   const kinds = p => list.filter(q => q.priority === p).map(q => q.kind).sort();
-  assert.deepEqual(kinds('main'), ['contract', 'thread', 'trial']);
+  assert.deepEqual(kinds('main').filter(k => k !== 'act'), ['contract', 'thread', 'trial']);   // (act 1 adds the nearest hollow)
   assert.deepEqual(kinds('optional'), ['beacon', 'drop', 'site']);
   const firstOpt = list.findIndex(q => q.priority === 'optional');
   assert.ok(list.slice(firstOpt).every(q => q.priority === 'optional'), 'main first');
