@@ -46,7 +46,8 @@ test('standing by the fire for 3 s lights an outpost: it costs scrap, rests the 
 test('the dead keep out of a lit ring, gnaw at the fire by night, and the fire can go out', () => {
   const { g, S, road, run, tp } = make(3);
   const st = road.stations[1]; S.gold = 60;
-  tp(st.x + 1, st.y); run(ROAD.lightTime + 0.5); assert.ok(st.lit);
+  // (the ranger stays at her tower: no convoy on the road to draw the pack off the fire)
+  tp(st.x + 1, st.y); run(ROAD.lightTime + 0.5, null, e => (e.road ? 'watch' : null)); assert.ok(st.lit); assert.equal(road.convoys().length, 0);
   tp(g.map.town.x, g.map.town.y + 3.5);
   g.startNight(); run(0.1);
   const before = st.hp;
