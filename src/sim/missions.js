@@ -86,7 +86,7 @@ export function createMissions(ctx, getRoad) {
     if (h.dead || M.hornCd > 0) return false;
     const H = MISSION.horn, cand = S.mobs.filter(m => !m.roam && !MOBS[m.kind].animal && !m.piped && !m.unique && m.rise >= 1 && Math.hypot(m.x - h.x, m.y - h.y) < H.r)
       .sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y));
-    if (!cand.length) return ctx.fail('Nothing in earshot yet: the horn carries about 30 steps. Wait for the dead to come.');
+    if (!cand.length) return ctx.fail('Nothing in earshot yet: the horn carries about 32 steps. Wait for the dead to come.');
     const n = Math.min(H.cap, Math.ceil(cand.length * H.share));
     // the nearest half always, the rest by chance: the horn is loud, not a leash
     const take = cand.slice(0, n);

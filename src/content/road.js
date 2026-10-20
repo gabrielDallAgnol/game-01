@@ -52,7 +52,7 @@ export const MISSIONS = {
 export const MISSION = {
   pick: 6,            // seconds to choose before Hold is chosen for you
   hunt: { hiveK: 0.4, sneak: 2, pay: 1.5, horde: 0.6, sense: 0.5, speed: 0.85 },   // hives at 40% while their dead are out (strikes ×2 more while nothing hunts you in the dark); pays ×1.5; lantern off: sense ×0.5, you ×0.85
-  horn: { r: 30, share: 0.5, cap: 30, cd: 28, t: 45, lose: 42, pay: 1 },  // the horn: a share of the wave within r turns on you, for t seconds
+  horn: { r: 32, share: 0.6, cap: 30, cd: 28, t: 60, lose: 45, pay: 1 },  // the horn: a share of the wave within r turns on you, for t seconds
   embers: { r: 5, t: 40, burn: 3, dps: 2 },   // a burned hive smoulders: the dead walking through it catch fire
   chainK: 0.8,        // out in the wilds a bloater's blast hurts the dead around it too
   captain: 0.15,      // towers +15% with a companion at home
