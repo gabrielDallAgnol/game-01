@@ -11,7 +11,7 @@ const CSS = `
 .rd-dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dockH,72px) + 10px);display:grid;gap:6px;justify-items:center;pointer-events:none;width:min(440px,calc(100vw - 32px));z-index:5}
 @media (max-width:640px){.rd-dock{left:max(94px,calc(env(safe-area-inset-left,0px) + 94px));right:max(94px,calc(env(safe-area-inset-right,0px) + 94px));width:auto;transform:none;justify-items:stretch}}
 .rd-dock.lift{bottom:calc(var(--dockH,72px) + 80px)}
-.rd-dock.wide{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;transform:none;bottom:calc(var(--dockH,72px) + 84px)}
+.rd-dock.wide{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;transform:none;bottom:calc(var(--dockH,72px) + 10px);z-index:6}
 .rd-chip{pointer-events:auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;background:var(--camp-solid);border:1px solid var(--line);border-radius:14px;padding:7px 7px 7px 12px;font:500 13px/1.25 var(--body);max-width:100%;box-shadow:0 6px 18px rgba(0,0,0,.4);animation:tin .2s var(--ease-o)}
 .rd-chip .t{flex:1 1 140px;min-width:0}.rd-chip .acts{display:flex;gap:6px;flex:none;margin-left:auto}
 .rd-chip .t b{font:700 15px/1.15 var(--display);letter-spacing:.03em;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--bone)}
@@ -27,7 +27,7 @@ const CSS = `
 .rd-chip.sys .btn.ghost{background:transparent;color:var(--cyan);border:1px solid var(--cyan-d)}
 .rd-chip.sys::before,.rd-chip.sys::after,.rd-win::before,.rd-win::after{content:"";position:absolute;width:8px;height:8px;border:2px solid var(--cyan);pointer-events:none}
 .rd-chip.sys::before,.rd-win::before{left:-1px;top:-1px;border-right:0;border-bottom:0}.rd-chip.sys::after,.rd-win::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
-.rd-chip.ledger{border-color:rgba(255,106,85,.45)}.rd-chip .t span.dl{display:block;margin-top:2px}.rd-chip .t span.dl em{color:var(--amber)}.rd-chip.ledger .t b .ic{color:var(--blood)}
+.rd-chip.ledger{border-color:rgba(255,106,85,.45)}.rd-chip.ledger .t{flex-basis:100%}.rd-chip .t span.dl{display:block;margin-top:2px}.rd-chip .t span.dl em{color:var(--amber)}.rd-chip.ledger .t b .ic{color:var(--blood)}
 .rd-hp{display:inline-block;width:56px;height:5px;border-radius:3px;background:rgba(236,223,198,.14);overflow:hidden;vertical-align:middle;margin-left:2px}.rd-hp i{display:block;height:100%;background:var(--amber);transition:width .2s}
 .rd-hp.fire i{background:linear-gradient(90deg,var(--ember),#ffcf80)}
 .rd-prog{display:inline-block;width:46px;height:5px;border-radius:3px;background:rgba(255,207,128,.18);overflow:hidden;vertical-align:middle;margin-left:4px}.rd-prog i{display:block;height:100%;background:#ffcf80}
