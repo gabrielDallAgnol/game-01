@@ -26,7 +26,7 @@ export const BUILDINGS = {
   // tech: one of each, bought with scrap only, take time to build, unlock level 3
   workshop: {
     name: 'Workshop', cost: [18], hp: [60], tech: true, keep: 2, buildTime: 40, maxLevel: 1,
-    desc: ['Unlocks level 3 towers and concrete barricades.'],
+    desc: ['Unlocks level 3 towers.'],
   },
   market: {
     name: 'Market', cost: [16], hp: [50], tech: true, keep: 2, buildTime: 35, maxLevel: 1,

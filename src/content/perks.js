@@ -37,11 +37,11 @@ export const PERKS = [
   // Stone
   { id: 'timber',  fam: 'stone', rarity: C, name: 'Thick Timber', desc: 'Barricades +60% health.', max: 2, fx: P => { P.wallHp += 0.6; } },
   { id: 'mortar',  fam: 'stone', rarity: C, name: 'Lime Mortar', desc: 'All buildings +20% health. Keep +20.', max: 2, fx: P => { P.allHp += 0.2; P.keepHp += 20; } },
-  { id: 'masons',  fam: 'stone', rarity: C, name: 'Guild of Masons', desc: 'Towers and barricades cost 1 less.', max: 2, fx: P => { P.defDiscount += 1; } },
+  { id: 'masons',  fam: 'stone', rarity: C, name: 'Guild of Masons', desc: 'Towers cost 1 less.', max: 2, fx: P => { P.defDiscount += 1; } },
   { id: 'thorns',  fam: 'stone', rarity: R, name: 'Thorned Stakes', desc: 'Zombies that hit a barricade take 3 damage.', max: 1, fx: P => { P.thorns += 3; } },
   { id: 'tar',     fam: 'stone', rarity: R, name: 'Tar Pits', desc: 'Zombies within 2 of a barricade move 40% slower.', max: 1, fx: P => { P.tar = true; } },
   { id: 'bastion', fam: 'stone', rarity: R, name: 'Bastions', desc: 'Towers within 3 of a barricade deal 40% more damage.', max: 1, fx: P => { P.bastion = true; } },
-  { id: 'salvage', fam: 'stone', rarity: R, name: 'Salvage', desc: 'Whenever a building falls, recover a quarter of what it cost (never from barricades).', max: 1, fx: P => { P.salvage = true; } },
+  { id: 'salvage', fam: 'stone', rarity: R, name: 'Salvage', desc: 'Whenever a building falls, recover a quarter of what it cost.', max: 1, fx: P => { P.salvage = true; } },
   { id: 'bell',    fam: 'stone', rarity: L, name: 'Bell of Last Light', desc: 'Once a run, when the keep would fall it holds at 30% and every zombie within 8 takes 20 damage.', max: 1, fx: P => { P.bell = true; } },
   // Harvest
   { id: 'market',  fam: 'harvest', rarity: C, name: 'Market Day', desc: 'Each house pays 1 more scrap at dawn.', max: 3, fx: P => { P.houseGold += 1; } },
