@@ -146,7 +146,7 @@ export function createBuildings(V) {
         if (!e.nc) { e.nc = new THREE.Sprite(noCrewMat); e.nc.renderOrder = 9; fx.add(e.nc); }
         const unpowered = !b.ruined && game.powered && !game.powered(b), uncrewed = !b.ruined && game.manned && !game.manned(b);
         e.nc.material = unpowered ? noPowerMat : noCrewMat;
-        if (unpowered) e.nc.scale.set(1.0, 0.25, 1); else { const k = 1 + 0.08 * Math.sin(time * 5); e.nc.scale.set(1.15 * k, 0.72 * k, 1); }   // [towers] the silent badge breathes
+        if (unpowered) e.nc.scale.set(1.0, 0.25, 1); else { const k = 1 + 0.08 * Math.sin(time * 5); e.nc.scale.set(1.7 * k, 1.06 * k, 1); }   // [towers] the silent badge breathes
         e.nc.visible = unpowered ? Math.sin(time * 8) > -0.3 : uncrewed; if (e.nc.visible) e.nc.position.copy(Wv(b.x, b.y, unpowered ? 2.1 : 3.9 + b.level * 0.25 + Math.sin(time * 3) * 0.06));
       }
       if (b.ruined && !e.ruined) { e.ruined = true; e.g.visible = false; e.rubble = ruinModel(b.type, b.level, b); e.rubble.position.copy(e.g.position); e.rubble.rotation.y = e.g.rotation.y; world.add(e.rubble); }

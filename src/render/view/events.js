@@ -28,7 +28,7 @@ export function createEvents(V) {
       // [towers] begin: the specialised towers (sim/towers.js)
       if (e.t === 'shell' && seenAt(e.x, e.y)) { burst(e.x, e.y, e.r, '#f09040'); const p = Wv(e.x, e.y, 0.3); fx2.emit('ember', p.x, p.y, p.z, 10, { spread: e.r * 0.5, speed: 1.6 }); fx2.emit('smoke', p.x, p.y + 0.3, p.z, 5, { spread: e.r * 0.4 }); if (Math.hypot(e.x - S.hero.x, e.y - S.hero.y) < 7) shake(0.08); }
       if (e.t === 'flame' && seenAt(e.x, e.y)) { const p = Wv(e.x, e.y, 0.25); fx2.ring(p.x, p.y, p.z, e.r, '#ff6a2a', 0.45); for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + time, q = Wv(e.x + Math.cos(a) * e.r * 0.8, e.y + Math.sin(a) * e.r * 0.8, 0.3); fx2.emit('ember', q.x, q.y, q.z, 2, { spread: 0.3, speed: 1.4 }); } }
-      if (e.t === 'toll' && seenAt(e.x, e.y)) { const p = Wv(e.x, e.y, 0.2); fx2.ring(p.x, p.y, p.z, e.r, '#ffd27a', 0.9); }
+      if (e.t === 'toll' && seenAt(e.x, e.y)) { const p = Wv(e.x, e.y, 0.2); fx2.ring(p.x, p.y, p.z, e.r, '#ffd27a', 0.6); }
       // [towers] end
       if (e.t === 'purseTaken') burst(S.hero.x, S.hero.y, 0.8, '#d9843a');
       // ---- combat feedback ----

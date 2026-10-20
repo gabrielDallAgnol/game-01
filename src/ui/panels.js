@@ -103,7 +103,7 @@ export function createPanels(ui) {
     if (b.type === 'tower') { const on = ui.game.manned(b), need = CREW_NEED[b.level - 1], cw = ui.game.crewing(); html = html.replace('</div><div class="opts two">', `<span>${on ? `Crew <b>${need}</b> on watch` : `<b class="bad">Silent: no crew</b>. It needs ${need} people; ${cw.free} free. Build or upgrade homes.`}</span></div><div class="opts two">`); }
     // [towers] begin: a level 3 tower takes one role for good
     if (b.type === 'tower' && b.level >= 3 && !b.spec) {
-      html += SPEC_ORDER.map(r => opt(`opt-spec-${r}`, `data-spec="${r}"`, SPECS[r].name, SPEC_COST, `<b>${SPECS[r].short}</b> · ${rich(SPECS[r].line)}`, S.gold < SPEC_COST || !day)).join('');
+      html += SPEC_ORDER.map(r => opt(`opt-spec-${r}`, `data-spec="${r}"`, `${SPECS[r].name} <small>${SPECS[r].short}</small>`, SPEC_COST, rich(SPECS[r].line), S.gold < SPEC_COST || !day)).join('');
       html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `<b class="good">+${Math.floor(ui.game.costOf(b.type) / 2)} scrap back</b> · <b class="bad">level ${b.level} lost</b>.`, !day);
       body.innerHTML = html + '</div><p class="note">Level 3: pick a role for good. Same crew, same upkeep.</p>'; ui.selected.range = ui.game.towerStats(b).range; return;
     }
@@ -122,7 +122,7 @@ export function createPanels(ui) {
     if (btn.dataset.keep && ui.game.upgradeKeep()) ui.toast('The Camp rises higher.');
     if (btn.dataset.trader && FLAGS.trader) { closePanel(); ui.paused = true; showTrader(); return; }
     if (btn.dataset.up && ui.game.upgrade(ui.selected.id)) ui.toast('Upgraded.');
-    if (btn.dataset.spec && ui.game.specialise(ui.selected.id, btn.dataset.spec)) { audio.play('build'); ui.toast(`[Tower specialised: ${SPECS[btn.dataset.spec].name}] ${SPECS[btn.dataset.spec].short}.`, 'good'); }   // [towers]
+    if (btn.dataset.spec && ui.game.specialise(ui.selected.id, btn.dataset.spec)) { audio.play('build'); ui.toast(`[Tower specialised: ${SPECS[btn.dataset.spec].name}] ${SPECS[btn.dataset.spec].line}`, 'good'); }   // [towers]
     if (btn.dataset.upw) { const n = ui.game.upgradeWall(ui.selected.id); if (n) ui.toast(`${n} ${n === 1 ? 'post' : 'posts'} upgraded.`); }
     if (btn.dataset.demo) {
       if (btn.dataset.sure) { if (ui.game.demolish(ui.selected.id)) { ui.toast('Pulled down.'); closePanel(); ui.updateHud(); return; } }
