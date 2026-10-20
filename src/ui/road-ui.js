@@ -2,50 +2,66 @@
 // (the horn, the lantern), the station and convoy chips, trip planning ("round trip 2:10 · dusk in 1:40 · Go"),
 // edge arrows to stragglers and burning outposts, and the road on the map. Reads the sim; acts only through game.road.
 // Created by the `// [road]` hook blocks in app.js.
-import { MISSIONS, ROAD } from '../content/road.js';
+import { MISSIONS, ROAD, MISSION } from '../content/road.js';
+const MISSION_PICK = MISSION.pick;
 import { fmtTime } from '../sim/road.js';
+import { icon } from './icons.js';
 
 const CSS = `
-.rd-dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dockH,140px) + 8px);display:grid;gap:6px;justify-items:center;pointer-events:none;width:min(440px,calc(100vw - 32px));z-index:4}
-@media (max-width:640px){.rd-dock{left:max(16px,env(safe-area-inset-left,0px));right:100px;width:auto;transform:none;justify-items:stretch}}
-.rd-chip{pointer-events:auto;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px 6px 6px 12px;backdrop-filter:blur(6px);font-size:13px;line-height:1.25;max-width:100%;box-shadow:0 4px 14px rgba(0,0,0,.35);animation:tin .18s ease-out}
-.rd-chip{flex-wrap:wrap}.rd-chip .t{flex:1 1 150px;min-width:0}.rd-chip .acts{display:flex;gap:6px;flex:none;margin-left:auto}.rd-chip .t b{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.02em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rd-chip .t span{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}.rd-chip .t span em{font-style:normal;color:var(--bone);font-weight:700}
-.rd-chip .t span em.late{color:#ff8a6a}.rd-chip .t span em.ok{color:#b4e08a}.rd-chip .t span em.risky{color:#e8b05a}
-.rd-chip .btn{flex:none}.rd-chip .x{background:none;border:0;color:var(--muted);font-size:20px;padding:0 6px;line-height:1}
-.rd-chip.fire{border-color:rgba(255,190,110,.55);background:linear-gradient(180deg,rgba(40,26,12,.9),rgba(22,16,10,.9))}
-.rd-chip.cv{border-color:rgba(255,210,122,.5)}
-.rd-hp{display:inline-block;width:64px;height:5px;border-radius:3px;background:rgba(236,223,198,.14);overflow:hidden;vertical-align:middle;margin-left:4px}.rd-hp i{display:block;height:100%;background:#ffd27a;transition:width .2s}
-.rd-hp.fire i{background:linear-gradient(90deg,#ff7a3a,#ffcf80)}
+.rd-dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dockH,72px) + 10px);display:grid;gap:6px;justify-items:center;pointer-events:none;width:min(440px,calc(100vw - 32px));z-index:5}
+@media (max-width:640px){.rd-dock{left:max(94px,calc(env(safe-area-inset-left,0px) + 94px));right:max(94px,calc(env(safe-area-inset-right,0px) + 94px));width:auto;transform:none;justify-items:stretch}}
+.rd-dock.wide{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--dockH,72px) + 90px)}
+.rd-chip{pointer-events:auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;background:var(--camp-solid);border:1px solid var(--line);border-radius:14px;padding:7px 7px 7px 12px;font:500 13px/1.25 var(--body);max-width:100%;box-shadow:0 6px 18px rgba(0,0,0,.4);animation:tin .2s var(--ease-o)}
+.rd-chip .t{flex:1 1 140px;min-width:0}.rd-chip .acts{display:flex;gap:6px;flex:none;margin-left:auto}
+.rd-chip .t b{font:700 15px/1.15 var(--display);letter-spacing:.03em;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--bone)}
+.rd-chip .t b .ic{color:var(--amber);flex:none}
+.rd-chip .t span{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}.rd-chip .t span em{font-style:normal;color:var(--bone);font-weight:600}
+.rd-chip .t span em.late{color:var(--blood)}.rd-chip .t span em.ok{color:var(--good)}.rd-chip .t span em.risky{color:var(--amber)}
+.rd-chip .btn{flex:none}.rd-chip .x{background:none;border:0;color:var(--muted);padding:0 4px;line-height:1;display:grid;place-items:center;min-width:32px;min-height:36px}
+.rd-chip.fire{border-color:rgba(240,166,73,.5)}
+.rd-chip.cv{border-color:rgba(240,166,73,.4)}
+.rd-chip.sys{background:linear-gradient(180deg,rgba(8,20,34,.96),rgba(5,12,22,.97));border:1px solid var(--cyan-d);border-radius:2px;position:relative}
+.rd-chip.sys .t b{font:600 13px/1.2 var(--mono);letter-spacing:.04em;color:#f2fbff}.rd-chip.sys .t b .ic{color:var(--cyan)}
+.rd-chip.sys .t span{color:#a9c6d8}.rd-chip.sys .btn{background:var(--cyan);color:#04121d;border-radius:2px;font:600 13px/1 var(--mono);letter-spacing:.08em}
+.rd-chip.sys .btn.ghost{background:transparent;color:var(--cyan);border:1px solid var(--cyan-d)}
+.rd-chip.sys::before,.rd-chip.sys::after,.rd-win::before,.rd-win::after{content:"";position:absolute;width:8px;height:8px;border:2px solid var(--cyan);pointer-events:none}
+.rd-chip.sys::before,.rd-win::before{left:-1px;top:-1px;border-right:0;border-bottom:0}.rd-chip.sys::after,.rd-win::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+.rd-chip.ledger{border-color:rgba(255,106,85,.45)}.rd-chip.ledger .t b .ic{color:var(--blood)}
+.rd-hp{display:inline-block;width:56px;height:5px;border-radius:3px;background:rgba(236,223,198,.14);overflow:hidden;vertical-align:middle;margin-left:2px}.rd-hp i{display:block;height:100%;background:var(--amber);transition:width .2s}
+.rd-hp.fire i{background:linear-gradient(90deg,var(--ember),#ffcf80)}
 .rd-prog{display:inline-block;width:46px;height:5px;border-radius:3px;background:rgba(255,207,128,.18);overflow:hidden;vertical-align:middle;margin-left:4px}.rd-prog i{display:block;height:100%;background:#ffcf80}
-.rd-win{position:fixed;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0px));width:min(420px,calc(100vw - 32px));pointer-events:auto;z-index:6;
-  background:linear-gradient(180deg,rgba(20,32,44,.95),rgba(12,20,30,.95));border:1px solid rgba(120,200,255,.55);border-radius:4px;color:#d8f0ff;padding:10px 12px 12px;box-shadow:0 0 0 1px rgba(120,200,255,.12) inset,0 0 24px rgba(80,170,255,.28),0 12px 30px rgba(0,0,0,.45);animation:tin .25s ease-out}
-.rd-win::before{content:"";position:absolute;left:-1px;top:-1px;width:12px;height:12px;border-left:2px solid #7fd4ff;border-top:2px solid #7fd4ff}
-.rd-win::after{content:"";position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-right:2px solid #7fd4ff;border-bottom:2px solid #7fd4ff}
-.rd-win .sh{font-family:var(--mono);font-size:12px;color:#7fd4ff;letter-spacing:.06em;display:flex;justify-content:space-between;gap:8px}
-.rd-win h3{font-family:var(--display);font-weight:800;font-size:22px;line-height:1.05;margin:4px 0 2px;color:#e6f4ff}
-.rd-win .fc{font-family:var(--mono);font-size:12px;color:#bfe0f5;margin:0 0 8px}.rd-win .fc b{padding:0 6px 1px;border-radius:3px;color:#0d1620}
-.rd-win .fc b.likely{background:var(--easy)}.rd-win .fc b.risky{background:var(--medium)}.rd-win .fc b.no{background:var(--impossible);color:#fff}
+.rd-win{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));margin:0 auto;bottom:calc(var(--dockH,72px) + 12px);max-width:420px;pointer-events:auto;z-index:7;
+  background:linear-gradient(180deg,rgba(8,20,34,.96),rgba(5,12,22,.97));border:1px solid var(--cyan-d);border-radius:2px;color:#dcebf5;padding:10px 12px 12px;box-shadow:0 0 0 1px rgba(127,227,255,.08) inset,0 0 24px rgba(127,227,255,.16),0 12px 30px rgba(0,0,0,.5);animation:tin .25s var(--ease-o)}
+.rd-win .sh{font:500 11.5px/1.3 var(--mono);color:var(--cyan);letter-spacing:.1em;display:flex;justify-content:space-between;gap:8px;text-transform:uppercase}
+.rd-win h3{font:600 17px/22px var(--mono);margin:6px 0 4px;color:#f2fbff}
+.rd-win .fc{font:400 13px/18px var(--body);color:#a9c6d8;margin:0 0 9px}.rd-win .fc b{font:600 11px/1 var(--mono);letter-spacing:.06em;padding:2px 6px;border-radius:2px;color:#04121d}
+.rd-win .fc b.likely{background:var(--good)}.rd-win .fc b.risky{background:var(--amber)}.rd-win .fc b.no{background:var(--blood);color:#fff}
 .rd-ms{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.rd-ms button{background:rgba(127,212,255,.08);border:1px solid rgba(127,212,255,.35);border-radius:6px;color:#e6f4ff;padding:8px 6px 9px;display:grid;gap:3px;justify-items:center;text-align:center;min-height:88px}
-.rd-ms button .i{font-size:22px;line-height:1}.rd-ms button b{font-family:var(--display);font-weight:800;font-size:15px;line-height:1.05}.rd-ms button span{font-size:11px;line-height:1.25;color:#a9cde4}
-.rd-ms button.def{border-color:#7fd4ff;background:rgba(127,212,255,.16)}
-.rd-tick{height:3px;border-radius:2px;background:rgba(127,212,255,.18);margin-top:8px;overflow:hidden}.rd-tick i{display:block;height:100%;background:#7fd4ff;transition:width .2s linear}
-.rd-tool{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(162px + env(safe-area-inset-bottom,0px));width:66px;height:66px;border-radius:50%;pointer-events:auto;z-index:4;
-  background:conic-gradient(rgba(10,14,15,.7) calc(var(--cd,0) * 360deg), transparent 0),#7fd4ff;color:#0d1620;border:2px solid rgba(220,240,255,.6);display:grid;place-content:center;gap:0;text-align:center;box-shadow:0 0 18px rgba(80,170,255,.35),0 4px 16px rgba(0,0,0,.4)}
-.rd-tool .i{font-size:22px;line-height:1}.rd-tool b{font-family:var(--display);font-weight:800;font-size:11px;line-height:1;text-transform:uppercase;letter-spacing:.04em}.rd-tool span{font-size:10px;font-weight:700}
-.rd-tool.cool{background:conic-gradient(rgba(127,212,255,.35) calc(var(--cd,0) * 360deg), transparent 0),var(--panel-solid);color:var(--bone);border-color:var(--line);box-shadow:none}
-.rd-tool.off{background:#1a2430;color:#9fb6c8;border-color:rgba(127,212,255,.35);box-shadow:none}
-.rd-tag{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(232px + env(safe-area-inset-bottom,0px));font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:#7fd4ff;background:rgba(12,20,30,.85);border:1px solid rgba(127,212,255,.5);border-radius:3px;padding:2px 7px;pointer-events:none;text-transform:uppercase;z-index:4;white-space:nowrap}
+.rd-ms button{background:var(--cyan-f);border:1px solid rgba(127,227,255,.3);border-radius:2px;color:#e6f4ff;padding:9px 5px 10px;display:grid;gap:4px;justify-items:center;align-content:start;text-align:center;min-height:96px}
+.rd-ms button .ic{font-size:24px;color:var(--cyan)}.rd-ms button b{font:600 13px/1.1 var(--mono);letter-spacing:.02em}.rd-ms button span{font:400 11.5px/1.3 var(--body);color:#a9c6d8}
+.rd-ms button.def{border-color:var(--cyan);background:rgba(127,227,255,.2);box-shadow:0 0 12px rgba(127,227,255,.2) inset}
+.rd-tick{height:2px;background:rgba(127,227,255,.18);margin-top:9px;overflow:hidden}.rd-tick i{display:block;height:100%;background:var(--cyan);transition:width .2s linear}
+.rd-tool{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--dockH,72px) + 92px);width:60px;height:60px;border-radius:50%;pointer-events:auto;z-index:4;
+  background:conic-gradient(rgba(4,18,29,.75) calc(var(--cd,0) * 360deg), transparent 0),var(--cyan);color:#04121d;border:2px solid rgba(220,245,255,.6);display:grid;place-content:center;justify-items:center;gap:1px;text-align:center;box-shadow:0 0 16px rgba(127,227,255,.3),0 4px 14px rgba(0,0,0,.4)}
+.rd-tool .ic{font-size:22px}.rd-tool b{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em}.rd-tool span{font:600 10px/1 var(--mono)}
+.rd-tool.cool{background:conic-gradient(rgba(127,227,255,.35) calc(var(--cd,0) * 360deg), transparent 0),rgba(5,12,22,.94);color:#cfeaf7;border-color:var(--cyan-d);box-shadow:none}
+.rd-tool.off{background:rgba(5,12,22,.94);color:#9fb6c8;border-color:var(--cyan-d);box-shadow:none}
+.rd-kit{position:fixed;right:calc(max(16px,env(safe-area-inset-right,0px)) + 76px);bottom:calc(var(--dockH,72px) + 16px);display:flex;gap:8px;z-index:4;pointer-events:none}
+.rd-kit button{pointer-events:auto;width:56px;height:56px;border-radius:50%;display:grid;place-content:center;justify-items:center;gap:2px;background:conic-gradient(rgba(20,16,12,.75) calc(var(--cd,0) * 360deg), transparent 0),var(--amber);color:#1f1407;border:2px solid rgba(255,236,200,.55);box-shadow:0 4px 14px rgba(0,0,0,.4);animation:tin .2s var(--ease-o)}
+.rd-kit button .ic{font-size:20px}.rd-kit button b{font:700 11px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}.rd-kit button span{font:600 10px/1 var(--display);display:inline-flex;align-items:center;gap:2px}.rd-kit button span .ic{font-size:10px}
+.rd-kit button.cool{background:conic-gradient(rgba(240,166,73,.35) calc(var(--cd,0) * 360deg), transparent 0),var(--camp-solid);color:var(--bone);border-color:var(--line)}
+.rd-kit button.poor{opacity:.55}
+.rd-tag{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--dockH,72px) + 160px);font:500 10.5px/1 var(--mono);letter-spacing:.08em;color:var(--cyan);background:rgba(5,12,22,.88);border:1px solid var(--cyan-d);border-radius:2px;padding:4px 7px;pointer-events:none;text-transform:uppercase;z-index:4;white-space:nowrap}
 #edge .ar.rd-cv i{border-left-color:#ffd27a}#edge .ar.rd-cv span{color:#ffd27a;width:52px;left:-50px}
 #edge .ar.rd-fire i{border-left-color:#ff8a4a}#edge .ar.rd-fire span{color:#ffb07a;width:60px;left:-56px}
 #edge .ar.rd-amb i{border-left-color:#ff5a3a;border-left-width:20px;border-top-width:9px;border-bottom-width:9px;top:-9px}#edge .ar.rd-amb span{color:#ff7a62}
-.rd-plan{margin:8px 0 0;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:8px 8px 8px 12px}
-.rd-plan .t{flex:1;min-width:0;font-size:13px}.rd-plan .t b{font-family:var(--display);font-weight:800;font-size:16px;display:block}
-.rd-plan .t span{color:var(--muted)}.rd-plan .t em{font-style:normal;font-weight:700;color:var(--bone)}.rd-plan .t em.late{color:#ff8a6a}
+.rd-plan{margin:8px 0 0;display:flex;align-items:center;gap:8px;background:rgba(127,227,255,.06);border:1px solid var(--cyan-d);border-radius:2px;padding:8px 8px 8px 12px}
+.rd-plan .t{flex:1;min-width:0;font-size:13px}.rd-plan .t b{font:600 14px/1.2 var(--mono);display:block;color:#f2fbff}
+.rd-plan .t span{color:#a9c6d8}.rd-plan .t em{font-style:normal;font-weight:600;color:#f2fbff}.rd-plan .t em.late{color:var(--blood)}.rd-plan .t em.ok{color:var(--good)}.rd-plan .t em.risky{color:var(--amber)}
+.rd-plan .btn{background:var(--cyan);color:#04121d;border-radius:2px;font:600 13px/1 var(--mono);letter-spacing:.08em;min-height:40px}
 `;
 
-export function createRoadUI({ game, view, toast, hideCard, isBusy }) {
+export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere = () => true }) {
   const road = game.road; if (!road) return null;
   const S = game.state, R = S.road, c = game.map.town.x, $ = s => document.querySelector(s);
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -53,12 +69,15 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy }) {
   const els = [];
   const mk = (tag, cls, parent = document.body) => { const e = document.createElement(tag); if (cls) e.className = cls; parent.appendChild(e); els.push(e); return e; };
   const dock = mk('div', 'rd-dock');
-  const tripEl = mk('div', 'rd-chip', dock); tripEl.hidden = true;
+  const tripEl = mk('div', 'rd-chip sys', dock); tripEl.hidden = true;
+  const ledEl = mk('div', 'rd-chip ledger', dock); ledEl.hidden = true;
   const stEl = mk('div', 'rd-chip fire', dock); stEl.hidden = true;
   const cvEl = mk('div', 'rd-chip cv', dock); cvEl.hidden = true;
   const win = mk('div', 'rd-win'); win.hidden = true;
   const tool = mk('button', 'rd-tool'); tool.hidden = true;
   const tag = mk('div', 'rd-tag'); tag.hidden = true;
+  const kit = mk('div', 'rd-kit'); kit.innerHTML = `<button data-k="flare" aria-label="Throw a flare">${icon('flame')}<b>Flare</b><span></span></button><button data-k="smoke" aria-label="Light smoke">${icon('smoke')}<b>Smoke</b><span></span></button>`; kit.hidden = true;
+  let hordeT = 0, ledT = 0, sigKit = '';
   const arrows = [];
   let trip = null, tripT = 0, sigSt = '', sigCv = '', sigWin = '', sigTool = '', hudT = 0;
 
@@ -79,12 +98,12 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy }) {
   function tripHtml(t, short) {
     const i = t.info, cls = i.late ? 'late' : i.risky ? 'risky' : 'ok';
     const fc = i.day && !short ? ` · camp holds without you: <em class="${i.campHolds.word === 'likely' ? 'ok' : i.campHolds.word === 'risky' ? 'risky' : 'late'}">${i.campHolds.word}</em>` : '';
-    return `<b>${esc(t.place.name)}</b><span><em class="${cls}">${i.label.replace(/ · /, '</em> · ')}${i.late ? ' · <em class="late">back after dark</em>' : ''}${fc}</span>`;
+    return `<b>${icon('route')}${esc(t.place.name)}</b><span><em class="${cls}">${i.label.replace(/ · /, '</em> · ')}${i.late ? ' · <em class="late">back after dark</em>' : ''}${fc}</span>`;
   }
   function showTrip(t) {
     trip = t; tripT = 9;
     road.preview = { path: t.info.path };
-    tripEl.innerHTML = `<div class="t">${tripHtml(t)}</div><button class="btn" data-go>Go</button><button class="x" data-x aria-label="Close">&times;</button>`;
+    tripEl.innerHTML = `<div class="t">${tripHtml(t)}</div><button class="btn sm" data-go>Go</button><button class="x" data-x aria-label="Close">${icon('close')}</button>`;
     tripEl.hidden = false;
     tripEl.querySelector('[data-go]').onclick = () => { if (road.go(t.place.x, t.place.y)) { closeTrip(); } };
     tripEl.querySelector('[data-x]').onclick = closeTrip;
@@ -105,22 +124,23 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy }) {
 
   // ---------- the mission window at dusk ----------
   function renderWin() {
-    const M = road.mission, on = S.phase === 'night' && M.choosing && !S.over;
-    if (!on) { if (!win.hidden) win.hidden = true; sigWin = ''; return; }
+    const M = road.mission, on = S.phase === 'night' && M.choosing && !S.over && !isBusy();
+    if (!on) { if (!win.hidden) { win.hidden = true; dock.hidden = false; } sigWin = ''; return; }
     const sig = `${S.night}|${M.forecast && M.forecast.word}|${M.where}`;
     if (sig !== sigWin) {
       sigWin = sig;
-      const fc = M.forecast || { word: 'likely' };
-      win.innerHTML = `<div class="sh"><span>[System] Night ${S.night}: choose your mission</span><span data-t></span></div>
+      const fc = M.forecast || { word: 'likely' }, word = { likely: 'likely', risky: 'risky', no: 'no' }[fc.word] || fc.word;
+      const say = { hold: 'Stand with your towers.', hunt: 'Burn a hive while its dead are out.', piper: 'Sound the horn. Lead the dead into a trap.' };
+      win.innerHTML = `<div class="sh"><span>[Night ${S.night}] Choose your mission</span><span data-t></span></div>
         <h3>How do you spend the night?</h3>
-        <p class="fc">Camp holds without you: <b class="${fc.word}">${fc.word.toUpperCase()}</b> · your night: ${esc(M.where || 'the camp')}${M.captain ? ` · ${esc(M.captain)} captains the camp (towers +15%)` : ''}</p>
-        <div class="rd-ms">${Object.entries(MISSIONS).map(([id, D]) => `<button data-m="${id}" class="${id === 'hold' ? 'def' : ''}"><span class="i">${D.icon}</span><b>${esc(D.name)}</b><span>${esc(id === 'hold' ? 'Stand with your towers.' : id === 'hunt' ? 'Burn a hive while its dead are out.' : 'Horn: pull the dead into a trap.')}</span></button>`).join('')}</div>
+        <p class="fc">Camp holds without you: <b class="${fc.word}">${esc(word.toUpperCase())}</b> · you are at ${esc(M.where || 'the camp')}${M.captain ? ` · ${esc(M.captain)} captains the camp` : ''}</p>
+        <div class="rd-ms">${Object.entries(MISSIONS).map(([id, D]) => `<button data-m="${id}" class="${id === 'hold' ? 'def' : ''}">${icon(D.icon)}<b>${esc(D.name.replace(/^The /, ''))}</b><span>${esc(say[id] || D.line)}</span></button>`).join('')}</div>
         <div class="rd-tick"><i data-tick></i></div>`;
       win.querySelectorAll('[data-m]').forEach(b => { b.onclick = () => { road.setMission(b.dataset.m); renderWin(); renderTool(); }; });
     }
-    win.hidden = false;
+    win.hidden = false; dock.hidden = true;
     const t = win.querySelector('[data-t]'), tk = win.querySelector('[data-tick]');
-    if (t) t.textContent = `Hold in ${Math.ceil(M.t)}s`; if (tk) tk.style.width = `${Math.max(0, M.t / 6) * 100}%`;
+    if (t) t.textContent = `Hold in ${Math.max(0, Math.ceil(M.t))}s`; if (tk) tk.style.width = `${Math.max(0, M.t / MISSION_PICK) * 100}%`;
   }
   // ---------- the mission's tool ----------
   function renderTool() {
@@ -131,18 +151,53 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy }) {
     if (kind === 'horn') {
       const cd = M.hornCd, ear = road.missions.earshot();
       const sig = `h${Math.ceil(cd)}|${ear}`;
-      if (sig !== sigTool) { sigTool = sig; tool.innerHTML = `<span class="i">📯</span><b>Horn</b><span>${cd > 0 ? `${Math.ceil(cd)}s` : ear ? `${ear} hear` : '—'}</span>`; }
-      tool.classList.toggle('cool', cd > 0 || !ear); tool.classList.remove('off'); tool.style.setProperty('--cd', cd > 0 ? cd / 28 : 0);
+      if (sig !== sigTool) { sigTool = sig; tool.innerHTML = `${icon('horn')}<b>Horn</b><span>${cd > 0 ? `${Math.ceil(cd)}s` : ear ? `${ear} hear` : '–'}</span>`; }
+      tool.classList.toggle('cool', cd > 0 || !ear); tool.classList.remove('off'); tool.style.setProperty('--cd', cd > 0 ? cd / MISSION.horn.cd : 0);
       tool.onclick = () => { road.horn(); };
-      tag.textContent = `📯 Pied Piper · led ${M.led} · down ${M.ledKilled}`;
+      tag.textContent = `Pied Piper · led ${M.led} · down ${M.ledKilled}`;
     } else {
       const sig = `l${M.lantern}`;
-      if (sig !== sigTool) { sigTool = sig; tool.innerHTML = `<span class="i">${M.lantern ? '🏮' : '🌑'}</span><b>Lantern</b><span>${M.lantern ? 'on' : 'off'}</span>`; }
+      if (sig !== sigTool) { sigTool = sig; tool.innerHTML = `${icon('lantern')}<b>Lantern</b><span>${M.lantern ? 'on' : 'off'}</span>`; }
       tool.classList.toggle('off', !M.lantern); tool.classList.remove('cool'); tool.style.setProperty('--cd', 0);
       tool.onclick = () => { road.setLantern(!M.lantern); renderTool(); };
-      tag.textContent = M.lantern ? '🔥 The Hunt · lantern on: seen' : '🔥 The Hunt · dark: unseen, slow';
+      tag.textContent = M.lantern ? 'The Hunt · lantern on: seen' : 'The Hunt · dark: unseen, slow';
     }
   }
+  // ---------- field tools: Flare and Smoke, any time, no pause (shown when the dead are on you or a hive just burned) ----------
+  function flareSpot() {
+    const h = S.hero, near = S.mobs.filter(m => m.hunt && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < 14);
+    if (!near.length) return [undefined, undefined];
+    const cx = near.reduce((a, m) => a + m.x, 0) / near.length, cy = near.reduce((a, m) => a + m.y, 0) / near.length, d = Math.hypot(cx - h.x, cy - h.y) || 1;
+    return [cx + (cx - h.x) / d * 6, cy + (cy - h.y) / d * 6];   // beyond the pack: they turn away from you to chase the light
+  }
+  kit.querySelector('[data-k="flare"]').onclick = () => { const [x, y] = flareSpot(); if (game.useFlare(x, y)) { sigKit = ''; renderKit(); } };
+  kit.querySelector('[data-k="smoke"]').onclick = () => { if (game.useSmoke()) { sigKit = ''; renderKit(); } };
+  function renderKit() {
+    const h = S.hero, T = game.tools ? game.tools() : null;
+    const hunted = S.mobs.some(m => m.hunt && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < 16);
+    const cooling = T && (!T.flare.ready || !T.smoke.ready);
+    const on = !!T && !S.over && !h.dead && systemHere() && !(S.phase === 'night' && road.mission.choosing) && (hunted || hordeT > 0 || cooling);
+    kit.hidden = !on; if (!on) { sigKit = ''; return; }
+    for (const k of ['flare', 'smoke']) {
+      const t = T[k], b = kit.querySelector(`[data-k="${k}"]`);
+      b.classList.toggle('cool', !t.ready); b.classList.toggle('poor', t.ready && !t.afford);
+      b.style.setProperty('--cd', t.ready ? 0 : t.cd / t.cdMax);
+      const sig = `${k}${Math.ceil(t.cd)}${t.afford}`; if (b.dataset.sig !== sig) { b.dataset.sig = sig; b.lastChild.innerHTML = t.ready ? `${icon(t.pay === 'scrap' ? 'scrap' : 'food')}${t.cost}` : `${Math.ceil(t.cd)}s`; }
+    }
+  }
+  // ---------- the dawn ledger: what the night took, and one tap to rebuild it ----------
+  function showLedger(L, line) {
+    if (!L || S.over || (!L.fell.length && !L.ruins)) return;
+    const ruins = game.ruins ? game.ruins() : [], all = L.rebuildAll || ruins.reduce((a, r) => a + r.cost, 0), cheap = ruins.length && S.gold >= all;
+    const lost = line || `${L.fell.length} ${L.fell.length === 1 ? 'building' : 'buildings'} fell.`;
+    ledEl.innerHTML = `<div class="t"><b>${icon('skull')}Night ${L.night}: the Camp held at ${L.held}%</b><span>${esc(lost)}${ruins.length ? ` · <em>${ruins.length} ${ruins.length === 1 ? 'ruin' : 'ruins'}</em>${cheap ? '' : ' · tap a ruin to rebuild it'}` : ''}</span></div>
+      <div class="acts">${cheap ? `<button class="btn sm" data-rb>Rebuild all · ${all}</button>` : ''}<button class="x" data-x aria-label="Close">${icon('close')}</button></div>`;
+    const rb = ledEl.querySelector('[data-rb]'); if (rb) rb.onclick = () => { const n = game.rebuildAll(); if (n) toast(`${n} ${n === 1 ? 'ruin' : 'ruins'} rebuilt.`, 'good'); closeLedger(); };
+    ledEl.querySelector('[data-x]').onclick = closeLedger;
+    ledEl.hidden = false; ledT = 16;
+  }
+  function closeLedger() { ledEl.hidden = true; ledT = 0; }
+
   // ---------- station and convoy chips ----------
   function renderStation() {
     const h = S.hero, st = road.stations.find(s => Math.hypot(s.x - h.x, s.y - h.y) < 7);
@@ -151,10 +206,10 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy }) {
     const sig = `${st.id}|${st.lit}|${Math.round(st.prog * 10)}|${Math.round(st.hp)}|${towers}|${S.gold >= cost}|${cvNear}|${R.convoys.some(cv => cv.hold)}`;
     if (sig === sigSt) return; sigSt = sig;
     if (!st.lit) {
-      stEl.innerHTML = `<div class="t"><b>🔥 ${esc(st.name)}</b><span>${st.prog > 0 ? `Lighting the fire <span class="rd-prog"><i style="width:${Math.min(100, st.prog / ROAD.lightTime * 100)}%"></i></span>` : `Stand still by the fire to light it · <em>${road.lightCost()} scrap</em>`}${st.fell ? ' · it went out' : ''}</span></div>`;
+      stEl.innerHTML = `<div class="t"><b>${icon('flame')}${esc(st.name)}</b><span>${st.prog > 0 ? `Lighting the fire <span class="rd-prog"><i style="width:${Math.min(100, st.prog / ROAD.lightTime * 100)}%"></i></span>` : `Stand still by the fire to light it · <em>${road.lightCost()} scrap</em>`}${st.fell ? ' · it went out' : ''}</span></div>`;
     } else {
       const holding = R.convoys.some(cv => cv.hold);
-      stEl.innerHTML = `<div class="t"><b>🔥 ${esc(st.name)} · outpost</b><span>fire <span class="rd-hp fire"><i style="width:${Math.max(0, st.hp / st.maxHp * 100)}%"></i></span> · towers ${towers}/${ROAD.towers}${h.hp < h.maxHp && Math.hypot(st.x - h.x, st.y - h.y) < road.ringOf(st) ? ' · <em>resting</em>' : ''}</span></div>
+      stEl.innerHTML = `<div class="t"><b>${icon('flame')}${esc(st.name)} · outpost</b><span>fire <span class="rd-hp fire"><i style="width:${Math.max(0, st.hp / st.maxHp * 100)}%"></i></span> · towers ${towers}/${ROAD.towers}${h.hp < h.maxHp && Math.hypot(st.x - h.x, st.y - h.y) < road.ringOf(st) ? ' · <em>resting</em>' : ''}</span></div>
         <div class="acts">${towers < ROAD.towers ? `<button class="btn sm" data-tw ${S.gold < cost && !(S.stock.tower > 0) ? 'disabled' : ''}>Tower · ${S.stock.tower > 0 ? 'free' : cost}</button>` : ''}
         ${cvNear ? `<button class="btn ghost sm" data-hold>${holding ? 'Follow' : 'Shelter'}</button>` : ''}</div>`;
       const tw = stEl.querySelector('[data-tw]'); if (tw) tw.onclick = () => { road.buildTower(st.id); sigSt = ''; };
@@ -170,7 +225,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy }) {
     const sig = `${people}|${cart}|${Math.round(hp * 20)}|${hunted}|${strag}|${waiting}|${Math.round(d / 5)}`;
     if (sig === sigCv) return; sigCv = sig;
     const eta = mem.length ? Math.round(d / 1.5) : 0;
-    cvEl.innerHTML = `<div class="t"><b>👥 Convoy · ${people} ${people === 1 ? 'person' : 'people'}${cart ? ' + cart' : ''}</b><span><span class="rd-hp"><i style="width:${hp * 100}%"></i></span> · ${hunted ? `<em class="late">${hunted} dead on them</em>` : waiting ? 'waiting' : `home in ~${fmtTime(eta)}`}${strag ? ` · <em class="risky">${strag} straggling</em>` : ''}</span></div>
+    cvEl.innerHTML = `<div class="t"><b>${icon('people')}Convoy · ${people} ${people === 1 ? 'person' : 'people'}${cart ? ' + cart' : ''}</b><span><span class="rd-hp"><i style="width:${hp * 100}%"></i></span> · ${hunted ? `<em class="late">${hunted} dead on them</em>` : waiting ? 'waiting' : `home in ~${fmtTime(eta)}`}${strag ? ` · <em class="risky">${strag} straggling</em>` : ''}</span></div>
       <button class="btn sm" data-home>Lead home</button>`;
     cvEl.querySelector('[data-home]').onclick = () => { if (R.convoys.some(cv => cv.hold)) road.hold(false); road.go(c, c + 3.5); };
     cvEl.hidden = false;
@@ -197,10 +252,12 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy }) {
   function tick(dt) {
     renderWin();
     if ((hudT -= dt) > 0) { return; } hudT = 0.12;
-    renderTool(); renderStation(); renderConvoy();
+    renderTool(); renderStation(); renderConvoy(); renderKit();
+    if (hordeT > 0) hordeT -= 0.12;
+    if (ledT > 0) { ledT -= 0.12; if (ledT <= 0 || S.phase === 'night') closeLedger(); }
     if (trip) { tripT -= 0.12; if (tripT <= 0 || S.hero.dead || (S.hero.input.x || S.hero.input.y)) closeTrip(); }
     edgeArrows();
-    if (S.over) { win.hidden = true; tool.hidden = true; tag.hidden = true; }
+    if (S.over) { win.hidden = true; tool.hidden = true; tag.hidden = true; kit.hidden = true; closeLedger(); }
   }
 
   // ---------- the map: stations, the convoy, an ambush; tap a place to plan a trip there ----------
@@ -234,11 +291,13 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy }) {
       if (!best) { box.innerHTML = '<div class="t"><b>Nothing known there</b><span>Tap a station, a site, a hive, the city or the camp.</span></div>'; draw(null); return; }
       const info = road.tripInfo(best.x, best.y); if (!info) return;
       const t = { place: best, info };
-      box.innerHTML = `<div class="t">${tripHtml(t)}</div><button class="btn" data-go>Go</button>`;
+      box.innerHTML = `<div class="t">${tripHtml(t)}</div><button class="btn sm" data-go>Go</button>`;
       box.querySelector('[data-go]').onclick = () => { if (road.go(best.x, best.y)) { hideCard(); toast(`[Trip] On the way to ${best.name}. Touch the stick to take over.`, 'sys'); } };
       draw(info.path);
     };
   }
   function dispose() { if (canvas) { canvas.removeEventListener('pointerdown', onDown); canvas.removeEventListener('pointerup', onUp); } for (const e of els) e.remove(); }
-  return { tick, marks, onMap, dispose, closeTrip };
+  /** app.js forwards the sim's events: a burned hive shows the field tools for a while */
+  function onEvents(evs) { for (const e of evs) { if (e.t === 'horde') hordeT = 45; if (e.t === 'rebuild' && !ledEl.hidden && !(game.ruins && game.ruins().length)) closeLedger(); } }
+  return { tick, marks, onMap, dispose, closeTrip, showLedger, onEvents };
 }

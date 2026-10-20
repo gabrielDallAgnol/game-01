@@ -120,6 +120,9 @@ test('an ambush waits on the road home after 40 s out, with a warning, and sprin
 test('missions: dusk offers a choice, Hold is chosen quietly after 6 s, Hunt halves hive health, the horn pulls the dead', () => {
   const { g, S, road, run } = make(3);
   g.startNight(); run(0.1);
+  assert.equal(road.mission.choosing, false, 'night 1 is the arrival: no mission choice'); assert.equal(road.mission.id, 'hold');
+  for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
+  S.mobs.length = 0; g.startNight(); run(0.1);
   assert.equal(road.mission.choosing, true);
   assert.ok(['likely', 'risky', 'no'].includes(road.mission.forecast.word));
   run(MISSION.pick + 0.5);

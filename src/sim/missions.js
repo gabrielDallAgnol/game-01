@@ -40,6 +40,7 @@ export function createMissions(ctx, getRoad) {
   function nightfall() {
     M.id = 'hold'; M.choosing = true; M.t = MISSION.pick; M.offered++; M.lantern = true; M.hornCd = 0; M.led = 0; M.ledKilled = 0; M.pay = 0; M.burned = 0; piped.clear();
     M.forecast = forecast(); M.where = whereIs();
+    if (S.night < MISSION.from || S.over) { M.choosing = false; M.t = 0; return; }   // night 1: no choice yet, you hold
     const cap = captainName();
     if (cap && !M.captainK) { M.captainK = MISSION.captain; S.P.towerDmg += M.captainK; M.captain = cap; }
     ev('missionOffer', { night: S.night, forecast: M.forecast.word, where: M.where, captain: M.captain });

@@ -2,7 +2,7 @@
 // hand-authored, the Window's daily quest, and seasons as contracts you can win or lose.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame } from '../src/sim/game.js';
+import { createGame, SAVE_V } from '../src/sim/game.js';
 import { mapChoices } from '../src/sim/mapgen.js';
 import { SLOT } from '../src/sim/story.js';
 import { TIDE } from '../src/content/mobs.js';
@@ -178,4 +178,29 @@ test('a hive contract is won by burning that hive', () => {
   for (let k = 0; k < 900 && S.nestAlive[hv.finale.region]; k++) g.hitHive(hv.finale.region, 5);
   st.tick();
   assert.ok(S.story.contract.won);
+});
+test('save mid-run and reload: contract, rules, ruins, noise, road, story queues and tools come back; old saves are ignored', () => {
+  const g = frontier(3), S = g.state, st = g.story(), road = g.road;
+  for (let n = 2; n <= 3; n++) { S.night = n; st.dawn(); }
+  signContract(g, 'c3');
+  S.gold = 200; S.food = 60;
+  for (const t of ['house', 'tower', 'farm']) assert.ok(g.planner.place(t), `could not place a ${t}`);
+  const b = S.buildings.find(x => x.type === 'house'); g.hitBuilding(b.id, 1e6); assert.ok(b.ruined, 'no ruin');
+  S.noiseChoice = 12; S.tools.flare = 7;
+  const stn = road.stations[0]; S.hero.x = stn.x; S.hero.y = stn.y; assert.ok(road.light(stn.id), 'the fire did not take');
+  road.makeConvoy(3);
+  S.story.later.push({ enc: { id: 999, kind: 'window', slot: 'sys', title: 'later', choices: [] }, pri: 1, until: S.night + 3, seq: 999 });
+  const snap = JSON.parse(JSON.stringify(g.snapshot())); assert.ok(snap, 'no snapshot by day');
+  const h = createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {} }), T = h.state;
+  assert.equal(T.night, S.night); assert.equal(T.gold, S.gold); assert.equal(T.food, S.food);
+  assert.deepEqual(T.season.rules, S.season.rules); assert.ok(h.rule(S.story.contract.rule));
+  assert.equal(T.story.contract.name, S.story.contract.name); assert.equal(T.unique && T.unique.name, S.unique && S.unique.name);
+  assert.deepEqual(h.ruins().map(r => r.id), g.ruins().map(r => r.id)); assert.ok(h.rebuildCost(b.id) > 0);
+  assert.equal(T.noiseChoice, 12); assert.equal(T.tools.flare, 7);
+  assert.ok(h.road.stations[0].lit, 'the outpost went dark on reload'); assert.equal(h.road.members().length, road.members().length);
+  assert.ok(T.story.later.some(x => x.enc.id === 999), 'a waiting card was lost');
+  // the restored run plays on: a night and a dawn without throwing
+  h.startNight(); for (let k = 0; k < 60 * 200 && T.phase === 'night' && !T.over; k++) { h.step(); T.story.encounters.length = 0; }
+  assert.ok(T.phase === 'day' || T.over);
+  assert.equal(snap.v, SAVE_V, 'the save format changed: bump SAVE_V so old saves are ignored');
 });

@@ -323,9 +323,9 @@ export const BARKS = {
 // One new idea at a time: inline callouts anchored to the HUD element they explain (never modals, never on day 1).
 // `at`: the HUD element the callout points to (see ui/app.js ANCHORS). Dismissed on tap.
 export const TIPS = [
-  { id: 'noise', at: 'noise', when: (S, g) => S.night >= 2 && (S.noise ?? S.heat ?? 0) > 20, text: 'Noise. The louder the Camp, the more dead it draws, and from further away.' },
+  { id: 'noise', at: 'noise', when: (S, g) => S.night >= 2 && S.phase === 'day' && (S.noise ?? S.heat ?? 0) > 20, text: 'Noise. The louder the Camp, the more dead it draws, and from further away.' },
   { id: 'forecast', at: 'forecast', when: S => S.night >= 2 && S.phase === 'day', text: 'Tonight\'s forecast. What the System expects to fall if you stay or go.' },
-  { id: 'quest', at: 'strip', when: S => S.night >= 2 && !!(S.story.daily && S.story.daily.id), text: 'Your daily quest. Finish it before dusk.' },
+  { id: 'quest', at: 'strip', when: S => S.night >= 2 && S.phase === 'day' && S.dayT > 4 && !!(S.story.daily && S.story.daily.id), text: 'Your daily quest. Finish it before dusk.' },
   { id: 'street', at: 'map', when: S => S.night >= 2 && S.story.spots.length > 0 && S.phase === 'day', text: 'Blue beacons are people and places worth a look. A few dead guard each one.' },
   { id: 'evolve', at: 'strip', when: S => S.lvl >= 3, text: 'Every choice leans you toward Brawn, Aim, Wits or Heart. At level 5 the System offers the class you have been living.' },
   { id: 'roam', at: 'camp', when: S => S.night >= 2 && S.mobs.some(m => m.hunt), text: 'The dead out there follow you home. Lead them into your towers, or lose them in the trees.' },

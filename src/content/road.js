@@ -45,12 +45,13 @@ export const AMBUSH = { after: 40, every: 55, ahead: 18, minNight: 2, warn: '[Mo
 
 // Night missions: one choice at dusk.
 export const MISSIONS = {
-  hold: { name: 'Hold the Camp', icon: '🛡', line: 'Stand with your towers. The classic night.' },
-  hunt: { name: 'The Hunt', icon: '🔥', line: 'The hives empty as their dead march. Sneak out and burn one. Lantern off: unseen but slow.' },
-  piper: { name: 'The Pied Piper', icon: '📯', line: 'Sound the horn and the dead come for you, not the camp. Lead them into a trap.' },
+  hold: { name: 'Hold the Camp', icon: 'shield', line: 'Stand with your towers. The classic night.' },
+  hunt: { name: 'The Hunt', icon: 'flame', line: 'The hives empty as their dead march. Sneak out and burn one. Lantern off: unseen but slow.' },
+  piper: { name: 'The Pied Piper', icon: 'horn', line: 'Sound the horn and the dead come for you, not the camp. Lead them into a trap.' },
 };
 export const MISSION = {
   pick: 6,            // seconds to choose before Hold is chosen for you
+  from: 2,            // the first night with a choice (night 1 is the System's arrival: you hold)
   hunt: { hiveK: 0.4, sneak: 2, pay: 1.5, horde: 0.6, sense: 0.5, speed: 0.85 },   // hives at 40% while their dead are out (strikes ×2 more while nothing hunts you in the dark); pays ×1.5; lantern off: sense ×0.5, you ×0.85
   horn: { r: 32, share: 0.6, cap: 30, cd: 28, t: 60, lose: 45, pay: 1 },  // the horn: a share of the wave within r turns on you, for t seconds
   embers: { r: 5, t: 40, burn: 3, dps: 2 },   // a burned hive smoulders: the dead walking through it catch fire

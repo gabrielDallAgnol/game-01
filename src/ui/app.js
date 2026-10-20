@@ -2,7 +2,7 @@
 // Two looks: the Camp (amber, Barlow Condensed: what is yours) and the System (cyan, monospace: the window only you
 // can see). The Window is a character: a strip at the top speaks in [brackets] instead of a pile of toasts, one story
 // card and one System window a dawn, tips anchored to what they explain, nothing pauses at night unless it is the night.
-import { createGame, STEP, CREW_NEED, DIFFICULTY, HEAT } from '../sim/game.js';
+import { createGame, STEP, CREW_NEED, DIFFICULTY, HEAT, SAVE_V } from '../sim/game.js';
 import { mapChoices, generateMap, N, T, idx, BIOMES, LANDMARKS } from '../sim/mapgen.js';
 import { createView } from '../render/view.js';
 import { BUILDINGS, BUILD_ORDER, TECH_ORDER, UNLOCKS, KEEP, MAX_LEVEL } from '../content/buildings.js';
@@ -112,6 +112,8 @@ export function startApp() {
     for (const sp of S.story.spots) if (big) dot(sp.x, sp.y, 4, '#7fe3ff');
     const tr = S.story.trial; if (tr && !tr.done) dot(tr.x, tr.y, big ? 6 : 4, '#ff4a4a', true);
     const k = S.story.contract; if (k && !k.won && k.finale.kind === 'hive') { const n = m.regions[k.finale.region].nest; if (n) dot(n.x, n.y, big ? 9 : 6, '#7fe3ff', true); }
+    if (big && game.hearRadius) { const r = game.hearRadius() * s; ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = 'rgba(240,166,73,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc((m.town.x - ox) * s, (m.town.y - oy) * s, r, 0, 7); ctx.stroke(); ctx.restore();
+      ctx.font = '600 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.7)'; const ly = (m.town.y - oy) * s - r - 6; ctx.strokeText('the hives hear you to here', (m.town.x - ox) * s, ly); ctx.fillStyle = '#f0c27a'; ctx.fillText('the hives hear you to here', (m.town.x - ox) * s, ly); }
     dot(m.town.x, m.town.y, big ? 7 : 4, '#f0a649');
     // [road] begin
     if (roadUI) roadUI.marks(ctx, ox, oy, s, big);
@@ -169,7 +171,7 @@ export function startApp() {
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); $('#startMore').open = true; };
     $('#begin').onclick = () => { const o = opts[setup.pick]; begin(o.seed, o.biome); };
     saves.load().then(snap => {
-      if (!snap || snap.v !== 3 || card !== 'start' || !$('#contRow')) return;
+      if (!snap || snap.v !== SAVE_V || card !== 'start' || !$('#contRow')) return;
       const row = $('#contRow'); row.hidden = false;
       row.innerHTML = `<button class="cont" id="cont"><span>[Continue] Day ${snap.night} · ${esc(snap.city || 'the woods')}</span><small>${saves.cloud() ? 'Saved to your account' : 'Saved on this device'} · ${new Date(snap.savedAt).toLocaleString()}</small></button>`;
       $('#begin').classList.add('ghost'); $('#begin').textContent = 'New run';
@@ -209,10 +211,10 @@ export function startApp() {
     const qp = new URLSearchParams(location.search).get('q');
     if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); }
     window.__game = game; window.__view = view; window.__openSel = sel => openSel(sel);
-    window.__ui = { strip, callouts, ctoast, showStatus, showMore, showMap, cards: () => card, toast, planTrip: () => planTrip() };
+    window.__ui = { strip, callouts, ctoast, showStatus, showMore, showMap, cards: () => card, toast };
     // [road] begin
     if (roadUI) roadUI.dispose();
-    roadUI = createRoadUI({ game, view, toast: (m, k) => toast(m, k), hideCard: () => { hideCard(); paused = false; }, isBusy: () => paused || !!card || !!placing });
+    roadUI = createRoadUI({ game, view, toast: (m, k) => toast(m, k), hideCard: () => { hideCard(); paused = false; }, isBusy: () => paused || !!card || !!placing, systemHere: () => systemHere() });
     window.__roadUI = roadUI;
     // [road] end
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
@@ -594,7 +596,7 @@ export function startApp() {
     ctoast.show(sys ? msg.replace(/^\[([^\]]+)\]\s*/, '$1. ') : msg, kind, kind === 'bad' ? 'skull' : null);
   }
   // the night's losses, grouped: one line at dawn ("3 towers and a farm fell on the east side")
-  let losses = [];
+  let losses = [], pendingLedger = null;
   function noteLoss(id) { const b = game.state.byId.get(id); if (!b || b.type === 'wall' && losses.filter(l => l.type === 'wall').length > 12) return; const a = Math.atan2(b.y - game.map.town.y, b.x - game.map.town.x); losses.push({ type: b.type, dir: DIR8[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8] }); }
   function lossLine() {
     if (!losses.length) return null;
@@ -818,6 +820,13 @@ export function startApp() {
     const B = BUILDINGS[b.type];
     $('#pEyebrow').textContent = names[game.map.region[idx(Math.floor(b.x), Math.floor(b.y))]] || '';
     $('#pTitle').textContent = `${B.name} · level ${b.level}${b.ruined ? ' · ruined' : ''}`;
+    if (b.ruined) {   // a ruin stays until you rebuild it by hand: no income, no defence
+      const rc = game.rebuildCost(b.id);
+      body.innerHTML = `<div class="stat"><span><b class="bad">Ruined</b> · no ${b.type === 'tower' ? 'fire' : b.type === 'farm' ? 'food' : b.type === 'house' ? 'scrap, nobody lives here' : 'use'} until rebuilt</span><span>Rebuilding costs half the price, and it stands at full health.</span></div><div class="opts two">`
+        + opt('opt-up', 'data-rebuild="1"', day ? `Rebuild the ${B.name.toLowerCase()}` : 'Rebuild at dawn', rc, day ? `Back as it was: level ${b.level}.` : 'Nobody lays bricks with the dead at the gate.', S.gold < rc || !day)
+        + opt('opt-demo', 'data-demo="1"', 'Clear the ruin', null, '<b class="bad">No scrap back</b> · the lot is free again.', !day) + '</div>';
+      selected.range = null; return;
+    }
     let html = `<div class="stat"><span>Health <b>${Math.ceil(b.hp)} / ${b.maxHp}</b></span><span>${B.desc[b.level - 1]}</span></div><div class="opts two">`;
     if (b.type === 'wall') {
       const run = game.wallRun(b.id), total = run.reduce((a, w) => a + game.upCostOf(w), 0);
@@ -837,6 +846,7 @@ export function startApp() {
     const btn = e.target.closest('button'); if (!btn || btn.disabled || !selected) return;
     if (btn.dataset.claim && game.claimLandmark(selected.id)) { closePanel(); updateHud(); return; }
     if (btn.dataset.clear) { const n = game.clearRubble(selected.x, selected.y); if (n) { toast(`${n} ${n === 1 ? 'cell' : 'cells'} cleared.`); closePanel(); updateHud(); return; } }
+    if (btn.dataset.rebuild) { if (game.rebuild(selected.id)) { audio.play('build'); toast(`${BUILDINGS[game.state.byId.get(selected.id).type].name} rebuilt.`, 'good'); renderPanel(); updateHud(); } return; }
     if (btn.dataset.keep && game.upgradeKeep()) toast('The Camp rises higher.');
     if (btn.dataset.trader && FLAGS.trader) { closePanel(); paused = true; showTrader(); return; }
     if (btn.dataset.up && game.upgrade(selected.id)) toast('Upgraded.');
@@ -892,26 +902,6 @@ export function startApp() {
     el.style.setProperty('--cd', cd > 0 ? (cd / A.cooldown) : 0);
   }
 
-  // ---------- trips: how long out there, and how long until dusk ----------
-  let trip = null;
-  function tripTime() {
-    const S = game.state, h = S.hero, pts = [{ x: h.x, y: h.y }, ...(h.path || (h.target ? [h.target] : []))], sp = game.heroDef.speed * (S.P.heroSpeed || 1);
-    let t = 0;
-    for (let k = 1; k < pts.length; k++) {
-      const a = pts[k - 1], b = pts[k], L = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(1, Math.ceil(L / 0.6));
-      for (let j = 0; j < n; j++) {
-        const x = a.x + (b.x - a.x) * (j + 0.5) / n, y = a.y + (b.y - a.y) * (j + 0.5) / n, i = idx(Math.floor(x), Math.floor(y));
-        const ground = game.map.road[i] ? 1.4 : game.map.terrain[i] === T.FOREST && !game.inZone(x, y) ? 0.72 : 1;   // mirrors the hero's own walk
-        t += (L / n) / (sp * ground);
-      }
-    }
-    return t;
-  }
-  function planTrip() {
-    const one = tripTime(); if (one < 5) { trip = null; return; }
-    trip = { round: one * 2, until: performance.now() + 6000 };
-  }
-
   // ---------- HUD ----------
   function dockH() { const db = $('#dock').getBoundingClientRect(); document.body.style.setProperty('--dockH', `${Math.max(64, innerHeight - db.top)}px`); }
   let lastKeep = 0, keepHitT = 0;
@@ -964,8 +954,7 @@ export function startApp() {
     else {
       const loose = S.mobs.filter(m => !m.roam && !MOBS[m.kind].animal).length, hunting = S.mobs.filter(m => m.hunt && !MOBS[m.kind].animal).length;
       let mid;
-      if (trip && performance.now() < trip.until) { const dusk = game.duskIn(), late = !night && trip.round > dusk; mid = `${icon('clock')}<span class="trip${late ? ' late' : ''}">Round trip ${mmss(trip.round)}${night ? '' : ` · dusk in ${mmss(dusk)}`}</span>`; }
-      else if (S.hero.dead) mid = `${icon('heart')}<span class="soon">Back in ${Math.ceil(S.hero.respawn)}s</span>`;
+      if (S.hero.dead) mid = `${icon('heart')}<span class="soon">Back in ${Math.ceil(S.hero.respawn)}s</span>`;
       else if (night) mid = `${sunDial(game.nightFrac(), false, true)}${loose ? `<span><em>${loose}</em> coming</span>` : '<span>Hold</span>'}${hunting ? `<span><em class="hunt">${hunting}</em> on you</span>` : ''}`;
       else { const dusk = game.duskIn(); mid = `${sunDial(game.dayFrac(), dusk <= 15)}<span class="${dusk <= 15 ? 'soon' : ''}">Dusk ${mmss(dusk)}</span>${hunting ? `<span><em class="hunt">${hunting}</em> on you</span>` : ''}`; }
       if (S.eruption) mid = `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span>${mid}`;
@@ -1047,12 +1036,12 @@ export function startApp() {
     }
     if (down && down.id === e.pointerId && down.touch) {
       const dx = e.clientX - down.x, dy = e.clientY - down.y, d = Math.hypot(dx, dy);
-      if (!down.joy && d > JOY_PX) { down.joy = true; joy.hidden = false; joy.style.transform = `translate(${down.x}px, ${down.y}px)`; game.state.hero.target = null; trip = null; }
+      if (!down.joy && d > JOY_PX) { down.joy = true; joy.hidden = false; joy.style.transform = `translate(${down.x}px, ${down.y}px)`; game.state.hero.target = null; if (roadUI) roadUI.closeTrip(); }
       if (down.joy) { const k = Math.min(1, d / 60), nx = dx / (d || 1), ny = dy / (d || 1); joyIn.x = nx * k; joyIn.y = ny * k; joy.firstChild.style.transform = `translate(${nx * Math.min(d, 40)}px, ${ny * Math.min(d, 40)}px)`; }
     }
     if (e.pointerType === 'mouse') { const p = view.pick(e.clientX, e.clientY); canvas.style.cursor = p && p.type !== 'ground' ? 'pointer' : ''; }
   });
-  const goTo = (x, y) => { game.heroTo(x, y); view.showMove(x, y); planTrip(); };
+  const goTo = (x, y) => { game.heroTo(x, y); view.showMove(x, y); };
   canvas.addEventListener('pointerup', e => {
     const wasPinch = touches.size >= 2; touches.delete(e.pointerId); if (touches.size < 2) pinch0 = 0;
     const d = down; if (d && d.id === e.pointerId) down = null;
@@ -1086,7 +1075,7 @@ export function startApp() {
     const k = e.key.toLowerCase();
     if (k === 'escape') { if (placing && placing.start) { placing.start = null; updateGhost(); } else if (placing) stopPlacing(); else closePanel(); }
     if (e.target.closest && e.target.closest('button,input') && (k === ' ' || k === 'enter')) return;
-    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) { keys[k] = true; e.preventDefault(); trip = null; }
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) { keys[k] = true; e.preventDefault(); if (roadUI) roadUI.closeTrip(); }
     if (!game) return;
     if (k === 'l' && FLAGS.runLog) showLog();
     if (k === 'm' && !card) showMap();
@@ -1123,11 +1112,13 @@ export function startApp() {
       if (e.t === 'ruin') noteLoss(e.id);
       if (e.t === 'difficulty' && typeof game.setDifficulty !== 'function') { const D = game.difficulty && game.difficulty(); if (D && DIFFICULTY[e.key]) Object.assign(D, DIFFICULTY[e.key]); }   // one game per page: the shared table is safe to retune
       if (e.t === 'claim' && selected && selected.type === 'region') closePanel();
-      if (e.t === 'dawn') { inventToday(); holdCards(DAWN_DELAY); endJoy(); const ll = lossLine(); if (ll) setTimeout(() => ctoast.show(ll, 'bad', 'skull'), 400); const snap = game.snapshot(); if (snap) saves.save(snap).then(w => { lastSave = { day: snap.night, where: w }; }); }
+      if (e.t === 'dawn') { inventToday(); holdCards(DAWN_DELAY); endJoy(); const ll = lossLine(), L = pendingLedger; pendingLedger = null; if (roadUI && L && (L.fell.length || L.ruins)) setTimeout(() => roadUI && roadUI.showLedger(L, ll), 500); else if (ll) setTimeout(() => ctoast.show(ll, 'bad', 'skull'), 400); const snap = game.snapshot(); if (snap) saves.save(snap).then(w => { lastSave = { day: snap.night, where: w }; }); }
       if (e.t === 'over') { saves.clear(); { const L = store.get('legacy', { fame: 0, owned: {} }); S.fameEarned = fameOf(S); L.fame += S.fameEarned; store.set('legacy', L); } endT = now + 2600; paused = false; closePanel(); stopPlacing(); hideCard(); if (view.startOrbit) view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && selected && selected.type === 'building' && !S.byId.get(selected.id)) closePanel();
       // [road] road-ui reads the same events here
+      if (e.t === 'ledger') pendingLedger = e;
     }
+    if (roadUI && events.length) roadUI.onEvents(events);
     if (windowAtDawn) game.story().release();
     if (!card && now >= dawnAt && S.story.encounters.length && !S.over) showEncounter();
     if (endT > 0 && now >= endT) { endT = -1; paused = true; showEnd(); }

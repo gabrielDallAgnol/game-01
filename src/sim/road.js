@@ -452,7 +452,7 @@ export function createRoad(ctx) {
   }
   function tick(dt) {
     if (S.over) return;
-    if (R.phase !== S.phase) { const was = R.phase; R.phase = S.phase; if (S.phase === 'night') { missions.nightfall(); for (const st of stations) if (st.lit) { st.maxHp = ROAD.hp(S.night); st.hp = Math.max(st.hp, st.maxHp); } } else if (was === 'night') syncPeople(); }
+    if (R.phase !== S.phase || (S.phase === 'night' && R.nightN !== S.night)) { const was = R.phase; R.phase = S.phase; if (S.phase === 'night') { R.nightN = S.night; missions.nightfall(); for (const st of stations) if (st.lit) { st.maxHp = ROAD.hp(S.night); st.hp = Math.max(st.hp, st.maxHp); } } else if (was === 'night') syncPeople(); }
     cvHunters = 0; for (const m of S.mobs) if (m.cv) cvHunters++;
     syncPeople(); stepTrail(); stepEscort(); stepConvoys(dt); stepStations(dt); stepAmbush(dt);
     missions.tick(dt); scanEvents();
