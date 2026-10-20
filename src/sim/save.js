@@ -2,6 +2,7 @@
 // The format is SAVE_V (state.js); the road adds its own block (road.js attach).
 import { N, T } from './mapgen.js';
 import { SAVE_V } from './state.js';
+import { heroKit } from '../content/heroes.js';
 
 export function createSave(G) {
   const { S, biome, dropLive, houseCap, keep, map, mapSeed, mobById, pop, seed, syncMastery, syncPicks } = G;
@@ -23,6 +24,7 @@ export function createSave(G) {
     Object.assign(S, { night: R.night, gold: R.gold, food: R.food, kills: R.kills, stock: R.stock, survivors: R.survivors, heat: R.heat, foreman: R.foreman, builders: R.builders, autopilot: R.autopilot,
       kits: R.kits, claimed: new Set(R.claimed), nestAlive: R.nestAlive, wake: R.wake.map(w => (w < 0 ? Infinity : w)), P: R.P, picks: R.picks, chestsHeld: R.chestsHeld, dawns: R.dawns,
       weather: R.weather, reroll: R.reroll, halfUpgrade: R.halfUpgrade, stats: R.stats, log: R.log || [], evo: R.evo, pickups: R.pickups || [], path: R.path || S.path, feat: R.feat || {}, season: R.season || S.season, buildersWas: R.buildersWas ?? undefined, lvl: R.lvl || 1, xp: R.xp || 0, unique: R.unique || undefined, eruption: R.eruption || null, heatCool: R.heatCool || 0, sawBlackout: !!R.sawBlackout, trade: R.trade || null, drained: R.drained, salvage: R.salvage, clearedIdx: R.cleared, handsUsed: R.handsUsed, dayT: R.dayT });
+    G.HC = heroKit(S.heroClass, S.evo && S.evo.calling);   // an advanced class is built on the Calling you took
     S.sealed = Uint8Array.from(R.sealed); S.sealVersion++;
     syncMastery();
     R.landmarks.forEach(([o, k, st], i) => { const l = S.landmarks[i]; if (l) { l.owned = !!o; l.kind = k; l.stripped = !!st; } });

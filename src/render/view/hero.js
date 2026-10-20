@@ -15,11 +15,11 @@ export function createHero(V) {
     for (const o of list) { const x = new THREE.Mesh(o.geometry, mat); x.userData.xray = true; x.renderOrder = 30; x.castShadow = false; o.add(x); }
     return g;
   }
-  let heroRig = liveRig(heroModel(S.heroClass), HERO_OUTLINE, 1.2), rigClass = S.heroClass; xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g);
+  let heroRig = liveRig(heroModel(S.heroClass, S.evo && S.evo.calling), HERO_OUTLINE, 1.2), rigClass = S.heroClass; xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g);
   // a new class: a new rig in its colours (and, for a legendary form, an aura that breathes under the hero)
   function syncRig() {
     if (rigClass === S.heroClass) return;
-    world.remove(heroRig.g); heroRig = liveRig(heroModel(S.heroClass), HERO_OUTLINE, 1.2); xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g);
+    world.remove(heroRig.g); heroRig = liveRig(heroModel(S.heroClass, S.evo && S.evo.calling), HERO_OUTLINE, 1.2); xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g);
     rigClass = S.heroClass; const I = CLASS_INFO[S.heroClass] || {};
     V.feel.burst(S.hero.x, S.hero.y, 2.2 + (I.tier || 1) * 0.8, I.glow || '#7fd4ff');
     if (heroAura) { fx.remove(heroAura); heroAura = null; }

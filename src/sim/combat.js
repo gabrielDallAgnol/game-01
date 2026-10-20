@@ -50,7 +50,7 @@ export function createCombat(G) {
     if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * KEEP.shots[keep.level - 1] + (has('ballista') ? 8 / 3 * 2 : 0);
     return d;
   }
-  function heroDmg() { return G.HC.attack ? (G.HC.attack.dmg + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult * (1 + LEVEL.dmg * (S.lvl - 1)) * (S.drained === S.night ? 0.75 : 1) : 0; }
+  function heroDmg() { return G.HC.attack ? (G.HC.attack.dmg + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult * (1 + LEVEL.dmg * (S.lvl - 1)) * (S.drained === S.night ? 0.75 : 1) * (G.HC.dmgMult || 1) : 0; }
   function heroRate() { return G.HC.attack ? G.HC.attack.rate / S.P.heroRate / (mastery('champion') ? 1.3 : 1) : 1; }
   function heroDps() {
     if (!G.HC.attack) return G.HC.ability && G.HC.ability.id === 'hire' ? Math.min(4, Math.floor(S.gold / 15)) * MERC.dmg / MERC.rate : 0;
@@ -110,12 +110,14 @@ export function createCombat(G) {
     const i = S.mobs.indexOf(m); if (i < 0) return;
     if (MOBS[m.kind].animal) { S.mobs.splice(i, 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: src || null, dmg: +(m.lastHit || 0).toFixed(2) }); S.food += MOBS[m.kind].food; S.stats.hunted = (S.stats.hunted || 0) + 1; ev('pickup', { id: m.id, kind: 'food', x: m.x, y: m.y, n: MOBS[m.kind].food }); if (src === 'hero') G.gainXp(1); return; }
     S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: src || null, dmg: +(m.lastHit || 0).toFixed(2) }); G.addSpike(HEAT.kill); S.salvage = (S.salvage || 0) + START.salvage * (MOBS[m.kind].size >= BIG ? 4 : 1);
-    if (S.bountyT > 0 && G.HC.ability && G.HC.ability.id === 'bounty' && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) <= G.HC.ability.radius + S.P.bountyRadius) {
+    const bountyOn = S.bountyT > 0 && G.HC.ability && G.HC.ability.id === 'bounty' && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) <= (G.HC.quarter ? 99 : G.HC.ability.radius) + S.P.bountyRadius;
+    if (bountyOn) {
       const big = MOBS[m.kind].size >= BIG, pay = (big ? G.HC.ability.bigGold * (mastery('warband') ? 3 : 1) : G.HC.ability.gold) + S.P.bountyGold;
       earn(pay); S.stats.bountyGold = (S.stats.bountyGold || 0) + pay; ev('bountyGold', { x: m.x, y: m.y, gold: pay });
     }
-    if (G.HC.cryPays && S.hero.guardT > 0 && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 7) { earn(G.HC.cryPays); ev('bountyGold', { x: m.x, y: m.y, gold: G.HC.cryPays }); }
-    if (G.HC.volleyPays && src === 'volley') { earn(G.HC.volleyPays); ev('bountyGold', { x: m.x, y: m.y, gold: G.HC.volleyPays }); }
+    // ability twists follow the ability you kept from your Calling: War Cry / Volley, or Bounty for a Scavver
+    if (G.HC.cryPays && ((S.hero.guardT > 0 && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 7) || bountyOn)) { earn(G.HC.cryPays); ev('bountyGold', { x: m.x, y: m.y, gold: G.HC.cryPays }); }
+    if (G.HC.volleyPays && (src === 'volley' || bountyOn)) { earn(G.HC.volleyPays); ev('bountyGold', { x: m.x, y: m.y, gold: G.HC.volleyPays }); }
     S.stats.killsByKind[m.kind] = (S.stats.killsByKind[m.kind] || 0) + 1;
     if (m.kind === 'guardian' || m.kind === 'gravelord') S.stats.bosses++;
     if (m.finale === S.season.n || (m.unique && S.unique && S.unique.season === S.season.n && S.night <= S.season.end)) G.finale(true);   // the season's finale monster
