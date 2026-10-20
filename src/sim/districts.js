@@ -13,6 +13,7 @@ export function createDistricts(G) {
     if (S.over) return false;
     if (S.hero.dead || !landmarkReach(l)) return fail(`Walk up to the ${L.name} to claim it.`);
     if (l.kind === 'unknown' || S.sealed[l.region]) return fail('That district is still sealed.');
+    if (G.siteLocked && G.siteLocked(l)) { const n = map.regions[l.region].nest; return fail(`Burn the hive first: its dead guard the ${L.name} (${compass(n.x, n.y)} of camp).`); }   // [nests]
     if (S.gold < L.cost) return fail(`Claiming the ${L.name} costs ${L.cost} scrap.`);
     S.gold -= L.cost; S.cur.spent += L.cost; S.stats.goldSpent += L.cost;
     return takeSite(l);

@@ -62,6 +62,8 @@ export function createApi(G) {
     upkeep, foodNeed, rerollCost: () => (S.reroll.free > 0 ? 0 : S.reroll.cost),
     forecast, mastered, mastery, isBloodMoon, drainEvents: () => S.events.splice(0),
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
+    // [nests] the hive that keeps a site locked (-1: free), a hive's rage ({ rage, lv, hot, near } or null), its guards
+    siteLock: id => G.lockedBy(S.landmarks[id]), nestRage: r => S.nestRage[r] || null, nestGuards: r => G.nestGuards(r),
   };
   return api;
 }

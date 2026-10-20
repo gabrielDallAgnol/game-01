@@ -110,3 +110,12 @@ export function createState({ seed, biome, map, hero, mode, clock, difficulty, l
   cityNests.forEach((id, k) => { S.wake[id] = 6 + 2 * k; });
   return S;
 }
+// Nests defend themselves (sim/nests.js): a guard pack rises when you come within `wake` of a living hive (once a
+// day), and while you stay within `near` its rage climbs one level every `step` seconds (a strike adds `hit`), each
+// level a wave of (wave + waveLv × lv) × night × tier dead, tougher by hpLv a level. Away from it the rage cools at `decay`.
+// Tuned so a day-1 hollow is an assault you can win (≈8 dead over a 50 s burn) and a city hive needs a prepared hero.
+export const NEST = {
+  wake: 11, near: 8, step: 9, hit: 0.35, decay: 1.2, max: 12, cap: 5, bruteLv: 4, hpLv: 0.08,
+  pack: [0, 3, 5, 7], packPer: 0.35, wave: 1, waveLv: 0.45, nightBase: 0.7, nightPer: 0.1, nightMax: 1.6, tier: [1, 1, 1.6, 2.2],
+  lines: { 1: '[Hive stirs] It knows you are here: **{n} more** crawl out. The longer you stay, the more it sends.', 3: '[Hive enraged] **{n} more**, faster and tougher. Burn it now or back off.', 5: '[Hive frenzied] It pours out everything it has.' },
+};
