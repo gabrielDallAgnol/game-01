@@ -5,6 +5,8 @@
 import { MISSIONS, ROAD, MISSION } from '../content/road.js';
 const MISSION_PICK = MISSION.pick;
 import { icon } from './icons.js';
+// [folk] the folk's line in the dawn ledger
+import { folkLine } from './folk-ui.js';
 
 const CSS = `
 .rd-dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dockH,72px) + 10px);display:grid;gap:6px;justify-items:center;pointer-events:none;width:min(440px,calc(100vw - 32px));z-index:5}
@@ -227,7 +229,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     const ruins = game.ruins ? game.ruins() : [], all = L.rebuildAll || ruins.reduce((a, r) => a + r.cost, 0), cheap = ruins.length && S.gold >= all;
     const lost = line || (L.fell.length ? `${L.fell.length} ${L.fell.length === 1 ? 'building' : 'buildings'} fell.` : 'Nothing fell.');
     const pp = L.piper ? `<span class="dl pp">${icon('horn')}Pied Piper: led <em>${L.piper.led}</em> · <em>${L.piper.killed}</em> fell outside the walls${L.piper.pay ? ` · <em>+${L.piper.pay} scrap</em>` : ''}</span>` : '';
-    ledEl.innerHTML = `<div class="t"><b>${icon('skull')}Night ${L.night}: the Camp held at ${L.held}%</b><span>${esc(lost)}${ruins.length ? ` · <em>${ruins.length} ${ruins.length === 1 ? 'ruin' : 'ruins'}</em>${cheap ? '' : ' · tap a ruin to rebuild it'}` : ''}</span>${pp}${dawn ? `<span class="dl">${esc(dawn).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>')}</span>` : ''}</div>
+    ledEl.innerHTML = `<div class="t"><b>${icon('skull')}Night ${L.night}: the Camp held at ${L.held}%</b><span>${esc(lost)}${ruins.length ? ` · <em>${ruins.length} ${ruins.length === 1 ? 'ruin' : 'ruins'}</em>${cheap ? '' : ' · tap a ruin to rebuild it'}` : ''}</span>${pp}${L.folk && folkLine(L.folk) ? `<span class="dl">${icon('build')}${esc(folkLine(L.folk))}</span>` : '' /* [folk] */}${dawn ? `<span class="dl">${esc(dawn).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>')}</span>` : ''}</div>
       <div class="acts">${cheap ? `<button class="btn sm" data-rb>Rebuild all · ${all}</button>` : ''}<button class="x" data-x aria-label="Close">${icon('close')}</button></div>`;
     const rb = ledEl.querySelector('[data-rb]'); if (rb) rb.onclick = () => { const n = game.rebuildAll(); if (n) toast(`${n} ${n === 1 ? 'ruin' : 'ruins'} rebuilt.`, 'good'); closeLedger(); };
     ledEl.querySelector('[data-x]').onclick = closeLedger;

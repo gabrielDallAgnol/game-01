@@ -22,10 +22,12 @@ import { createPlacing } from './placing.js';
 import { createPanels } from './panels.js';
 import { createInput } from './input.js';
 import { createCinema } from './cinema.js';
+// [folk] the folk's own projects: the chip, the build-menu row, the dawn line
+import { createFolkUi } from './folk-ui.js';
 
 export { FLAGS };
 // the UI modules, in creation order (each registers its own DOM handlers when created)
-const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema];
+const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createFolkUi];
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
@@ -111,6 +113,7 @@ export function startApp() {
     if (ui.roadUI) ui.roadUI.tick(dt);
     // [road] end
     tickMini(dt);
+    ui.folkTick(dt, events);   // [folk]
     hudT -= dt; if (hudT <= 0) { updateHud(); hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
   }
   requestAnimationFrame(frame);

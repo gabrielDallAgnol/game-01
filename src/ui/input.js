@@ -64,6 +64,7 @@ export function createInput(ui) {
       const n = ui.game.map.regions[p.id].nest;
       if (Math.hypot(n.x - p.x, n.y - p.y) < 4 || !(ui.selected && ui.selected.type === 'region')) { ui.openSel({ type: 'region', id: p.id }); return; }
     }
+    if (p.type === 'ground' && ui.folkTap && ui.folkTap(p)) return;   // [folk] a tap on the folk's scaffold
     goTo(p.x, p.y); if (ui.selected) ui.closePanel();
   });
   window.addEventListener('keydown', e => {
