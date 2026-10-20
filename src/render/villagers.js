@@ -158,5 +158,7 @@ export function createVillagers({ THREE, world, game, W, map, figure }) {
     }
   }
 
-  return { update, count: () => folk.length, dispose: () => { world.remove(group); } };
+  /** each(fn(v, g)): the renderer draws every villager itself (instanced), from these */
+  function each(fn) { for (const v of folk) fn(v, v.g); }
+  return { update, each, count: () => folk.length, dispose: () => { world.remove(group); } };
 }

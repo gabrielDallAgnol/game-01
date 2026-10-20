@@ -235,7 +235,7 @@ export function createLook({ renderer, scene, camera, canvas }) {
     dayDir.set(-0.95 + 1.9 * t, 0.5 + 0.75 * arc, 0.42);
     scene.background.copy(lc(D.bg, Nn.bg, k)); scene.fog.color.copy(scene.background);
     hemi.color.copy(lc(D.hemiSky, Nn.hemiSky, k)); hemi.groundColor.copy(lc(D.hemiGnd, Nn.hemiGnd, k)); hemi.intensity = ln(D.hemi, Nn.hemi, k);
-    warm.copy(L(D.sun)).lerp(c2.copy(L(t > 0.5 ? '#ffa060' : '#ffc8a0')), Math.pow(edge, 1.5));
+    warm.copy(L(D.sun)).lerp(c2.copy(L(t > 0.5 ? '#ffb078' : '#ffdcc0')), Math.pow(edge, 2.2));
     sun.color.copy(warm).lerp(c2.copy(L(Nn.sun)), k); sun.intensity = ln(D.sunI * (0.7 + 0.3 * arc), Nn.sunI, k);
     v.set(ln(dayDir.x, Nn.sunDir[0], k), ln(dayDir.y, Nn.sunDir[1], k), ln(dayDir.z, Nn.sunDir[2], k)).normalize();
     sun.position.copy(target).addScaledVector(v, 70); sun.target.position.copy(target);

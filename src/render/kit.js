@@ -35,7 +35,7 @@ export const K = (() => {
     emitK: { value: 0 }, emitCol: { value: lin('#ffb15a') }, rim: { value: new THREE.Vector4(1, 0.8, 0.6, 0.15) },
     mist: { value: new THREE.Vector4(0.8, 0.8, 0.85, 0) }, time: { value: 0 }, ao: { value: 0.55 },
     fogCol: { value: lin('#16223a') }, cyan: { value: lin('#5fd3ff') }, front: { value: 1 }, scan: { value: new THREE.Vector4(0, 0, 0, 0) },
-    sway: { value: 1 },
+    sway: { value: 1 }, night: { value: 0 },
   };
   // the explored channel is blurred so the frontier is soft; the contact-shadow channel is a blurred footprint
   const blurA = new Float32Array(MS * MS), blurB = new Float32Array(MS * MS);
@@ -80,7 +80,7 @@ export const K = (() => {
     const defs = [o.emit && 'T_EMIT', o.rim && 'T_RIM', o.flash && 'T_FLASH', o.ground && 'T_GROUND', o.sway && 'T_SWAY', o.fog === false && 'T_NOFOG'].filter(Boolean);
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { tMask: T.mask, tOff: T.off, tAmount: T.amount, tDark: T.dark, tLight: T.light, tLightO: T.lightO, tLightS: T.lightS, tLightK: T.lightK,
-        tEmitK: T.emitK, tEmitCol: T.emitCol, tRim: T.rim, tMist: T.mist, tTime: T.time, tAO: T.ao, tFogCol: T.fogCol, tCyan: T.cyan, tFront: T.front, tScan: T.scan, tSway: T.sway }, o.uniforms || {});
+        tEmitK: T.emitK, tEmitCol: T.emitCol, tRim: T.rim, tMist: T.mist, tTime: T.time, tAO: T.ao, tFogCol: T.fogCol, tCyan: T.cyan, tFront: T.front, tScan: T.scan, tSway: T.sway, tNight: T.night }, o.uniforms || {});
       const head = defs.map(d => `#define ${d}`).join('\n');
       sh.vertexShader = head + '\n' + sh.vertexShader.replace('#include <common>', `#include <common>
 varying vec3 vTWorld;
@@ -105,7 +105,7 @@ attribute float aFlash; varying float vFlash;
 #endif`)
         .replace('#include <project_vertex>', '#include <project_vertex>\n  vec4 tw = vec4(transformed, 1.0);\n  #ifdef USE_INSTANCING\n  tw = instanceMatrix * tw;\n  #endif\n  vTWorld = (modelMatrix * tw).xyz;');
       sh.fragmentShader = head + '\n' + sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vTWorld; uniform sampler2D tMask, tLight; uniform float tOff, tAmount, tDark, tLightS, tLightK, tEmitK, tTime, tAO, tFront;
+varying vec3 vTWorld; uniform sampler2D tMask, tLight; uniform float tOff, tAmount, tDark, tLightS, tLightK, tEmitK, tTime, tAO, tFront, tNight;
 uniform vec2 tLightO; uniform vec3 tEmitCol, tFogCol, tCyan; uniform vec4 tRim, tMist, tScan;
 #ifdef T_EMIT
 varying float vEmit;
@@ -126,7 +126,7 @@ ${o.fragColor || ''}`)
   gl_FragColor.rgb = mix(c, mix(vec3(l), c, 0.55) * vec3(0.92, 0.97, 1.06) * tDark, wild);
 #ifdef STANDARD
   if (tLightK > 0.001) {
-    vec2 lUv = (vTWorld.xz - tLightO) / tLightS;
+    vec2 lUv = (vTWorld.xz - tLightO) / tLightS; lUv.y = 1.0 - lUv.y;
     vec2 eg = smoothstep(0.0, 0.08, lUv) * smoothstep(1.0, 0.92, lUv);
     vec3 lp = texture2D(tLight, lUv).rgb * (tLightK * eg.x * eg.y);
     float up = dot(normal, (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
@@ -154,7 +154,7 @@ ${o.fragColor || ''}`)
     float gl = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
     vec2 gq = abs(fract(vTWorld.xz * 0.5) - 0.5);
     float grid = smoothstep(0.455, 0.49, max(gq.x, gq.y));
-    vec3 bp = tFogCol * (0.75 + 0.5 * tNoise(vTWorld.xz * 0.06)) + gl * vec3(0.10, 0.14, 0.22) + tCyan * grid * 0.045;
+    vec3 bp = (tFogCol * (0.75 + 0.5 * tNoise(vTWorld.xz * 0.06)) + gl * vec3(0.10, 0.14, 0.22) + tCyan * grid * 0.04) * (1.0 - 0.6 * tNight);
     float front = smoothstep(0.11, 0.0, abs(sw - 0.48)) * tFront;
     float sd = distance(vTWorld.xz, tScan.xy);
     float scan = tScan.w * smoothstep(1.4, 0.0, abs(sd - tScan.z)) * smoothstep(tScan.z + 1.0, tScan.z - 6.0, sd);
@@ -1194,10 +1194,11 @@ ${o.fragColor || ''}`)
   const FIGMAT = territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 }));
   // people colours (hex, linearised by M)
   const C = {
-    cape: '#b23a2e', capeIn: '#5e2220', scarf: '#c8443a', leather: '#5a3d29', leather2: '#7a5434', belt: '#3a2a20', buckle: '#d8b25a',
+    cape: '#d9822b', capeIn: '#6e3a1c', scarf: '#f0a040', leather: '#5a3d29', leather2: '#7a5434', belt: '#3a2a20', buckle: '#d8b25a',
     shirt: '#d9c8a2', shirtB: '#4f6f8f', denim: '#3e5a78', olive: '#56603e', khaki: '#8a7a58', forest: '#3f5a36', tabard: '#cf8a32', mail: '#8b9094', helm: '#7b8286',
     hairDark: '#2a221d', hairBrown: '#5a3922', hairAuburn: '#8a4326', hairBlond: '#d2a95e', hairGrey: '#9a9690', hairBlack: '#1e1c1b',
-    zskin: '#7d8c6c', zskin2: '#8f9a7e', zrot: '#66745a', wound: '#6b2a26', zshirt: '#56606a', zshirt2: '#7a5646', zpants: '#4a4640', zpants2: '#3f4148',
+    // the dead: ash-violet skin and clothes gone grey; rot-green is for their eyes and wounds only
+    zskin: '#8a8794', zskin2: '#9a96a2', zrot: '#6f6a78', wound: '#8fc443', zshirt: '#5b5765', zshirt2: '#6a6170', zpants: '#45424d', zpants2: '#3c3a44',
   };
   const SKINS = ['#efc3a0', '#d9a47e', '#b07a55', '#7d5136'];
   // a lathe from [radius, y] pairs (bottom to top), flat faces front/back/sides
@@ -1415,7 +1416,7 @@ ${o.fragColor || ''}`)
     sellsword: () => rig({ outfit: { top: C.mail, sleeve: C.mail, tabard: C.tabard, belt: C.belt, legs: '#3c3a36', boots: C.leather, helmet: C.helm, hair: C.hairDark, gloves: C.leather }, bw: 1.05, pose: { sR: [-0.5, 0, 0.15], eR: -1.0, sL: [-0.3, 0, 0.1], eL: -0.8 }, props: p => { sword(p); shield(p); } }),
   };
   // townsfolk: a seeded mix of skin, hair, clothes and hats; crew = a scavenging crew member (pack, amber vest)
-  const FOLK_TOPS = ['#c98b4a', '#5f8fa8', '#a8584a', '#7d9a5a', '#d9c8a2', '#8a6a9a', '#d8b04e', '#4f7a72', '#b86a7a'];
+  const FOLK_TOPS = ['#c98b4a', '#8a6a52', '#a8584a', '#d9c8a2', '#d8b04e', '#6d7f8f', '#b86a4a', '#9a7a52', '#c9a27a'];   // survivors: warm, earthy — never ash-violet or rot-green
   const FOLK_LEGS = ['#3e5a78', '#5b4a3a', '#46464a', '#7a6a52', '#56603e'];
   const FOLK_HAIR = [C.hairDark, C.hairBrown, C.hairAuburn, C.hairBlond, C.hairGrey, C.hairBlack];
   function folk(seed = 1, o = {}) {
@@ -1429,19 +1430,21 @@ ${o.fragColor || ''}`)
     if (r() < 0.3) { F.pack = C.leather2; F.roll = pick([C.olive, '#a8584a', '#5f8fa8']); }
     if (r() < 0.3) F.bareArms = true;
     if (o.crew) Object.assign(F, { vest: '#c9702e', pack: C.leather2, roll: C.olive, apron: null, beanie: null, cap: '#8a8780' });
-    return rig({ outfit: F, bw: 0.92 + Math.floor(r() * 4) * 0.07, bh: 0.94 + Math.floor(r() * 3) * 0.05, pose: { sL: [0.15, 0, 0], sR: [-0.15, 0, 0], hL: [0.25], hR: [-0.25], kR: 0.2 } });
+    const pose = o.sit ? { lean: 0.22, neck: 0.15, hL: [-1.45, 0.12], kL: 1.55, hR: [-1.45, 0.12], kR: 1.55, sL: [-0.75, 0, 0.12], eL: -1.15, sR: [-0.75, 0, 0.12], eR: -1.15 }
+      : { sL: [0.15, 0, 0], sR: [-0.15, 0, 0], hL: [0.25], hR: [-0.25], kR: 0.2 };
+    return rig({ outfit: F, bw: 0.92 + Math.floor(r() * 4) * 0.07, bh: 0.94 + Math.floor(r() * 3) * 0.05, pose });
   }
   // the dead: grey-green skin, torn and stained clothes, hunched, glowing eyes
-  const ZO = { top: C.zshirt, legs: C.zpants, skin: C.zskin, boots: '#3a3734', hair: '#2f2a25', hairStyle: 'patchy', torn: true, wounds: C.wound, sole: false };
+  const ZO = { top: C.zshirt, legs: C.zpants, skin: C.zskin, boots: '#34323a', hair: '#2c2a30', hairStyle: 'patchy', torn: true, wounds: C.wound, sole: false };
   const dead = {
     walker: o => rig({ ...o, outfit: { ...ZO, ...(o && o.outfit) }, eyes: true, pose: { lean: 0.48, neck: 0.15, head: -0.05, headTilt: 0.25, sL: [-1.25, 0, -0.05], eL: -0.2, sR: [-0.95, 0, 0.1], eR: -0.35, hL: [-0.35], kL: 0.4, hR: [0.25], kR: 0.1 } }),
     runner: o => rig({ ...o, outfit: { ...ZO, top: C.zshirt2, legs: C.zpants2, skin: C.zskin2, bareArms: true, hairStyle: 'short' }, seed: 3, eyes: true, bw: 0.9, pose: { lean: 0.6, neck: -0.25, head: -0.3, sL: [-1.4, 0, -0.1], eL: -0.4, sR: [0.8, 0, 0.1], eR: -0.9, hL: [-0.9], kL: 1.1, hR: [0.5], kR: 0.6 } }),
     crawler: o => rig({ ...o, outfit: { ...ZO, top: '#5b5a50', skin: C.zrot, bareArms: true, hairStyle: 'bald' }, seed: 5, eyes: true, bw: 0.85, pose: { lean: 1.25, neck: -0.9, head: -0.4, sL: [-1.7, 0, -0.25], eL: 0.2, sR: [-1.2, 0, 0.3], eR: 0.1, hL: [-1.4], kL: 1.9, hR: [-0.6], kR: 1.6 } }),
-    brute: o => rig({ ...o, outfit: { ...ZO, top: 'rust', sleeveless: true, hairStyle: 'bald', legs: '#3f3c38' }, seed: 9, eyes: true, bw: 1.55, chestDepth: 1.2, scale: 1.4, pose: { lean: 0.22, neck: 0.4, head: 0.1, sL: [-0.4, 0, 0.25], eL: -0.5, sR: [-0.6, 0, 0.2], eR: -0.6, hL: [-0.2], kL: 0.25, hR: [0.15], kR: 0.1 } }),
-    spitter: o => { const r = rig({ ...o, outfit: { ...ZO, top: 'olive2', skin: C.zskin2 }, seed: 11, eyes: true, bw: 0.95, pose: { lean: -0.15, neck: -0.45, head: -0.35, sL: [0.2, 0, 0.35], eL: -0.3, sR: [0.15, 0, 0.35], eR: -0.3, hL: [0.1], hR: [-0.1] } }); const s = glowSprite('#b4ff4e', 0.5, 1.4); s.position.set(0, 1.6, 0.2); r.add(s); return r; },
-    bloater: o => rig({ ...o, outfit: { ...ZO, top: 'moss', belly: '#8f9466', hairStyle: 'bald' }, seed: 13, eyes: true, belly: 1.6, bw: 1.35, chestDepth: 1.4, scale: 1.1, pose: { lean: -0.05, neck: 0.2, sL: [-0.2, 0, 0.6], eL: -0.3, sR: [-0.2, 0, 0.6], eR: -0.3, hL: [0, 0.15], hR: [0, 0.15] } }),
-    screamer: o => rig({ ...o, outfit: { ...ZO, top: 'pale', skin: C.zskin2, bareArms: true, hair: '#8a8780', hairStyle: 'long' }, seed: 17, eyes: true, bw: 0.85, pose: { lean: -0.3, neck: -0.5, head: -0.4, sL: [-2.7, 0, -0.35], eL: -0.3, sR: [-2.6, 0, -0.3], eR: -0.25, hL: [0.1], hR: [-0.1] } }),
-    gravelord: o => rig({ ...o, outfit: { ...ZO, top: 'soot', legs: 'dark', sleeveless: true, skin: C.zrot, hairStyle: 'bald' }, seed: 19, eyes: true, eyesI: 10, bw: 1.7, chestDepth: 1.25, scale: 2.4, pose: { lean: 0.18, neck: 0.3, sL: [-0.35, 0, 0.35], eL: -0.4, sR: [-1.3, 0, 0.25], eR: -0.5, hL: [-0.15], kL: 0.2, hR: [0.15], kR: 0.1 }, props: p => { for (let k = 0; k < 7; k++) { const a = k * 0.9; pc(p.head, geo('crown', () => new THREE.BoxGeometry(0.05, 0.2, 0.03)), k % 2 ? 'slab' : 'rebar', Math.cos(a) * 0.12, 0.2 + (k % 3) * 0.03, Math.sin(a) * 0.12, { s: [1, 0.8 + (k % 3) * 0.3, 1], rx: Math.sin(a) * 0.4, rz: -Math.cos(a) * 0.4 }); } } }),
+    brute: o => rig({ ...o, outfit: { ...ZO, top: '#5e5466', sleeveless: true, hairStyle: 'bald', legs: '#38353f', skin: C.zrot }, seed: 9, eyes: true, bw: 1.55, chestDepth: 1.2, scale: 1.4, pose: { lean: 0.22, neck: 0.4, head: 0.1, sL: [-0.4, 0, 0.25], eL: -0.5, sR: [-0.6, 0, 0.2], eR: -0.6, hL: [-0.2], kL: 0.25, hR: [0.15], kR: 0.1 } }),
+    spitter: o => { const r = rig({ ...o, outfit: { ...ZO, top: '#686572', skin: C.zskin2 }, seed: 11, eyes: true, bw: 0.95, pose: { lean: -0.15, neck: -0.45, head: -0.35, sL: [0.2, 0, 0.35], eL: -0.3, sR: [0.15, 0, 0.35], eR: -0.3, hL: [0.1], hR: [-0.1] } }); const s = glowSprite('#b4ff4e', 0.5, 1.4); s.position.set(0, 1.6, 0.2); r.add(s); return r; },
+    bloater: o => rig({ ...o, outfit: { ...ZO, top: '#605a68', belly: '#9a92a0', hairStyle: 'bald' }, seed: 13, eyes: true, belly: 1.6, bw: 1.35, chestDepth: 1.4, scale: 1.1, pose: { lean: -0.05, neck: 0.2, sL: [-0.2, 0, 0.6], eL: -0.3, sR: [-0.2, 0, 0.6], eR: -0.3, hL: [0, 0.15], hR: [0, 0.15] } }),
+    screamer: o => rig({ ...o, outfit: { ...ZO, top: '#b8b3bd', skin: C.zskin2, bareArms: true, hair: '#8a8790', hairStyle: 'long' }, seed: 17, eyes: true, bw: 0.85, pose: { lean: -0.3, neck: -0.5, head: -0.4, sL: [-2.7, 0, -0.35], eL: -0.3, sR: [-2.6, 0, -0.3], eR: -0.25, hL: [0.1], hR: [-0.1] } }),
+    gravelord: o => rig({ ...o, outfit: { ...ZO, top: '#2e2b33', legs: '#26242b', sleeveless: true, skin: C.zrot, hairStyle: 'bald' }, seed: 19, eyes: true, eyesI: 10, bw: 1.7, chestDepth: 1.25, scale: 2.4, pose: { lean: 0.18, neck: 0.3, sL: [-0.35, 0, 0.35], eL: -0.4, sR: [-1.3, 0, 0.25], eR: -0.5, hL: [-0.15], kL: 0.2, hR: [0.15], kR: 0.1 }, props: p => { for (let k = 0; k < 7; k++) { const a = k * 0.9; pc(p.head, geo('crown', () => new THREE.BoxGeometry(0.05, 0.2, 0.03)), k % 2 ? 'slab' : 'rebar', Math.cos(a) * 0.12, 0.2 + (k % 3) * 0.03, Math.sin(a) * 0.12, { s: [1, 0.8 + (k % 3) * 0.3, 1], rx: Math.sin(a) * 0.4, rz: -Math.cos(a) * 0.4 }); } } }),
   };
   // the woods: simple four-legged game (two frames: legs swapped)
   function beast(o, c) {

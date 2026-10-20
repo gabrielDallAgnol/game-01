@@ -35,7 +35,7 @@ export function bake(obj, o = {}) {
 // x-ray: where a building hides a figure, a soft silhouette shows through it. Drawn only where something is in front
 // by more than the figure's own depth (vertices pulled toward the camera), so the figure never x-rays itself.
 export function xrayMat(color, o = {}) {
-  const m = new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(o.boost ?? 1.25), transparent: true, opacity: o.opacity ?? 0.45, depthWrite: false, depthFunc: THREE.GreaterDepth });
+  const m = new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(o.boost ?? 1.25), transparent: true, opacity: o.opacity ?? 0.45, depthWrite: false, depthFunc: THREE.GreaterDepth, skinning: !!o.skinning });
   const push = { value: o.push ?? 1.1 };
   m.onBeforeCompile = sh => {
     sh.uniforms.xrPush = push;
@@ -45,7 +45,32 @@ export function xrayMat(color, o = {}) {
   m.customProgramCacheKey = () => 'xray';
   return m;
 }
-export const vcMat = (o = {}) => K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: o.rough ?? 0.86, metalness: 0 }), { sway: o.sway, rim: o.rim });
+/** the figure palette is lit with a rim: warm by day, moon-blue by night (K.T.rim) */
+export const SKINMAT = K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, skinning: true }), { rim: true });
+const _m = new THREE.Matrix4();
+/** turn a welded rig (one mesh per joint) into ONE skinned mesh on the same joints: a live figure is a single draw */
+export function skin(root, mat = SKINMAT) {
+  root.updateMatrixWorld(true);
+  const bones = []; root.traverse(o => { if (o.userData.bone) bones.push(o); });
+  const rootInv = new THREE.Matrix4().copy(root.matrixWorld).invert(), geos = [];
+  bones.forEach((b, bi) => {
+    for (const c of [...b.children]) {
+      if (!c.isMesh || c.material !== K.FIGMAT) continue;
+      const g = c.geometry.clone(); g.applyMatrix4(_m.multiplyMatrices(rootInv, c.matrixWorld));
+      const n = g.attributes.position.count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+      for (let i = 0; i < n; i++) { si[i * 4] = bi; sw[i * 4] = 1; }
+      g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+      geos.push(g); b.remove(c);
+    }
+  });
+  if (!geos.length) return null;
+  const sm = new THREE.SkinnedMesh(THREE.BufferGeometryUtils.mergeBufferGeometries(geos, false), mat);
+  root.add(sm); root.updateMatrixWorld(true);
+  sm.bind(new THREE.Skeleton(bones), sm.matrixWorld);
+  sm.frustumCulled = false; sm.castShadow = true; sm.receiveShadow = true;
+  return sm;
+}
+export const vcMat = (o = {}) => K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: o.rough ?? 0.86, metalness: 0 }), { sway: o.sway, rim: o.rim, flash: o.flash });
 
 // second walk frame: swap the legs and counter-swing the arms
 function strideFrame(root, k = 1) {
@@ -61,38 +86,46 @@ function strideFrame(root, k = 1) {
 const KIND_RIG = {
   walker: 'walker', runner: 'runner', crawler: 'crawler', brute: 'brute', spitter: 'spitter', bloater: 'bloater', screamer: 'screamer', gravelord: 'gravelord', guardian: 'gravelord', deer: 'deer', wolf: 'wolf',
 };
-/** the dead, drawn in batches: two instanced frames per kind plus their glowing eyes */
+/** the dead (and the townsfolk), drawn in batches: two instanced frames per kind plus their glowing eyes.
+ *  Each instance carries aFlash (0..1): the hit flash and squash. */
 export function createCrowd(world) {
   const kinds = {};
-  // a faint sickly self-light keeps the dead readable against dark asphalt at night
-  const bodyMat = K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: new THREE.Color(0x070c05), emissiveIntensity: 1 }));   // dark in the shroud: only their eyes show
-  const eyeMat = new THREE.MeshBasicMaterial({ vertexColors: true }); eyeMat.color.setRGB(4, 4, 4);
+  // the dead are ash-violet with a moon rim; in the dark beyond the light only their eyes show
+  const bodyMat = K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }), { rim: true, flash: true });
+  const folkMat = K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }), { rim: true, flash: true });
+  const eyeMat = new THREE.MeshBasicMaterial({ vertexColors: true }); eyeMat.color.setRGB(5, 5, 5);
+  const FOLK = /^folk(\d+)(s?)$/;
   function kindOf(kind) {
     if (kinds[kind]) return kinds[kind];
-    const make = alt => { CFG.eyeScale = 2.6; const r = K.dead[KIND_RIG[kind] || 'walker']({ alt }); CFG.eyeScale = 1; if (kind === 'guardian') r.scale.multiplyScalar(0.8); return r; };
+    const fm = FOLK.exec(kind);
+    const make = alt => {
+      if (fm) return K.folk(+fm[1] * 101 + 7, { sit: fm[2] === 's' });
+      CFG.eyeScale = 2.6; const r = K.dead[KIND_RIG[kind] || 'walker']({ alt }); CFG.eyeScale = 1; if (kind === 'guardian') r.scale.multiplyScalar(0.8); return r;
+    };
     const A = make(false), B = make(true); strideFrame(B);
-    const frames = [bake(A), bake(B)];
-    const cap = kind === 'gravelord' || kind === 'guardian' ? 12 : kind === 'deer' || kind === 'wolf' ? 60 : 400;
+    const frames = [bake(A, { ao: 0.45 }), bake(B, { ao: 0.45 })];
+    const cap = kind === 'gravelord' || kind === 'guardian' ? 12 : kind === 'deer' || kind === 'wolf' ? 60 : fm ? 40 : 400;
     const meshes = frames.map(f => {
-      const m = new THREE.InstancedMesh(f.geo, bodyMat, cap); m.castShadow = true; m.receiveShadow = false; m.frustumCulled = false; m.count = 0; world.add(m);
+      const fl = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1); fl.setUsage(THREE.DynamicDrawUsage);
+      f.geo.setAttribute('aFlash', fl);
+      const m = new THREE.InstancedMesh(f.geo, fm ? folkMat : bodyMat, cap); m.castShadow = true; m.receiveShadow = false; m.frustumCulled = false; m.count = 0; world.add(m);
       const e = f.glow ? new THREE.InstancedMesh(f.glow, eyeMat, cap) : null; if (e) { e.frustumCulled = false; e.count = 0; world.add(e); }
-      return { m, e, n: 0 };
+      return { m, e, n: 0, fl };
     });
-    // the guardian is a pale Gravelord: tint by instance colour
     return (kinds[kind] = { meshes, cap });
   }
   const d = new THREE.Object3D();
   return {
     begin() { for (const k of Object.values(kinds)) for (const f of k.meshes) f.n = 0; },
-    /** place one of the dead: frame 0/1, position, facing, extra pitch (falling), scale */
-    add(kind, frame, x, y, z, face, pitch = 0, roll = 0, s = 1) {
+    /** place one figure: frame 0/1, position, facing, extra pitch (falling), roll, scale, flash */
+    add(kind, frame, x, y, z, face, pitch = 0, roll = 0, s = 1, flash = 0) {
       const k = kindOf(kind), f = k.meshes[frame]; if (f.n >= k.cap) return;
       d.position.set(x, y, z); d.rotation.set(pitch, face, roll, 'YXZ'); d.scale.setScalar(PEOPLE * s); d.updateMatrix();
-      f.m.setMatrixAt(f.n, d.matrix); if (f.e) f.e.setMatrixAt(f.n, d.matrix); f.n++;
+      f.m.setMatrixAt(f.n, d.matrix); if (f.e) f.e.setMatrixAt(f.n, d.matrix); f.fl.array[f.n] = flash; f.n++;
     },
     end() {
       for (const k of Object.values(kinds)) for (const f of k.meshes) {
-        f.m.count = f.n; f.m.instanceMatrix.needsUpdate = true;
+        f.m.count = f.n; f.m.instanceMatrix.needsUpdate = true; f.fl.needsUpdate = true;
         if (f.e) { f.e.count = f.n; f.e.instanceMatrix.needsUpdate = true; }
       }
     },
@@ -114,6 +147,7 @@ export function bakedWalker(makeRig, mat) {
 /** a full rig with live joints for the hero and sellswords */
 export function liveRig(root) {
   const j = root.userData.joints, legs = root.userData.legs;
+  skin(root);
   const base = {
     legs: legs.map(l => ({ l, x: l.rotation.x, k: l.children.find(c => c.isGroup), kx: l.children.find(c => c.isGroup)?.rotation.x || 0 })),
     sL: j.sL && j.sL.rotation.x, sR: j.sR && j.sR.rotation.x, spine: j.spine.rotation.x,
