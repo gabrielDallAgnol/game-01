@@ -564,7 +564,7 @@ test('saving: a dawn snapshot restores the town, the story and the city', () => 
 test('the Heart family: a Medic patches the town', async () => {
   const g = createGame({ seed: 12, hero: 'survivor' }); const S = g.state; readyDay(g);
   const take = id => { S.picks = ['dawn']; S.offer = [id]; S.pendingPicks = 1; g.choosePerk(id); };
-  g.addPath('heart', 6); levelTo(g, 5); passTrial(g, 'trial-medic'); assert.equal(S.heroClass, 'medic');
+  g.addPath('heart', 6); levelTo(g, CALLING_LVL); passTrial(g, 'trial-medic'); assert.equal(S.heroClass, 'medic');
   S.gold = 99; const t = g.map.town; let b = null;
   for (let r = 4; r < 10 && !b; r++) for (let a = 0; a < 24 && !b; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) b = S.buildings[S.buildings.length - 1]; }
   b.hp = 1; S.hero.x = b.x + 1; S.hero.y = b.y + 1; S.ability.cd = 0;
