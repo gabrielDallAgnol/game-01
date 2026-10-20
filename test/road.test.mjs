@@ -9,7 +9,7 @@ function make(seed = 3) {
   const ch = mapChoices(seed)[0];
   const g = createGame({ seed, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor' });
   const S = g.state;
-  const sweep = pick => { while (S.story.encounters.length) { const e = S.story.encounters[0]; g.choose((pick && pick(e)) || e.choices[0].id); } while (S.pendingPicks && S.offer.length) g.choosePerk(S.offer[0]); };
+  const sweep = pick => { for (let n = 0; n < 10 && S.story.encounters.length; n++) { const e = S.story.encounters[0], ids = [(pick && pick(e)), ...e.choices.map(x => x.id)].filter(Boolean); if (!ids.some(id => g.choose(id))) S.story.encounters.shift(); } while (S.pendingPicks && S.offer.length) g.choosePerk(S.offer[0]); };
   const run = (sec, until, pick) => { for (let i = 0; i < sec * 60; i++) { if (until && until()) return true; g.step(); sweep(pick); if (S.over) return false; } return false; };
   const tp = (x, y) => { S.hero.x = x; S.hero.y = y; S.hero.target = null; S.hero.path = null; };
   return { g, S, c: g.map.town.x, road: g.road, run, tp, sweep };

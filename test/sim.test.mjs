@@ -424,7 +424,7 @@ test('supply drops: guarded crates in the wild, opened by standing next to them'
   assert.equal(S.drops.length, 1, 'opened too fast');
   for (let k = 0; k < 60 * 2; k++) g.step();
   assert.equal(S.drops.length, 0, 'did not open after 3 seconds');
-  assert.ok(S.gold > before.gold || g.pop() > before.pop || S.pendingPicks > before.picks || JSON.stringify(S.stock) !== before.stock, 'no reward');
+  assert.ok(S.gold > before.gold || g.pop() > before.pop || S.pendingPicks > before.picks || JSON.stringify(S.stock) !== before.stock || (S.road && S.road.convoys.length > 0), 'no reward');   // [road] survivors found far out walk home as a convoy
 });
 
 test('tech: Workshop and Market need a level 2 keep, take time to build, and unlock level 3', () => {

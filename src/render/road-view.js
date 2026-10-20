@@ -240,5 +240,9 @@ export function createRoadView({ world, fx, game, W, K, lc, makeBar, setBar, bur
   }
   /** warm lights for the view's light pool: lit fires */
   function lights() { return road.stations.filter(s => s.lit).map(s => ({ x: s.x, y: s.y, h: 1.1, i: 2.6, d: 11 })); }
-  return { frame, lights };
+  /** triangles drawn for the stations (budget: under 40k for all four) */
+  function tris() { let n = 0; group.traverse(o => { if (o.isMesh && o.visible !== false && o.geometry) { const g = o.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3; } }); return Math.round(n); }
+  const api = { frame, lights, tris, group };
+  if (typeof window !== 'undefined') window.__roadView = api;
+  return api;
 }

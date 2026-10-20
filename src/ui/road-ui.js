@@ -7,6 +7,7 @@ import { fmtTime } from '../sim/road.js';
 
 const CSS = `
 .rd-dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dockH,140px) + 8px);display:grid;gap:6px;justify-items:center;pointer-events:none;width:min(440px,calc(100vw - 32px));z-index:4}
+@media (max-width:640px){.rd-dock{left:max(16px,env(safe-area-inset-left,0px));right:100px;width:auto;transform:none;justify-items:stretch}}
 .rd-chip{pointer-events:auto;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px 6px 6px 12px;backdrop-filter:blur(6px);font-size:13px;line-height:1.25;max-width:100%;box-shadow:0 4px 14px rgba(0,0,0,.35);animation:tin .18s ease-out}
 .rd-chip{flex-wrap:wrap}.rd-chip .t{flex:1 1 150px;min-width:0}.rd-chip .acts{display:flex;gap:6px;flex:none;margin-left:auto}.rd-chip .t b{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.02em;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rd-chip .t span{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}.rd-chip .t span em{font-style:normal;color:var(--bone);font-weight:700}
