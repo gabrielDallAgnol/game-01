@@ -7,7 +7,7 @@ export const PEOPLE = 0.6;          // world units per metre for people (buildin
 
 const tmpM = new THREE.Matrix4(), inv = new THREE.Matrix4(), col = new THREE.Color();
 /** merge every mesh under obj into one geometry with a colour attribute; glowing parts go to `glow` */
-export function bake(obj) {
+export function bake(obj, o = {}) {
   obj.updateMatrixWorld(true);
   inv.copy(obj.matrixWorld).invert();
   const body = [], glow = [];
@@ -17,12 +17,15 @@ export function bake(obj) {
     if (mat.transparent && mat.opacity < 0.6) return;
     let g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'color') g.deleteAttribute(k);
+    if (!g.attributes.normal) g.computeVertexNormals();
     tmpM.multiplyMatrices(inv, m.matrixWorld); g.applyMatrix4(tmpM);
     const isGlow = mat.emissive && mat.emissiveIntensity > 1.5;
     col.copy(isGlow ? mat.emissive : mat.color);
     const n = g.attributes.position.count, c = new Float32Array(n * 3), vc = mat.vertexColors && g.attributes.color;
     // welded figure parts already carry their colours: keep them (tinted by the material colour)
-    for (let i = 0; i < n; i++) { c[i * 3] = col.r * (vc ? vc.getX(i) : 1); c[i * 3 + 1] = col.g * (vc ? vc.getY(i) : 1); c[i * 3 + 2] = col.b * (vc ? vc.getZ(i) : 1); }
+    // o.ao: darken toward the feet (grounding) over this height, in the baked model's units
+    const pa = g.attributes.position;
+    for (let i = 0; i < n; i++) { let k = 1; if (o.ao && !isGlow) { const t = Math.min(1, Math.max(0, pa.getY(i) / o.ao)); k = 0.62 + 0.38 * t * t * (3 - 2 * t); } c[i * 3] = col.r * (vc ? vc.getX(i) : 1) * k; c[i * 3 + 1] = col.g * (vc ? vc.getY(i) : 1) * k; c[i * 3 + 2] = col.b * (vc ? vc.getZ(i) : 1) * k; }
     g.setAttribute('color', new THREE.BufferAttribute(c, 3));
     (isGlow ? glow : body).push(g);
   });
@@ -42,7 +45,7 @@ export function xrayMat(color, o = {}) {
   m.customProgramCacheKey = () => 'xray';
   return m;
 }
-export const vcMat = (o = {}) => K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: o.rough ?? 0.86, metalness: 0 }));
+export const vcMat = (o = {}) => K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: o.rough ?? 0.86, metalness: 0 }), { sway: o.sway, rim: o.rim });
 
 // second walk frame: swap the legs and counter-swing the arms
 function strideFrame(root, k = 1) {

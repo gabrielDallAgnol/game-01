@@ -807,6 +807,7 @@ export function createView(canvas, game, opts = {}) {
       camera.position.set(camTarget.x, camTarget.y + dist * 0.76, camTarget.z + dist * 0.65);
     }
     camera.lookAt(camTarget); camera.updateMatrixWorld();
+    city.stream(camTarget.x, camTarget.z, R * Math.max(1.7, camera.aspect * 1.4) + 4, R * 4.2 + 5, R * 2.3 + 4);
     sunT += ((S.phase === 'day' ? dayT : sunT) - sunT) * Math.min(1, dt * 2); if (S.phase === 'day' && dayT < 0.02) sunT = dayT;
     look.blend(dark, S.phase === 'night' && game.isBloodMoon(S.night), camTarget, Math.max(22, R * 1.7), sunT);
     // weather: fog thickens the night air; a storm throws lightning
@@ -820,6 +821,7 @@ export function createView(canvas, game, opts = {}) {
     const lit = (1 - boK) * (boK > 0.05 && boK < 0.95 ? (Math.sin(time * 37) > 0 ? 1 : 0.3) : 1);
     for (const sp of lampGlow) sp.material.opacity = dark * 0.9 * lit;
     K.WIN.emissiveIntensity = dark * 2.4 * (0.25 + 0.75 * lit); K.LENS.emissiveIntensity = 0.2 + dark * 6 * lit;
+    K.T.emitK.value = dark * 2.6 * (0.25 + 0.75 * lit); K.T.time.value = time;
     lightT -= dt; if (lightT <= 0) { placeLights(); lightT = 0.5; }
     for (const l of pool) l.intensity = (l.userData.i || 0) * dark * lit;
     heroLight.intensity = dark * 2.0; heroLight.position.copy(W(h.x, h.y, 1.6));
