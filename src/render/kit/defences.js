@@ -52,14 +52,17 @@ function tower(o = {}) {
     const ph = h + 0.45;
     for (const s2 of [-1, 1]) { for (let k = 0; k < 3; k++) { b.cbox(k % 2 ? '#7a5a3c' : '#86654a', sz + 0.95, 0.3, 0.12, 0, H + 0.35 + k * 0.32, s2 * ph, { r: 0.02 }); b.cbox(k % 2 ? '#86654a' : '#7a5a3c', 0.12, 0.3, sz + 0.95, s2 * ph, H + 0.35 + k * 0.32, 0, { r: 0.02 }); } }
     for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box('#5f4530', 0.16, 2.3, 0.16, a * ph, H + 0.1, c * ph, { r: 0.02 });
-    b.geo(roofC, new THREE.ConeGeometry((ph + 0.5) * Math.SQRT2, 1.8, 4), 0, H + 3.3, 0, 0, Math.PI / 4, 0);
-    b.cbox('#3e3026', 0.3, 0.6, 0.3, 0, H + 4.35, 0, { r: 0.04 });
-    flag(b, 0, H + 4.5, 0, 1.6, 1.2);
+    // [towers] a specialised tower trades its roof for its weapon (o.spec: mortar, brazier, ballista, bell)
+    if (!o.spec) {
+      b.geo(roofC, new THREE.ConeGeometry((ph + 0.5) * Math.SQRT2, 1.8, 4), 0, H + 3.3, 0, 0, Math.PI / 4, 0);
+      b.cbox('#3e3026', 0.3, 0.6, 0.3, 0, H + 4.35, 0, { r: 0.04 });
+      flag(b, 0, H + 4.5, 0, 1.6, 1.2);
+    } else specTop(b, o.spec, H, ph);
     // the brazier at the front corner and a lantern on the other
     b.cyl('#3a3836', 0.38, 0.26, 0.45, ph - 0.4, H + 1.1, ph - 0.4, { seg: 8 }); b.cbox(LANTERN, 0.5, 0.18, 0.5, ph - 0.4, H + 1.6, ph - 0.4, { r: 0.05 });
     b.cbox(LANTERN, 0.2, 0.28, 0.2, -ph, H + 1.9, -ph + 0.3, { r: 0.03 });
     // two long banners in the camp colour hanging off the platform
-    for (const s2 of [-1, 1]) { b.cbox('amber', 0.06, 2.4, 0.8, s2 * (ph + 0.08), H - 1.15, 0, { r: 0.006 }); b.geo('amber', PEN, s2 * (ph + 0.08), H - 2.35, 0, 0, Math.PI / 2, 0, 2.3, 1.2, 1); }
+    { const ban = o.spec ? SPEC_BANNER[o.spec] : 'amber'; for (const s2 of [-1, 1]) { b.cbox(ban, 0.06, 2.4, 0.8, s2 * (ph + 0.08), H - 1.15, 0, { r: 0.006 }); b.geo(ban, PEN, s2 * (ph + 0.08), H - 2.35, 0, 0, Math.PI / 2, 0, 2.3, 1.2, 1); } }
     // a ladder, sandbags and a barrel at the foot
     for (const s2 of [-0.3, 0.3]) rod(b, '#6a5848', [s2, 0, h + 1.3], [s2, H, h + 0.5], 0.07);
     for (let k = 1; k < 12; k++) { const t = k / 12; b.cbox('#7b6a52', 0.66, 0.06, 0.07, 0, H * t, h + 1.3 - 0.8 * t, { r: 0.005 }); }
@@ -68,6 +71,43 @@ function tower(o = {}) {
   const g = b.build({ vc: true }); g.userData.top = H; return g;
 }
 const glass = o => (o.game ? WIN : 'glass');
+// [towers] begin: the four roles, each readable from the top-down camera by its silhouette and banner colour
+const SPEC_BANNER = { mortar: '#6f7a52', brazier: '#c8452a', ballista: '#3d6b9a', bell: '#d8b24a' };
+function specTop(b, spec, H, ph) {
+  const y = H + 0.18;
+  if (spec === 'mortar') {
+    // a sandbag ring round a fat iron tube cocked at the sky, shells stacked by it
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; b.box('bag', 0.62, 0.32, 0.38, Math.cos(a) * 1.15, y, Math.sin(a) * 1.15, { r: 0.1, ry: -a }); }
+    b.cyl('#3a3b38', 0.62, 0.7, 0.35, 0, y, 0, { seg: 12 });
+    b.cyl('#2b2c2a', 0.42, 0.5, 1.9, 0, y + 0.35, 0.15, { seg: 12, rx: -0.5 });
+    b.cyl('#141414', 0.3, 0.3, 0.06, 0, y + 2.0, 0.95, { seg: 12, rx: -0.5 });
+    for (let k = 0; k < 3; k++) b.cyl('#8a6a3a', 0.13, 0.13, 0.42, -0.95 + k * 0.3, y, -0.7, { seg: 8 });
+  } else if (spec === 'brazier') {
+    // a great iron fire bowl on a tripod, a ring of bright coals: the beacon of the camp
+    for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2; rod(b, '#2e2b28', [Math.cos(a) * 1.1, y, Math.sin(a) * 1.1], [Math.cos(a) * 0.5, y + 1.3, Math.sin(a) * 0.5], 0.12); }
+    b.cyl('#3a3634', 1.25, 0.6, 0.8, 0, y + 1.2, 0, { seg: 14 });
+    b.cyl(LANTERN, 1.12, 1.12, 0.12, 0, y + 1.9, 0, { seg: 14 });
+    for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2; b.sph(LANTERN, 0.28, Math.cos(a) * 0.6, y + 2.1, Math.sin(a) * 0.6, { detail: 0 }); }
+    b.sph(LANTERN, 0.42, 0, y + 2.25, 0, { detail: 0 });
+  } else if (spec === 'ballista') {
+    // a giant crossbow on a turntable: a long stock, a bow of two arms, a bolt laid ready
+    b.cyl('#4a3a2c', 0.9, 1.0, 0.3, 0, y, 0, { seg: 12 });
+    b.box('#6a4a30', 0.36, 0.36, 3.4, 0, y + 0.5, 0.2, { r: 0.05 });
+    for (const s2 of [-1, 1]) rod(b, '#3a3b40', [0, y + 0.85, 1.6], [s2 * 1.7, y + 0.85, 1.0], 0.13);
+    for (const s2 of [-1, 1]) rod(b, '#d8d0c0', [s2 * 1.7, y + 0.85, 1.0], [0, y + 0.9, -0.9], 0.03);
+    b.box('#9a9488', 0.08, 0.08, 2.9, 0, y + 0.9, 0.5, { r: 0.02 });
+    b.geo('#c9c2b0', new THREE.ConeGeometry(0.12, 0.4, 6), 0, y + 0.94, 2.1, Math.PI / 2, 0, 0);
+  } else if (spec === 'bell') {
+    // a timber belfry with a bronze bell and a little roof: the watch rings it when they come
+    for (const s2 of [-1, 1]) b.box('#5f4530', 0.22, 2.6, 0.22, s2 * 0.95, y, 0, { r: 0.03 });
+    b.cbox('#5f4530', 2.3, 0.22, 0.3, 0, y + 2.6, 0, { r: 0.03 });
+    b.geo('#5a4636', new THREE.ConeGeometry(1.6, 0.9, 4), 0, y + 3.15, 0, 0, Math.PI / 4, 0);
+    b.cyl('#b8862e', 0.28, 0.72, 1.1, 0, y + 1.25, 0, { seg: 14 });
+    b.cyl('#b8862e', 0.75, 0.75, 0.1, 0, y + 1.22, 0, { seg: 14 });
+    b.sph('#8a6420', 0.12, 0, y + 1.1, 0, { detail: 0 });
+  }
+}
+// [towers] end
 
 /** barricades: 1 junk & chain-link, 2 wrecked cars + sandbags, 3 concrete T-walls + razor wire. len along x. */
 function barricade(o = {}) {

@@ -3,6 +3,7 @@ import { $, FLAGS, SHORT, campCopy, esc } from './shared.js';
 import { BUILDINGS, BUILD_ORDER, TECH_ORDER } from '../content/buildings.js';
 import { N, idx } from '../sim/mapgen.js';
 import { icon } from './icons.js';
+import { CREW_NEED } from '../sim/game.js';
 
 export function createPlacing(ui) {
   const { firstRun } = ui;
@@ -21,7 +22,8 @@ export function createPlacing(ui) {
     const bRow = showForeman ? `<div class="builders" role="group" aria-label="What your builders focus on"><span>Foreman</span>${Object.entries(FOCUS).map(([k, v]) => `<button data-focus="${k}" aria-pressed="${(S.builders || 'off') === k}">${v}</button>`).join('')}</div>` : '';
     tray.innerHTML = bRow + BUILD_ORDER.filter(t => t !== 'generator' || S.feat.power).map(t => {
       const n = S.stock[t] || 0, cost = n ? 0 : ui.game.buyCost(t), on = ui.placing && ui.placing.type === t;
-      return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${(!n && S.gold < cost) || hands < 1 ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost">${icon('scrap')}${cost}</span>`}</button>`;
+      const crew = t === 'tower' ? ui.game.crewing() : null, silent = crew && crew.free < CREW_NEED[0];   // [towers] a tower needs a crew: show it on the card
+      return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${(!n && S.gold < cost) || hands < 1 ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost">${icon('scrap')}${cost}</span>`}${crew ? `<span class="tcrew${silent ? ' bad' : ''}">${icon('people')}${CREW_NEED[0]} crew${silent ? ' · none free' : ''}</span>` : ''}</button>`;
     }).join('') + TECH_ORDER.map(t => {
       const have = S.buildings.some(b => b.type === t), locked = ui.game.keepLevel() < BUILDINGS[t].keep, cost = ui.game.buyCost(t), on = ui.placing && ui.placing.type === t;
       if (have || ui.game.keepLevel() < 2) return '';
@@ -38,6 +40,7 @@ export function createPlacing(ui) {
     if (BUILDINGS[t].tech && ui.game.keepLevel() < BUILDINGS[t].keep) { ui.toast(`Raise the Camp to level ${BUILDINGS[t].keep} to build a ${SHORT[t]}.`, 'bad'); return; }
     if (!(ui.game.state.stock[t] > 0) && ui.game.state.gold < ui.game.buyCost(t)) { ui.toast(`A ${SHORT[t].toLowerCase()} costs ${ui.game.buyCost(t)} scrap.`, 'bad'); return; }
     if (handsLeft() < 1) { ui.toast('Everyone is busy today. More people, more hands.', 'bad'); return; }
+    if (t === 'tower' && ui.game.crewing().free < CREW_NEED[0]) ui.toast('[No crew free] A new tower will stand silent. Build or upgrade homes first.', 'bad');   // [towers]
     startPlacing(t);
   });
   const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, generator: 2 };
