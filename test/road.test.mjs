@@ -200,3 +200,21 @@ test('a burned hollow smoulders through the night; a pitch flare on a Piper nigh
   assert.equal(g.useFlare(S.hero.x + 5, S.hero.y), true); run(0.1);
   assert.ok(mi.pyres.length === 1 && mi.traps().some(t => t.kind === 'pyre'));
 });
+
+test('a burning hive does not burn its own horde: the dead that pour out run through the embers unhurt', () => {
+  const { g, S, run, road } = make(3);
+  const reg = g.map.regions.find(r => r.nest && r.ring === 1), n = reg.nest;
+  S.night = 4; S.hero.hp = S.hero.maxHp = 1e6; S.hero.x = n.x + 1.5; S.hero.y = n.y;
+  for (let k = 0; k < 900 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
+  assert.equal(S.nestAlive[reg.id], false);
+  const horde = S.mobs.filter(m => m.horde === reg.id); assert.ok(horde.length >= 6, `a horde of ${horde.length}`);
+  // a stranger walking through the same embers still catches fire
+  const other = g.spawnMob('walker', n.x + 0.5, n.y + 0.5); other.rise = 1; other.roam = { x: n.x, y: n.y, region: -1 }; other.hp = other.maxHp = 1e4;
+  // the hero runs; the horde rises in the embers and follows through them
+  S.hero.x = n.x + 14; const at = S.events.length;
+  run(6, () => { S.hero.cd = 9; return false; });   // the hero only runs: whatever dies here, the fire killed it
+  assert.ok(road.missions.embers.some(em => em.region === reg.id), 'the hollow does not smoulder');
+  assert.ok(horde.every(m => !m.burn), 'the horde caught fire in its own hive');
+  assert.ok(!S.events.slice(at).some(e => e.t === 'die' && horde.some(m => m.id === e.id)), 'the horde burned to death');
+  assert.ok(other.burn || other.hp < other.maxHp, 'the embers burn nobody now');
+});
