@@ -54,7 +54,7 @@ In every root, creation order and per-frame call order are load-bearing:
 ### `src/content/`: pure data, so tuning starts here
 
 `buildings` · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
-`season` (pacing, rules) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
+`season` (pacing, rules) · `folk` (the folk's projects) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
 (numbers and words for the road and missions) · `weather` · `legacy`
 
 ### `src/sim/`: the rules
@@ -84,6 +84,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `save.js` | dawn snapshot and restore |
 | `story.js` | story engine: picks encounters and applies their effects (own RNG) |
 | `road.js`, `missions.js` | the road, stations, convoys, night missions (`[road]` feature) |
+| `folk-build.js` | the folk build by themselves: needs, the village fund (a share of income), one project a day, props, beauty (`[folk]` hooks) |
 | `mapgen.js`, `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | map generation, flow fields, town builders, scavenging, seeded RNG |
 
 ### `src/render/`: the three.js view
@@ -112,6 +113,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `view/loot.js` | chests, purses, street pickups |
 | `view/placing.js` | placement ghost and build-zone overlay |
 | `view/folk.js` | villagers and scavenger crews |
+| `view/village.js` | the folk's props (instanced, `kit/village.js`) and the scaffold on today's project |
 | `view/camera.js` | zoom, follow spring, dusk dolly, orbit, shake, resize |
 | `view/weather.js` | rain, fog, lightning, ambient particles |
 | `view/lights.js` | time-of-day clock (sets `V.dark`), light pools, windows, lenses, rim, mist, blackout |
@@ -144,6 +146,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `story-ai.js` | the Chronicler: Claude rewrites words only; every answer is validated |
 | `road-ui.js` | road and mission HUD (`[road]` feature) |
 | `homeward.js` | `[pacify]` the walk home on the Camp pill and the Return to Camp button |
+| `folk-ui.js` | the folk's project chip (veto), "Let them build" in the build menu, their ledger line |
 
 ## The story split: the engine owns the numbers, the story AI owns the words
 

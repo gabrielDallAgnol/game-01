@@ -35,6 +35,8 @@ import { createLights } from './view/lights.js';
 import { createEvents } from './view/events.js';
 import { createPicking } from './view/picking.js';
 import { createCinema } from './view/cinema.js';
+// [folk] the village the folk raise by themselves
+import { createVillage } from './view/village.js';
 // [road] begin
 import { createRoadView } from './road-view.js';
 // [road] end
@@ -86,6 +88,7 @@ export function createView(canvas, game, opts = {}) {
   const picking = createPicking(V);
   const cinema = V.cinema = createCinema(V);   // [cinema] the look-at shot (camera.js reads it)
   const rest = createRest(V);   // [nests] the "+ resting" tag at the Camp
+  const village = V.village = createVillage(V);   // [folk] the folk's props and scaffold
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -118,6 +121,7 @@ export function createView(canvas, game, opts = {}) {
     markers.updateMain();
     hives.update(dt);
     rest.update(dt);
+    village.update(dt, ui.events);   // [folk]
     routes.update();
     markers.updateSelection(dt, ui.selected);
     placing.setGhost(ui.ghost || null); placing.setZone(ui.zone || null);

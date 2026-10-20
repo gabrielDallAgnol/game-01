@@ -66,6 +66,8 @@ export function createApi(G) {
     findSpot: () => G.findSpot(), spotOk: (x, y) => G.spotOk(x, y),   // where an objective may stand (sim/spots.js)
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
     // [nests] the hive that keeps a site locked (-1: free), a hive's rage ({ rage, lv, hot, near } or null), its guards
+    // [folk] the folk's own projects: info (fund, project, beauty, props), the build-menu toggle, the veto (refund)
+    folk: () => G.folkInfo(), setFolkBuild: on => G.setFolkBuild(on), folkVeto: () => G.folkVeto(),
     siteLock: id => G.lockedBy(S.landmarks[id]), nestRage: r => S.nestRage[r] || null, nestGuards: r => G.nestGuards(r),
     // [pacify] pacified ground (a byte a cell), the home threat, the way home (Return to Camp)
     pacifyMap: () => G.pacifyMap(), pacifiedAt: (x, y) => G.pacifiedAt(x, y), smothered: r => G.smothered(r), homeThreat: n => G.threatInfo(n), homeK: n => G.homeK(n),
