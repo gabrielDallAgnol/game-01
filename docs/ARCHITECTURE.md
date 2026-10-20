@@ -53,7 +53,7 @@ In every root, creation order and per-frame call order are load-bearing:
 
 ### `src/content/`: pure data, so tuning starts here
 
-`buildings` · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
+`buildings` · `towers` (the level 3 roles) · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
 `season` (pacing, rules) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
 (numbers and words for the road and missions) · `weather` · `legacy`
 
@@ -75,6 +75,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `brain.js` | the dead's minds: roamers, scent, hunting, ambushes |
 | `hives.js` | streams from hives, burning a hive, the horde |
 | `nests.js` | hives defend themselves: the guard pack, proximity rage, sites locked until their hive burns |
+| `towers.js` | tower specialisations at level 3 (Mortar, Brazier, Ballista, Watch Bell): choosing one, how each fires, the shell burst, their share of the threat estimate (`[towers]` hooks in combat.js and brain.js) |
 | `loot.js` | street finds, supply drops |
 | `districts.js` | sites, sealed districts, kits |
 | `seasons.js`, `contracts.js` | season rules, weather, contracts (the engine side) |

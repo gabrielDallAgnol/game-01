@@ -38,9 +38,13 @@ export const ESCAPE = {
 };
 
 // the climb the budget carries now that the dead toughen slowly (hpScale ≈ 1.035ⁿ): night n brings (1 + k(n−1))× the old count
+// From night LATE.from the climb eases to LATE.climb a night (Oct 20 pm: by night 17 the wave's HP had grown ×140 and a
+// well-built town's damage ×17; the area towers carry the rest). Night 17 is ×0.9 the old budget, night 20 ×0.86.
 export const BUDGET_CLIMB = 0.075;
+export const LATE = { from: 12, climb: 0.03 };
+const climb = n => 1 + BUDGET_CLIMB * (Math.min(n, LATE.from) - 1) + LATE.climb * Math.max(0, n - LATE.from);
 export const WAVES = {
-  budget: n => (5 + 2.2 * n + 0.36 * n * n) * (1 + BUDGET_CLIMB * (n - 1)),   // mob-cost points per night: more dead, not tougher ones
+  budget: n => (5 + 2.2 * n + 0.36 * n * n) * climb(n),   // mob-cost points per night: more dead, not tougher ones
   hpScale: n => Math.pow(1.035, n - 1),   // the dead toughen slowly: growth has to help (the budget, not the hp, carries the climb)
   territory: claimed => 1 + 0.12 * (claimed - 1),    // each claimed region beyond the core adds 12%
   plunder: ring => 6 + 6 * ring,                     // gold found in a burned nest
