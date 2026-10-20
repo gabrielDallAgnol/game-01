@@ -7,6 +7,7 @@ import { createGame as newGame, LEVEL, NOISE, HEAT, TENSION, PRESENCE, TOOLS, CU
 import { HEROES } from '../src/content/heroes.js';
 import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../src/content/season.js';
 import { BUILDINGS } from '../src/content/buildings.js';
+import { TIDE } from '../src/content/mobs.js';
 import { playRun } from '../tools/bot.mjs';
 
 test('the frontier map generates valid worlds across 20 seeds', () => {
@@ -328,7 +329,7 @@ test('blessings: a dawn pick every other day, never more than two picks a dawn',
   for (const c of counts) assert.ok(c <= 2, `${c} picks in one dawn`);
 });
 
-test('tides: night 1 is a single tough dead, dusk falls on its own, roamers wander the wild', () => {
+test('tides: night 1 is a tough first dead then two packs from two sides, dusk falls on its own, roamers wander the wild', () => {
   const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
   for (const r of g.frontier()) g.openDistrict(r);
   assert.ok(S.mobs.some(m => m.roam), 'no roaming dead in the open districts');
@@ -336,12 +337,30 @@ test('tides: night 1 is a single tough dead, dusk falls on its own, roamers wand
   assert.ok(S.mobs.filter(m => m.roam).every(m => !S.claimed.has(m.roam.region)));
   for (let k = 0; k < 60 * 101 && S.phase === 'day'; k++) g.step();
   assert.equal(S.phase, 'night', 'dusk did not fall');
-  assert.equal(S.queue.length, 1); assert.ok(S.queue[0].first);
+  assert.equal(S.queue.length, 1 + TIDE.night1.packA.length + TIDE.night1.packB.length); assert.ok(S.queue[0].first, 'the first dead walks ahead');
+  assert.ok(S.queue.slice(1).every(q => !q.first && q.t > S.queue[0].t + 5), 'the packs come after the first dead');
+  assert.equal(new Set(S.queue.map(q => q.nest)).size, 2, 'night 1 comes from two directions');
   for (let k = 0; k < 60 * 6; k++) g.step();
   const first = S.mobs.find(m => m.first); assert.ok(first, 'the first dead never came');
   assert.ok(first.maxHp > 3);
   for (let k = 0; S.phase === 'night' && k < 60 * 300; k++) g.step();
   assert.equal(S.phase, 'day', 'roamers kept the night from ending');
+});
+
+test('no early dawn: a cleared night lasts its full length; the time of day runs on without a jump', () => {
+  const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
+  let prev = g.timeOfDay(), maxJump = 0;
+  const tick = () => { g.step(); const t = g.timeOfDay(); let d = t - prev; if (d < -0.5) d += 1; maxJump = Math.max(maxJump, Math.abs(d)); prev = t; };
+  for (let k = 0; k < 60 * 130 && S.phase === 'day'; k++) tick();
+  assert.equal(S.phase, 'night');
+  S.hero.maxHp = S.hero.hp = 1e6;
+  // kill every dead the moment it comes: the night must still run its full length
+  let ended = null;
+  for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) { for (let i = S.mobs.length - 1; i >= 0; i--) if (!S.mobs[i].roam) S.mobs.splice(i, 1); tick(); if (S.phase !== 'night') ended = S.qT; }
+  assert.equal(S.phase, 'day', 'the night never ended');
+  assert.ok(ended >= TIDE.nightLen - 0.05, `dawn came early at ${ended}`);
+  assert.ok(maxJump < 0.002, `the clock jumped by ${maxJump}`);
+  assert.ok(g.timeOfDay() < 0.01, 'a new day starts at sunrise');
 });
 
 test('no bell: dusk comes with the sun, and the day carries on into the night', () => {

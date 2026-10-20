@@ -93,7 +93,7 @@ test('night 1: a short first day, then the System arrives when the first dead re
     arrived = S.story.encounters.find(e => e.kind === 'arrival');
     if (!arrived && S.phase === 'day') assert.equal(S.story.encounters.length, 0, 'a card on day 1');
   }
-  assert.ok(scene && scene.id === 'night1' && scene.line === 'One of them.', JSON.stringify(scene));
+  assert.ok(scene && scene.id === 'night1' && scene.total === 1 + TIDE.night1.packA.length + TIDE.night1.packB.length && /from the/.test(scene.line), JSON.stringify(scene));   // night 1: the first dead, then two packs from two sides
   assert.ok(arrived, 'the System never arrived');
   assert.equal(S.phase, 'night');
   assert.deepEqual(arrived.choices.map(c => c.id), ['fight'], 'a decision in the middle of the first fight');
