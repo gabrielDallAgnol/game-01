@@ -942,7 +942,7 @@ export function startApp() {
     if (!game) return;
     const S = game.state, night = S.phase === 'night', bm = game.isBloodMoon(S.night);
     // the System strip
-    strip.update({ show: systemHere() && !S.over, hp: S.hero.hp, maxHp: S.hero.maxHp, lv: S.lvl, quest: game.story().dailyProgress() });
+    strip.update({ show: systemHere() && !S.over, hp: S.hero.hp, maxHp: S.hero.maxHp, lv: S.lvl, quest: game.story().questLine() });
     // the Camp bar
     $('#nightNum').textContent = S.night;
     $('#dayIc').setAttribute('href', night ? '#i-moon' : '#i-sun');
@@ -1005,9 +1005,8 @@ export function startApp() {
       }
     }
     for (const d of S.drops) { const p = view.project(d.x, d.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(3000 + d.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, drop: true }); }
-    for (const sp of S.story.spots) { const p = view.project(sp.x, sp.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(7000 + sp.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, quest: true, label: sp.thread ? 'Quest' : '!' }); }
-    { const tr = S.story.trial; if (tr && !tr.done) { const p = view.project(tr.x, tr.y, 1.5); if (!(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(6999, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: true, quest: true, label: 'Trial' }); } }
-    for (const q of S.story.quests) { const p = view.project(q.x, q.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(5000 + q.site, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, quest: true }); }
+    // quests: only what the gate shows (one at a time early on), never the whole list
+    for (const q of game.story().shownQuests()) { const p = view.project(q.x, q.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(q.key === 'trial' ? 6999 : q.spot ? 7000 + q.spot : 5000 + q.site, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: q.kind === 'trial', quest: true, label: q.label }); }
     { const c = game.map.city, h = S.hero; if (c && Math.hypot(c.x - h.x, c.y - h.y) > c.r + 6) { const p = view.project(c.x, c.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8000, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'City' }); } }
     { const tw = game.map.town, h = S.hero; if (Math.hypot(tw.x - h.x, tw.y - h.y) > 24) { const p = view.project(tw.x, tw.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8001, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'Camp' }); } }
     for (let k = tagN; k < edge.tags.length; k++) edge.tags[k].hidden = true;

@@ -1989,7 +1989,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (road) road.tick(dt);
     // [road] end
     stepHeat(dt);
-    if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); story.tick(); if (S.blackout) S.sawBlackout = true; }
+    if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); story.tick(0.25); if (S.blackout) S.sawBlackout = true; }
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }
     // sunrise comes on time: the night's dead do not vanish. Far from the town they lose interest and roam where they stand.
     if (S.phase === 'night' && !S.over && !S.queue.length && (S.qT > WAVES.duration(S.night) + NIGHT_TAIL || !S.mobs.some(m => !m.roam && m.stream === undefined))) {

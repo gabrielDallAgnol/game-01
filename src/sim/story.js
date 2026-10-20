@@ -177,6 +177,32 @@ export function createStory(ctx) {
     ST.later.push({ enc, pri, until: S.night + ttl, seq: ST.nextId++ });
   }
   const queued = pred => ST.encounters.some(pred) || ST.later.some(x => pred(x.enc));
+
+  // ---------- the quest gate: one quest at a time on days 1-5, two after; the next one shows when one is done ----------
+  // Counted: the trial, a thread pointing at a place (or a story card about to), a blue beacon, today's daily quest.
+  // Not counted: a site you opened yourself (shown only when there is room) and the season's contract (on the strip).
+  const questCap = () => (S.night <= 5 ? 1 : 2);
+  const pointsOut = e => e && e.kind === 'thread' && !e.ended && (e.choices || []).some(c => (c.fx || []).some(f => f.op === 'openFor'));
+  const threadAtSite = tid => { const th = ST.threads[tid], st = th && THREADS[tid] && THREADS[tid].stages[th.stage]; return !!(th && th.status === 'open' && st && st.at === 'site'); };
+  function activeQuests() {
+    const out = [];
+    const tr = ST.trial; if (tr && !tr.done) out.push({ kind: 'trial', x: tr.x, y: tr.y, label: 'Trial', key: 'trial' });
+    for (const q of ST.quests) if (q.thread && threadAtSite(q.thread)) out.push({ kind: 'thread', x: q.x, y: q.y, site: q.site, label: 'Quest', key: `q${q.site}` });
+    for (const sp of ST.spots) out.push({ kind: sp.thread ? 'thread' : 'beacon', x: sp.x, y: sp.y, spot: sp.id, label: sp.thread ? 'Quest' : '!', key: `s${sp.id}` });
+    if (queued(pointsOut)) out.push({ kind: 'pending', key: 'pending' });
+    const d = ST.daily; if (d && d.day === S.night && !d.done) out.push({ kind: 'daily', key: 'daily' });
+    return out;
+  }
+  const roomForQuest = () => activeQuests().length < questCap();
+  /** what the map and the edge arrows show: the counted quests (up to the cap), then sites you opened if there is room */
+  function shownQuests() {
+    const out = activeQuests().filter(q => q.x !== undefined).slice(0, Math.max(questCap(), 1));
+    const room = questCap() - activeQuests().length;
+    if (room > 0) for (const q of ST.quests.filter(q => !q.thread).slice(0, room)) out.push({ kind: 'site', x: q.x, y: q.y, site: q.site, label: 'Site', key: `q${q.site}` });
+    return out;
+  }
+  /** markers whose story moved on (the thread is past its site stage) stop being quests */
+  function tidyQuests() { ST.quests = ST.quests.filter(q => !q.thread || threadAtSite(q.thread)); }
   /** at dawn: one story card and one System window, by priority; the rest keep waiting (or expire) */
   function release() {
     ST.later = ST.later.filter(x => x.until >= S.night);
@@ -377,7 +403,9 @@ export function createStory(ctx) {
     else if (ST.evoLater) ST.evoLater = null;
     // a new thread starts on its day (one at a time)
     const startOk = T => S.night >= T.start.day && (!T.start.feat || S.feat[T.start.feat] || S.night >= T.start.day + 4);
-    if (!queued(e => e.kind === 'thread' && e.stage === 0 && !e.ended)) for (const [tid, T] of Object.entries(THREADS)) if (!ST.threads[tid] && startOk(T)) { ST.threads[tid] = { stage: 0, status: 'open', cast: {}, since: S.night }; offer(threadEncounter(tid, 0), 6, 9); break; }
+    tidyQuests();
+    const storyBusy = activeQuests().some(q => q.kind === 'thread' || q.kind === 'trial' || q.kind === 'pending');
+    if (!storyBusy && !queued(e => e.kind === 'thread' && e.stage === 0 && !e.ended)) for (const [tid, T] of Object.entries(THREADS)) if (!ST.threads[tid] && startOk(T)) { ST.threads[tid] = { stage: 0, status: 'open', cast: {}, since: S.night }; offer(threadEncounter(tid, 0), 6, 9); break; }
     // dawn stages of running threads
     for (const [tid, th] of Object.entries(ST.threads)) {
       if (th.status !== 'open' || queued(e => e.thread === tid)) continue;
@@ -388,7 +416,9 @@ export function createStory(ctx) {
     }
     if (S.unique && S.unique.season && !S.unique.contract && S.unique.escaped && !S.unique.slain) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[Unique Monster: ${S.unique.name}] It got away. It will be back on the next blood moon.`, 'bad'); }
     if (ST.beacon || ST.flags.beacon) { const n = (ST.beacon || 0) + (ST.flags.beacon ? 1 : 0); ST.beacon = 0; ST.flags.beacon = false; S.survivors += n; toast(`Strangers walked in under your flag. +${n} ${n === 1 ? 'person' : 'people'}.`, 'good'); }
-    placeSpots();
+    // a new dawn: yesterday's beacons fade first if the story needs the room (the story outranks a beacon)
+    ST.spots = ST.spots.filter(sp => sp.thread || S.night - sp.day < 2);
+    while (activeQuests().length > questCap() && ST.spots.some(sp => !sp.thread)) { const i = ST.spots.map(sp => !sp.thread).lastIndexOf(true); ST.spots.splice(i, 1); }
     // quiet dawns: a small moment, once each
     if (S.night >= 3 && rng.next() < 0.6 && !queued(e => e.slot === 'story')) { ST.ambient = ST.ambient || []; const pool = AMBIENT.filter(a => !ST.ambient.includes(a.id) && a.when(S)); if (pool.length) { const a = pool[rng.int(pool.length)]; ST.ambient.push(a.id); offer({ kind: 'ambient', eyebrow: a.eyebrow, title: a.title, scene: a.scene, choices: a.choices.map(c => ({ ...c })) }, 2, 0); } }
     // a route out of the fences every other day
@@ -410,10 +440,10 @@ export function createStory(ctx) {
 
   // ---------- the daily quest ----------
   function openSites() { return S.landmarks.filter(l => !l.owned && !l.stripped && l.kind !== 'unknown' && !S.sealed[l.region]).length; }
-  function issueDaily() {
+  function issueDaily(midday = false) {
     if (S.night < 2) return;
     const prev = ST.daily;
-    if (prev && !prev.done && prev.day < S.night) {   // ignored: a penalty quest, or (a second time) the Camp pays
+    if (!midday && prev && !prev.done && prev.day < S.night) {   // ignored: a penalty quest, or (a second time) the Camp pays
       if (prev.penalty) {
         const cost = Math.min(S.food, 3 + Math.floor(S.night / 3)), what = cost ? `-${cost} food` : `-${Math.min(S.gold, 5)} scrap`;
         if (cost) S.food -= cost; else S.gold = Math.max(0, S.gold - 5);
@@ -421,6 +451,8 @@ export function createStory(ctx) {
       } else ST.penalty = true;
     }
     if (prev && prev.day === S.night) return;
+    if (!ST.penalty && !roomForQuest()) return;   // the gate: it comes when the quest before it is done
+    if (midday && ST.penalty) return;
     const pool = DAILY.filter(q => (!q.when || q.when(S, openSites())) && (!prev || q.id !== prev.id));
     const T = ST.penalty && prev ? (DAILY.find(q => q.id === prev.id) || pool[0]) : pool[rng.int(pool.length)];
     if (!T) return;
@@ -435,6 +467,19 @@ export function createStory(ctx) {
     const T = DAILY.find(x => x.id === q.id); if (!T) return null;
     const have = T.far ? (q.back ? q.n : Math.min(q.n, Math.round(q.far))) : Math.max(0, Math.min(q.n, T.stat(S, ST) - q.base));
     return { title: q.title, goal: q.goal, have, n: q.n, done: q.done, penalty: q.penalty };
+  }
+  /** the one line the strip shows: the active quest, in plain words */
+  function questLine() {
+    const qs = activeQuests(), d = dailyProgress();
+    const tr = qs.find(q => q.kind === 'trial');
+    if (tr) return { tag: '[Trial]', text: `Win the ${ST.trial.name} · ${dirOf(tr.x, tr.y)}` };
+    const th = qs.find(q => q.kind === 'thread');
+    if (th) { const tid = th.site !== undefined ? (ST.quests.find(q => q.site === th.site) || {}).thread : (ST.spots.find(sp => sp.id === th.spot) || {}).thread; const T = tid && THREADS[tid]; return { tag: '[Quest]', text: `${T ? T.title : 'Story'}: go ${dirOf(th.x, th.y)}` }; }
+    if (d && !d.done) return { tag: d.penalty ? '[Penalty]' : '[Daily]', have: d.have, n: d.n, text: d.goal };
+    const b = qs.find(q => q.kind === 'beacon');
+    if (b) return { tag: '[Quest]', text: `Reach the blue beacon · ${dirOf(b.x, b.y)}` };
+    if (d && d.done) return { tag: '[Daily]', done: true, text: d.goal };
+    return null;
   }
   function dailyTick() {
     const q = ST.daily; if (!q || q.done || q.day !== S.night || S.over) return;
@@ -498,11 +543,12 @@ export function createStory(ctx) {
   }
 
   // ---------- street encounters: markers in the open districts, found by walking there ----------
+  /** one blue beacon, only when the gate has room (the next one comes after this one is answered) */
   function placeSpots() {
-    ST.spots = ST.spots.filter(sp => sp.thread || S.night - sp.day < 3);
     ST.streetUsed = ST.streetUsed || [];
-    const want = Math.min(S.night < 2 ? 1 : 2, map.regions.filter(r => r.ring > 0 && !S.sealed[r.id]).length);
-    for (let k = ST.spots.filter(sp => !sp.thread).length; k < want; k++) {
+    if (S.night < 2 || !roomForQuest() || ST.spots.some(sp => !sp.thread)) return;
+    if (!map.regions.some(r => r.ring > 0 && !S.sealed[r.id])) return;
+    for (let k = 0; k < 1; k++) {
       const pool = STREET.filter(e => !ST.streetUsed.includes(e.id));
       const spot = ctx.findSpot(); if (!spot) return;
       let kind;
@@ -510,7 +556,21 @@ export function createStory(ctx) {
       else { kind = `gen${ST.nextId}`; ST.gen = ST.gen || {}; ST.gen[kind] = genStreet(); }
       ST.spots.push({ id: ST.nextId++, kind, x: spot.x, y: spot.y, day: S.night });
       ctx.guard(spot.x, spot.y, Math.min(5, 2 + Math.floor(S.night / 4)));
+      toast(`[New quest] A **blue beacon**: someone out ${dirOf(spot.x, spot.y)} needs you.`, 'sys'); ev('questNew', { kind: 'beacon' });
     }
+  }
+  // the gate by day: when a quest is done, the next one shows a few seconds later (the daily first, then a beacon)
+  let gateT = 4, lastCount = -1;
+  function gateTick(dt) {
+    if (S.phase !== 'day' || S.night < 2 || S.over) return;
+    const n = activeQuests().length;
+    if (n < lastCount) gateT = Math.max(gateT, 6);   // one just finished: a breath before the next
+    lastCount = n;
+    if ((gateT -= dt) > 0 || n >= questCap()) return;
+    gateT = 2;
+    const left = TIDE.dayLen - (S.dayT || 0);
+    if ((!ST.daily || ST.daily.day < S.night) && left > TIDE.dayLen * 0.45) { issueDaily(true); if (ST.daily && ST.daily.day === S.night) return; }
+    if (left > 30) placeSpots();
   }
   function genStreet() {
     const G = STREET_GEN, who = G.who[rng.int(G.who.length)], where = G.where[rng.int(G.where.length)], ask = G.ask[rng.int(G.ask.length)];
@@ -544,8 +604,8 @@ export function createStory(ctx) {
     if ((tipT -= 0.25) > 0 || S.night < 2 || S.phase !== 'day') return; ST.tips = ST.tips || [];
     for (const t of TIPS) if (!ST.tips.includes(t.id) && t.when(S, api())) { ST.tips.push(t.id); ev('tip', { id: t.id, at: t.at, text: t.text }); tipT = 45; return; }
   }
-  function tick() {
-    tips(); nightTick(); dailyTick();
+  function tick(dt = 1 / 60) {
+    tips(); nightTick(); dailyTick(); gateTick(dt);
     contracts.check();
     const tr = ST.trial;
     if (tr && !tr.done && !tr.started && !S.hero.dead && Math.hypot(S.hero.x - tr.x, S.hero.y - tr.y) < 3) { tr.started = true; ctx.spawnTrial(tr); toast(`[${tr.name}] Defeat the **trial warden**. It will not follow you home.`, 'bad'); }
@@ -563,7 +623,7 @@ export function createStory(ctx) {
   function start() {
     chron('Woke up in the woods outside the fallen city, with a bus full of strangers.', 5);
     if (S.clock && S.night === 1 && !S.dayT) S.dayT = Math.max(0, TIDE.dayLen - DAY_ONE);   // a short first day: light the fire, the night is close
-    placeSpots(); episode();
+    episode();   // day 1 has no quest: the System has not arrived yet
   }
   /** bonuses companions and story give the Camp */
   const comp = key => ST.npcs.reduce((a, n) => a + (n.alive && n.joined && !n.withHero && ROLES[n.role] && ROLES[n.role][key] || 0), 0);
@@ -593,7 +653,7 @@ export function createStory(ctx) {
   const clip = (v, n) => String(v ?? '').replace(/[<>[\]{}]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
   /** a quest from the Chronicler: validated, given engine-owned effects, placed as a beacon */
   function invent(q) {
-    if (!q || typeof q !== 'object' || ST.inventDay === S.night) return false;
+    if (!q || typeof q !== 'object' || ST.inventDay === S.night || !roomForQuest()) return false;
     const T = QUEST_TEMPLATES[q.template]; if (!T) return false;
     let who = null;
     if (T.who) {
@@ -653,8 +713,8 @@ export function createStory(ctx) {
       hooks: hooks().all,
       episode: ST.episode ? ST.episode.title : null };
   }
-  return { invent, fullContext, hooks, offerTrial, trialWon, seasonCard, pathText, start, dawn, tick, choose, can, bonus, context, chron, npc, grant,
+  return { activeQuests, shownQuests, questCap, roomForQuest, invent, fullContext, hooks, offerTrial, trialWon, seasonCard, pathText, start, dawn, tick, choose, can, bonus, context, chron, npc, grant,
     offerWin: w => offer({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: 'Got it', hint: '', fx: [] }] }, w.pri || 6, 30),
-    release, flush, dailyProgress, nightLine, contracts, skillOf, endThread,
+    release, flush, dailyProgress, questLine, nightLine, contracts, skillOf, endThread,
     rarityColor: r => (RARITY[r] || RARITY.common).color };
 }
