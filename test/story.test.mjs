@@ -208,3 +208,25 @@ test('save mid-run and reload: contract, rules, ruins, noise, road, story queues
   assert.ok(T.phase === 'day' || T.over);
   assert.equal(snap.v, SAVE_V, 'the save format changed: bump SAVE_V so old saves are ignored');
 });
+
+test('objectives: one priority each; the contract, the trial and story quests are main and come first, beacons, sites and drops are optional', () => {
+  const g = frontier(3), S = g.state, ST = S.story, st = g.story(), c = g.map.town;
+  const enc = st.contracts.encounter(1, {}), o = enc.offers.find(x => x.finale.kind === 'hive') || enc.offers[0];
+  assert.ok(st.contracts.sign(enc, o.id));
+  ST.trial = { cls: 'ranger', from: S.heroClass, x: c.x + 20, y: c.y, day: S.night, started: false, done: false, tier: 1, boss: 'B', name: 'Trial of the Ranger' };
+  ST.spots.push({ id: ST.nextId++, kind: 'gen1', x: c.x - 5, y: c.y, day: S.night });
+  ST.threads.t1 = { stage: 0, status: 'open' }; ST.spots.push({ id: ST.nextId++, kind: 'thread:t1', thread: 't1', x: c.x, y: c.y + 30, day: S.night });
+  ST.quests.push({ site: 0, x: S.landmarks[0].x, y: S.landmarks[0].y });
+  S.drops.push({ id: 77, x: c.x + 3, y: c.y + 3, prog: 0 });
+  const list = st.objectives();
+  assert.ok(list.every(q => q.priority === 'main' || q.priority === 'optional'));
+  const kinds = p => list.filter(q => q.priority === p).map(q => q.kind).sort();
+  assert.deepEqual(kinds('main'), ['contract', 'thread', 'trial']);
+  assert.deepEqual(kinds('optional'), ['beacon', 'drop', 'site']);
+  const firstOpt = list.findIndex(q => q.priority === 'optional');
+  assert.ok(list.slice(firstOpt).every(q => q.priority === 'optional'), 'main first');
+  assert.ok(list.every(q => typeof q.title === 'string' && q.title && typeof q.label === 'string'));
+  // the gate's own lists carry the same priority
+  for (const q of st.activeQuests()) assert.ok(q.priority === 'main' || q.priority === 'optional');
+  assert.equal(st.activeQuests().find(q => q.kind === 'beacon').priority, 'optional');
+});
