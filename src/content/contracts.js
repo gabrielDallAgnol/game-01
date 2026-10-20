@@ -24,36 +24,50 @@ export const FINALE_ADJ = ['Hollow', 'Weeping', 'Iron', 'Burning', 'Silent', 'Th
 export const FINALE_NOUN = ['Choir', 'Shepherd', 'Matron', 'Engine', 'Bride', 'Tide', 'Bellringer', 'Warden', 'Ferryman', 'Orchard'];
 
 // scripted copy (used when the Chronicler is off, slow or wrong). {rule} {finale} {night} {hive} {hook}
+// Every card answers in its first line: WHAT you do, WHAT it costs, WHAT you get. Plain words, ≤ 12 a line.
 export const CONTRACT_COPY = {
-  eyebrow: '[Contract offered: Season {n}]',
-  title: 'The System offers a contract',
-  scene: 'Win the finale before the season ends and the city **forgets a little** of how hard it has become. Lose it and the run **ends with its name**.',
+  eyebrow: '[Contract · Season {n}]',
+  title: 'Pick a challenge for this season',
+  scene: 'Beat the boss by **night {night}**: the nights get **easier**. Fail: the run **ends**.',
+  // how much each option asks: the tag and pips the card shows
+  tiers: { c1: { tag: 'Safe', pips: 1 }, c2: { tag: 'Risky', pips: 2 }, c3: { tag: 'All-in', pips: 3 } },
+  goal: { unique: 'Kill {finale} by night {night}', hive: 'Burn {hive} by night {night}' },
+  where: { unique: 'It comes to the Camp on night {night}.', hive: 'Its nest is {dir} of the Camp. Walk there and burn it.' },
+  noCatch: 'No catch. Just the boss.',
+  tough: 'The boss is much tougher.',
+  reward: 'Easier nights · +{scrap} scrap · a rare blessing',
+  legacy: '+{fame} Legacy',
+  legacyNote: '**Legacy** stays after this run: spend it on the start screen.',
+  sign: 'Sign: {goal}',   // the button names what you commit to
+  pick: 'Pick one',
+  // the strip after signing
+  strip: { unique: '{finale} comes to the Camp on night {night}', hive: 'Burn {hive} by night {night} · {dir}' },
   names: {
     unique: ['The {finale} Contract', 'A Debt to {finale}', 'Night {night}: {finale}'],
     hive: ['Ashes of {hive}', 'Burn {hive}', 'The {hive} Job'],
   },
   frame: {
-    unique: '{finale} walks on the blood moon of night {night}. Put it down before dawn.',
-    hive: 'Burn {hive} to the ground by night {night}. It will not burn quietly.',
+    unique: '{finale} comes to the Camp on night {night}. Kill it.',
+    hive: 'Burn {hive} by night {night}.',
   },
-  ruleFrame: { none: 'The finale is the whole test.' },
+  ruleFrame: { none: 'No catch. Just the boss.' },
   twist: {
-    companion: '"I have heard that name before," {hook} says, and will not say where.',
+    companion: '{hook} knows that name, and won\'t say how.',
     thread: 'It goes back to {hook}. It always did.',
-    place: 'Whatever {finale} is, it came out of {hook}.',
+    place: '{finale} came out of {hook}.',
     marked: 'It already knows your face.',
-    none: ['The System has offered this contract before. Nobody has finished it.', 'Someone signed this one before you. Their camp is the ruin by the road.', 'The window flickers when you read the name, as if it is afraid.'],
+    none: ['Others signed this before you. None finished it.', 'Someone signed this once. Their camp is the ruin by the road.', 'The window flickers when you read the name.'],
   },
   victory: {
     eyebrow: '[Contract complete: {name}]',
     title: 'Season {n} is yours',
-    scene: 'The finale is down. The city **draws back a step**. Somewhere far off, something new **learns your name**.',
-    next: 'Next time: a new contract, a new rule, and the dead remember who won the last one.',
+    scene: 'The boss is down. From tonight, **the nights get easier**.',
+    next: 'Next: a new challenge. The dead remember who won.',
     label: 'Take the reward',
   },
   lost: {
     eyebrow: '[Contract failed: {name}]',
     title: 'The season ends without you',
-    scene: 'Night {night} came and went. {finale} is still out there. The System **closes the window** on this run.',
+    scene: 'Night {night} came and went. {finale} is still out there. The run **ends here**.',
   },
 };

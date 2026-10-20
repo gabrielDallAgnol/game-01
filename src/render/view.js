@@ -457,6 +457,7 @@ export function createView(canvas, game, opts = {}) {
   }
   syncKeep();
   const keepBar = makeBar('b', 2.2);
+  let kTag = null, kRing = null;   // the contract's hive marker
   const bMeshes = new Map(), mobState = new Map(), pMeshes = new Map(), cMeshes = new Map();
   const dying = [], effects = [];
   const crowd = createCrowd(world); crowd.warm(['walker', 'runner']);
@@ -957,6 +958,15 @@ export function createView(canvas, game, opts = {}) {
     if (keepG.userData.flames) keepG.userData.flames.forEach((f, k) => { f.scale.set(1, 0.85 + 0.25 * Math.abs(Math.sin(animT * (9 + k) + k)), 1); f.rotation.y = animT * (1 + k * 0.3); });
     setBar(keepBar, C, 4.6, C, S.keep.hp / S.keep.maxHp);
 
+    // the contract's hive: a cyan System tag and a slow ring over it, seen from anywhere (the objective has a place)
+    { const k = S.story && S.story.contract, on = !!(k && !k.won && !k.lost && k.finale.kind === 'hive' && S.nestAlive[k.finale.region]);
+      if (on && (!kTag || kTag.userData.name !== k.finale.name)) {
+        if (kTag) { fx.remove(kTag); fx.remove(kRing); }
+        kTag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(`CONTRACT · ${k.finale.name.toUpperCase()}`, { w: 512, h: 64, size: 30, bg: '#06202c', fg: '#7fe3ff', spacing: '3px' }), transparent: true, depthTest: false, fog: false }));
+        kTag.scale.set(4.4, 0.55, 1); kTag.renderOrder = 23; kTag.userData.name = k.finale.name; fx.add(kTag);
+        kRing = new THREE.Mesh(ringGeo(3.0, 3.25), new THREE.MeshBasicMaterial({ color: lc('#7fe3ff').multiplyScalar(1.6), transparent: true, opacity: 0.7, depthWrite: false, fog: false })); kRing.rotation.x = -Math.PI / 2; fx.add(kRing);
+      }
+      if (kTag) { kTag.visible = kRing.visible = on; if (on) { const n = map.regions[k.finale.region].nest; kTag.position.copy(Wv(n.x, n.y, 5.2 + Math.sin(time * 2) * 0.12)); kRing.position.copy(Wv(n.x, n.y, 0.1)); kRing.scale.setScalar(1 + (time * 0.5 % 1) * 0.25); kRing.material.opacity = 0.7 * (1 - (time * 0.5 % 1)); } } }
     // hives: live ones glow and breathe; sleeping ones next to your land stay dark; far ones stay hidden in the ruins
     const active = new Set(S.phase === 'night' ? game.activeNests() : game.activeNests(S.night));
     const nk = `${S.claimed.size}|${S.night}|${S.phase}`;

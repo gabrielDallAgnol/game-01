@@ -53,8 +53,8 @@ export function createStrip(el, { onTap } = {}) {
       $('#sbHp').textContent = Math.max(0, Math.ceil(hp)); $('#sbHpMax').textContent = `/${maxHp}`; $('#sbLv').textContent = lv;
       el.classList.toggle('low', hp < maxHp * 0.35);
       const count = qt && (qt.done ? '<b class="ok">Done</b> ' : qt.n ? `<b>${qt.have}/${qt.n}</b> ` : '');
-      const html = qt ? `<span class="br">${esc(qt.tag)}</span> ${count}${esc(qt.text)}${qt.extra ? ` <span class="sb-k">${esc(qt.extra)}</span>` : ''}` : '<span class="br">[System]</span> Standing by.';
-      if (html !== lastQ) { lastQ = html; quest.innerHTML = html; }
+      const html = qt ? `<span class="br">${esc(qt.tag)}</span> ${count}${esc(qt.text)}${qt.extra ? `<span class="sb-k">${esc(qt.extra)}</span>` : ''}` : '<span class="br">[System]</span> Standing by.';
+      if (html !== lastQ) { lastQ = html; quest.innerHTML = html; el.classList.toggle('two', !!(qt && qt.extra)); }
     },
     busy: () => !!cur,
   };

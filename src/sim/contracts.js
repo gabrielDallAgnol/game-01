@@ -56,21 +56,41 @@ export function createContracts(ctx) {
     if (h.thread) return fillT(T.thread, { ...v, hook: h.thread });
     return T.none[(o.id.charCodeAt(1) - 49) % T.none.length];
   }
-  /** plain-text terms the card shows (engine-owned; the AI never writes these) */
+  const DIRS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
+  const dirOf = (x, y) => DIRS[((Math.round(Math.atan2(y - map.town.y, x - map.town.x) / (Math.PI / 4)) % 8) + 8) % 8];
+  /** where a finale is: a hive has a place on the map; a monster comes to the Camp */
+  function placeOf(f) { if (f.kind !== 'hive') return null; const r = map.regions[f.region], n = r && r.nest; return n ? { x: n.x, y: n.y, dir: dirOf(n.x, n.y) } : null; }
+  /** plain-text terms the card shows (engine-owned; the AI never writes these): goal, catch, reward, in that order */
   function terms(o) {
-    const r = o.rule ? RULES[o.rule] : null, R = o.reward;
+    const r = o.rule ? RULES[o.rule] : null, R = o.reward, Cc = CONTRACT_COPY, pl = placeOf(o.finale);
+    const v = { finale: o.finale.name.replace(/^The /, 'the '), hive: o.finale.name, night: o.finale.night, dir: pl ? pl.dir : '' };
+    const catches = [r ? (r.catch || r.desc) : null, o.big ? Cc.tough : null].filter(Boolean);
     return {
-      rule: r ? { name: r.name, desc: r.desc } : { name: 'No new rule', desc: CONTRACT_COPY.ruleFrame.none },
+      tier: Cc.tiers[o.id] || Cc.tiers.c2,
+      goal: fillT(Cc.goal[o.finale.kind], v),
+      where: fillT(Cc.where[o.finale.kind], v),
+      catch: catches.length ? catches.join(' ') : Cc.noCatch,
+      gain: fillT(Cc.reward, { scrap: R.scrap }),
+      legacy: fillT(Cc.legacy, { fame: R.fame }),
+      rule: r ? { name: r.name, desc: r.desc } : { name: 'No new rule', desc: Cc.ruleFrame.none },
       finale: o.finale.kind === 'unique' ? `${o.finale.name} · night ${o.finale.night}` : `Burn ${o.finale.name} · by night ${o.finale.night}`,
-      reward: `+${R.fame} fame · +${R.scrap} scrap${R.blessing ? ' · a legendary blessing' : ''}`,
+      reward: `+${R.scrap} scrap · a rare blessing · easier nights · +${R.fame} Legacy`,
     };
+  }
+  /** the strip after signing: the objective and the nights left; where it is, if it has a place */
+  function stripLine() {
+    const k = ST().contract; if (!k || k.won || k.lost) return null;
+    const left = Math.max(0, k.finale.night - S.night), pl = placeOf(k.finale);
+    const short = k.finale.name.replace(/^The /, '');
+    return { tag: '[Contract]', text: fillT(CONTRACT_COPY.strip[k.finale.kind], { finale: k.finale.name, hive: k.finale.name, night: k.finale.night, dir: pl ? pl.dir : '' }),
+      extra: `Contract · ${left ? `${left} night${left === 1 ? '' : 's'}` : 'tonight'} · ${k.finale.kind === 'hive' ? `burn ${k.finale.name}` : `${k.finale.name.replace(/^The /, 'the ')} comes to the Camp`}`, place: pl, left, name: k.finale.name, kind: k.finale.kind };
   }
   function encounter(n, hooks) {
     const opts = build(n);
     return {
-      kind: 'contract', season: n, eyebrow: fillT(CONTRACT_COPY.eyebrow, { n }), title: CONTRACT_COPY.title, scene: CONTRACT_COPY.scene,
+      kind: 'contract', season: n, eyebrow: fillT(CONTRACT_COPY.eyebrow, { n }), title: CONTRACT_COPY.title, scene: fillT(CONTRACT_COPY.scene, { night: seasonEnd(n) }),
       offers: opts.map(o => ({ ...o, frame: fillT(CONTRACT_COPY.frame[o.finale.kind], { finale: o.finale.name, hive: o.finale.name, night: o.finale.night }), twist: scriptTwist(o, hooks), terms: terms(o) })),
-      choices: opts.map(o => ({ id: o.id, label: o.name, hint: `${terms(o).rule.name}. ${terms(o).finale}.`, fx: [{ op: 'contract', id: o.id }] })),
+      choices: opts.map(o => ({ id: o.id, label: o.name, hint: `${terms(o).goal}. Catch: ${terms(o).catch}`, fx: [{ op: 'contract', id: o.id }] })),
     };
   }
   /** the player signs one */
@@ -86,7 +106,7 @@ export function createContracts(ctx) {
     st.contract = { n, id, name, rule: o.rule, finale: { ...o.finale }, reward: { ...o.reward }, won: false, lost: false, told: false, twist: (enc.ai && enc.ai.twists && enc.ai.twists[id]) || o.twist, day: S.night };
     armFinale();
     ctx.chron(`Signed the contract "${name}": ${o.finale.kind === 'unique' ? `${o.finale.name} by night ${o.finale.night}` : `burn ${o.finale.name} by night ${o.finale.night}`}.`, 5, ['contract']);
-    toast(`[Contract signed: ${name}] ${o.finale.kind === 'unique' ? `**${o.finale.name}** walks on night ${o.finale.night}.` : `Burn **${o.finale.name}** by night ${o.finale.night}.`}`, 'sys');
+    toast(`[Contract signed] ${terms(o).goal}.`, 'sys');
     ev('contract', { id, n, name });
     return true;
   }
@@ -136,5 +156,5 @@ export function createContracts(ctx) {
     k.lost = true; ctx.chron(`Lost the contract "${k.name}".`, 5, ['contract']);
     return k;
   }
-  return { encounter, sign, check, pay, settle, armFinale, terms, won, current: () => ST().contract || null, firstSeasonDay: CONTRACT.firstDay, SEASONS };
+  return { encounter, sign, check, pay, settle, armFinale, terms, won, stripLine, placeOf, current: () => ST().contract || null, firstSeasonDay: CONTRACT.firstDay, SEASONS };
 }

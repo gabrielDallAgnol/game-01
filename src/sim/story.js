@@ -91,7 +91,7 @@ export function createStory(ctx) {
       case 'recruit': { const n = castFor(enc.thread, f.role); n.joined = true; toast(`[${n.name} joined] ${ROLES[n.role].post}: ${ROLES[n.role].bonus}.`, 'sys'); chron(`${n.name} joined the Camp as its ${ROLES[n.role].post.toLowerCase()}.`, 4, [n.id]); ev('recruit', { id: n.id }); break; }
       case 'lose': { const n = th && npc(th.cast[f.role]); if (n) { n.alive = false; n.joined = false; n.withHero = false; n.lost = S.night; chron(`${n.name} left the Camp.`, 4, [n.id]); } break; }
       case 'bond': { const n = th && npc(th.cast[f.role]); if (n) n.bond = Math.max(-3, Math.min(5, n.bond + f.n)); break; }
-      case 'name': { const n = th && npc(th.cast[f.role]); if (n) { n.named = true; n.name = ctx.reviveName ? ctx.reviveName() : n.name; S.drained = S.night; toast('[Naming complete] It answers to a name now. It feels stronger. You feel weaker tonight.', 'sys'); chron(`Named one of the dead: ${n.name}.`, 5, [n.id]); } break; }
+      case 'name': { const n = th && npc(th.cast[f.role]); if (n) { n.named = true; n.name = ctx.reviveName ? ctx.reviveName() : n.name; S.drained = S.night; toast('[Named] It is stronger now. You are weaker tonight.', 'sys'); chron(`Named one of the dead: ${n.name}.`, 5, [n.id]); } break; }
       case 'claimHere': { const l = th && th.site !== undefined ? S.landmarks[th.site] : th && th.region !== undefined && ctx.siteOf(th.region); if (l && !l.owned) ctx.claimFree(l.id); else ctx.earn(8); break; }
       case 'risen': ctx.risen(f.n); break;
       case 'gamble': if (rng.next() >= f.p) { for (const b of f.bad) apply(b, enc); } else if (f.good) { for (const b of f.good) apply(b, enc); } else toast('The fever broke at dawn. He lives.', 'good'); break;
@@ -306,7 +306,7 @@ export function createStory(ctx) {
     if (!spot) { trialWon({ cls: f.cls, from: f.from, second: f.second }); return; }
     const H = ctx.heroes[f.cls];
     ST.trial = { cls: f.cls, from: f.from, second: f.second, x: spot.x, y: spot.y, day: S.night, started: false, done: false, name: `Trial of the ${H.name}` };
-    toast(`[Trial accepted: ${H.name}] A **red marker** shows where. Walk there by day and win the fight.`, 'sys');
+    toast(`[Trial accepted] Go to the **red marker** by day. Win the fight.`, 'sys');
   }
   function trialWon(t) {
     if (ST.trial) ST.trial.done = true;
@@ -341,9 +341,9 @@ export function createStory(ctx) {
   function victoryCard(k) {
     const C = { name: k.name, n: k.n };
     offer({ kind: 'victory', season: k.n, contract: k.name, eyebrow: `[Contract complete: ${k.name}]`, title: `Season ${k.n} is yours`,
-      scene: 'The finale is down. The city **draws back a step**. Somewhere far off, something new **learns your name**.',
-      next: 'Next time: a new contract, a new rule, and the dead remember who won the last one.',
-      reward: k.reward, choices: [{ id: 'take', label: 'Take the reward', hint: `+${k.reward.fame} fame · +${k.reward.scrap} scrap · a legendary blessing · the city forgets part of how hard it has become.`, fx: [{ op: 'reward' }] }], ...C }, 11, 30);
+      scene: 'The boss is down. From tonight, **the nights get easier**.',
+      next: 'Next: a new challenge. The dead remember who won.',
+      reward: k.reward, choices: [{ id: 'take', label: 'Take the reward', hint: `+${k.reward.scrap} scrap · a rare blessing · easier nights · +${k.reward.fame} Legacy (kept after this run).`, fx: [{ op: 'reward' }] }], ...C }, 11, 30);
   }
 
   // ---------- the skill window: a blessing arrives as a skill, one a dawn ----------
@@ -411,10 +411,10 @@ export function createStory(ctx) {
       if (th.status !== 'open' || queued(e => e.thread === tid)) continue;
       const st = THREADS[tid].stages[th.stage]; if (!st || st.at !== 'dawn' || th.stage === 0) continue;
       if (S.night - th.since < (st.after || 0)) continue;
-      if (st.needs === 'uniqueDone' && !(S.unique && S.unique.slain)) { if (S.unique && S.unique.escaped && !S.unique.contract) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[Unique Monster: ${S.unique.name}] It got away. It will be back on the next blood moon.`, 'bad'); } continue; }
+      if (st.needs === 'uniqueDone' && !(S.unique && S.unique.slain)) { if (S.unique && S.unique.escaped && !S.unique.contract) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[${S.unique.name}] It got away. Back on the next blood moon.`, 'bad'); } continue; }
       offer(threadEncounter(tid, th.stage), 7, 9);
     }
-    if (S.unique && S.unique.season && !S.unique.contract && S.unique.escaped && !S.unique.slain) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[Unique Monster: ${S.unique.name}] It got away. It will be back on the next blood moon.`, 'bad'); }
+    if (S.unique && S.unique.season && !S.unique.contract && S.unique.escaped && !S.unique.slain) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[${S.unique.name}] It got away. Back on the next blood moon.`, 'bad'); }
     if (ST.beacon || ST.flags.beacon) { const n = (ST.beacon || 0) + (ST.flags.beacon ? 1 : 0); ST.beacon = 0; ST.flags.beacon = false; S.survivors += n; toast(`Strangers walked in under your flag. +${n} ${n === 1 ? 'person' : 'people'}.`, 'good'); }
     // a new dawn: yesterday's beacons fade first if the story needs the room (the story outranks a beacon)
     ST.spots = ST.spots.filter(sp => sp.thread || S.night - sp.day < 2);
@@ -472,15 +472,18 @@ export function createStory(ctx) {
   function questLine() {
     const qs = activeQuests(), d = dailyProgress();
     const tr = qs.find(q => q.kind === 'trial');
-    if (tr) return { tag: '[Trial]', text: `Win the ${ST.trial.name} · ${dirOf(tr.x, tr.y)}` };
+    if (tr) return withContract({ tag: '[Trial]', text: `Win the ${ST.trial.name} · ${dirOf(tr.x, tr.y)}` });
     const th = qs.find(q => q.kind === 'thread');
-    if (th) { const tid = th.site !== undefined ? (ST.quests.find(q => q.site === th.site) || {}).thread : (ST.spots.find(sp => sp.id === th.spot) || {}).thread; const T = tid && THREADS[tid]; return { tag: '[Quest]', text: `${T ? T.title : 'Story'}: go ${dirOf(th.x, th.y)}` }; }
-    if (d && !d.done) return { tag: d.penalty ? '[Penalty]' : '[Daily]', have: d.have, n: d.n, text: d.goal };
+    if (th) { const tid = th.site !== undefined ? (ST.quests.find(q => q.site === th.site) || {}).thread : (ST.spots.find(sp => sp.id === th.spot) || {}).thread; const T = tid && THREADS[tid]; return withContract({ tag: '[Quest]', text: `${T ? T.title : 'Story'}: go ${dirOf(th.x, th.y)}` }); }
+    if (d && !d.done) return withContract({ tag: d.penalty ? '[Penalty]' : '[Daily]', have: d.have, n: d.n, text: d.goal });
     const b = qs.find(q => q.kind === 'beacon');
-    if (b) return { tag: '[Quest]', text: `Reach the blue beacon · ${dirOf(b.x, b.y)}` };
-    if (d && d.done) return { tag: '[Daily]', done: true, text: d.goal };
+    if (b) return withContract({ tag: '[Quest]', text: `Reach the blue beacon · ${dirOf(b.x, b.y)}` });
+    if (d && d.done) return withContract({ tag: '[Daily]', done: true, text: d.goal });
+    const K = contracts.stripLine(); if (K) return { ...K, extra: K.left ? `${K.left} night${K.left === 1 ? '' : 's'} left` : 'Tonight' };
     return null;
   }
+  /** the contract's countdown rides along every quest line: "Gravelord: 7 nights" */
+  function withContract(q) { const K = contracts.stripLine(); return K ? { ...q, extra: K.extra } : q; }
   function dailyTick() {
     const q = ST.daily; if (!q || q.done || q.day !== S.night || S.over) return;
     const T = DAILY.find(x => x.id === q.id); if (!T) return;
@@ -608,7 +611,7 @@ export function createStory(ctx) {
     tips(); nightTick(); dailyTick(); gateTick(dt);
     contracts.check();
     const tr = ST.trial;
-    if (tr && !tr.done && !tr.started && !S.hero.dead && Math.hypot(S.hero.x - tr.x, S.hero.y - tr.y) < 3) { tr.started = true; ctx.spawnTrial(tr); toast(`[${tr.name}] Defeat the **trial warden**. It will not follow you home.`, 'bad'); }
+    if (tr && !tr.done && !tr.started && !S.hero.dead && Math.hypot(S.hero.x - tr.x, S.hero.y - tr.y) < 3) { tr.started = true; ctx.spawnTrial(tr); toast(`[${tr.name}] Kill the **warden**. It won't follow you home.`, 'bad'); }
     if (ST.encounters.length || S.hero.dead || S.phase !== 'day') return;   // places speak by day: at night they wait for you
     if (spotTick()) return;
     for (const l of S.landmarks) if (typeof ST.visited[l.id] === 'number' && ST.visited[l.id] < S.night && !ctx.landmarkReach(l)) ST.visited[l.id] = false;   // left yesterday: it can ask again
