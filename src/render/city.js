@@ -75,10 +75,11 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   const col = new THREE.Color();
   const put = (d, i, hex, a, k = 1) => { col.set(hex); const q = ((i / N | 0) * GS + i % N) * 4; d[q] = Math.min(255, col.r * 255 * k); d[q + 1] = Math.min(255, col.g * 255 * k); d[q + 2] = Math.min(255, col.b * 255 * k); d[q + 3] = a; };
   const jitter = new Float32Array(N * N).map(() => 0.96 + rand() * 0.08);
-  function paint() {
-    const zone = game.zone();
-    for (let i = 0; i < N * N; i++) {
-      const t = map.terrain[i], x = i % N, y = (i / N) | 0, own = zone[i] === 1, wild = wildAt(i);
+  /** repaint the ground textures: all of it, or only the box { x0, y0, x1, y1 } (cells, inclusive) round a change */
+  function paint(box) {
+    const zone = game.zone(), X0 = box ? Math.max(0, box.x0) : 0, Y0 = box ? Math.max(0, box.y0) : 0, X1 = box ? Math.min(N - 1, box.x1) : N - 1, Y1 = box ? Math.min(N - 1, box.y1) : N - 1;
+    for (let y = Y0; y <= Y1; y++) for (let x = X0; x <= X1; x++) {
+      const i = y * N + x, t = map.terrain[i], own = zone[i] === 1, wild = wildAt(i);
       let base, path = null;
       if (wild) {
         base = t === T.FOREST ? (own ? 'forestOwn' : 'forestFloor') : t === T.WATER || t === T.FORD ? 'bed' : t === T.VOID ? 'voidc' : own ? 'meadowOwn' : 'meadow';
@@ -96,8 +97,8 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
       if (path) put(pData, i, GROUND[path], 255, jitter[i]); else pData[((y * GS) + x) * 4 + 3] = 0;
     }
     // paths: the colour bleeds one cell out so the edge never fades to black (the amount stays 0 there)
-    for (let i = 0; i < N * N; i++) {
-      const x = i % N, y = (i / N) | 0, q = (y * GS + x) * 4; if (pData[q + 3]) continue;
+    for (let y = Y0; y <= Y1; y++) for (let x = X0; x <= X1; x++) {
+      const q = (y * GS + x) * 4; if (pData[q + 3]) continue;
       let best = -1; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue; const qq = (yy * GS + xx) * 4; if (pData[qq + 3]) { best = qq; break; } }
       if (best >= 0) { pData[q] = pData[best]; pData[q + 1] = pData[best + 1]; pData[q + 2] = pData[best + 2]; } else { pData[q] = gData[q]; pData[q + 1] = gData[q + 1]; pData[q + 2] = gData[q + 2]; }
     }
@@ -333,14 +334,17 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   function setTerritory() { K.setMaskArrays(game.zone(), S.seen, N); }
   setTerritory();
 
-  /** rubble cleared: rebuild the touched ruin chunks and drop the props standing on those cells */
-  function clear(cells) {
+  /** rubble cleared: rebuild the touched ruin chunks and drop the props standing on those cells
+   *  (`local`: a worn trail; repaint only the ground round it, the territory mask has not changed) */
+  function clear(cells, local) {
     const set = new Set(cells);
     const near = new Set(); for (const i of cells) for (const d of [0, 1, -1, N, -N]) if (i + d >= 0 && i + d < N * N) near.add(ruinKey(i + d));
     near.forEach(buildRuins);
     for (const k of kinds) k.cells.forEach((i, j) => { if (set.has(i)) { k.dead[j] = 1; treeCov[i] = 0; } });
     for (const i of cells) isRuin[i] = map.terrain[i] === T.ROCK || map.terrain[i] === T.CLIFF ? 1 : 0;
-    sx0 = 1e9; paint(); setTerritory();
+    sx0 = 1e9;
+    if (local) { let x0 = N, y0 = N, x1 = 0, y1 = 0; for (const i of cells) { const x = i % N, y = (i / N) | 0; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); } paint({ x0: x0 - 2, y0: y0 - 2, x1: x1 + 2, y1: y1 + 2 }); return; }
+    paint(); setTerritory();
   }
   return { paint, setTerritory, ground, clear, heightAt, stream };
 }

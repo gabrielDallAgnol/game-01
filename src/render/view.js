@@ -23,6 +23,7 @@ import { createKeep } from './view/keep.js';
 import { createMobs } from './view/mobs.js';
 import { createHero } from './view/hero.js';
 import { createRest } from './view/rest.js';
+import { createBirds } from './view/birds.js';
 import { createProjectiles } from './view/projectiles.js';
 import { createBuildings } from './view/buildings.js';
 import { createAllies } from './view/allies.js';
@@ -86,6 +87,7 @@ export function createView(canvas, game, opts = {}) {
   const picking = createPicking(V);
   const cinema = V.cinema = createCinema(V);   // [cinema] the look-at shot (camera.js reads it)
   const rest = createRest(V);   // [nests] the "+ resting" tag at the Camp
+  const birds = V.birds = createBirds(V);   // [woods] birds flushed from the trees
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -118,6 +120,7 @@ export function createView(canvas, game, opts = {}) {
     markers.updateMain();
     hives.update(dt);
     rest.update(dt);
+    birds.update(dt, ui.events);   // [woods]
     routes.update();
     markers.updateSelection(dt, ui.selected);
     placing.setGhost(ui.ghost || null); placing.setZone(ui.zone || null);

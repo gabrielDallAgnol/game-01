@@ -16,7 +16,7 @@ export function createSave(G) {
       sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, reroll: S.reroll, halfUpgrade: S.halfUpgrade,
       landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),
-      evo: S.evo, path: S.path, feat: S.feat, noiseChoice: S.noiseChoice || 0, mourned: S.mourned || 0, diffNight: S.diffNight || 0, tools: S.tools, carry: S.hero.carry, ledger: S.ledger || null, pickups: S.pickups, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, eruption: S.eruption, heatCool: S.heatCool, sawBlackout: !!S.sawBlackout, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT,
+      evo: S.evo, path: S.path, feat: S.feat, noiseChoice: S.noiseChoice || 0, mourned: S.mourned || 0, diffNight: S.diffNight || 0, tools: S.tools, carry: S.hero.carry, ledger: S.ledger || null, pickups: S.pickups, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, eruption: S.eruption, heatCool: S.heatCool, sawBlackout: !!S.sawBlackout, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], trails: S.trails || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT,
       buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0, b.ruined ? 1 : 0, b.type === 'house' ? (b.folk ?? -1) : -1]), homeless: S.homeless || 0, keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)] };
   }
   function restoreSnap(R) {
@@ -30,6 +30,7 @@ export function createSave(G) {
     for (const k of Object.keys(S.story)) delete S.story[k]; Object.assign(S.story, R.story);
     for (const e of S.story.encounters) if (!e.ai || typeof e.ai !== 'object') e.ai = null;
     for (const i of R.cleared || []) map.terrain[i] = map.terrain[i] === T.ROCK ? T.DIRT : T.GRASS;
+    S.trails = G.makeTrail(R.trails || []); S.trailTold = S.trails.length > 0;   // [woods] worn trails
     for (const b of [...S.buildings]) G.removeBuilding(b);
     let oldFolk = false;
     for (const [id, type, level, x, y, rot, ru, folk] of R.buildings) { const b = G.placeBuilding(type, x, y, rot, level, id); if (ru) { b.ruined = true; b.hp = 0; G.vacate(b, true); } if (type === 'house') { if (folk === undefined) oldFolk = true; b.folk = folk >= 0 ? folk : ru ? 0 : houseCap(b); } }

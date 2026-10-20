@@ -42,12 +42,13 @@ import { createApi } from './api.js';
 import { createActs } from './acts.js';
 import { createSpots } from './spots.js';
 import { createNests } from './nests.js';
+import { createWoods } from './woods.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests];
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createWoods];
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';
@@ -173,6 +174,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [road] begin
     if (G.road) G.road.tick(dt);
     // [road] end
+    G.stepWoods();   // [woods] worn trails
     stepHeat(dt);
     if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); G.story.tick(0.25); if (S.blackout) S.sawBlackout = true; }
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }

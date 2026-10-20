@@ -67,6 +67,7 @@ export function createApi(G) {
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
     // [nests] the hive that keeps a site locked (-1: free), a hive's rage ({ rage, lv, hot, near } or null), its guards
     siteLock: id => G.lockedBy(S.landmarks[id]), nestRage: r => S.nestRage[r] || null, nestGuards: r => G.nestGuards(r),
+    spawnAnimals: () => G.spawnAnimals(),   // [woods] the dawn top-up of the woods' game (tests, tools)
   };
   return api;
 }
