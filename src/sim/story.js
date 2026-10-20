@@ -187,11 +187,11 @@ export function createStory(ctx) {
   const threadAtSite = tid => { const th = ST.threads[tid], st = th && THREADS[tid] && THREADS[tid].stages[th.stage]; return !!(th && th.status === 'open' && st && st.at === 'site'); };
   function activeQuests() {
     const out = [];
-    const tr = ST.trial; if (tr && !tr.done) out.push({ kind: 'trial', x: tr.x, y: tr.y, label: 'Trial', key: 'trial' });
-    for (const q of ST.quests) if (q.thread && threadAtSite(q.thread)) out.push({ kind: 'thread', x: q.x, y: q.y, site: q.site, label: 'Quest', key: `q${q.site}` });
-    for (const sp of ST.spots) out.push({ kind: sp.thread ? 'thread' : 'beacon', x: sp.x, y: sp.y, spot: sp.id, label: sp.thread ? 'Quest' : '!', key: `s${sp.id}` });
-    if (queued(pointsOut)) out.push({ kind: 'pending', key: 'pending' });
-    const d = ST.daily; if (d && d.day === S.night && !d.done) out.push({ kind: 'daily', key: 'daily' });
+    const tr = ST.trial; if (tr && !tr.done) out.push({ kind: 'trial', x: tr.x, y: tr.y, label: 'Trial', key: 'trial', priority: 'main' });
+    for (const q of ST.quests) if (q.thread && threadAtSite(q.thread)) out.push({ kind: 'thread', x: q.x, y: q.y, site: q.site, label: 'Quest', key: `q${q.site}`, priority: 'main' });
+    for (const sp of ST.spots) out.push({ kind: sp.thread ? 'thread' : 'beacon', x: sp.x, y: sp.y, spot: sp.id, label: sp.thread ? 'Quest' : 'Beacon', key: `s${sp.id}`, priority: sp.thread ? 'main' : 'optional' });
+    if (queued(pointsOut)) out.push({ kind: 'pending', key: 'pending', priority: 'main' });
+    const d = ST.daily; if (d && d.day === S.night && !d.done) out.push({ kind: 'daily', key: 'daily', priority: 'main' });
     return out;
   }
   const roomForQuest = () => activeQuests().length < questCap();
@@ -199,8 +199,27 @@ export function createStory(ctx) {
   function shownQuests() {
     const out = activeQuests().filter(q => q.x !== undefined).slice(0, Math.max(questCap(), 1));
     const room = questCap() - activeQuests().length;
-    if (room > 0) for (const q of ST.quests.filter(q => !q.thread).slice(0, room)) out.push({ kind: 'site', x: q.x, y: q.y, site: q.site, label: 'Site', key: `q${q.site}` });
+    if (room > 0) for (const q of ST.quests.filter(q => !q.thread).slice(0, room)) out.push({ kind: 'site', x: q.x, y: q.y, site: q.site, label: 'Site', key: `q${q.site}`, priority: 'optional' });
     return out;
+  }
+  /** every objective the player can see, for the HUD, the maps and the quest list (read-only; the gate above still
+   *  decides what counts). priority 'main' = the System requires it (the contract, the trial, a story quest's step,
+   *  today's daily quest); 'optional' = beacons, sites you opened, supply drops. Main first, nearest first within. */
+  function objectives() {
+    const out = [], h = S.hero, far = (x, y) => (x === undefined ? 0 : Math.round(Math.hypot(x - h.x, y - h.y)));
+    const K = contracts.stripLine();
+    if (K) out.push({ key: 'contract', kind: 'contract', priority: 'main', label: 'Contract', x: K.place ? K.place.x : undefined, y: K.place ? K.place.y : undefined,
+      title: K.kind === 'hive' ? `Burn ${K.name}` : `Survive ${K.name}`, sub: `${K.left ? `${K.left} night${K.left === 1 ? '' : 's'} left` : 'Tonight'}${K.place ? ` · ${K.place.dir}` : ''}` });
+    const tr = ST.trial; if (tr && !tr.done) out.push({ key: 'trial', kind: 'trial', priority: 'main', label: 'Trial', x: tr.x, y: tr.y, title: tr.name, sub: `Beat ${tr.boss} · ${dirOf(tr.x, tr.y)}, by day` });
+    for (const q of ST.quests) if (q.thread && threadAtSite(q.thread)) { const T = THREADS[q.thread]; out.push({ key: `q${q.site}`, kind: 'thread', priority: 'main', label: 'Quest', site: q.site, x: q.x, y: q.y, title: T ? T.title : 'Story', sub: `Go to the ${LM[S.landmarks[q.site].kind].name} · ${dirOf(q.x, q.y)}` }); }
+    for (const sp of ST.spots) if (sp.thread) { const T = THREADS[sp.thread]; out.push({ key: `s${sp.id}`, kind: 'thread', priority: 'main', label: 'Quest', spot: sp.id, x: sp.x, y: sp.y, title: T ? T.title : 'Story', sub: `Go ${dirOf(sp.x, sp.y)}` }); }
+    const d = dailyProgress(); if (d) out.push({ key: 'daily', kind: 'daily', priority: 'main', label: d.penalty ? 'Penalty' : 'Daily', title: d.title, sub: d.done ? `${d.goal} · done` : `${d.goal} · ${d.have}/${d.n}`, done: d.done });
+    for (const sp of ST.spots) if (!sp.thread) { const g = (ST.gen && ST.gen[sp.kind]) || STREET.find(e => e.id === sp.kind); out.push({ key: `s${sp.id}`, kind: 'beacon', priority: 'optional', label: g && g.made ? 'Side quest' : 'Beacon', spot: sp.id, x: sp.x, y: sp.y, title: g && g.made ? g.title : 'Blue beacon', sub: `Someone needs help · ${dirOf(sp.x, sp.y)}` }); }
+    for (const q of ST.quests) if (!q.thread) out.push({ key: `q${q.site}`, kind: 'site', priority: 'optional', label: 'Site', site: q.site, x: q.x, y: q.y, title: LM[S.landmarks[q.site].kind].name, sub: `A place to claim · ${dirOf(q.x, q.y)}` });
+    for (const dr of S.drops) out.push({ key: `d${dr.id}`, kind: 'drop', priority: 'optional', label: 'Drop', drop: dr.id, x: dr.x, y: dr.y, title: 'Supply drop', sub: `Stand by it to open · ${dirOf(dr.x, dr.y)}` });
+    for (const o of out) o.dist = far(o.x, o.y);
+    const rank = o => (o.priority === 'main' ? 0 : 1);
+    return out.sort((a, b) => rank(a) - rank(b) || (a.x === undefined) - (b.x === undefined) || a.dist - b.dist);
   }
   /** markers whose story moved on (the thread is past its site stage) stop being quests */
   function tidyQuests() { ST.quests = ST.quests.filter(q => !q.thread || threadAtSite(q.thread)); }
@@ -314,7 +333,7 @@ export function createStory(ctx) {
     if (!spot) { trialWon({ cls: f.cls, from: f.from, second: f.second, tier: f.tier }); return; }
     const H = ctx.heroes[f.cls], tier = f.tier || 1;
     ST.trial = { cls: f.cls, from: f.from, second: f.second, x: spot.x, y: spot.y, day: S.night, started: false, done: false, tier, boss: f.boss || CLASS_TIERS[tier - 1].boss, name: `Trial of the ${H.name}` };
-    toast(`[Trial accepted] Beat **${ST.trial.boss}** at the **red marker**, by day.`, 'sys');
+    toast(`[Trial accepted] Beat **${ST.trial.boss}** at the gold **MAIN** marker, by day.`, 'sys');
     ev('trialAccepted', { cls: f.cls, tier, boss: ST.trial.boss });
   }
   function trialWon(t) {
@@ -725,7 +744,7 @@ export function createStory(ctx) {
       hooks: hooks().all,
       episode: ST.episode ? ST.episode.title : null };
   }
-  return { activeQuests, shownQuests, questCap, roomForQuest, invent, fullContext, hooks, offerTrial, trialWon, seasonCard, pathText, start, dawn, tick, choose, can, bonus, context, chron, npc, grant,
+  return { activeQuests, shownQuests, objectives, questCap, roomForQuest, invent, fullContext, hooks, offerTrial, trialWon, seasonCard, pathText, start, dawn, tick, choose, can, bonus, context, chron, npc, grant,
     offerWin: w => offer({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: 'Got it', hint: '', fx: [] }] }, w.pri || 6, 30),
     release, flush, dailyProgress, questLine, nightLine, contracts, skillOf, endThread,
     rarityColor: r => (RARITY[r] || RARITY.common).color };

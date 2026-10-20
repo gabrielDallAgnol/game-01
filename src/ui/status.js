@@ -13,12 +13,12 @@ export function createStatus(ui) {
   function showStatus() {
     const S = ui.game.state, ST = S.story, comp = ST.npcs.filter(n => n.joined && n.alive), K = ST.contract;
     ui.paused = true; if (ui.placing) ui.stopPlacing(); ui.closePanel();
-    const hero = ui.game.heroDef, q = ui.game.story().dailyProgress();
+    const hero = ui.game.heroDef;
     ui.showCard('status', `<button class="closex" id="stX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Status]</div>
       <h1 class="sm">${esc(hero.name)} · Lv ${S.lvl}</h1>
+      ${questsHtml()}
       <div class="statgrid"><span>Health<b>${Math.ceil(S.hero.hp)}/${S.hero.maxHp}</b></span><span>Xp<b>${S.xp}/${ui.game.xpNext()}</b></span><span>Day<b>${S.night}</b></span><span>Dead put down<b>${S.kills}</b></span><span>People<b>${ui.game.pop()}</b></span><span>Season<b>${S.season.n}</b></span></div>
-      ${q ? `<h2>Daily quest</h2><div class="kontrakt"><b>${q.penalty ? '[Penalty] ' : ''}${esc(q.title)}</b><span>${esc(q.goal)} · ${q.done ? 'done' : `${q.have}/${q.n}`}</span></div>` : ''}
-      ${K ? `<h2>Contract</h2><div class="kontrakt"><b>${esc(K.name)}${K.won ? ' · won' : ''}</b><span>${K.finale.kind === 'unique' ? `${esc(K.finale.name)} walks on night ${K.finale.night}.` : `Burn ${esc(K.finale.name)} by night ${K.finale.night}.`}${S.season.rules && S.season.rules.length ? ` Rules: ${S.season.rules.map(r => esc(RULES[r] ? RULES[r].name : r)).join(', ')}.` : ''}</span>${K.twist ? `<span style="color:#c6b8ff;font-style:italic">${esc(K.twist)}</span>` : ''}</div>` : ''}
+      ${K ? `<h2>Contract terms</h2><div class="kontrakt"><b>${esc(K.name)}${K.won ? ' · won' : ''}</b><span>${K.finale.kind === 'unique' ? `${esc(K.finale.name)} walks on night ${K.finale.night}.` : `Burn ${esc(K.finale.name)} by night ${K.finale.night}.`}${S.season.rules && S.season.rules.length ? ` Rules: ${S.season.rules.map(r => esc(RULES[r] ? RULES[r].name : r)).join(', ')}.` : ''}</span>${K.twist ? `<span style="color:#c6b8ff;font-style:italic">${esc(K.twist)}</span>` : ''}</div>` : ''}
       <h2>Your path</h2>${pathHtml()}
       <h2>Titles</h2><div class="titles">${ST.titles.length ? ST.titles.map(t => `<span class="title" title="${esc(TITLES[t].desc)}">${icon('title')}${esc(TITLES[t].name)}</span>`).join('') : '<span class="note">None yet. The System is watching.</span>'}</div>
       <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<div class="comp"><b>${esc(n.name)}</b><span>${n.withHero ? 'Travels with you · their post stands empty' : `${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}`}</span><span class="bond">${Array.from({ length: 5 }, (_, k) => icon(k < n.bond ? 'heartFill' : 'heart')).join('')}</span><span class="acts"><button class="btn sm sys" data-chat="${n.id}">Talk</button><button class="btn sm sys ghost" data-follow="${n.id}" data-on="${n.withHero ? 0 : 1}">${n.withHero ? 'Back to post' : 'With me'}</button></span></div>`).join('') : '<span class="note">Nobody yet. Answer the calls: people are out there.</span>'}</div>
@@ -31,10 +31,17 @@ export function createStatus(ui) {
     $$('[data-chat]').forEach(b => b.onclick = () => showChat(b.dataset.chat));
     $$('[data-follow]').forEach(b => b.onclick = () => { ui.game.companionFollow(b.dataset.follow, b.dataset.on === '1'); showStatus(); });
   }
+  /** the quest list: MAIN (the System requires it) first, each with a gold bar; then OPTIONAL, grouped and quiet */
+  function questsHtml() {
+    const objs = ui.game.story().objectives(), main = objs.filter(o => o.priority === 'main'), opt = objs.filter(o => o.priority !== 'main');
+    const row = (o, cls) => `<li class="${cls}${o.done ? ' done' : ''}"><span class="qt">${cls === 'qmain' ? '<b class="qtag">Main</b>' : ''}<em>${esc(o.label)}</em>${o.x !== undefined ? `<i>${o.dist}m</i>` : ''}</span><b class="qn">${esc(o.title)}</b><span class="qs">${esc(o.sub)}</span></li>`;
+    return `<h2>Quests</h2><ul class="qlist">${main.length ? main.map(o => row(o, 'qmain')).join('') : '<li class="qnone">No main quest right now. The System is watching.</li>'}</ul>
+      ${opt.length ? `<h3 class="qopt-h">Optional · ${opt.length}</h3><ul class="qlist">${opt.map(o => row(o, 'qopt')).join('')}</ul>` : ''}`;
+  }
   function pathHtml() {
     const S = ui.game.state, P = S.path, tot = Object.values(P).reduce((a, b) => a + b, 0) || 1, cls = S.heroClass;
     const next = cls === 'survivor' ? `Your class unlocks at level ${CLASS_TIERS[0].lvl} (you are ${S.lvl}).` : !HEROES[cls].base ? `It grows at level ${CLASS_TIERS[1].lvl} (you are ${S.lvl}).` : !HEROES[cls].legend ? `Its legendary form: level ${CLASS_TIERS[2].lvl} (you are ${S.lvl}).` : 'Legendary. Your class is complete.';
-    const tr = S.story.trial && !S.story.trial.done ? `<p class="note" style="color:#ff9a80">${esc(S.story.trial.name)} waits at the red marker.</p>` : '';
+    const tr = S.story.trial && !S.story.trial.done ? `<p class="note" style="color:#ff9a80">${esc(S.story.trial.name)} waits at the gold MAIN marker.</p>` : '';
     return `<div class="path">${['hero', 'ranger', 'scavver', 'heart'].map(f => `<div class="pr" style="--fam:${FAMILIES[f].color}"><span>${FAMILIES[f].name}</span><span class="pb"><i style="width:${Math.round(P[f] / tot * 100)}%"></i></span><b>${Math.round(P[f] / tot * 100)}%</b></div>`).join('')}</div>
       <p class="note" style="margin-top:6px">Rescues and mercy lean to Heart, fighting up close to Brawn, scouting and quiet to Aim, deals and salvage to Wits. ${next}</p>${tr}`;
   }

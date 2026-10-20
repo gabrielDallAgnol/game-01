@@ -40,14 +40,16 @@ export function createMap(ui) {
     const S = ui.game.state, m = ui.game.map, dot = (x, y, r, col, ring) => { ctx.beginPath(); ctx.arc((x - ox) * s, (y - oy) * s, r, 0, 7); if (ring) { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); } else { ctx.fillStyle = col; ctx.fill(); } };
     const seenAt = (x, y) => S.seen[idx(Math.floor(x), Math.floor(y))] === 1;
     for (const r of m.regions) if (r.nest && seenAt(r.nest.x, r.nest.y)) dot(r.nest.x, r.nest.y, big ? 5 : 3, S.nestAlive[r.id] ? (r.ring === 1 ? '#b4ff4e' : '#ff5a4a') : '#6b6b6b');
-    if (big) for (const l of S.landmarks) if (seenAt(l.x, l.y)) dot(l.x, l.y, 6, l.owned ? '#ffb347' : '#ffe08a', !l.owned);
-    for (const sp of S.story.spots) if (big) dot(sp.x, sp.y, 4, '#7fe3ff');
-    const tr = S.story.trial; if (tr && !tr.done) dot(tr.x, tr.y, big ? 6 : 4, '#ff4a4a', true);
-    // the contract's place: a cyan double ring and its name (the big map), on every map; it shows even unexplored
-    const k = S.story.contract; if (k && !k.won && !k.lost && k.finale.kind === 'hive') { const n = m.regions[k.finale.region].nest; if (n) {
-      dot(n.x, n.y, big ? 11 : 6, '#7fe3ff', true); dot(n.x, n.y, big ? 6 : 3, '#7fe3ff', true);
-      if (big) { const t = 'CONTRACT'; ctx.font = 'bold 20px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(t, (n.x - ox) * s, (n.y - oy) * s - 18); ctx.fillStyle = '#7fe3ff'; ctx.fillText(t, (n.x - ox) * s, (n.y - oy) * s - 18); }
-    } }
+    // places to claim: small and quiet (optional); owned ones a plain amber dot
+    if (big) for (const l of S.landmarks) if (seenAt(l.x, l.y)) dot(l.x, l.y, l.owned ? 4 : 3.5, l.owned ? '#d9a35a' : 'rgba(214,222,226,.7)', !l.owned);
+    // objectives: OPTIONAL ones small and neutral; MAIN ones a gold double ring and a "MAIN · what" tag, even unexplored
+    const objs = ui.game.story().objectives().filter(o => o.x !== undefined);
+    for (const o of objs) if (o.priority !== 'main') dot(o.x, o.y, big ? 4 : 2.5, o.kind === 'drop' ? '#e0886a' : '#a9c6d6');
+    for (const o of objs) if (o.priority === 'main') {
+      const X = (o.x - ox) * s, Y = (o.y - oy) * s;
+      ctx.beginPath(); ctx.arc(X, Y, big ? 13 : 12, 0, 7); ctx.fillStyle = 'rgba(255,211,106,.25)'; ctx.fill();
+      dot(o.x, o.y, big ? 12 : 11, '#ffd36a', true); dot(o.x, o.y, big ? 5 : 5, '#ffd36a');
+    }
     if (big && ui.game.hearRadius) { const r = ui.game.hearRadius() * s; ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = 'rgba(240,166,73,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc((m.town.x - ox) * s, (m.town.y - oy) * s, r, 0, 7); ctx.stroke(); ctx.restore();
     }
     dot(m.town.x, m.town.y, big ? 7 : 4, '#f0a649');
@@ -66,12 +68,38 @@ export function createMap(ui) {
     marks(ctx, h.x - R, h.y - R, s, false);
     const c = ui.game.map.city; if (c) { const a = Math.atan2(c.y - h.y, c.x - h.x), dd = Math.hypot(c.x - h.x, c.y - h.y); if (dd > R + c.r * 0.3) { const r0 = cv.width / 2 - 9, x = cv.width / 2 + Math.cos(a) * r0, y = cv.width / 2 + Math.sin(a) * r0; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-6, -6); ctx.lineTo(-6, 6); ctx.fill(); ctx.restore(); } }
   }
+  /** the big map's "MAIN · what" tags, drawn last so nothing covers them; each takes the first free slot around its ring */
+  function mainTags(ctx, ox, oy, s, campAt) {
+    const W = ctx.canvas.width, placed = [];
+    ctx.font = 'bold 18px system-ui, sans-serif';
+    { const w = ctx.measureText('CAMP').width + 30; placed.push({ x: (campAt[0] - ox) * s - w / 2, y: (campAt[1] - oy) * s - 22, w, h: 30 }); }
+    for (const o of ui.game.story().objectives()) {
+      if (o.priority !== 'main' || o.x === undefined) continue;
+      const t = `MAIN · ${o.label.toUpperCase()}`, w = ctx.measureText(t).width + 14, h = 24, X = (o.x - ox) * s, Y = (o.y - oy) * s;
+      let r = null;
+      for (const dy of [-30, 30, -56, 56, -82, 82]) {
+        const c = { x: Math.max(2, Math.min(W - w - 2, X - w / 2)), y: Y + dy - h / 2, w, h };
+        if (!placed.some(p => c.x < p.x + p.w && p.x < c.x + c.w && c.y < p.y + p.h && p.y < c.y + c.h)) { r = c; break; }
+      }
+      r = r || { x: Math.max(2, Math.min(W - w - 2, X - w / 2)), y: Y - 30 - h / 2, w, h }; placed.push(r);
+      ctx.strokeStyle = 'rgba(255,211,106,.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(Math.max(r.x, Math.min(r.x + w, X)), r.y + (r.y > Y ? 0 : h)); ctx.stroke();
+      ctx.fillStyle = 'rgba(10,16,26,.94)'; ctx.fillRect(r.x, r.y, w, h); ctx.strokeStyle = '#ffd36a'; ctx.lineWidth = 2; ctx.strokeRect(r.x, r.y, w, h);
+      ctx.fillStyle = '#ffd36a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, r.x + w / 2, r.y + h / 2 + 1); ctx.textBaseline = 'alphabetic';
+    }
+  }
+  /** the legend, grouped: what the System requires first (gold), then what is optional (quiet), then the land */
+  function legend() {
+    const objs = ui.game.story().objectives(), main = objs.filter(o => o.priority === 'main' && o.x !== undefined);
+    const mainRow = main.length ? `<div class="lg-main"><b>Main</b>${main.map(o => `<span><i class="o" style="border-color:#ffd36a;box-shadow:0 0 6px rgba(255,211,106,.6)"></i>${esc(o.label)}: ${esc(o.title)}</span>`).join('')}</div>` : '';
+    return `${mainRow}<div class="legend"><span class="lg-h">Optional</span><span><i class="o" style="border-color:rgba(214,222,226,.7)"></i>Place to claim</span><span><i style="background:#a9c6d6"></i>Beacon</span><span><i style="background:#e0886a"></i>Supply drop</span></div>
+      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span><span><i style="background:#ff5a4a"></i>City hive</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>`;
+  }
   function showMap() {
     const S = ui.game.state, src = worldNow(), b = worldB, w = b.x1 - b.x0 + 1, hh = b.y1 - b.y0 + 1, s = 2;
     ui.paused = true; if (ui.placing) ui.stopPlacing(); ui.closePanel();
     ui.showCard('map', `<button class="closex" id="mapX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Map] ${esc(ui.game.map.name)} · day ${S.night}</div><h1 class="sm">The woods and the city</h1>
       <div class="mapwrap"><canvas id="bigMap" aria-label="Map of the woods and the city"></canvas></div>
-      <div class="legend"><span><i style="background:#ffffff"></i>You</span>${S.story.contract && !S.story.contract.won && S.story.contract.finale.kind === 'hive' ? `<span><i style="background:none;border:2px solid #7fe3ff"></i>Contract: ${esc(S.story.contract.finale.name)}</span>` : ''}<span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span><span><i style="background:#ff5a4a"></i>City hive</span><span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#7fe3ff"></i>Beacon</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>
+      ${legend()}
       <p class="note">Dark ground is unexplored. Tap a place to plan a trip.</p>
       <div class="cardrow foot"><button class="btn big" id="mapOk">Back</button></div>`, { sys: true, arm: false });
     const cv = $('#bigMap'); cv.width = w * s; cv.height = hh * s; const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
@@ -82,6 +110,7 @@ export function createMap(ui) {
     // [road] begin
     if (ui.roadUI) ui.roadUI.onMap(cv, b.x0, b.y0, s);
     // [road] end
+    mainTags(ctx, b.x0, b.y0, s, [ui.game.map.town.x, ui.game.map.town.y - 8]);
     $('#mapOk').onclick = $('#mapX').onclick = () => { ui.hideCard(); ui.paused = false; };
   }
   $('#mini').onclick = () => { if (ui.game && !ui.card) showMap(); };

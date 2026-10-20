@@ -113,7 +113,7 @@ export function createView(canvas, game, opts = {}) {
     loot.bobChests(dt);
     buildings.update(dt);
     keep.update();
-    markers.updateContract();
+    markers.updateMain();
     hives.update(dt);
     routes.update();
     markers.updateSelection(dt, ui.selected);
