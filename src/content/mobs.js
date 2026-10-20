@@ -38,12 +38,13 @@ export const ESCAPE = {
 };
 
 // the climb the budget carries now that the dead toughen slowly (hpScale ≈ 1.035ⁿ): night n brings (1 + k(n−1))× the old count
-// From night LATE.from the climb stops (only the n² term grows: still ×1.6 from night 15 to 20). Oct 20 pm: by night 17
-// the wave's HP had grown ×140 and a well-built town's damage ×17; the area towers carry the rest. Night 15 is ×0.9 the
-// old budget, night 17 ×0.83, night 20 ×0.75.
+// Nights LATE.from–LATE.to: the climb rests (only the n² term grows: still ×1.6 from night 15 to 20), so a town that built
+// well and specialised its towers can hold to ~20; after that it climbs hard again (LATE.after a night) and passes the old
+// curve by night 26: endless runs still end. Oct 20 pm: by night 17 the wave's HP had grown ×140 and a well-built town's
+// damage ×17. Night 15 is ×0.9 the old budget, night 17 ×0.83, night 20 ×0.75, night 22 ×0.86, night 26 ×1.04.
 export const BUDGET_CLIMB = 0.075;
-export const LATE = { from: 12, climb: 0 };
-const climb = n => 1 + BUDGET_CLIMB * (Math.min(n, LATE.from) - 1) + LATE.climb * Math.max(0, n - LATE.from);
+export const LATE = { from: 12, to: 20, climb: 0, after: 0.2 };
+const climb = n => 1 + BUDGET_CLIMB * (Math.min(n, LATE.from) - 1) + LATE.climb * (Math.min(Math.max(n, LATE.from), LATE.to) - LATE.from) + LATE.after * Math.max(0, n - LATE.to);
 export const WAVES = {
   budget: n => (5 + 2.2 * n + 0.36 * n * n) * climb(n),   // mob-cost points per night: more dead, not tougher ones
   hpScale: n => Math.pow(1.035, n - 1),   // the dead toughen slowly: growth has to help (the budget, not the hp, carries the climb)
