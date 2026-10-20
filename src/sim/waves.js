@@ -121,6 +121,7 @@ export function createWaves(G) {
   }
 
   function spawnMob(kind, x, y, opts = {}) {
+    if (G.spawnPoint) ({ x, y } = G.spawnPoint(x, y));   // never in the void, a walled-in yard or a roof: the nearest open ground (sim/steer.js)
     const m = MOBS[kind], hs = hpS(S.night);
     const hp = m.fixedHp ? m.hp : Math.ceil(m.hp * hs * (m.weight === 0 && kind !== 'risen' ? (S.night < 10 ? Math.min(1, G.DIFF.threat) : G.DIFF.threat) : 1));   // bosses scale with the difficulty too
     const mob = { id: S.nextId++, kind, x, y, hp, maxHp: hp, cd: rng.range(0, 0.5), speed: m.speed * rng.range(0.9, 1.1), boost: 1, rise: opts.instant ? 1 : 0, face: 0, attacking: false, summonT: m.summon ? m.summon.every : 0, tauntT: 0, burn: null };
@@ -131,7 +132,7 @@ export function createWaves(G) {
     const n = r < 0 ? edgeSpawns[-1 - r] : map.regions[r].nest;
     for (let k = 0; k < 8; k++) {
       const a = rng.range(0, Math.PI * 2), d = rng.range(0, 1.8), x = n.x + Math.cos(a) * d, y = n.y + Math.sin(a) * d;
-      if (inside(Math.floor(x), Math.floor(y)) && PASSABLE[map.terrain[idx(Math.floor(x), Math.floor(y))]] && S.occ[idx(Math.floor(x), Math.floor(y))] < 0) return spawnMob(kind, x, y);
+      if (inside(Math.floor(x), Math.floor(y)) && PASSABLE[map.terrain[idx(Math.floor(x), Math.floor(y))]] && map.reach[idx(Math.floor(x), Math.floor(y))] && S.occ[idx(Math.floor(x), Math.floor(y))] < 0) return spawnMob(kind, x, y);
     }
     return spawnMob(kind, n.x, n.y);
   }

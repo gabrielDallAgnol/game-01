@@ -18,7 +18,7 @@ export function createBrain(G) {
         let spot = null;
         for (let t = 0; t < 20 && !spot; t++) {
           const sp = ring >= 2 ? 9 : 7, x = reg.x + rng.range(-sp, sp), y = reg.y + rng.range(-sp, sp), cx = Math.floor(x), cy = Math.floor(y);
-          if (inside(cx, cy) && PASSABLE[map.terrain[idx(cx, cy)]] && map.region[idx(cx, cy)] === reg.id && S.occ[idx(cx, cy)] < 0 && G.baseDist(x, y) > 8) spot = { x, y };
+          if (inside(cx, cy) && PASSABLE[map.terrain[idx(cx, cy)]] && map.reach[idx(cx, cy)] && map.region[idx(cx, cy)] === reg.id && S.occ[idx(cx, cy)] < 0 && G.baseDist(x, y) > 8 && !G.nearHive(x, y, R.hiveGap)) spot = { x, y };   // never in a walled-in yard, nor a crowd at a hive's door
         }
         if (!spot) break;
         const kind = ring >= 2 ? rng.pick(S.night >= 6 ? ['walker', 'runner', 'walker', 'brute'] : ['walker', 'runner', 'walker']) : rng.next() < 0.22 ? 'runner' : 'walker';
@@ -35,7 +35,7 @@ export function createBrain(G) {
     const herd = (kind, size) => {
       for (let t = 0; t < 30; t++) {
         const reg = wild[rng.int(wild.length)], x = reg.x + rng.range(-8, 8), y = reg.y + rng.range(-8, 8), cx = Math.floor(x), cy = Math.floor(y);
-        if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || map.region[idx(cx, cy)] !== reg.id || Math.hypot(x - c, y - c) < 16 || S.occ[idx(cx, cy)] >= 0) continue;   // away from the camp (claimed sites don't count)
+        if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || !map.reach[idx(cx, cy)] || map.region[idx(cx, cy)] !== reg.id || Math.hypot(x - c, y - c) < 16 || S.occ[idx(cx, cy)] >= 0) continue;   // away from the camp (claimed sites don't count)
         for (let k = 0; k < size; k++) { const m = G.spawnMob(kind, x + rng.range(-1, 1), y + rng.range(-1, 1), { instant: true }); m.roam = { x, y, region: reg.id }; }
         return true;
       }
@@ -72,17 +72,25 @@ export function createBrain(G) {
     if (m.hunt && !m.warden && heroHome && G.baseDist(m.x, m.y) < 4) { if (S.night < 4 || MOBS[m.kind].animal || rng.next() < 0.7) { m.hunt = false; m.wp = { x: home.x, y: home.y }; } else { m.roam = null; m.hunt = false; ev('drift', { id: m.id }); return; } }
     if (m.hunt || (m.tauntT > 0 && !h.dead)) {
       m.face = Math.atan2(h.x - m.x, h.y - m.y);
-      if (hd > 0.9) moveToward(m, h.x, h.y, speed * (R.chase[m.kind] || 1.2) * dt); else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; G.hurtHero(MOBS[m.kind].dmg * (m.dmgK || 1)); ev('bite', { id: m.id }); } }
+      if (hd > 0.9) G.walkTo(m, h.x, h.y, speed * (R.chase[m.kind] || 1.2) * dt); else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; G.hurtHero(MOBS[m.kind].dmg * (m.dmgK || 1)); ev('bite', { id: m.id }); } }
       return;
     }
     if (fromHome > R.leash) { m.wp = { x: home.x, y: home.y }; }
+    // a hive's guard that lost you walks back to its door and goes in: no crowd waits outside a hive for nothing
+    if (m.guard !== undefined && !m.hunt && fromHome < 1.2 && !(hd < sight)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('nestHome', { id: m.id, region: m.guard }); return; }
+    if (m.guard !== undefined && !m.hunt) m.wp = { x: home.x, y: home.y };
     if (!m.wp || Math.hypot(m.wp.x - m.x, m.wp.y - m.y) < 0.3) {
       if (m.idleT > 0) { m.idleT -= dt; return; }
-      const a = rng.range(0, Math.PI * 2), d = rng.range(0.5, R.radius), x = home.x + Math.cos(a) * d, y = home.y + Math.sin(a) * d, cx = Math.floor(x), cy = Math.floor(y);
-      m.wp = inside(cx, cy) && PASSABLE[map.terrain[idx(cx, cy)]] && S.occ[idx(cx, cy)] < 0 ? { x, y } : { x: home.x, y: home.y };
+      m.wp = { x: home.x, y: home.y };   // a few tries for open ground round home (a city block leaves little), else home itself
+      for (let k = 0; k < 4; k++) {
+        const a = rng.range(0, Math.PI * 2), d = rng.range(0.5, R.radius), x = home.x + Math.cos(a) * d, y = home.y + Math.sin(a) * d, cx = Math.floor(x), cy = Math.floor(y);
+        if (inside(cx, cy) && PASSABLE[map.terrain[idx(cx, cy)]] && map.reach[idx(cx, cy)] && S.occ[idx(cx, cy)] < 0) { m.wp = { x, y }; break; }
+      }
       m.idleT = rng.range(1, 4);
     }
-    const ox = m.x, oy = m.y; moveToward(m, m.wp.x, m.wp.y, speed * 0.4 * dt);
+    const ox = m.x, oy = m.y; G.walkTo(m, m.wp.x, m.wp.y, speed * 0.4 * dt);
+    // no way on toward that spot (a cliff, a block, a jam of its own kind): after a few seconds without getting closer, pick another
+    { const wd = Math.hypot(m.wp.x - m.x, m.wp.y - m.y); if (m.wp !== m.wpOf || wd < m.wpBest - 0.05) { m.wpOf = m.wp; m.wpBest = wd; m.wpStall = 0; } else if ((m.wpStall += dt) > 3) { m.wp = null; m.wpOf = null; m.idleT = 0; } }
     const cx = Math.floor(m.x), cy = Math.floor(m.y); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) { m.x = ox; m.y = oy; m.wp = null; }
   }
 
@@ -167,10 +175,10 @@ export function createBrain(G) {
         const far = hd > 30 && Math.hypot(m.x - c, m.y - c) > 40 ? BRAIN.farSpeed : 1;
         if (goal === h) {
           m.face = Math.atan2(h.x - m.x, h.y - m.y);
-          if (hd > 0.9) moveToward(m, h.x, h.y, speed * (TIDE.roam.chase[m.kind] || 1.2) * dt);
+          if (hd > 0.9) G.walkTo(m, h.x, h.y, speed * (TIDE.roam.chase[m.kind] || 1.2) * dt);
           else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; G.hurtHero(D.dmg * (m.dmgK || 1)); ev('bite', { id: m.id }); } }
         } else if (goal.wait) { m.face = Math.atan2(h.x - m.x, h.y - m.y); }
-        else moveToward(m, goal.x, goal.y, speed * far * dt);
+        else G.walkTo(m, goal.x, goal.y, speed * far * dt);
         continue;
       }
       if (hd > 30 && Math.hypot(m.x - c, m.y - c) > 40) speedK = BRAIN.farSpeed; else speedK = 1;
