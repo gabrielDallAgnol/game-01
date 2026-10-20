@@ -114,7 +114,7 @@ export function choosePack(g, strat) {
   const pick = ps.find(p => p.kind === want) || ps.find(p => p.kind === 'mix') || ps[0];
   g.choosePack(pick.id);
 }
-export function chooseStory(g) { const S = g.state; for (let k = 0; k < 9 && S.story && S.story.encounters.length; k++) { const e = S.story.encounters[0]; const c = (e.kind === 'evolve' && e.choices.find(x => /Fights/.test(x.hint || ''))) || e.choices.find(x => g.story().can(x)) || e.choices[e.choices.length - 1]; g.choose(c.id); } }   // a sensible player keeps a hero that fights
+export function chooseStory(g) { const S = g.state; for (let k = 0; k < 9 && S.story && S.story.encounters.length; k++) { const e = S.story.encounters[0]; const c = (e.kind === 'difficulty' && e.choices.find(x => x.id === 'keep')) || (e.kind === 'evolve' && e.choices.find(x => /Fights/.test(x.hint || ''))) || e.choices.find(x => g.story().can(x)) || e.choices[e.choices.length - 1]; g.choose(c.id); } }   // a sensible player keeps a hero that fights
 export function choosePerks(g, path) {
   chooseStory(g);
   const S = g.state;

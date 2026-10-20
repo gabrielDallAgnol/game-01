@@ -19,9 +19,9 @@ export const SLOT = { thread: 'story', ambient: 'story', district: 'story', stre
 // what may open at night: only what is about the night
 const NIGHT_OK = new Set(['arrival']);
 const DIFF_OFFER = [
+  { id: 'keep', label: 'Keep it as it is', hint: 'Fair but hard. The way it is meant to be played.' },
   { id: 'story', label: 'Gentler', hint: 'Fewer dead, richer homes. For the story.' },
   { id: 'veteran', label: 'Harder', hint: 'More dead, thinner supplies. Mistakes cost buildings.' },
-  { id: 'keep', label: 'Keep it as it is', hint: 'Fair but hard. The way it is meant to be played.' },
 ];
 const DIRS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
 

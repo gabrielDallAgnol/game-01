@@ -36,6 +36,17 @@ const saves = createSaves();
 let lastSave = null;
 for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => audio.unlock(), { capture: true });
 // Cut or parked (decisions, Oct 20): everything stays behind a flag so it can come back.
+// the start screen's "What's new" (under More): short, for players
+const WHATS_NEW = [
+  '**Night missions.** At dusk choose how to spend the night: **Hold the Camp**, **The Hunt** (lantern off, burn a hive while its dead are out) or **The Pied Piper** (sound the horn, lead the dead into a trap).',
+  '**The old road.** Four stations with fires. Light one and it becomes an outpost; walk the people you find home in a **convoy**, and spend a night out there if you dare.',
+  '**Seasons are contracts.** The System offers a rule and a finale. Win it and the city eases off; lose it and the run ends with its name.',
+  '**One Noise meter.** The louder the Camp, the more dead come and the farther the hives hear you (the ring on the map).',
+  '**Ruins stay ruins** until you rebuild them: tap one, or **Rebuild all** at dawn.',
+  '**Flare and Smoke** buttons when the dead are on you or a hive has just burned.',
+  'A **lantern-lit** world: warm fires, cold nights, a frontier camp that grows from a stalled bus.',
+  'Fewer, sharper systems: power, hands, barricades, weather and the trader are gone for now.',
+];
 export const FLAGS = { trader: false, crew: false, legacyAll: false, foremanFirstRun: false, runLog: false, perkShop: false, changelog: false, startDifficulty: false };
 const LEGACY_KEEP = ['scrap', 'dmg', 'keep'];
 const RINGS = ['Camp', 'The woods', 'The city', 'The old core'];
@@ -135,7 +146,7 @@ export function startApp() {
     showCard('map', `<button class="closex" id="mapX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Map] ${esc(game.map.name)} · day ${S.night}</div><h1 class="sm">The woods and the city</h1>
       <div class="mapwrap"><canvas id="bigMap" aria-label="Map of the woods and the city"></canvas></div>
       <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span><span><i style="background:#ff5a4a"></i>City hive</span><span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#7fe3ff"></i>Beacon</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>
-      <p class="note">Dark ground is unexplored. The old road starts deep in the woods and leads to the city: about a minute on foot.</p>
+      <p class="note">Dark ground is unexplored. Tap a place to plan a trip.</p>
       <div class="cardrow foot"><button class="btn big" id="mapOk">Back</button></div>`, { sys: true, arm: false });
     const cv = $('#bigMap'); cv.width = w * s; cv.height = hh * s; const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
     ctx.drawImage(src, b.x0, b.y0, w, hh, 0, 0, w * s, hh * s);
@@ -162,6 +173,7 @@ export function startApp() {
         <label class="aitog" style="margin-top:14px"><input type="checkbox" id="aiStart" ${chronicler.enabled() ? 'checked' : ''}><span>Let the Chronicler (Claude) write your story and play your companions. It uses your Claude account and asks first. Off: the written story.</span></label>
         ${FLAGS.startDifficulty ? `<div class="opts one" style="margin-top:12px">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="opt" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><span class="nm">${d.name}</span><span class="ds">${d.blurb}</span></button>`).join('')}</div>` : '<p class="note" style="margin-top:12px">The System asks how hard it should be after your first night.</p>'}
         ${legacyHtml()}
+        <div class="news"><b>What's new tonight</b><ul>${WHATS_NEW.map(t => `<li>${rich(t)}</li>`).join('')}</ul></div>
       </details>
       <div class="foot">${best ? `Your best: night ${best} · ` : ''}Drag to walk · tap to go somewhere</div>`, { cls: 'titlecard', arm: false });
     opts.forEach((o, k) => drawMinimap($(`#mm${k}`), generateMap(o.seed, o.biome)));
