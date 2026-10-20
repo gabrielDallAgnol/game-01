@@ -550,7 +550,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (b.type === 'keep') { endRun(false); return; }
     S.cur.lost.push(b.type); S.stats.buildingsLost++; (S.cur.fellB || (S.cur.fellB = [])).push({ id: b.id, type: b.type, level: b.level });
     if (rule('raiders') && S.phase === 'night') S.gold = Math.max(0, S.gold - 2);
-    if (S.phase === 'night' && !S.nightFlags.breach && b.type !== 'wall') { S.nightFlags.breach = true; ev('breach', { x: b.x, y: b.y }); toast(`[Warning: breach] The dead are inside the ${compass(b.x, b.y)} ring. Get there, or pull back to the hall.`, 'bad'); }
+    if (S.phase === 'night' && !S.nightFlags.breach && b.type !== 'wall') { S.nightFlags.breach = true; ev('breach', { x: b.x, y: b.y }); toast(`[Breach: ${compass(b.x, b.y)}] The dead are inside. Get there!`, 'bad'); }
     // Salvage: a quarter of what the building cost (never a barricade post: no profit in losing things)
     if (has('salvage') && b.type !== 'wall') earn(Math.max(1, Math.floor(investOf(b) * (combo('salvage', 'mortar') ? 0.4 : 0.25))));
     if (b.type === 'house' && S.P.shelter) { S.stats.housesLost++; toast('A home fell. Its families hid in the safe room.', 'bad'); }
@@ -562,7 +562,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       for (let k = 0; k < n; k++) { const m = spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1), { instant: false }); m.rise = 0.4; }
       crewCache = null;
       toast(`A home fell. ${n === 1 ? 'One of its people rises' : `${n} of its people rise`} with the dead: lost for good.`, 'bad');
-    } else toast(`${BUILDINGS[b.type].name} destroyed. It stays a ruin until you rebuild it.`, 'bad');
+    } else toast(`${BUILDINGS[b.type].name} destroyed. Rebuild it by hand.`, 'bad');
   }
   /** what a building cost to put up at its level (its rebuild price is half of this) */
   const investOf = b => { let s = 0; for (let l = 1; l <= b.level; l++) s += costOf(b.type, l); return s; };
@@ -847,7 +847,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       ratio: +threatRatio(S.night, purgeReg).toFixed(2), forecast: forecastStrip(), noise: Math.round(S.noise || 0), standing: S.buildings.filter(b => !b.ruined).length, purge: purgeReg, nests: activeNests().length, claimed: claimedCount(), bloodMoon: isBloodMoon(S.night),
     });
     if (!CUT.crew) sc.nightfall(keep);
-    { const rt = ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight is stronger than your defences. Expect the outer ring to break: keep the hero near the homes.`, 'bad'); }
+    { const rt = ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight beats your towers. Stay near the homes.`, 'bad'); }
     ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
     toast(isBloodMoon(S.night) ? `Blood moon. Night ${S.night} begins.` : `Dusk. Night ${S.night}: the dead come in force.`, isBloodMoon(S.night) ? 'bad' : undefined);
     return true;
@@ -1000,7 +1000,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       k++;
       const m = spawnMob(kind, x, y, { instant: true }); m.hp = m.maxHp = Math.ceil(m.maxHp * 1.5); m.roam = { x: d.x, y: d.y, region: -1 };
     }
-    ev('drop', { id: d.id, x: d.x, y: d.y }); toast(`${why} A supply drop came down to the ${compass(d.x, d.y)}. It is guarded. Stand by it for 3 seconds to open it.`, 'good');
+    ev('drop', { id: d.id, x: d.x, y: d.y }); toast(`${why} [Supply drop: ${compass(d.x, d.y)}] Stand by it 3 s to open it.`, 'good');
   }
   function openDrop(d) {
     S.drops.splice(S.drops.indexOf(d), 1);
@@ -1025,7 +1025,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const loot = WAVES.plunder(map.regions[r].ring); earn(loot);
     if (S.season && S.season.finaleHive === r && S.night <= S.season.end) finale(true);
     for (const m of S.mobs) if (m.stream === r) m.stream = -1;
-    ev('claim', { region: r }); toast(`The hive burns: +${loot} scrap and a rare blessing. New hives stir beyond it.`, 'good');
+    ev('claim', { region: r }); toast(`Hive burned: +${loot} scrap and a rare blessing.`, 'good');
   }
   // ---------- the stream: the dead never stop coming from awake hives, day and night ----------
   const streamAcc = {}, hiveDmg = {}, rage = {};
@@ -1093,7 +1093,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const r = cands[0];
     S.eruption = { region: r.id, t: HEAT.warn, x: r.nest.x, y: r.nest.y };
     ev('eruptWarn', { region: r.id, x: r.nest.x, y: r.nest.y });
-    toast(`[Warning] The town is too loud. The hive to the ${compass(r.nest.x, r.nest.y)} is swelling: it bursts in ${HEAT.warn} seconds.`, 'bad');
+    toast(`[Too loud] The ${compass(r.nest.x, r.nest.y)} hive bursts in ${HEAT.warn} s.`, 'bad');
   }
   function erupt() {
     const r = S.eruption.region; S.eruption = null; S.heatCool = HEAT.cool; S.noiseSpike = 0; S.noiseChoice = Math.min(S.noiseChoice || 0, Math.max(0, (S.noiseChoice || 0) + HEAT.after));   // the burst spends the fighting noise and most of the choices'
@@ -1212,7 +1212,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function checkForeman() {
     if (S.foreman || keep.level < FOREMAN.keep || S.buildings.filter(b => b.type !== 'wall').length < FOREMAN.buildings) return;
     S.foreman = true; ev('skill', { id: 'foreman' });
-    toast('[Skill acquired: Foreman] Your people **can** build and upgrade by themselves now. It is **off**: switch it on in the **build menu** when you want to step away.', 'win');
+    toast('[Skill acquired: Foreman] Your people can **build by themselves**. Switch it on in the **build menu**.', 'win');
   }
 
   function dawn() {
@@ -2000,7 +2000,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
         if (m.unique && S.unique) S.unique.escaped = true;   // at your walls: the sunrise burns the night's dead (the hives' stream keeps coming)
         S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: 'sun', dmg: 0 }); burnt++;
       }
-      if (burnt) toast(`The sun rises: **${burnt}** of the night's dead burn at your walls. The rest of the dead keep coming.`);
+      if (burnt) toast(`Sunrise: **${burnt}** of the dead burn at your walls.`);
       dawn();
     }
   }

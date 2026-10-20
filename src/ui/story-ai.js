@@ -7,7 +7,7 @@
 
 export const TONE = 'Tone: an earnest isekai/anime survival story (think Shangri-La Frontier, That Time I Got Reincarnated as a Slime): the hero woke up in a fallen modern city with a game-like status window; hope under dread; vivid, concrete, short sentences; PG-13 (no gore detail, nothing sexual); no real brands or real people; never mention AI or that this is a game. The System speaks only inside [square brackets].';
 export const clip = (s, n) => String(s ?? '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
-const SHORT = 'Write like a modern mobile game, not a novel: punchy, concrete, 8–16 words per beat, present tense. In every beat mark the 1–2 key words (who, what is at stake, what it costs) with **double asterisks**. Cause and consequence must be obvious at a glance.';
+const SHORT = 'Write like a modern mobile game, not a novel. The player reads on a phone mid-fight and must get it in ONE read. The FIRST beat says plainly WHAT happens or WHAT the player must decide (who, where, what). At most 2 beats; at most 12 words each; present tense; concrete nouns, no metaphors, no riddles, no lore dumps. Mark the 1–2 key words (who, what is at stake) with **double asterisks**. Cause and consequence must be obvious at a glance. If a sentence could be cut without losing a fact, cut it.';
 
 // ---------- rewrite one encounter ----------
 export function rewritePrompt(enc, ctx) {
@@ -18,7 +18,7 @@ RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, people: ctx.people, sites:
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle)}
 ENCOUNTER: ${JSON.stringify({ kind: enc.kind, eyebrow: enc.eyebrow, title: enc.title, scene: enc.scene, speaker: enc.speaker ? { name: enc.speaker.name, line: enc.speaker.line } : null, choices })}
 ${SHORT}
-Reply with ONLY this JSON: {"title":"≤6 words","beats":["2 or 3 beats, each ≤16 words, second person, present tense; together they are the scene"],"line":${enc.speaker ? '"≤16 words, what the speaker says, in quotes"' : 'null'},"choices":[{"id":"<same id>","label":"≤6 words"}],"chronicle":"≤16 words, past tense, what this moment was"}`;
+Reply with ONLY this JSON: {"title":"≤5 plain words","beats":["1 or 2 beats, each ≤12 words, second person, present tense; the first says what happens"],"line":${enc.speaker ? '"≤12 words, what the speaker says, in quotes"' : 'null'},"choices":[{"id":"<same id>","label":"≤5 words, a plain verb first (Bring, Leave, Pay…)"}],"chronicle":"≤14 words, past tense, what this moment was"}`;
 }
 export function parseRewrite(p, enc) {
   if (!p || typeof p !== 'object') return null;
@@ -43,7 +43,7 @@ STORY THREADS: ${JSON.stringify(ctx.threads || [])}
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle)}
 TEMPLATES: ${JSON.stringify(menu)}
 ${SHORT} The words must match each choice's effect (e.g. a rescue of +2 people is two or three people, not a crowd). Never reuse a name from PEOPLE MET for a new character.
-Reply with ONLY this JSON: {"template":"<template id>","callback":"≤16 words: which earlier event this grows from","eyebrow":"≤4 words, System style, no brackets","title":"≤6 words","beats":["2 or 3 beats, each ≤16 words, second person, present tense"],"choices":[{"id":"<template choice id>","label":"≤6 words"}],"character":{"name":"first and last name","epithet":"the ... (≤4 words)","role":"for recruit only: scout|medic|cook|mechanic|gunner","traits":["3 single words"],"quirk":"≤10 words","want":"≤10 words","fear":"≤8 words","secret":"≤20 words"} or null}`;
+Reply with ONLY this JSON: {"template":"<template id>","callback":"≤16 words: which earlier event this grows from","eyebrow":"≤3 words, System style, no brackets","title":"≤5 plain words","beats":["1 or 2 beats, each ≤12 words, second person, present tense; the first says who needs what"],"choices":[{"id":"<template choice id>","label":"≤5 words, a plain verb first"}],"character":{"name":"first and last name","epithet":"the ... (≤4 words)","role":"for recruit only: scout|medic|cook|mechanic|gunner","traits":["3 single words"],"quirk":"≤10 words","want":"≤10 words","fear":"≤8 words","secret":"≤20 words"} or null}`;
 }
 /** light checks only: the engine (story.invent) validates and clips everything again */
 export function parseInvent(p, templates) {
@@ -60,7 +60,7 @@ The player is coming back to their run after a break. Write the "Previously on H
 RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, season: ctx.season, hero: ctx.hero, companions: (ctx.companions || []).map(c => c.name) })}
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle)}
 ${SHORT}
-Reply with ONLY this JSON: {"beats":["3 beats, each ≤16 words, second person, past tense for what happened and present tense for the last one (what waits now)"]}`;
+Reply with ONLY this JSON: {"beats":["3 beats, each ≤12 words, second person, past tense for what happened and present tense for the last one (what waits now)"]}`;
 }
 export const parseRecap = p => { const b = p && Array.isArray(p.beats) ? p.beats.map(x => clip(x, 200)).filter(x => x.length >= 8).slice(0, 4) : []; return b.length ? b : null; };
 
@@ -71,7 +71,7 @@ export const EFFECT_TEXT = /\d|[+−]|\b(double|triple|half|free|bonus|reward|bl
 export function contractPrompt(ctx, enc) {
   const offers = enc.offers.map(o => ({ id: o.id, finale: o.finale.kind === 'unique' ? `a monster named ${o.finale.name}, on the season's last blood moon` : `a hive called ${o.finale.name}, to burn before the season ends`, rule: o.terms.rule.name, highStakes: !!o.big }));
   return `You are the Chronicler of "Hold Hollowmere", a zombie survival game. ${TONE}
-At the start of season ${enc.season} the System offers the hero a CONTRACT. The game already decided every rule, finale and reward. You write ONLY words for each offer: a name, one line of framing, and an anime-style PLOT TWIST that hangs on someone or something from THIS run, the way a good season premiere recasts what came before ("the teacher you saved was the one who opened the gates", "the Lantern-Eater remembers your face").
+At the start of season ${enc.season} the System offers the hero a CONTRACT. The game already decided every rule, finale and reward. The card already shows each offer's goal, catch and reward in plain words. You write ONLY a short name and an anime-style PLOT TWIST in one plain sentence that hangs on someone or something from THIS run, the way a good season premiere recasts what came before ("the teacher you saved opened the gates", "the Lantern-Eater remembers your face"). The twist is flavour: it must be readable in one glance.
 Rules: each twist must name exactly one HOOK, written exactly as it appears in HOOKS. Use a different hook for each offer when you can. Never write numbers, rewards, rules, stats or effects. No brackets.
 RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, season: ctx.season, hero: ctx.hero, titles: ctx.titles, people: ctx.people })}
 COMPANIONS: ${JSON.stringify(ctx.companions || [])}
@@ -82,7 +82,7 @@ CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle || [])}
 HOOKS: ${JSON.stringify(ctx.hooks || [])}
 OFFERS: ${JSON.stringify(offers)}
 ${SHORT}
-Reply with ONLY this JSON: {"options":[{"id":"<offer id>","name":"≤5 words, a contract title","frame":"≤16 words, what this season will feel like","twist":"≤20 words, the plot twist, naming one HOOK","hook":"<the HOOK used, exactly>"}]}`;
+Reply with ONLY this JSON: {"options":[{"id":"<offer id>","name":"≤4 words, a contract title","twist":"≤14 words, one plain sentence, the plot twist, naming one HOOK","hook":"<the HOOK used, exactly>"}]}`;
 }
 export function parseContract(p, enc, hooks) {
   if (!p || typeof p !== 'object' || !Array.isArray(p.options)) return null;
@@ -90,7 +90,7 @@ export function parseContract(p, enc, hooks) {
   const ok = (t, n) => { const c = clip(t, n).replace(/\*\*/g, ''); return c.length >= 3 && !EFFECT_TEXT.test(c) && !/[[\]{}]/.test(c) ? c : null; };
   for (const o of p.options) {
     if (!o || !ids.has(o.id)) continue;
-    const name = ok(o.name, 44), frame = ok(o.frame, 140), twist = ok(o.twist, 170);
+    const name = ok(o.name, 40), frame = ok(o.frame, 140), twist = ok(o.twist, 120);
     if (name) out.names[o.id] = name;
     if (frame) out.frames[o.id] = frame;
     const hook = H.find(h => twist && twist.toLowerCase().includes(String(h).toLowerCase()));
@@ -106,7 +106,7 @@ RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, hero: ctx.hero, finale: k.
 COMPANIONS: ${JSON.stringify((ctx.companions || []).map(c => c.name))}
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle || [])}
 ${SHORT}
-Reply with ONLY this JSON: {"beats":["3 beats, each ≤16 words, past tense"],"next":"≤16 words, the teaser, present or future tense"}`;
+Reply with ONLY this JSON: {"beats":["3 beats, each ≤12 words, past tense, plain and concrete"],"next":"≤12 words, the teaser, present or future tense"}`;
 }
 export function parseSeasonRecap(p) {
   const beats = p && Array.isArray(p.beats) ? p.beats.map(x => clip(x, 200)).filter(x => x.length >= 8 && !/[[\]]/.test(x)).slice(0, 3) : [];
@@ -122,7 +122,7 @@ COMPANIONS: ${JSON.stringify((ctx.companions || []).map(c => c.name))}
 LOSSES: ${JSON.stringify(ctx.losses || [])}
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle || [])}
 ${SHORT}
-Reply with ONLY this JSON: {"beats":["3 beats, each ≤16 words"]}`;
+Reply with ONLY this JSON: {"beats":["3 beats, each ≤12 words, plain and concrete"]}`;
 }
 export const parseObituary = p => { const b = p && Array.isArray(p.beats) ? p.beats.map(x => clip(x, 200)).filter(x => x.length >= 8 && !/[[\]]/.test(x)).slice(0, 3) : []; return b.length >= 2 ? b : null; };
 
@@ -162,7 +162,7 @@ SHEET: ${JSON.stringify(sheet)}
 WORLD: ${JSON.stringify({ city: ctx.city, day: ctx.day, people: ctx.people, heat: ctx.heat, sites: ctx.sites, companions: ctx.companions.map(c => c.name) })}
 CHRONICLE: ${JSON.stringify(ctx.chronicle.slice(-8))}
 MEMORY OF EARLIER TALKS: ${JSON.stringify(n.memory.slice(-6))}
-Reply with ONLY JSON: {"say":"≤45 words, what you say, in character","mood":"warm|neutral|wary|hurt|amused","remember":"≤12 words worth remembering from this exchange, or null"}`;
+Reply with ONLY JSON: {"say":"≤30 words, what you say, in character, plain spoken words","mood":"warm|neutral|wary|hurt|amused","remember":"≤12 words worth remembering from this exchange, or null"}`;
     const turns = [{ role: 'user', content: rules + '\n\n<hero>' + clip(history[0].content, 160) + '</hero>' }];
     for (let k = 1; k < history.length; k++) turns.push(history[k].role === 'user' ? { role: 'user', content: '<hero>' + clip(history[k].content, 160) + '</hero>' } : history[k]);
     try {
