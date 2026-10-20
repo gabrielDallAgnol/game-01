@@ -40,7 +40,7 @@ export function createMarkers(V) {
     const core = new THREE.Mesh(coreGeo, beamMat); core.position.y = 7; core.renderOrder = 5; g.add(core);
     const ring = new THREE.Mesh(ringGeo(1.55, 1.85), new THREE.MeshBasicMaterial({ color: lc(GOLD).multiplyScalar(1.6), transparent: true, opacity: 0.8, depthWrite: false, fog: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.1; ring.renderOrder = 4; g.add(ring);
     const base = new THREE.Mesh(ringGeo(1.0, 1.12), new THREE.MeshBasicMaterial({ color: lc(GOLD).multiplyScalar(1.4), transparent: true, opacity: 0.9, depthWrite: false, fog: false })); base.rotation.x = -Math.PI / 2; base.position.y = 0.09; base.renderOrder = 4; g.add(base);
-    const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTex(o.label.toUpperCase()), transparent: true, depthTest: false, fog: false })); tag.scale.set(4.6, 1.0, 1); tag.renderOrder = 23; g.add(tag);
+    const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTex(o.label.toUpperCase()), transparent: true, depthTest: false, fog: false })); tag.scale.set(6.0, 1.3, 1); tag.renderOrder = 23; g.add(tag);
     fx.add(g); return { g, ring, tag, label: o.label, big: o.kind === 'contract' };
   }
   /** every main objective with a place gets the gold marker; it goes when the objective does */

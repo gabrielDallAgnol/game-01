@@ -207,10 +207,12 @@ export function createHud(ui) {
     // MAIN chips never stack on each other: slide a crowded one along the screen edge
     { const mains = [...buckets.values()].filter(b => b.main), side = b => (Math.abs(b.px - cx) > hx - 1 ? 'v' : 'h');
       for (let a = 1; a < mains.length; a++) for (let tries = 0; tries < 6; tries++) {
-        const b = mains[a], hit = mains.slice(0, a).find(o => Math.hypot(o.px - b.px, o.py - b.py) < 50); if (!hit) break;
-        if (side(b) === 'v') b.py = Math.min(bt - m, Math.max(t + m, b.py + (b.py >= hit.py ? 50 : -50) - (b.py - hit.py)));
+        const b = mains[a], hit = mains.slice(0, a).find(o => Math.hypot(o.px - b.px, o.py - b.py) < 56); if (!hit) break;
+        if (side(b) === 'v') b.py = Math.min(bt - m, Math.max(t + m, b.py + (b.py >= hit.py ? 56 : -56) - (b.py - hit.py)));
         else b.px = Math.min(Wd - m, Math.max(m, b.px + (b.px >= hit.px ? 96 : -96) - (b.px - hit.px)));
-      } }
+      }
+      // a small arrow next to a MAIN chip keeps its arrow but drops its words
+      for (const b of buckets.values()) if (!b.main && mains.some(o => Math.hypot(o.px - b.px, o.py - b.py) < 64)) { b.label = ''; b.n = 0; b.day = false; } }
     for (const b of buckets.values()) {
       let el = edge.pool[i]; if (!el) { el = document.createElement('div'); el.className = 'ar'; el.innerHTML = '<i></i><span></span>'; $('#edge').appendChild(el); edge.pool[i] = el; }
       el.style.transform = `translate(${b.px}px, ${b.py}px) rotate(${b.ang}rad)`;
