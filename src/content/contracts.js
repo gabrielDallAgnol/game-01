@@ -36,13 +36,13 @@ export const CONTRACT_COPY = {
     unique: '{finale} walks on the blood moon of night {night}. Put it down before dawn.',
     hive: 'Burn {hive} to the ground by night {night}. It will not burn quietly.',
   },
-  ruleFrame: { none: 'No new rule. The finale is the whole test.' },
+  ruleFrame: { none: 'The finale is the whole test.' },
   twist: {
     companion: '"I have heard that name before," {hook} says, and will not say where.',
     thread: 'It goes back to {hook}. It always did.',
     place: 'Whatever {finale} is, it came out of {hook}.',
     marked: 'It already knows your face.',
-    none: 'The System has offered this contract before. Nobody has finished it.',
+    none: ['The System has offered this contract before. Nobody has finished it.', 'Someone signed this one before you. Their camp is the ruin by the road.', 'The window flickers when you read the name, as if it is afraid.'],
   },
   victory: {
     eyebrow: '[Contract complete: {name}]',

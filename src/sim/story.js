@@ -426,7 +426,7 @@ export function createStory(ctx) {
     const pool = DAILY.filter(q => (!q.when || q.when(S, openSites())) && (!prev || q.id !== prev.id));
     const T = ST.penalty && prev ? (DAILY.find(q => q.id === prev.id) || pool[0]) : pool[rng.int(pool.length)];
     if (!T) return;
-    const pen = !!ST.penalty, n = Math.ceil(T.n(S.night) * (pen ? 1.5 : 1));
+    const pen = !!ST.penalty, n0 = T.n(S.night), n = pen && n0 > 1 ? Math.ceil(n0 * 1.5) : n0;
     ST.daily = { id: T.id, title: T.title, goal: T.goal.replace('{n}', n), n, base: T.stat(S, ST), done: false, penalty: pen, day: S.night, far: 0, back: false };
     toast(`${(pen ? DAILY_TEXT.penalty : DAILY_TEXT.issued).replace('{title}', T.title)} ${ST.daily.goal}.${!ST.dailyWarned ? ` ${DAILY_TEXT.warn}` : ''}`, 'sys');
     ST.dailyWarned = true; ev('daily', { id: T.id });

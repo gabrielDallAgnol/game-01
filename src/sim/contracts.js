@@ -54,7 +54,7 @@ export function createContracts(ctx) {
     if (o.id === 'c2' && h.place) return fillT(T.place, { ...v, hook: h.place });
     if (o.id === 'c3' && h.marked) return T.marked;
     if (h.thread) return fillT(T.thread, { ...v, hook: h.thread });
-    return T.none;
+    return T.none[(o.id.charCodeAt(1) - 49) % T.none.length];
   }
   /** plain-text terms the card shows (engine-owned; the AI never writes these) */
   function terms(o) {

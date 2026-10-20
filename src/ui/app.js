@@ -49,6 +49,8 @@ const esc = t => String(t ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': 
 const rich = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 const mmss = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 /** one name for the hall: the game's own strings still say keep / town hall in places */
+/** a chronicle line as a sentence: 'Drawings on the glass: "Go and get them"' → 'Drawings on the glass. You chose: Go and get them.' */
+const chronLine = t => { const m = /^(.+?): "(.+)"$/.exec(t); return m ? `${m[1].replace(/\.$/, '')}. You chose: ${m[2].replace(/^\[|\]$/g, '')}.` : t; };
 const campCopy = t => String(t).replace(/\b([Tt])he (keep|town hall|hall)\b/g, (_, T0) => `${T0}he Camp`).replace(/\btown hall\b/gi, 'Camp').replace(/\bthe town\b/g, 'the Camp');
 
 export function startApp() {
@@ -137,7 +139,7 @@ export function startApp() {
     paused = true; $('#hud').hidden = true;
     const opts = mapChoices(setup.runSeed), best = store.get('best', 0);
     $('#overlay').classList.add('start');
-    showCard('start', `<div class="kick">[A window only you can see]</div>
+    showCard('start', `${startArt()}<div class="kick">[A window only you can see]</div>
       <h1>Hold<span>Hollowmere</span></h1>
       <p class="pitch">You woke in the woods with a window only you can see. The city is a minute down the road.</p>
       <div class="cta"><div id="contRow" hidden></div><button class="btn big" id="begin">Begin</button></div>
@@ -161,6 +163,26 @@ export function startApp() {
       $('#begin').classList.add('ghost'); $('#begin').textContent = 'New run';
       $('#cont').onclick = () => begin(snap.mapSeed, snap.biome, snap);
     });
+  }
+  // the key art: the woods at dusk, the dead city on the horizon, a fire, and a window only you can see
+  function startArt() {
+    const r = n => { let x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
+    const stars = Array.from({ length: 40 }, (_, k) => `<circle cx="${(r(k) * 390).toFixed(0)}" cy="${(r(k + 99) * 230).toFixed(0)}" r="${(0.4 + r(k + 7) * 0.9).toFixed(1)}" opacity="${(0.25 + r(k + 3) * 0.6).toFixed(2)}"/>`).join('');
+    let city = ''; for (let k = 0, x = 120; x < 300; k++) { const w = 8 + r(k + 50) * 14, h = 18 + r(k + 60) * 52; city += `<rect x="${x.toFixed(0)}" y="${(300 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"/>`; if (r(k + 70) > 0.5) city += `<rect x="${(x + 3).toFixed(0)}" y="${(300 - h + 8).toFixed(0)}" width="2" height="2" fill="#7fe3ff" opacity=".5"/>`; x += w + 1; }
+    const pine = (x, y, s, c) => `<path d="M${x} ${y - 40 * s}L${x + 11 * s} ${y - 16 * s}H${x + 6 * s}L${x + 16 * s} ${y}H${x - 16 * s}L${x - 6 * s} ${y - 16 * s}H${x - 11 * s}Z" fill="${c}"/>`;
+    let far = '', near = ''; for (let k = 0; k < 16; k++) far += pine(k * 27 + r(k) * 10, 330 + r(k + 5) * 10, 0.9 + r(k + 9) * 0.5, '#0d1418');
+    for (let k = 0; k < 9; k++) near += pine(k * 50 + r(k + 30) * 20 - 10, 420 + r(k + 40) * 16, 1.7 + r(k + 20) * 0.9, '#07090b');
+    return `<svg class="art" viewBox="0 0 390 440" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs><radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffb35a" stop-opacity=".55"/><stop offset="1" stop-color="#ff7a45" stop-opacity="0"/></radialGradient>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset=".75" stop-color="#2a1d1a"/><stop offset="1" stop-color="#4a2a1c"/></linearGradient></defs>
+      <rect width="390" height="440" fill="url(#sky)"/><g fill="#e8eefc">${stars}</g>
+      <circle cx="300" cy="96" r="16" fill="#f4e6c8" opacity=".9"/><circle cx="306" cy="91" r="14" fill="#0f1726"/>
+      <g fill="#120f12">${city}</g><path d="M120 300H300" stroke="#ff6a3a" stroke-opacity=".25"/>
+      <path d="M200 440C200 380 150 360 190 330S220 305 214 300" fill="none" stroke="#c2a46e" stroke-opacity=".35" stroke-width="3" stroke-dasharray="2 5"/>
+      ${far}<ellipse cx="86" cy="392" rx="70" ry="40" fill="url(#glow)"/><path d="M86 384l-5 10h10z" fill="#ffcf7a"/>${near}
+      <g class="win" transform="translate(212 150)"><rect width="140" height="54" fill="rgba(10,24,40,.55)" stroke="#7fe3ff" stroke-opacity=".7"/><path d="M0 10V0h10M130 0h10v10M140 44v10h-10M10 54H0V44" stroke="#7fe3ff" stroke-width="2" fill="none"/>
+        <text x="10" y="22" fill="#7fe3ff" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1">[STATUS WINDOW]</text><text x="10" y="40" fill="#d9f4ff" font-family="IBM Plex Mono, monospace" font-size="11">Survivor · Lv 1</text></g>
+    </svg>`;
   }
   function legacyHtml() {
     const L = store.get('legacy', { fame: 0, owned: {} }); if (!L.fame && !Object.keys(L.owned).length) return '';
@@ -393,7 +415,8 @@ export function startApp() {
   }
   function seasonLines(n) {
     const S = game.state, from = n > 1 ? (S.story.seasons || []).find(s => s.n === n) : null, d0 = from ? from.day : 1;
-    return S.story.chronicle.filter(c => c.day >= d0 && c.imp >= 4 && !/contract/i.test(c.text)).slice(-3).map(c => c.text);
+    const L = S.story.chronicle.filter(c => c.day >= d0 && c.imp >= 4 && !/contract|status window/i.test(c.text));
+    return [...L.filter(c => !/: "/.test(c.text)), ...L.filter(c => /: "/.test(c.text))].slice(0, 3).sort((a, b) => a.day - b.day).map(c => chronLine(c.text));
   }
   function showVictory(enc, st) {
     const P = usePatch(enc), beats = P && P.beats ? P.beats : (seasonLines(enc.season).length ? seasonLines(enc.season) : ['You held the Camp through a whole season.']), next = (P && P.next) || enc.next;
@@ -514,7 +537,7 @@ export function startApp() {
     const L = ST.lostContract;
     return [
       `You woke in the woods with a window only you could see, and a bus full of strangers who chose to follow you.`,
-      big ? `On day ${big.day}: ${big.text.replace(/\.$/, '')}. The Camp remembered it.` : `You held the Camp for ${S.night - 1} ${S.night - 1 === 1 ? 'night' : 'nights'}${comps.length ? `, with ${comps.slice(0, 2).join(' and ')} beside you` : ''}.`,
+      big ? `Day ${big.day}. ${chronLine(big.text)}` : `You held the Camp for ${S.night - 1} ${S.night - 1 === 1 ? 'night' : 'nights'}${comps.length ? `, with ${comps.slice(0, 2).join(' and ')} beside you` : ''}.`,
       L ? `The contract "${L.name}" ran out on night ${L.night}. ${L.finale} was still out there.` : `On night ${S.night} the Camp fell, and the window closed.`,
     ];
   }
@@ -523,7 +546,7 @@ export function startApp() {
     store.set('best', best); store.set('runs', store.get('runs', 0) + 1);
     const kills = Object.values(st.killsByKind || {}).reduce((a, b) => a + b, 0), by = st.killsBy || {};
     const stats = [['Dead put down', kills], ['Your kills', by.hero || 0], ['Scrap earned', st.goldEarned], ['Buildings raised', st.built], ['Sites claimed', st.sites || 0], ['Companions', ST.npcs.filter(n => n.joined).length], ['Titles', ST.titles.length], ['Most people', st.peakPop], ['Hives burned', st.regionsClaimed], ['Buildings lost', st.buildingsLost], ['Times you fell', st.heroDeaths], ['Contracts won', ST.wins || 0]];
-    const lastPages = ST.chronicle.filter(c => c.imp >= 2).slice(-3);
+    const lastPages = ST.chronicle.filter(c => c.imp >= 3).slice(-3);
     const L = ST.lostContract, survived = Math.max(0, S.night - 1);
     let beats = obituaryScript(), shownAt = performance.now();
     const render = () => {
@@ -531,7 +554,7 @@ export function startApp() {
         <h1 class="big">${L ? 'The season ends without you' : 'The Camp has fallen'}</h1>
         <div class="bignum"><b>${survived}</b><span>${survived === 1 ? 'night' : 'nights'} survived${S.night > prev ? ' · a new best' : ` · best ${best}`}</span></div>
         <ul class="obit">${beats.map(b => `<li>${rich(b)}</li>`).join('')}</ul>
-        <h2>The last pages</h2><ol class="lastpages">${lastPages.map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
+        <h2>The last pages</h2><ol class="lastpages">${lastPages.map(c => `<li><span>Day ${c.day}</span>${esc(chronLine(c.text))}</li>`).join('')}</ol>
         <details class="fold"><summary>The numbers</summary><div class="endstats">${stats.map(([k, v]) => `<div><b>${v ?? 0}</b><span>${k}</span></div>`).join('')}</div><p class="note">+${S.fameEarned || 0} fame for the next run.</p></details>
         <div class="cardrow foot end"><button class="btn big" id="again">New run</button></div>`, { sys: true });
       $('#again').onclick = onArmed(() => { location.reload(); });
@@ -546,6 +569,7 @@ export function startApp() {
   function toast(msg, kind) {
     msg = campCopy(msg);
     if (SUPPRESS.some(r => r.test(msg))) return;
+    if (/^\[Title acquired: First Light\]/.test(msg) && game && game.state.night <= 2) return;   // the arrival window already stamped it
     const dawn = /^Dawn\. ([+-]?\d+) scrap.*?, \+(\d+) food\. Citizens ate (\d+)\./.exec(msg);
     if (dawn) { ctoast.show(`Dawn · **${+dawn[1] >= 0 ? '+' : ''}${dawn[1]}** scrap · **+${dawn[2]}** food · ate ${dawn[3]}`, 'good', 'sun'); return; }
     const sys = /^\[[^\]]+\]/.exec(msg);
