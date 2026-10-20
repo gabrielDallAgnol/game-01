@@ -635,7 +635,8 @@ export function createStory(ctx) {
     const threads = Object.entries(ST.threads).filter(([, t]) => t.status !== 'open').map(([id]) => THREADS[id].title);
     return {
       companion: comps[0] ? comps[0].name : met[0] ? met[0].name : null, place: places[places.length - 1] || null, thread: threads[threads.length - 1] || null,
-      marked: !!ST.threads.lantern, all: [...comps.map(n => n.name), ...met.map(n => n.name), ...places, ...Object.keys(ST.threads).map(id => THREADS[id].title), ...(S.unique ? [S.unique.name] : [])].filter(Boolean),
+      marked: !!ST.threads.lantern, all: [...new Set([...comps.map(n => n.name), ...met.map(n => n.name), ...places, ...Object.keys(ST.threads).map(id => THREADS[id].title), ...(S.unique ? [S.unique.name] : []),
+        ...ST.chronicle.map(c => /^(.+?): "/.exec(c.text)).filter(Boolean).map(m => m[1]).filter(t => !/window only you|System|Contract/i.test(t)).slice(-8)])].filter(Boolean),
     };
   }
   /** everything the Chronicler needs: the whole run so far */
