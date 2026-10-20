@@ -14,7 +14,7 @@ export function createWaves(G) {
   const adjacentToClaimed = r => { const n = map.regions[r].nest; return !!n && G.baseDist(n.x, n.y) <= ZONE.hiveReach; };
   // an awake hive sends its dead toward the noise, however far away it is (the sealed core stays shut)
   function activeNests(n = S.night) {
-    return map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !S.sealed[r.id] && S.wake[r.id] <= n).map(r => r.id);
+    return map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !S.sealed[r.id] && S.wake[r.id] <= n && !(G.smothered && G.smothered(r.id))).map(r => r.id);   // [pacify] a hive smothered by your land stays asleep
   }
   // hearing: a hive marches on the camp only if the camp is loud enough to be heard from there. A loud town (heat) draws the far city.
   const HEAR = { base: 62, perHeat: 1.2 };
@@ -41,7 +41,7 @@ export function createWaves(G) {
   // the difficulty curve: a won contract pulls the night the curve reads from back (see contractWon)
   const effN = n => Math.max(1, n - (S.diffNight || 0));
   const hpS = n => WAVES.hpScale(effN(n));
-  function nightBudget(n) { return G.DIFF.threat * WAVES.budget(effN(n)) * (TIDE.opening[n] ?? 1) * territory() * G.townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * (n > 1 && isBloodMoon(n - 1) ? 0.75 : 1) * G.weatherFor(n).dead; }   // the night after a blood moon is a breather
+  function nightBudget(n) { return G.DIFF.threat * WAVES.budget(effN(n)) * (TIDE.opening[n] ?? 1) * territory() * G.townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * (n > 1 && isBloodMoon(n - 1) ? 0.75 : 1) * G.weatherFor(n).dead * (G.homeK ? G.homeK(n) : 1); }   // [pacify] homeK ≤ 1: the home threat plateaus once the land around the Camp is quiet (sim/pacify.js)   // the night after a blood moon is a breather
   function purgeBudget(r, n) { return WAVES.budget(effN(n)) * WAVES.purgeShare(map.regions[r].ring); }
 
   // ---------- waves ----------
@@ -71,7 +71,7 @@ export function createWaves(G) {
   /** tonight's sources and their weights (no rng: the forecast reads the same list the wave is drawn from) */
   function nightSources(n = S.night) {
     const nests = marchNests(n);
-    if (!nests.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id)).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) nests.push(any[0].id); }
+    if (!nests.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !(G.smothered && G.smothered(r.id))).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) nests.push(any[0].id); }
     // the whole valley is yours: the dead now come out of the dark woods at the edge
     if (!nests.length) edgeSpawns.forEach((_, k) => nests.push(-1 - k));
     const wts = nests.map(r => (S.wake[r] === n && n > 1 ? 0.5 : 1));

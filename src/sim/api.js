@@ -67,6 +67,9 @@ export function createApi(G) {
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
     // [nests] the hive that keeps a site locked (-1: free), a hive's rage ({ rage, lv, hot, near } or null), its guards
     siteLock: id => G.lockedBy(S.landmarks[id]), nestRage: r => S.nestRage[r] || null, nestGuards: r => G.nestGuards(r),
+    // [pacify] pacified ground (a byte a cell), the home threat, the way home (Return to Camp)
+    pacifyMap: () => G.pacifyMap(), pacifiedAt: (x, y) => G.pacifiedAt(x, y), smothered: r => G.smothered(r), homeThreat: n => G.threatInfo(n), homeK: n => G.homeK(n),
+    homeInfo: () => G.homeInfo(), returnHome: () => G.returnHome(), cancelReturn: () => G.cancelReturn(),
   };
   return api;
 }
