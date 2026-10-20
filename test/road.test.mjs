@@ -241,7 +241,7 @@ test('a burned hollow smoulders through the night; a pitch flare on a Piper nigh
   // a flare thrown on a Piper night lays a fire
   for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
   g.startNight(); run(0.1); for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
-  assert.equal(mi.embers.length, 0, 'the embers outlived their night');
+  run(0.1); assert.equal(mi.embers.length, 0, 'the embers outlived their night');   // (a step into the new day: day 1 is no longer short enough to end inside the 42 s above)
   run(1); g.startNight(); run(0.1); road.setMission('piper'); S.gold = 20;
   CUT.tools = false; try { assert.equal(g.useFlare(S.hero.x + 5, S.hero.y), true); } finally { CUT.tools = true; } run(0.1);
   assert.ok(mi.pyres.length === 1 && mi.traps().some(t => t.kind === 'pyre'));

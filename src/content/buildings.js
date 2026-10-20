@@ -3,11 +3,11 @@
 export const BUILDINGS = {
   house: {
     name: 'Home', cost: [4, 6, 12], hp: [24, 36, 48], gold: [4, 7, 10], pop: [2, 4, 6],
-    desc: ['+4 scrap · 2 people', '+7 scrap · 4 people', '+10 scrap · 6 people'],
+    desc: ['+4 scrap a day · 2 people', '+7 scrap a day · 4 people', '+10 scrap a day · 6 people'],
   },
   farm: {
     name: 'Farm', cost: [3, 5, 10], hp: [14, 22, 30], food: [3, 6, 9],
-    desc: ['+3 food', '+6 food', '+9 food'],
+    desc: ['+3 food a day', '+6 food a day', '+9 food a day'],
   },
   tower: {
     name: 'Tower', cost: [6, 8, 14], upkeep: [0, 1, 2], hp: [24, 36, 50], range: [7, 8.5, 10], dmg: [1, 1.8, 2.6], rate: [0.9, 0.75, 0.6],
