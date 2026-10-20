@@ -55,7 +55,7 @@ In every root, creation order and per-frame call order are load-bearing:
 
 `buildings` · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
 `season` (pacing, rules) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
-(numbers and words for the road and missions) · `weather` · `legacy`
+(numbers and words for the road and missions) · `weather` · `legacy` · `woods` (worn trails)
 
 ### `src/sim/`: the rules
 
@@ -83,6 +83,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `save.js` | dawn snapshot and restore |
 | `story.js` | story engine: picks encounters and applies their effects (own RNG) |
 | `road.js`, `missions.js` | the road, stations, convoys, night missions (`[road]` feature) |
+| `woods.js` | worn trails: woods the hero keeps walking through turn to dirt (`[woods]` hooks in game.js, save.js) |
 | `mapgen.js`, `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | map generation, flow fields, town builders, scavenging, seeded RNG |
 
 ### `src/render/`: the three.js view
@@ -96,6 +97,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `view/events.js` | turns drained events into feedback |
 | `view/hives.js` | hive models (a hollow that took a building: the rot on that building), glow, haze, eyes, eruption swell, hive bars |
 | `view/rest.js` | the "+ RESTING" tag while the hero heals at the Camp |
+| `view/birds.js` | birds flushed from the trees as the hero walks the woods, or by a kill there (ambience only) |
 | `view/landmarks.js` | landmark and district-site models, lot frames, icons, quest marks (plus retired scavenge caches) |
 | `view/beacons.js` | supply drops, street-encounter and trial beacons |
 | `view/fences.js` | quarantine fences, scouted-district banners |
