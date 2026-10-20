@@ -52,7 +52,7 @@ export function createStrip(el, { onTap } = {}) {
       el.hidden = !show; if (!show) return;
       $('#sbHp').textContent = Math.max(0, Math.ceil(hp)); $('#sbHpMax').textContent = `/${maxHp}`; $('#sbLv').textContent = lv;
       el.classList.toggle('low', hp < maxHp * 0.35);
-      const html = qt ? `<span class="br">${qt.penalty ? '[Penalty]' : '[Daily]'}</span> ${esc(qt.goal)} <b class="${qt.done ? 'ok' : ''}">${qt.done ? 'done' : `${qt.have}/${qt.n}`}</b>` : '<span class="br">[System]</span> Standing by.';
+      const html = qt ? `<span class="br">${qt.penalty ? '[Penalty]' : '[Daily]'}</span> <b class="${qt.done ? 'ok' : ''}">${qt.done ? 'Done' : `${qt.have}/${qt.n}`}</b> ${esc(qt.goal)}` : '<span class="br">[System]</span> Standing by.';
       if (html !== lastQ) { lastQ = html; quest.innerHTML = html; }
     },
     busy: () => !!cur,

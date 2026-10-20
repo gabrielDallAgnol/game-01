@@ -197,7 +197,7 @@ export function startApp() {
     const qp = new URLSearchParams(location.search).get('q');
     if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); }
     window.__game = game; window.__view = view; window.__openSel = sel => openSel(sel);
-    window.__ui = { strip, callouts, ctoast, showStatus, showMore, showMap, cards: () => card, toast };
+    window.__ui = { strip, callouts, ctoast, showStatus, showMore, showMap, cards: () => card, toast, planTrip: () => planTrip() };
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = true;
     if (snap) { previouslyOn(); }
@@ -891,7 +891,7 @@ export function startApp() {
     return t;
   }
   function planTrip() {
-    const one = tripTime(); if (one < 10) { trip = null; return; }
+    const one = tripTime(); if (one < 5) { trip = null; return; }
     trip = { round: one * 2, until: performance.now() + 6000 };
   }
 
