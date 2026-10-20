@@ -9,6 +9,7 @@ import { K, CFG } from './kit.js';
 import { createLook } from './look.js';
 import { buildCity } from './city.js';
 import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE, xrayMat } from './figures.js';
+import { createFx } from './fx.js';
 import { KITS, RARITY } from '../content/districts.js';
 
 const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
@@ -28,6 +29,7 @@ export function createView(canvas, game, opts = {}) {
   const seenAt = (x, y) => { const cx = Math.floor(x), cy = Math.floor(y); return cx >= 0 && cy >= 0 && cx < N && cy < N && S.seen[idx(cx, cy)] === 1; };
   let elev = () => 0;   // ground height (plateaus), set once the city is built
   const W = (x, y, h = 0) => new THREE.Vector3(x - C, h + elev(x, y), y - C);
+  const _wv = new THREE.Vector3(), Wv = (x, y, h = 0) => _wv.set(x - C, h + elev(x, y), y - C);   // scratch: copy it at once
   const vis = mulberry32(map.seed * 7 + 3);
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -35,20 +37,15 @@ export function createView(canvas, game, opts = {}) {
   const camera = new THREE.PerspectiveCamera(28, 1, 0.5, 300);
   const world = new THREE.Group(), fx = new THREE.Group(); scene.add(world, fx);
   const look = createLook({ renderer, scene, camera, canvas });
+  const fx2 = createFx({ renderer, scene });
 
   // ---------- the city ----------
   CFG.lite = true;
   const city = buildCity({ game, map, S, world, W: (x, y, h = 0) => new THREE.Vector3(x - C, h, y - C), C, rand: vis }); elev = city.heightAt;
 
-  // ---------- night lights: a fixed pool, handed to the sources nearest the camera ----------
-  const POOL = 6, pool = [];
-  for (let k = 0; k < POOL; k++) { const l = new THREE.PointLight(lc('#ffb15a'), 0, 9, 2); scene.add(l); pool.push(l); }
-  const heroLight = new THREE.PointLight(lc('#ffc890'), 0, 6, 2); scene.add(heroLight);
-  const spot = new THREE.SpotLight(lc('#fff1d6'), 0, 26, 0.32, 0.8, 1.2); spot.castShadow = false; scene.add(spot, spot.target);
-  const beamGeo = new THREE.CylinderGeometry(0.06, 1, 1, 20, 6, true); beamGeo.translate(0, -0.5, 0);
-  { const pa = beamGeo.attributes.position, cols = []; for (let i = 0; i < pa.count; i++) { const t = -pa.getY(i); const v = 0.15 + 0.85 * Math.pow(t, 1.6); cols.push(v, v, v); } beamGeo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); }
-  const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: lc('#fff1d6').multiplyScalar(0.5), vertexColors: true, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-  beam.visible = false; fx.add(beam);
+  // ---------- night light: the hero's lantern is the one real light; every other fire, lamp and window paints the
+  // top-down light-pool texture (fx.js), which every lit material samples ----------
+  const heroLight = new THREE.PointLight(lc('#ffc890'), 0, 7, 2); scene.add(heroLight);
 
   // ---------- hives: landmarks the dead pour out of ----------
   const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
@@ -75,7 +72,7 @@ export function createView(canvas, game, opts = {}) {
   }
   const hives = new Map(); let nestKey = '', nearNests = new Set();
   for (const r of map.regions) if (r.nest) {
-    const kind = HIVES[r.id % HIVES.length], g = new THREE.Group(); g.position.copy(W(r.nest.x, r.nest.y)); g.rotation.y = r.nest.back ? Math.atan2(-r.nest.back[0], -r.nest.back[1]) : Math.atan2(C - r.nest.x, C - r.nest.y);
+    const kind = HIVES[r.id % HIVES.length], g = new THREE.Group(); g.position.copy(Wv(r.nest.x, r.nest.y)); g.rotation.y = r.nest.back ? Math.atan2(-r.nest.back[0], -r.nest.back[1]) : Math.atan2(C - r.nest.x, C - r.nest.y);
     g.add(hiveModel(kind));
     const decal = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshBasicMaterial({ map: glowTex, color: lc('#8fff3a'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
     decal.rotation.x = -Math.PI / 2; decal.position.y = 0.05; decal.renderOrder = 3; g.add(decal);
@@ -90,7 +87,7 @@ export function createView(canvas, game, opts = {}) {
   // marker colour by distance: pale = your land, amber = next door, red = deep in the city
   const diaMats = ['#e8dcb0', '#f0a24a', '#e8553a'].map(c => new THREE.MeshBasicMaterial({ color: lc(c).multiplyScalar(1.7) })), diaMat = diaMats[1];
   const sites = [].map(st => {   // scavenging retired (supply drops replace it)
-    const g = new THREE.Group(); g.position.copy(W(st.x, st.y)); g.rotation.y = st.face;
+    const g = new THREE.Group(); g.position.copy(Wv(st.x, st.y)); g.rotation.y = st.face;
     const b = new K.B();
     b.cbox('canvas', 0.42, 0.3, 0.32, -0.12, 0, 0.1, { r: 0.03 }); b.cbox('amberDeep', 0.3, 0.24, 0.3, 0.22, 0, -0.05, { r: 0.03, ry: 0.4 });
     b.cbox('canvas', 0.3, 0.22, 0.24, -0.08, 0.3, 0.08, { r: 0.03, ry: -0.3 }); b.cyl('steel', 0.11, 0.11, 0.36, 0.3, 0, 0.32, { seg: 10 });
@@ -206,7 +203,7 @@ export function createView(canvas, game, opts = {}) {
     g.userData = { mat, fill: fill.material }; return g;
   }
   const lmViews = S.landmarks.map(l => {
-    const g = new THREE.Group(); g.position.copy(W(l.x, l.y)); g.rotation.y = Math.atan2(C - l.x, C - l.y);
+    const g = new THREE.Group(); g.position.copy(Wv(l.x, l.y)); g.rotation.y = Math.atan2(C - l.x, C - l.y);
     let m;
     if (l.kind === 'eiffel') m = eiffel(); else if (l.kind === 'tvtower') m = tvtower(); else if (l.kind === 'christ') m = christ();
     else m = siteModel(l.kind, l.size, l.id * 7);
@@ -240,7 +237,7 @@ export function createView(canvas, game, opts = {}) {
     for (const sp of list) {
       seenIds.add(sp.id); let v = spotViews.get(sp.id);
       if (!v) {
-        const g = new THREE.Group(); g.position.copy(W(sp.x, sp.y));
+        const g = new THREE.Group(); g.position.copy(Wv(sp.x, sp.y));
         const col = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.5, 7, 12, 1, true), new THREE.MeshBasicMaterial({ color: lc('#7fd4ff').multiplyScalar(0.8), transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
         col.position.y = 3.5; g.add(col);
         const bang = new THREE.Sprite(bangMat); bang.scale.set(0.8, 0.8, 1); bang.renderOrder = 9; g.add(bang);
@@ -254,7 +251,7 @@ export function createView(canvas, game, opts = {}) {
     if (tr && !tr.done) {
       seenIds.add('trial'); let v = spotViews.get('trial');
       if (!v) {
-        const g = new THREE.Group(); g.position.copy(W(tr.x, tr.y));
+        const g = new THREE.Group(); g.position.copy(Wv(tr.x, tr.y));
         const col = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.7, 10, 12, 1, true), new THREE.MeshBasicMaterial({ color: lc('#ff5a3c').multiplyScalar(0.9), transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
         col.position.y = 5; g.add(col);
         const bang = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex('⚔', { w: 64, h: 64, size: 46, bg: '#2a0e0a', fg: '#ff7a62' }), transparent: true, depthTest: false })); bang.scale.set(1, 1, 1); bang.renderOrder = 9; g.add(bang);
@@ -269,7 +266,7 @@ export function createView(canvas, game, opts = {}) {
     const seen = new Set();
     for (const d of S.drops) {
       seen.add(d.id); let v = dropViews.get(d.id);
-      if (!v) { v = dropModel(); v.g.position.copy(W(d.x, d.y)); world.add(v.g); dropViews.set(d.id, v); }
+      if (!v) { v = dropModel(); v.g.position.copy(Wv(d.x, d.y)); world.add(v.g); dropViews.set(d.id, v); }
       v.smoke.forEach((sp, k) => { const ph = (t * 0.35 + k / v.smoke.length) % 1; sp.position.y = 1 + ph * 6.5; sp.material.opacity = 0.55 * (1 - ph); sp.scale.setScalar(0.8 + ph * 2.6); sp.position.x = Math.sin(ph * 3 + k) * 0.4; });
       const p = d.prog / 3; v.ring.visible = p > 0.01; v.ring.scale.setScalar(0.3 + p * 0.7);
     }
@@ -304,7 +301,7 @@ export function createView(canvas, game, opts = {}) {
       const l = S.landmarks.find(q => q.region === r), name = kit === 'signature' && l ? LANDMARKS[l.kind].name : (KITS[kit] || {}).name || kit;
       const rar = kit === 'signature' ? RARITY.legendary : RARITY[(KITS[kit] || {}).rarity || 'common'];
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(`${rar.name.toUpperCase()} · ${name.toUpperCase()}`, { w: 512, h: 64, size: 30, bg: '#0d1418', fg: rar.color, spacing: '2px' }), transparent: true, opacity: 0.92, depthTest: false }));
-      const reg = map.regions[r]; sp.position.copy(W(reg.x, reg.y, 4)); sp.scale.set(5.6, 0.7, 1); sp.renderOrder = 8; fx.add(sp); banners.set(r, sp);
+      const reg = map.regions[r]; sp.position.copy(Wv(reg.x, reg.y, 4)); sp.scale.set(5.6, 0.7, 1); sp.renderOrder = 8; fx.add(sp); banners.set(r, sp);
     }
   }
   function syncFences() {
@@ -321,7 +318,7 @@ export function createView(canvas, game, opts = {}) {
     const meshes = []; fenceGeo.traverse(o => { if (o.isMesh) meshes.push(o); });
     for (const src of meshes) {
       const im = new THREE.InstancedMesh(src.geometry, src.material, spots.length); im.castShadow = false; im.frustumCulled = false;   // spread over the map (and no shadow: far fences streak across the shadow map): never cull by the base shape
-      spots.forEach(([x, y, ry], k) => { rd.position.copy(W(x, y)); rd.rotation.set(0, ry, 0); rd.scale.setScalar(1); rd.updateMatrix(); im.setMatrixAt(k, rd.matrix); });
+      spots.forEach(([x, y, ry], k) => { rd.position.copy(Wv(x, y)); rd.rotation.set(0, ry, 0); rd.scale.setScalar(1); rd.updateMatrix(); im.setMatrixAt(k, rd.matrix); });
       fenceMesh.add(im);
     }
     world.add(fenceMesh);
@@ -366,7 +363,7 @@ export function createView(canvas, game, opts = {}) {
         const at = (q * SPACING + (t * 1.6) % SPACING);
         while (seg < r.cum.length - 1 && r.cum[seg] < at) seg++;
         const a = r.path[seg - 1], b = r.path[Math.min(seg, r.path.length - 1)], L = (r.cum[seg] - r.cum[seg - 1]) || 1, f = Math.min(1, Math.max(0, (at - r.cum[seg - 1]) / L));
-        rd.position.copy(W(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0.06));
+        rd.position.copy(Wv(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0.06));
         rd.rotation.set(0, Math.atan2(b[0] - a[0], b[1] - a[1]), 0); const fade = Math.min(1, (r.len - at) / 3, at / 2 + 0.3); rd.scale.setScalar(Math.max(0.2, fade));
         rd.updateMatrix(); routeMesh.setMatrixAt(k++, rd.matrix);
       }
@@ -379,7 +376,7 @@ export function createView(canvas, game, opts = {}) {
   const barBg = new THREE.MeshBasicMaterial({ color: lc('#0c1112'), transparent: true, opacity: 0.8, depthTest: false });
   const barM = { b: new THREE.MeshBasicMaterial({ color: lc('#d9843a'), depthTest: false }), z: new THREE.MeshBasicMaterial({ color: lc('#a3d65c'), depthTest: false }), h: new THREE.MeshBasicMaterial({ color: lc('#e9e3d6'), depthTest: false }), boss: new THREE.MeshBasicMaterial({ color: lc('#d5513d'), depthTest: false }) };
   function makeBar(kind, w) { const g = new THREE.Group(), bg = new THREE.Mesh(barGeo, barBg), fg = new THREE.Mesh(barFg, barM[kind]); fg.position.set(-0.5, 0, 0.001); bg.renderOrder = 20; fg.renderOrder = 21; g.add(bg, fg); g.scale.x = w; g.visible = false; g.userData.fg = fg; fx.add(g); return g; }
-  function setBar(bar, x, y, z, f) { if (f >= 0.999 || f <= 0) { bar.visible = false; return; } bar.visible = true; bar.position.copy(W(x, z, y)); bar.quaternion.copy(camera.quaternion); bar.userData.fg.scale.x = f; }
+  function setBar(bar, x, y, z, f) { if (f >= 0.999 || f <= 0) { bar.visible = false; return; } bar.visible = true; bar.position.copy(Wv(x, z, y)); bar.quaternion.copy(camera.quaternion); bar.userData.fg.scale.x = f; }
 
   // ---------- buildings ----------
   // models are built once per (type, level, look) and cloned: clones share geometry and materials
@@ -389,12 +386,21 @@ export function createView(canvas, game, opts = {}) {
     const links = type === 'wall' ? (b && b.links) || { e: true, w: true } : null;
     const key = `${type}|${level}|${v}|${links ? links.key || [links.e, links.w, links.s, links.n].map(Number).join('') : ''}`;
     const hit = modelCache.get(key); if (hit) return hit.clone();
-    const m = buildModel(type, level, v, links);
+    // the model, its pad and its cheer folded into one vertex-coloured mesh: one draw per building
+    const g0 = new THREE.Group(); g0.add(buildModel(type, level, v, links));
+    if (FOOT[type]) { g0.add(padFor(FOOT[type])); if (type !== 'wall') { const c = cheer(type, FOOT[type], 0, level); if (c) g0.add(c); } }
+    const m = K.flattenVC(g0);
     modelCache.set(key, m); return m.clone();
+  }
+  const ruinCache = new Map();
+  function ruinModel(type, level, b) {
+    const key = `${type}|${level}|${b.id % 3}`; let r = ruinCache.get(key);
+    if (!r) { r = K.ruinOf(model(type, level, b), b.id * 13 + 7, BSCALE[type] || 1); ruinCache.set(key, r); }
+    return r.clone();
   }
   function buildModel(type, level, v, links) {
     let m;
-    if (type === 'house') m = K.townhouse({ level, seed: v * 13 + 5, color: HOUSE_COLORS[level] && HOUSE_COLORS[level][v], roof: ROOF_COLORS[level] && ROOF_COLORS[level][v], accent: level === 3 ? ACCENTS[v] : undefined, game: true });
+    if (type === 'house') m = K.home({ level, seed: v });
     else if (type === 'farm') m = K.farm({ level, seed: v + 1, own: true, game: true, color: ['#8e9a88', '#8b95a0'][v], roof: ['#2f8f88', '#3d6b9a'][v] });
     else if (type === 'tower') m = K.tower({ level, game: true });
     else if (type === 'wall') m = K.post(level, links, v);
@@ -429,12 +435,14 @@ export function createView(canvas, game, opts = {}) {
   // homes face the keep, square to the street grid
   function faceKeep(x, y) { const dx = C - x, dy = C - y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? Math.PI / 2 : -Math.PI / 2) : (dy > 0 ? 0 : Math.PI); }
 
-  let keepLevel = 0, keepG = null; const lampGlow = [];
+  let keepLevel = 0, keepG = null; const lampGlow = []; let keepFires = [], keepSmoke = [];
   function syncKeep() {
     if (keepLevel === S.keep.level && keepG) return;
     if (keepG) world.remove(keepG); lampGlow.length = 0;
-    keepLevel = S.keep.level; keepG = K.keep({ level: keepLevel, game: true }); keepG.scale.setScalar(0.27); keepG.position.copy(W(C, C)); keepG.rotation.y = Math.PI; world.add(keepG);
-    for (const [x, z, ry] of [[-11.5, 9.5, Math.PI / 2], [11.5, 9.5, Math.PI / 2], [-11.5, -9.5, -Math.PI / 2], [11.5, -9.5, -Math.PI / 2]]) { const l = K.lamp({}); l.position.set(x, 0, z); l.rotation.y = ry; l.traverse(o => { if (o.isMesh && o.material.emissive === undefined) return; }); keepG.add(l); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: lc('#ffd9a0'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); sp.position.set(x + (ry > 0 ? 0 : 0), 5.8, z + (ry > 0 ? -1.3 : 1.3)); sp.scale.setScalar(3.5); keepG.add(sp); lampGlow.push(sp); }
+    keepLevel = S.keep.level; keepG = K.hall({ level: keepLevel }); keepG.scale.setScalar(0.27); keepG.position.copy(Wv(C, C)); keepG.rotation.y = Math.PI; world.add(keepG);
+    keepG.updateMatrixWorld(true);
+    const toW = ([x, y, z, r]) => { const v = new THREE.Vector3(x, y, z).applyMatrix4(keepG.matrixWorld); return [v.x, v.z, (r || 4.5) * 0.27 * 3, v.y]; };
+    keepFires = (keepG.userData.fires || []).map(toW); keepSmoke = (keepG.userData.smoke || []).map(toW);
   }
   syncKeep();
   const keepBar = makeBar('b', 2.2);
@@ -464,22 +472,11 @@ export function createView(canvas, game, opts = {}) {
   }
   const noCrewMat = new THREE.SpriteMaterial({ map: K.textTex('NO CREW', { w: 256, h: 64, size: 40, bg: '#2a1512', fg: '#f0a090', spacing: '2px' }), transparent: true, depthTest: false });
   // your buildings stand on a concrete pad with amber corner marks: nothing else in the city has them
-  const padGeo = {}, padMat = new THREE.MeshStandardMaterial({ color: lc('#9c968a'), roughness: 0.95 }), markMat = new THREE.MeshBasicMaterial({ color: lc('#e08a3c').multiplyScalar(1.25) });
   function padFor(n) {
-    if (!padGeo[n]) {
-      const s2 = n - 0.12, parts = [];
-      const slab = new THREE.BoxGeometry(s2, 0.06, s2); slab.translate(0, 0.03, 0); parts.push(slab);
-      padGeo[n] = { slab, marks: [] };
-      const L = Math.min(0.5, n * 0.22), t = 0.07;
-      for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) for (const along of ['x', 'z']) {
-        const gm = new THREE.BoxGeometry(along === 'x' ? L : t, 0.02, along === 'x' ? t : L);
-        gm.translate(sx * (s2 / 2 - (along === 'x' ? L / 2 : t / 2)), 0.07, sz * (s2 / 2 - (along === 'x' ? t / 2 : L / 2))); padGeo[n].marks.push(gm);
-      }
-      padGeo[n].mark = THREE.BufferGeometryUtils ? THREE.BufferGeometryUtils.mergeBufferGeometries(padGeo[n].marks) : null;
-    }
-    const g = new THREE.Group(), sl = new THREE.Mesh(padGeo[n].slab, padMat); sl.receiveShadow = true; g.add(sl);
-    if (padGeo[n].mark) g.add(new THREE.Mesh(padGeo[n].mark, markMat)); else for (const gm of padGeo[n].marks) g.add(new THREE.Mesh(gm, markMat));
-    return g;
+    const b = new K.B(), s2 = n - 0.12, L = Math.min(0.5, n * 0.22), t = 0.07;
+    b.cbox('#a49c8c', s2, 0.05, s2, 0, 0.025, 0, { r: 0.02 });
+    for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { b.cbox('#e08a3c', L, 0.02, t, sx * (s2 / 2 - L / 2), 0.06, sz * (s2 / 2 - t / 2), { r: 0.005 }); b.cbox('#e08a3c', t, 0.02, L, sx * (s2 / 2 - t / 2), 0.06, sz * (s2 / 2 - L / 2), { r: 0.005 }); }
+    return b.build({ ao: 0.05, aoMin: 0.9 });
   }
   // what you built should feel cared for: bunting in bright colours, planters, a warm lamp, a little flag
   const CHEER = ['#f0a040', '#3fb8a8', '#f4ead2', '#e8667a', '#ffd166'], cheerGeo = {};
@@ -495,8 +492,8 @@ export function createView(canvas, game, opts = {}) {
       if (lv >= 3 && type !== 'tower') {
         // corner posts with strings of pennants on all four sides
         for (const [x, z] of posts) { b.box('#5a4630', 0.06, 1.2, 0.06, x, 0, z); b.sph(CHEER[0], 0.05, x, 1.22, z, { detail: 0 }); }
-        for (const [z, ax] of [[-h, 'x'], [h, 'x'], [-h, 'z'], [h, 'z']]) for (let k = 1; k < 8; k++) { const t = k / 8, u = -h + 2 * h * t, sag = Math.sin(t * Math.PI) * 0.16; if (ax === 'x') b.cbox(CHEER[k % CHEER.length], 0.24, 0.24, 0.02, u, 1.02 - sag, z, { r: 0.002, rz: Math.PI / 4 }); else b.cbox(CHEER[(k + 2) % CHEER.length], 0.02, 0.24, 0.24, z, 1.02 - sag, u, { r: 0.002, rx: Math.PI / 4 }); }
-        for (const [z, ax] of [[-h, 'x'], [h, 'x'], [-h, 'z'], [h, 'z']]) for (let k = 0; k < 8; k++) { const t0 = k / 8, t1 = (k + 1) / 8, y0 = 1.14 - Math.sin(t0 * Math.PI) * 0.16, y1 = 1.14 - Math.sin(t1 * Math.PI) * 0.16, u = -h + 2 * h * (t0 + t1) / 2, L = 2 * h / 8, rz = Math.atan2(y1 - y0, L); if (ax === 'x') b.cbox('#3b3631', L + 0.01, 0.012, 0.012, u, (y0 + y1) / 2, z, { r: 0.001, rz }); else b.cbox('#3b3631', 0.012, 0.012, L + 0.01, z, (y0 + y1) / 2, u, { r: 0.001, rx: -rz }); }
+        for (const [z, ax] of [[h, 'x'], [h, 'z']]) for (let k = 1; k < 8; k++) { const t = k / 8, u = -h + 2 * h * t, sag = Math.sin(t * Math.PI) * 0.16; if (ax === 'x') b.cbox(CHEER[k % CHEER.length], 0.24, 0.24, 0.02, u, 1.02 - sag, z, { r: 0.002, rz: Math.PI / 4 }); else b.cbox(CHEER[(k + 2) % CHEER.length], 0.02, 0.24, 0.24, z, 1.02 - sag, u, { r: 0.002, rx: Math.PI / 4 }); }
+        for (const [z, ax] of [[h, 'x'], [h, 'z']]) for (let k = 0; k < 8; k++) { const t0 = k / 8, t1 = (k + 1) / 8, y0 = 1.14 - Math.sin(t0 * Math.PI) * 0.16, y1 = 1.14 - Math.sin(t1 * Math.PI) * 0.16, u = -h + 2 * h * (t0 + t1) / 2, L = 2 * h / 8, rz = Math.atan2(y1 - y0, L); if (ax === 'x') b.cbox('#3b3631', L + 0.01, 0.012, 0.012, u, (y0 + y1) / 2, z, { r: 0.001, rz }); else b.cbox('#3b3631', 0.012, 0.012, L + 0.01, z, (y0 + y1) / 2, u, { r: 0.001, rx: -rz }); }
         // planters with flowers on two corners
         for (const [x, z] of posts.slice(2)) { b.cbox('#8a5a3a', 0.34, 0.16, 0.34, x, 0.08, z, { r: 0.03 }); b.sph('#5c8a3c', 0.15, x, 0.2, z, { detail: 0 }); for (let k = 0; k < 4; k++) b.sph(CHEER[(k + Math.floor(r() * 4)) % CHEER.length], 0.05, x + (r() - 0.5) * 0.22, 0.32, z + (r() - 0.5) * 0.22, { detail: 0 }); }
       } else if (type !== 'tower') {
@@ -505,28 +502,17 @@ export function createView(canvas, game, opts = {}) {
       }
       // the lamp: lights up at dusk with the windows
       b.cyl('#3a3a3a', 0.02, 0.025, 0.9, h, 0, h, { seg: 5 });
-      cheerGeo[key] = b.build({ vc: true });
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), K.WIN); bulb.position.set(h, 0.95, h); cheerGeo[key].add(bulb);
+      b.sph(K.WIN, 0.07, h, 0.95, h, { detail: 1 });
+      cheerGeo[key] = b.build({ ao: 0.3, aoMin: 0.75 });
     }
     return cheerGeo[key].clone();
   }
-  // building something is a small celebration: confetti and a "+1" that floats up
-  const confetti = [], confMats = CHEER.map(c => new THREE.MeshBasicMaterial({ color: lc(c).multiplyScalar(1.2), side: THREE.DoubleSide })), confGeo = new THREE.PlaneGeometry(0.12, 0.07);
-  function celebrate(x, y, label) {
-    for (let k = 0; k < 26; k++) { const m = new THREE.Mesh(confGeo, confMats[k % confMats.length]); m.position.copy(W(x, y, 0.6)); fx.add(m); const a = vis() * Math.PI * 2, s = 1.2 + vis() * 2.2; confetti.push({ m, vx: Math.cos(a) * s, vz: Math.sin(a) * s, vy: 3.2 + vis() * 2.5, spin: vis() * 12, t: 0 }); }
-    if (label) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(label, { w: 256, h: 64, size: 40, bg: 'rgba(0,0,0,0)', fg: '#ffd166' }), transparent: true, depthTest: false })); sp.scale.set(1.6, 0.4, 1); sp.position.copy(W(x, y, 2.2)); sp.renderOrder = 12; fx.add(sp); confetti.push({ m: sp, label: true, t: 0 }); }
-  }
-  function floatLabel(x, y, text, col) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(text, { w: 256, h: 64, size: 36, bg: 'rgba(0,0,0,0)', fg: col }), transparent: true, depthTest: false })); sp.scale.set(1.2, 0.3, 1); sp.position.copy(W(x, y, 1.2)); sp.renderOrder = 12; fx.add(sp); confetti.push({ m: sp, label: true, t: 0.4 }); }
-  function stepConfetti(dt) {
-    for (const c of [...confetti]) {
-      c.t += dt;
-      if (c.label) { c.m.position.y += dt * 0.9; c.m.material.opacity = Math.max(0, 1 - Math.max(0, c.t - 0.8) / 0.8); }
-      else { c.vy -= 9 * dt; c.m.position.x += c.vx * dt; c.m.position.y = Math.max(0.03, c.m.position.y + c.vy * dt); c.m.position.z += c.vz * dt; c.m.rotation.x += c.spin * dt; c.m.rotation.y += c.spin * 0.7 * dt; c.vx *= 0.97; c.vz *= 0.97; }
-      if (c.t > (c.label ? 1.6 : 1.4)) { fx.remove(c.m); confetti.splice(confetti.indexOf(c), 1); }
-    }
-  }
+  // building something is a small celebration: confetti and a label that floats up (pooled: fx.js)
+  function celebrate(x, y, label) { const p = W(x, y, 0.6); fx2.emit('confetti', p.x, p.y, p.z, 28); if (label) { const q = W(x, y, 2.3); fx2.label(q.x, q.y, q.z, label, '#ffd166', { size: 0.42, life: 1.7 }); } }
+  function floatLabel(x, y, text, col) { const p = W(x, y, 1.3); fx2.label(p.x, p.y, p.z, text, col); }
   const NICE = { house: '+1 Home', farm: '+1 Farm', tower: '+1 Tower', generator: '+1 Generator', workshop: 'Workshop', market: 'Market' };
   const noPowerMat = new THREE.SpriteMaterial({ map: K.textTex('NO POWER', { w: 256, h: 64, size: 40, bg: '#3a0d08', fg: '#ff6a50', spacing: '2px' }), transparent: true, depthTest: false });
+  // ruins persist until rebuilt: a fallen building is drawn as its own charred, collapsed shell
   function syncBuildings() {
     const seen = new Set();
     for (const b of S.buildings) {
@@ -534,25 +520,24 @@ export function createView(canvas, game, opts = {}) {
       let e = bMeshes.get(b.id);
       const links = b.type === 'wall' ? wallLinks(b) : null, lk = links ? links.key : '';
       if (!e || e.level !== b.level || e.lk !== lk) {
-        const relink = e && e.level === b.level;
+        const relink = e && e.level === b.level, upgrade = e && e.level < b.level;
         if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); }
         const g = new THREE.Group(), m = model(b.type, b.level, { id: b.id, links }); g.add(m);
-        if (FOOT[b.type]) { g.add(padFor(FOOT[b.type])); if (b.type !== 'wall') { const c = cheer(b.type, FOOT[b.type], b.id, b.level); if (c) g.add(c); } }
-        g.position.copy(W(b.x, b.y)); if (b.type === 'house' || b.type === 'farm') g.rotation.y = faceKeep(b.x, b.y);
-        g.scale.set(1, relink ? 1 : 0.02, 1); world.add(g);
-        e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type, rise: relink ? 1 : 0 }; bMeshes.set(b.id, e);
-        if (!relink && b.type !== 'wall') { dust(b.x, b.y, FOOT[b.type] || 1); if (time > 1) celebrate(b.x, b.y, e.level > 1 ? `Level ${b.level}!` : NICE[b.type]); }
-        if (b.ruined) e.g.visible = false;
+        g.position.copy(Wv(b.x, b.y)); if (b.type === 'house' || b.type === 'farm') g.rotation.y = faceKeep(b.x, b.y);
+        world.add(g);
+        e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type, pop: relink ? -1 : 0, sweep: upgrade ? 0 : -1, ruined: false }; bMeshes.set(b.id, e);
+        if (!relink) { g.scale.set(1, 0.001, 1); if (b.type !== 'wall') { dust(b.x, b.y, FOOT[b.type] || 1); if (time > 1) celebrate(b.x, b.y, e.level > 1 ? `Level ${b.level}!` : NICE[b.type]); } }
+        if (upgrade) g.traverse(o => { if (o.isMesh && o.material === K.VCM) o.material = K.SWEEP; });
       }
-      if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.g.scale.setScalar(1); burst(b.x, b.y, 1.2, '#d9843a'); }
+      if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.pop = 0; burst(b.x, b.y, 1.2, '#d9843a'); }
       if (b.type === 'tower') {
         if (!e.nc) { e.nc = new THREE.Sprite(noCrewMat); e.nc.scale.set(1.0, 0.25, 1); e.nc.renderOrder = 9; fx.add(e.nc); }
-        const unpowered = !b.ruined && !game.powered(b), uncrewed = !b.ruined && !game.manned(b);
+        const unpowered = !b.ruined && game.powered && !game.powered(b), uncrewed = !b.ruined && game.manned && !game.manned(b);
         e.nc.material = unpowered ? noPowerMat : noCrewMat;
-        e.nc.visible = unpowered ? Math.sin(time * 8) > -0.3 : uncrewed; if (e.nc.visible) e.nc.position.copy(W(b.x, b.y, 2.1 + Math.sin(time * 3) * 0.05));
+        e.nc.visible = unpowered ? Math.sin(time * 8) > -0.3 : uncrewed; if (e.nc.visible) e.nc.position.copy(Wv(b.x, b.y, 2.1 + Math.sin(time * 3) * 0.05));
       }
-      if (b.ruined && !e.rubble) { e.g.visible = false; e.rubble = rubbleModel(b.id); e.rubble.position.copy(W(b.x, b.y)); e.rubble.scale.multiplyScalar(b.type === 'wall' ? 0.4 : 0.8); world.add(e.rubble); }
-      if (!b.ruined && e.rubble) { world.remove(e.rubble); e.rubble = null; e.g.visible = true; e.g.scale.setScalar(0.4); }
+      if (b.ruined && !e.ruined) { e.ruined = true; e.g.visible = false; e.rubble = ruinModel(b.type, b.level, b); e.rubble.position.copy(e.g.position); e.rubble.rotation.y = e.g.rotation.y; world.add(e.rubble); }
+      if (!b.ruined && e.ruined) { e.ruined = false; world.remove(e.rubble); e.rubble = null; e.g.visible = true; e.pop = 0; e.g.scale.set(1, 0.001, 1); dust(b.x, b.y, FOOT[b.type] || 1); }
     }
     for (const [id, e] of bMeshes) if (!seen.has(id)) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); bMeshes.delete(id); }
   }
@@ -566,7 +551,7 @@ export function createView(canvas, game, opts = {}) {
         if (m.unique) { st.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(m.unique.toUpperCase(), { w: 512, h: 64, size: 34, bg: '#2a0a10', fg: '#ff8a6a', spacing: '3px' }), transparent: true, depthTest: false })); st.tag.scale.set(3.2, 0.4, 1); st.tag.renderOrder = 22; fx.add(st.tag); st.glow = K.glowSprite('#ffd27a', 2.6, 1.6); fx.add(st.glow); }
         mobState.set(m.id, st);
       }
-      const st = mobState.get(m.id); if (st.tag) { st.tag.position.copy(W(m.x, m.y, 3.4)); st.glow.position.copy(W(m.x, m.y, 2.4)); st.glow.material.opacity = 0.6 + Math.sin(time * 6) * 0.3; }
+      const st = mobState.get(m.id); if (st.tag) { st.tag.position.copy(Wv(m.x, m.y, 3.4)); st.glow.position.copy(Wv(m.x, m.y, 2.4)); st.glow.material.opacity = 0.6 + Math.sin(time * 6) * 0.3; }
     }
     for (const [id, e] of mobState) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) { fx.remove(e.tag); fx.remove(e.glow); } dying.push({ kind: e.kind, x: e.x, y: e.y, face: e.face, t: 0 }); mobState.delete(id); }
   }
@@ -577,26 +562,18 @@ export function createView(canvas, game, opts = {}) {
       let m = pMeshes.get(p.id);
       if (!m) { m = new THREE.Mesh(p.enemy ? spitGeo : arrowGeo, p.enemy ? spitMat : arrowMat); world.add(m); pMeshes.set(p.id, m); }
       const d = Math.hypot(p.tx - p.x, p.ty - p.y), h = p.z * Math.min(1, d / 6) * 0.7 + 0.6;
-      m.position.copy(W(p.x, p.y, h)); m.lookAt(W(p.tx, p.ty, 0.7));
+      m.position.copy(Wv(p.x, p.y, h)); m.lookAt(W(p.tx, p.ty, 0.7));
     }
     for (const [id, m] of pMeshes) if (!seen.has(id)) { world.remove(m); pMeshes.delete(id); }
   }
   function syncChests() {
     const seen = new Set();
-    for (const ch of S.chests) { seen.add(ch.id); if (!cMeshes.has(ch.id)) { const g = chestMesh(); g.scale.setScalar(0.75); g.position.copy(W(ch.x, ch.y)); world.add(g); cMeshes.set(ch.id, g); } }
+    for (const ch of S.chests) { seen.add(ch.id); if (!cMeshes.has(ch.id)) { const g = chestMesh(); g.scale.setScalar(0.75); g.position.copy(Wv(ch.x, ch.y)); world.add(g); cMeshes.set(ch.id, g); } }
     for (const [id, g] of cMeshes) if (!seen.has(id)) { world.remove(g); cMeshes.delete(id); }
   }
-  // construction dust: a few grey puffs rolling out from the footprint
-  const puffs = [], puffMat = () => new THREE.SpriteMaterial({ map: glowTex, color: lc('#b9b1a2'), transparent: true, opacity: 0.55, depthWrite: false });
-  function dust(x, y, n) {
-    for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2 + vis(), sp = new THREE.Sprite(puffMat()); sp.position.copy(W(x + Math.cos(a) * n * 0.45, y + Math.sin(a) * n * 0.45, 0.3)); sp.scale.setScalar(0.6 + n * 0.3); fx.add(sp); puffs.push({ sp, vx: Math.cos(a) * (0.8 + n * 0.3), vz: Math.sin(a) * (0.8 + n * 0.3), t: 0 }); }
-    burst(x, y, 0.6 + n * 0.5, '#e08a3c');
-  }
-  function stepPuffs(dt) { for (const p of [...puffs]) { p.t += dt; p.sp.position.x += p.vx * dt; p.sp.position.z += p.vz * dt; p.sp.position.y += dt * 0.6; p.sp.scale.multiplyScalar(1 + dt * 0.9); p.sp.material.opacity = Math.max(0, 0.55 * (1 - p.t / 0.9)); if (p.t > 0.9) { fx.remove(p.sp); p.sp.material.dispose(); puffs.splice(puffs.indexOf(p), 1); } } }
-  function burst(x, y, r, color) {
-    const m = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.5, 32), new THREE.MeshBasicMaterial({ color: lc(color).multiplyScalar(1.4), transparent: true, opacity: 0.9, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2; m.position.copy(W(x, y, 0.12)); fx.add(m); effects.push({ m, t: 0, r });
-  }
+  // construction dust rolling out from the footprint, and ground rings (pooled: fx.js)
+  function dust(x, y, n) { const p = W(x, y, 0.12); fx2.emit('dust', p.x, p.y, p.z, 8 + n * 4, { spread: n * 0.42, size: 0.8 + n * 0.15 }); burst(x, y, 0.6 + n * 0.5, '#e08a3c'); }
+  function burst(x, y, r, color) { const p = W(x, y, 0.08); fx2.ring(p.x, p.y, p.z, Math.max(0.5, 0.35 + r * 0.8), color, 0.45 + Math.min(0.35, r * 0.04)); }
 
   // ---------- sellswords, purses ----------
   const aMeshes = new Map(), puMeshes = new Map();
@@ -610,7 +587,7 @@ export function createView(canvas, game, opts = {}) {
         if (a.comp) { e.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(a.name.toUpperCase(), { w: 256, h: 64, size: 36, bg: '#2a1a0c', fg: '#f0b060', spacing: '2px' }), transparent: true, depthTest: false })); e.tag.scale.set(1.3, 0.32, 1); e.tag.renderOrder = 21; fx.add(e.tag); }
         aMeshes.set(a.id, e); burst(a.x, a.y, 0.8, a.comp ? '#f0b060' : '#d9843a');
       }
-      const e = aMeshes.get(a.id); if (e.tag) e.tag.position.copy(W(a.x, a.y, 1.9));
+      const e = aMeshes.get(a.id); if (e.tag) e.tag.position.copy(Wv(a.x, a.y, 1.9));
     }
     for (const [id, e] of aMeshes) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) fx.remove(e.tag); world.remove(e.g); aMeshes.delete(id); }
   }
@@ -621,19 +598,19 @@ export function createView(canvas, game, opts = {}) {
     const seen = new Set();
     for (const p of S.pickups || []) {
       seen.add(p.id); let g = pkMeshes.get(p.id);
-      if (!g) { g = pkModel(p.kind); g.position.copy(W(p.x, p.y)); world.add(g); pkMeshes.set(p.id, g); }
+      if (!g) { g = pkModel(p.kind); g.position.copy(Wv(p.x, p.y)); world.add(g); pkMeshes.set(p.id, g); }
       g.visible = seenAt(p.x, p.y); g.position.y = 0.05 + Math.sin(t * 2.4 + p.id) * 0.05; g.rotation.y = t * 0.6 + p.id;
     }
     for (const [id, g] of pkMeshes) if (!seen.has(id)) { world.remove(g); pkMeshes.delete(id); }
   }
   function syncPurses() {
     const seen = new Set();
-    for (const p of S.purses) { seen.add(p.id); if (!puMeshes.has(p.id)) { const g = purseMesh(); g.scale.setScalar(0.7); g.position.copy(W(p.x, p.y)); world.add(g); puMeshes.set(p.id, g); } }
+    for (const p of S.purses) { seen.add(p.id); if (!puMeshes.has(p.id)) { const g = purseMesh(); g.scale.setScalar(0.7); g.position.copy(Wv(p.x, p.y)); world.add(g); puMeshes.set(p.id, g); } }
     for (const [id, g] of puMeshes) if (!seen.has(id)) { world.remove(g); puMeshes.delete(id); }
   }
   function bolt(e) {
     const len = Math.hypot(e.x1 - e.x0, e.y1 - e.y0), m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, len), new THREE.MeshBasicMaterial({ color: lc('#ffe0a0').multiplyScalar(2), transparent: true, opacity: 0.95 }));
-    m.position.copy(W((e.x0 + e.x1) / 2, (e.y0 + e.y1) / 2, 1.8)); m.lookAt(W(e.x1, e.y1, 1.8)); fx.add(m); effects.push({ m, t: 0, r: 0, line: true });
+    m.position.copy(Wv((e.x0 + e.x1) / 2, (e.y0 + e.y1) / 2, 1.8)); m.lookAt(W(e.x1, e.y1, 1.8)); fx.add(m); effects.push({ m, t: 0, r: 0, line: true });
   }
   const flames = []; const flameFor = new Map();
 
@@ -648,7 +625,7 @@ export function createView(canvas, game, opts = {}) {
     if (z === zoneRef) return; zoneRef = z;
     if (!z) { zoneMesh.visible = false; return; }
     const d = new THREE.Object3D(); let k = 0;
-    for (let i = 0; i < N * N && k < ZONE_MAX; i++) if (z[i]) { d.position.copy(W((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.05)); d.scale.set(0.9, 1, 0.9); d.updateMatrix(); zoneMesh.setMatrixAt(k++, d.matrix); }
+    for (let i = 0; i < N * N && k < ZONE_MAX; i++) if (z[i]) { d.position.copy(Wv((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.05)); d.scale.set(0.9, 1, 0.9); d.updateMatrix(); zoneMesh.setMatrixAt(k++, d.matrix); }
     zoneMesh.count = k; zoneMesh.instanceMatrix.needsUpdate = true; zoneMesh.visible = true;
   }
   function setGhost(gh) {
@@ -657,7 +634,7 @@ export function createView(canvas, game, opts = {}) {
     const all = gh.cells.concat(gh.lot || []);
     all.slice(0, 64).forEach((i, k) => {
       const path = k >= gh.cells.length, ok = path ? gh.ok : gh.okCells ? gh.okCells[k] : gh.ok;
-      d.position.copy(W((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.08)); d.scale.setScalar(path ? 0.82 : 1); d.updateMatrix(); ghostCells.setMatrixAt(k, d.matrix);
+      d.position.copy(Wv((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.08)); d.scale.setScalar(path ? 0.82 : 1); d.updateMatrix(); ghostCells.setMatrixAt(k, d.matrix);
       ghostCells.setColorAt(k, tmpC.copy(lc(ok === 'skip' ? '#b8b0a0' : path ? (ok ? '#8fa0b0' : '#7a3a30') : ok ? '#fff1b8' : '#e0604a')));
     });
     ghostCells.count = Math.min(64, all.length); ghostCells.instanceMatrix.needsUpdate = true; if (ghostCells.instanceColor) ghostCells.instanceColor.needsUpdate = true; ghostCells.visible = true;
@@ -666,11 +643,14 @@ export function createView(canvas, game, opts = {}) {
       if (ghostMesh) fx.remove(ghostMesh);
       ghostMesh = new THREE.Group(); ghostMesh.add(K.ghost(model(gh.type, 1, null), '#fff0d2', 0.6)); fx.add(ghostMesh); ghostKey = gh.type;
     }
-    ghostMesh.visible = true; ghostMesh.position.copy(W(gh.x, gh.y)); ghostMesh.rotation.y = gh.type === 'house' || gh.type === 'farm' ? faceKeep(gh.x, gh.y) : 0;
+    ghostMesh.visible = true; ghostMesh.position.copy(Wv(gh.x, gh.y)); ghostMesh.rotation.y = gh.type === 'house' || gh.type === 'farm' ? faceKeep(gh.x, gh.y) : 0;
   }
 
   const villagerMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
-  const villagers = createVillagers({ THREE, world, game, W, map, figure: () => { const seed = Math.floor(Math.random() * 1e6); return bakedWalker(() => K.folk(seed), villagerMat); } });
+  // townsfolk are drawn by the crowd (six baked looks, instanced); the villager logic only moves these stand-ins
+  let folkN = 0;
+  const villagers = createVillagers({ THREE, world, game, W, map, figure: () => { const g = new THREE.Group(), body = new THREE.Group(); g.add(body); g.userData.folk = folkN++ % 6; const frames = [new THREE.Object3D(), new THREE.Object3D()]; frames[1].visible = false; return { g, body, frames }; } });
+  crowd.warm(['folk0', 'folk1', 'folk2', 'folk3', 'folk4', 'folk5']);
   // ---------- scavengers: crews walk out to their site at nightfall and home at dawn ----------
   const crewWalkers = [];
   const scavRig = () => { const seed = Math.floor(Math.random() * 1e6); return bakedWalker(() => K.folk(seed, { crew: true }), villagerMat); };
@@ -706,7 +686,7 @@ export function createView(canvas, game, opts = {}) {
       }
       if (!w.pos) w.pos = w.path[0];
       if (w.seg >= w.path.length) { world.remove(w.g); crewWalkers.splice(k, 1); continue; }
-      w.g.position.copy(W(w.pos[0] + w.ox, w.pos[1] + w.oy)); w.g.rotation.y = w.face || 0;
+      w.g.position.copy(Wv(w.pos[0] + w.ox, w.pos[1] + w.oy)); w.g.rotation.y = w.face || 0;
       const f = Math.floor(w.phase * 6) % 2; w.frames[0].visible = !f; w.frames[1].visible = !!f;
     }
   }
@@ -731,8 +711,30 @@ export function createView(canvas, game, opts = {}) {
       if (e.t === 'bell') { burst(C, C, 8, '#ffd27a'); burst(C, C, 5, '#ffd27a'); }
       if (e.t === 'bolt') bolt(e);
       if (e.t === 'purseTaken') burst(S.hero.x, S.hero.y, 0.8, '#d9843a');
+      // ---- combat feedback ----
+      if (e.t === 'hitM') { const m = mobOf(e.id), st = mobState.get(e.id); if (st) st.hitT = time; if (m && seenAt(m.x, m.y)) { const p = Wv(m.x, m.y, 0.75 * (st ? Math.max(1, st.size) : 1)); fx2.emit('ichor', p.x, p.y, p.z, 4, { size: st ? st.size : 1 }); if (Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 2.2) fx2.emit('spark', p.x, p.y, p.z, 3); } }
+      if (e.t === 'die') { const big = (MOBS[e.kind] || {}).size >= 1.3, p = Wv(e.x, e.y, 0.2); if (seenAt(e.x, e.y)) { fx2.emit('dust', p.x, p.y, p.z, big ? 14 : 7, { spread: big ? 0.6 : 0.3, size: big ? 1.4 : 0.8 }); fx2.emit('ichor', p.x, p.y + 0.4, p.z, big ? 10 : 5); fx2.stain(p.x, p.y - 0.2, p.z, big ? 1.1 : 0.6); }
+        if (big && !S.hero.dead && Math.hypot(e.x - S.hero.x, e.y - S.hero.y) < 2.8) { hitStopFor(0.06); shake(0.3); } }
+      if (e.t === 'bite') { const m = mobOf(e.id); if (m && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 1.9) { shake(m.kind === 'brute' || m.kind === 'gravelord' || m.kind === 'guardian' ? 0.35 : 0.15); const p = Wv(S.hero.x, S.hero.y, 0.9); fx2.emit('blood', p.x, p.y, p.z, 5); } }
+      if (e.t === 'hitH') look.fx.hit = Math.min(1, look.fx.hit + 0.55);
+      if (e.t === 'heroDie') { shake(0.6); look.fx.hit = 1; }
+      if (e.t === 'claim') { shake(0.5); const n = map.regions[e.region].nest; if (n) { const p = Wv(n.x, n.y, 0.6); fx2.emit('ember', p.x, p.y, p.z, 40, { spread: 2.2, speed: 2 }); fx2.emit('smoke', p.x, p.y + 0.5, p.z, 16, { spread: 2 }); burst(n.x, n.y, 6, '#f0a040'); } }
+      if (e.t === 'erupt') { shake(Math.hypot(e.x - S.hero.x, e.y - S.hero.y) < 25 ? 0.4 : 0.15); const p = Wv(e.x, e.y, 0.5); fx2.emit('rot', p.x, p.y, p.z, 30, { spread: 2, speed: 2.5 }); }
+      // the sim's flare event carries its duration in .t, which overwrites the type: a numeric .t with a place is a flare
+      if (e.t === 'flare' || (typeof e.t === 'number' && e.x !== undefined)) { flares.push({ x: e.x, y: e.y, t0: time, t: typeof e.t === 'number' ? e.t : 8 }); const p = Wv(e.x, e.y, 0.5); fx2.emit('spark', p.x, p.y, p.z, 24, { speed: 1.4 }); fx2.emit('ember', p.x, p.y, p.z, 16, { spread: 0.4 }); }
+      if (e.t === 'smoke') { const p = Wv(e.x, e.y, 0.3); fx2.emit('smoke', p.x, p.y, p.z, 40, { spread: 2.5, size: 1.6, life: 1.6 }); }
+      if (e.t === 'levelUp') { const p = Wv(S.hero.x, S.hero.y, 0.4); fx2.emit('cyan', p.x, p.y, p.z, 30, { spread: 0.5 }); fx2.ring(p.x, p.y - 0.3, p.z, 2.2, '#5fd3ff', 0.8); fx2.label(p.x, p.y + 2.1, p.z, 'LEVEL UP', '#5fd3ff', { size: 0.42, life: 1.8 }); }
+      if (e.t === 'built') { const b = S.byId.get(e.id); if (b) dust(b.x, b.y, FOOT[b.type] || 1); }
+      if (e.t === 'ruin') { const b = S.byId.get(e.id); if (b) { dust(b.x, b.y, (FOOT[b.type] || 1) + 1); const p = Wv(b.x, b.y, 0.6); fx2.emit('smoke', p.x, p.y, p.z, 14, { spread: 0.8 }); fx2.emit('ember', p.x, p.y, p.z, 12, { spread: 0.8 }); if (Math.hypot(b.x - S.hero.x, b.y - S.hero.y) < 14) shake(0.25); } }
     }
   }
+  // ---- feel: hit-stop (render side, at most once per 250 ms) and trauma camera shake ----
+  let hitStop = 0, lastStop = -1, trauma = 0;
+  function hitStopFor(s) { if (time - lastStop < 0.25) return; hitStop = s; lastStop = time; }
+  function shake(t) { trauma = Math.min(1, trauma + t); }
+  let mobMap = new Map(), mobMapT = -1;
+  function mobOf(id) { if (mobMapT !== time) { mobMapT = time; mobMap.clear(); for (const m of S.mobs) mobMap.set(m.id, m); } return mobMap.get(id); }
+  const flares = [];
 
   // ---------- camera ----------
   let zoom = 1, zoomCur = 1; const camTarget = new THREE.Vector3(0, 0, 3);
@@ -761,39 +763,59 @@ export function createView(canvas, game, opts = {}) {
   let focus = null, seenV = -1, zoneV = -1, shroudT = 0;
   let dark = 0, sunT = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
 
-  // which warm lights matter: the keep fire, lanterns on towers, lit homes; the nearest win the pool
-  function lightSources() {
-    const out = [{ x: C, y: C + 0.6, h: 1.0, i: 2.4, d: 9 }, { x: C - 2.6, y: C - 2.2, h: 1.4, i: 1.6, d: 7 }, { x: C + 2.6, y: C + 2.2, h: 1.4, i: 1.6, d: 7 }];
-    for (const b of S.buildings) {
-      if (b.ruined) continue;
-      if (b.type === 'tower' && b.level >= 2) out.push({ x: b.x, y: b.y, h: 2.2, i: 1.4, d: 7 });
-      else if (b.type === 'house' && b.level >= 2) out.push({ x: b.x, y: b.y + 0.2, h: 1.0, i: 1.1, d: 5 });
+  // ---------- the night's light pools: every warm (and rot-green) source near the camera paints the light texture ----------
+  const AMBER = lc('#ffa64d'), WARM = lc('#ffc070'), ROT = lc('#9dff4a'), REDL = lc('#ff5a3a'), FLARE = lc('#ff7a3a'), SIEGE = lc('#e3a54a'), LANT = lc('#ffc890');
+  function paintLights(k, lit) {
+    fx2.pools.begin(camTarget.x, camTarget.z - 6, 76);
+    if (k > 0.001) {
+      const fl = id => 0.88 + 0.12 * Math.sin(time * 11 + id * 1.7) * Math.sin(time * 7.3 + id);
+      if (!S.keep.ruined) for (const [fx0, fz0, r0] of keepFires) fx2.pools.light(fx0, fz0, r0, AMBER, 1.5 * fl(1), 0.6);
+      for (const b of S.buildings) {
+        if (b.ruined || b.built < 1) continue;
+        const p = Wv(b.x, b.y);
+        if (b.type === 'house') fx2.pools.light(p.x, p.z, 1.8 + b.level * 0.6, WARM, (0.35 + 0.3 * b.level) * lit * fl(b.id), 0.2);
+        else if (b.type === 'tower') fx2.pools.light(p.x, p.z, 2.2 + b.level * 0.5, AMBER, (0.35 + 0.25 * b.level) * fl(b.id));
+        else if (b.level >= 2 && b.type !== 'wall') fx2.pools.light(p.x, p.z, 1.8, WARM, 0.3 * lit);
+      }
+      for (const [r, hv] of hives) if (hv.glow > 0.05 && hv.g.visible) { const n = map.regions[r].nest; fx2.pools.light(n.x - C, n.y - C, 6, S.eruption && S.eruption.region === r ? REDL : S.purge === r ? SIEGE : ROT, hv.glow * 0.9, 0.3); }
+      for (const m of S.mobs) if (m.burn) fx2.pools.light(m.x - C, m.y - C, 2.2, AMBER, 0.8 * fl(m.id));
+      for (let i = flares.length - 1; i >= 0; i--) { const f = flares[i], a = (time - f.t0) / f.t; if (a > 1) { flares.splice(i, 1); continue; } fx2.pools.light(f.x - C, f.y - C, 8, FLARE, 2.2 * (1 - a * a) * fl(i + 5), 0.8); }
+      for (const p of S.projectiles) if (p.enemy) fx2.pools.light(p.x - C, p.y - C, 1.2, ROT, 0.7);
+      for (const d of S.drops) fx2.pools.light(d.x - C, d.y - C, 2.4, REDL, 0.5);
+      const h = S.hero; if (!h.dead) fx2.pools.light(h.x - C, h.y - C, 4.2, LANT, 0.55 * fl(0), 0.25);
+      if (opts.lights) opts.lights(fx2.pools, k);   // [road] stations and convoys can add their fires here
     }
-    return out;
+    fx2.pools.end(k);
   }
-  function placeLights() {
-    const src = lightSources().sort((a, b) => Math.hypot(a.x - C - camTarget.x, a.y - C - camTarget.z) - Math.hypot(b.x - C - camTarget.x, b.y - C - camTarget.z));
-    pool.forEach((l, k) => { const s = src[k]; if (!s) { l.userData.i = 0; return; } l.position.copy(W(s.x, s.y, s.h)); l.userData.i = s.i; l.distance = s.d; });
-  }
-
-  let boK = 0;
+  const RIM_DAY = lc('#ffdcae'), RIM_NIGHT = lc('#8fb4ff'), MIST_DAWN = lc('#e6d2cc'), MIST_DUSK = lc('#a796b4'), MIST_NIGHT = lc('#30406a'), _rc = new THREE.Color();
+  // camera: a spring that leads the hero a little in the direction they walk; trauma shake on top
+  const camVel = new THREE.Vector3(), camGoal = new THREE.Vector3(), lead = new THREE.Vector3(); let prevHx = null, prevHy = 0, dolly = 0;
+  let boK = 0, animT = 0, emberT = 0, snapT = 0, scanV = -1, scanT0 = -9, scanX = 0, scanZ = 0;
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
+    const frozen = hitStop > 0; if (frozen) hitStop -= dt; else animT += dt;
+    trauma = Math.max(0, trauma - 1.6 * dt); look.fx.hit = Math.max(0, look.fx.hit - dt * 2.6);
     syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time); syncDrops(time); syncSpots(time); syncPickups(time); syncFences();
     game.zone();
+    // the System's scan: when the hero opens new ground, a cyan wave rolls out from them (0.6 s)
+    if (S.seenVersion !== scanV) { scanV = S.seenVersion; if (time - scanT0 > 1.6 && time > 2) { scanT0 = time; scanX = S.hero.x - C; scanZ = S.hero.y - C; } }
+    { const st = (time - scanT0) / 0.6; K.T.scan.value.set(scanX, scanZ, st * 13, st < 1 ? (1 - st) * (1 - st) : 0); }
     if ((S.seenVersion !== seenV || S.zoneVersion !== zoneV) && (shroudT -= dt) <= 0) { shroudT = 0.3; if (S.zoneVersion !== zoneV) repaint = true; seenV = S.seenVersion; zoneV = S.zoneVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }
     const night = S.phase === 'night' || S.phase === 'over';
     // the sun: its place in the sky is the time of day; the last stretch of the day slides into dusk
     const dayT = S.phase === 'day' ? game.dayFrac() : 1, duskK = S.phase === 'day' ? Math.max(0, (dayT - 0.8) / 0.2) * 0.45 : 0;
     dark += ((night ? 1 : duskK) - dark) * Math.min(1, dt * (night ? 0.9 : 1.4));
+    if (snapT > 0) { snapT--; dark = night ? 1 : duskK; sunT = S.phase === 'day' ? dayT : sunT; dolly = S.phase === 'day' ? Math.max(0, Math.min(1, (dayT - 0.84) / 0.12)) : 0; }
 
     // camera follows the hero
     zoomCur += (zoom - zoomCur) * Math.min(1, dt * 8);
     const narrow = camera.aspect < 1, vf = narrow ? 40 : 28;
     if (camera.fov !== vf) { camera.fov = vf; camera.updateProjectionMatrix(); }
-    const vh = Math.tan(vf * Math.PI / 360), hh = vh * camera.aspect, R = (narrow ? 8.5 : 13) * zoomCur, dist = Math.max(R / hh, R / vh * 0.8);
+    // the dusk dolly: as the light goes the camera eases in on the camp a little, and back out through the night
+    dolly += ((S.phase === 'day' ? Math.max(0, Math.min(1, (dayT - 0.84) / 0.12)) : 0) - dolly) * Math.min(1, dt * (S.phase === 'day' ? 1.2 : 0.25));
+    const vh = Math.tan(vf * Math.PI / 360), hh = vh * camera.aspect, R = (narrow ? 8.5 : 13) * zoomCur * (1 - 0.12 * dolly), dist = Math.max(R / hh, R / vh * 0.8);
     const wx = S.weather, fogK = (wx === 'fog' ? 1 : 0) * dark; wxFog += (fogK - wxFog) * Math.min(1, dt * 0.8);
     scene.fog.near = dist + 14 - wxFog * (dist + 8); scene.fog.far = dist + 95 - wxFog * 70;
     const h = S.hero;
@@ -801,12 +823,22 @@ export function createView(canvas, game, opts = {}) {
       orbit += dt * 0.12; camTarget.lerp(W(C, C), Math.min(1, dt * 1.5));
       const od = dist * 1.1; camera.position.set(camTarget.x + Math.sin(orbit) * od * 0.6, camTarget.y + od * 0.7, camTarget.z + Math.cos(orbit) * od * 0.6);
     } else {
-      const fm = focus && focus.t > 0 ? S.mobs.find(m => m.id === focus.id) : null;
-      if (fm) { focus.t -= dt; camTarget.lerp(W(fm.x, fm.y), Math.min(1, dt * 1.6)); }
-      else if (!h.dead) camTarget.lerp(W(h.x, h.y), Math.min(1, dt * 4));
-      camera.position.set(camTarget.x, camTarget.y + dist * 0.76, camTarget.z + dist * 0.65);
+      const fm = focus && focus.t > 0 ? mobOf(focus.id) : null;
+      if (prevHx === null || Math.hypot(h.x - prevHx, h.y - prevHy) > 3) { prevHx = h.x; prevHy = h.y; }
+      if (dt > 0) { const vx = (h.x - prevHx) / dt, vy = (h.y - prevHy) / dt; lead.x += (Math.max(-6, Math.min(6, vx)) * 0.4 - lead.x) * Math.min(1, dt * 2.5); lead.z += (Math.max(-6, Math.min(6, vy)) * 0.4 - lead.z) * Math.min(1, dt * 2.5); }
+      prevHx = h.x; prevHy = h.y;
+      if (fm) { focus.t -= dt; camGoal.copy(Wv(fm.x, fm.y)); }
+      else if (!h.dead) camGoal.copy(Wv(h.x, h.y)).add(lead);
+      // critically damped spring (ω ≈ 6)
+      if (camTarget.distanceToSquared(camGoal) > 900) { camTarget.copy(camGoal); camVel.set(0, 0, 0); }
+      const w2 = 36, dmp = 12; camVel.x += ((camGoal.x - camTarget.x) * w2 - camVel.x * dmp) * Math.min(dt, 0.05); camVel.y += ((camGoal.y - camTarget.y) * w2 - camVel.y * dmp) * Math.min(dt, 0.05); camVel.z += ((camGoal.z - camTarget.z) * w2 - camVel.z * dmp) * Math.min(dt, 0.05);
+      camTarget.addScaledVector(camVel, Math.min(dt, 0.05));
+      camera.position.set(camTarget.x, camTarget.y + dist * (0.76 + 0.05 * dolly), camTarget.z + dist * (0.65 - 0.06 * dolly));
     }
-    camera.lookAt(camTarget); camera.updateMatrixWorld();
+    camera.lookAt(camTarget);
+    if (trauma > 0.001) { const t2 = trauma * trauma, q = time * 31; camera.position.x += (Math.sin(q) + Math.sin(q * 2.3 + 1)) * 0.5 * t2 * 0.55; camera.position.y += (Math.sin(q * 1.7 + 2) + Math.sin(q * 3.1)) * 0.5 * t2 * 0.4; camera.rotateZ((Math.sin(q * 1.3 + 4)) * t2 * 0.035); }
+    camera.updateMatrixWorld();
+    city.stream(camTarget.x, camTarget.z, R * Math.max(1.7, camera.aspect * 1.4) + 4, R * 4.2 + 5, R * 2.3 + 4);
     sunT += ((S.phase === 'day' ? dayT : sunT) - sunT) * Math.min(1, dt * 2); if (S.phase === 'day' && dayT < 0.02) sunT = dayT;
     look.blend(dark, S.phase === 'night' && game.isBloodMoon(S.night), camTarget, Math.max(22, R * 1.7), sunT);
     // weather: fog thickens the night air; a storm throws lightning
@@ -820,27 +852,19 @@ export function createView(canvas, game, opts = {}) {
     const lit = (1 - boK) * (boK > 0.05 && boK < 0.95 ? (Math.sin(time * 37) > 0 ? 1 : 0.3) : 1);
     for (const sp of lampGlow) sp.material.opacity = dark * 0.9 * lit;
     K.WIN.emissiveIntensity = dark * 2.4 * (0.25 + 0.75 * lit); K.LENS.emissiveIntensity = 0.2 + dark * 6 * lit;
-    lightT -= dt; if (lightT <= 0) { placeLights(); lightT = 0.5; }
-    for (const l of pool) l.intensity = (l.userData.i || 0) * dark * lit;
-    heroLight.intensity = dark * 2.0; heroLight.position.copy(W(h.x, h.y, 1.6));
-    let searching = false;
-    if (dark > 0.3 && !S.blackout) {
-      const t3 = S.buildings.filter(b => b.type === 'tower' && b.level >= 3 && !b.ruined).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
-      if (t3) {
-        let tgt = null, bd = 13; for (const m of S.mobs) { const d = Math.hypot(m.x - t3.x, m.y - t3.y); if (d < bd) { bd = d; tgt = m; } }
-        const aim = tgt ? W(tgt.x, tgt.y) : W(t3.x + 6 * Math.sin(time * 0.4), t3.y + 6 * Math.cos(time * 0.4));
-        const from = W(t3.x, t3.y, 2.6);
-        spot.position.copy(from); spot.target.position.lerp(aim, Math.min(1, dt * 3)); spot.intensity = 6 * dark; searching = true;
-        const dir = spot.target.position.clone().sub(from), len = dir.length();
-        beam.position.copy(from); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.normalize()); beam.scale.set(len * 0.2, len, len * 0.2); beam.visible = true; beam.material.opacity = 0.07 * dark;
-      }
-    }
-    if (!searching) { spot.intensity = 0; beam.visible = false; }
+    K.T.emitK.value = dark * 2.6 * (0.25 + 0.75 * lit);
+    heroLight.intensity = dark * 1.6; heroLight.position.copy(Wv(h.x, h.y, 1.6));
+    paintLights(dark, lit);
+    // rim on figures: warm by day, moon-blue by night; mist at dawn and dusk (and a little all night)
+    _rc.copy(RIM_DAY).lerp(RIM_NIGHT, dark); K.T.rim.value.set(_rc.r, _rc.g, _rc.b, 0.15 + 0.45 * dark);
+    { const dawnM = S.phase === 'day' ? Math.max(0, 1 - sunT / 0.1) : 0, duskM = S.phase === 'day' ? Math.max(0, Math.min(1, (sunT - 0.78) / 0.15)) : 0, nightM = night ? 0.5 : 0;
+      _rc.copy(dawnM > duskM ? MIST_DAWN : MIST_DUSK).lerp(MIST_NIGHT, dark); K.T.mist.value.set(_rc.r, _rc.g, _rc.b, 0.24 * Math.max(dawnM, duskM, nightM)); }
+    K.T.night.value = dark;
 
     villagers.update(dt, time, dark);
     for (const a of S.allies) {
       const e = aMeshes.get(a.id); if (!e) continue;
-      e.g.position.copy(W(a.x, a.y)); e.g.rotation.y = a.face || 0; e.g.scale.setScalar(a.comp ? UNIT.companion : UNIT.ally);
+      e.g.position.copy(Wv(a.x, a.y)); e.g.rotation.y = a.face || 0; e.g.scale.setScalar(a.comp ? UNIT.companion : UNIT.ally);
       e.phase += dt * 8; e.pose(!a.attacking, e.phase, a.attacking ? (Math.sin(time * 10) * 0.5 + 0.5) : -1);
       setBar(e.bar, a.x, 1.25, a.y, a.hp / a.maxHp);
     }
@@ -848,53 +872,72 @@ export function createView(canvas, game, opts = {}) {
     for (const m of S.mobs) {
       let f = flameFor.get(m.id);
       if (m.burn && !f) { f = flames.pop() || flameMesh(); fx.add(f); flameFor.set(m.id, f); }
-      if (f) { if (!m.burn) { fx.remove(f); flames.push(f); flameFor.delete(m.id); } else { f.position.copy(W(m.x, m.y, 1.1 + Math.sin(time * 20) * 0.04)); f.scale.setScalar(0.7 + Math.sin(time * 17 + m.id) * 0.15); } }
+      if (f) { if (!m.burn) { fx.remove(f); flames.push(f); flameFor.delete(m.id); } else { f.position.copy(Wv(m.x, m.y, 1.1 + Math.sin(time * 20) * 0.04)); f.scale.setScalar(0.7 + Math.sin(time * 17 + m.id) * 0.15); } }
     }
     for (const [id, f] of flameFor) if (!mobState.has(id)) { fx.remove(f); flames.push(f); flameFor.delete(id); }
 
     // hero
     // like Thronefall: people are drawn bigger than the buildings, so you can always pick them out
-    syncRig(); heroRig.g.visible = !h.dead; heroRig.g.position.copy(W(h.x, h.y)); heroRig.g.scale.setScalar(UNIT.hero);
-    let df = h.face - heroRig.g.rotation.y; while (df > Math.PI) df -= Math.PI * 2; while (df < -Math.PI) df += Math.PI * 2; heroRig.g.rotation.y += df * Math.min(1, dt * 14);
-    heroRig.pose(h.moving, time * 10, h.swing > 0 ? 1 - h.swing / 0.25 : -1);
-    heroRing.visible = !h.dead; heroRing.position.copy(W(h.x, h.y, 0.05));
-    { const on = S.bountyT > 0 && !h.dead, R = (game.heroDef.ability && game.heroDef.ability.radius || 9) + S.P.bountyRadius; bountyRing.visible = on; if (on) { bountyRing.position.copy(W(h.x, h.y, 0.06)); bountyRing.scale.setScalar(R); bountyRing.material.opacity = 0.35 + Math.sin(time * 5) * 0.15; } }
+    syncRig(); heroRig.g.visible = !h.dead;
+    if (!frozen) {
+      heroRig.g.position.copy(Wv(h.x, h.y)); heroRig.g.scale.setScalar(UNIT.hero);
+      let df = h.face - heroRig.g.rotation.y; while (df > Math.PI) df -= Math.PI * 2; while (df < -Math.PI) df += Math.PI * 2; heroRig.g.rotation.y += df * Math.min(1, dt * 14);
+      heroRig.pose(h.moving, animT * 10, h.swing > 0 ? 1 - h.swing / 0.25 : -1);
+    }
+    heroRing.visible = !h.dead; heroRing.position.copy(Wv(h.x, h.y, 0.05));
+    { const on = S.bountyT > 0 && !h.dead, R = (game.heroDef.ability && game.heroDef.ability.radius || 9) + S.P.bountyRadius; bountyRing.visible = on; if (on) { bountyRing.position.copy(Wv(h.x, h.y, 0.06)); bountyRing.scale.setScalar(R); bountyRing.material.opacity = 0.35 + Math.sin(time * 5) * 0.15; } }
     if (!h.dead) setBar(heroBar, h.x, 1.55, h.y, h.hp / h.maxHp); else heroBar.visible = false;
 
-    // the dead
-    crowd.begin();
-    for (const m of S.mobs) {
-      const e = mobState.get(m.id); if (!e) continue;
-      e.x = m.x; e.y = m.y;
-      if (!seenAt(m.x, m.y)) { e.bar.visible = false; continue; }   // the dead in unexplored streets stay hidden
-      let d = (m.face || 0) - e.face; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; e.face += d * Math.min(1, dt * 6);
-      e.phase += dt * (m.speed || 1.5) * 3.2;
-      const fr = m.attacking ? 0 : (Math.sin(e.phase) > 0 ? 0 : 1);
-      const lunge = m.attacking ? Math.max(0, Math.sin(time * 6 + e.phase)) * 0.25 : 0;
-      const p = W(m.x, m.y, (m.rise - 1) * 1.1 + (m.attacking ? 0 : Math.abs(Math.sin(e.phase)) * 0.03));
-      crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, (m.unique ? 1.35 : 1) * UNIT.dead);
-      setBar(e.bar, m.x, 1.3 * Math.max(1, e.size), m.y, m.hp / m.maxHp);
+    // the dead (and the townsfolk): instanced; while a hit-stop holds, last frame's poses stay on screen
+    fx2.blobs.begin();
+    if (!h.dead) { const p = Wv(h.x, h.y); fx2.blobs.add(p.x, p.y, p.z, 0.5, 0.42); }
+    for (const a of S.allies) { const p = Wv(a.x, a.y); fx2.blobs.add(p.x, p.y, p.z, 0.42, 0.36); }
+    if (!frozen) {
+      crowd.begin();
+      for (const m of S.mobs) {
+        const e = mobState.get(m.id); if (!e) continue;
+        e.x = m.x; e.y = m.y;
+        if (!seenAt(m.x, m.y)) { e.bar.visible = false; continue; }   // the dead in unexplored streets stay hidden
+        let d = (m.face || 0) - e.face; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; e.face += d * Math.min(1, dt * 6);
+        e.phase += dt * (m.speed || 1.5) * 3.2;
+        const fr = m.attacking ? 0 : (Math.sin(e.phase) > 0 ? 0 : 1);
+        const lunge = m.attacking ? Math.max(0, Math.sin(time * 6 + e.phase)) * 0.25 : 0;
+        const fl = e.hitT ? Math.max(0, 1 - (time - e.hitT) / 0.07) : 0;
+        const p = Wv(m.x, m.y, (m.rise - 1) * 1.1 + (m.attacking ? 0 : Math.abs(Math.sin(e.phase)) * 0.03));
+        crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, (m.unique ? 1.35 : 1) * UNIT.dead, fl);
+        if (m.rise >= 1) fx2.blobs.add(p.x, p.y, p.z, 0.36 * e.size, 0.32 * e.size);
+        setBar(e.bar, m.x, 1.3 * Math.max(1, e.size), m.y, m.hp / m.maxHp);
+      }
+      for (let k = dying.length - 1; k >= 0; k--) {
+        const dd = dying[k]; dd.t += dt; const p = Wv(dd.x, dd.y, -Math.max(0, dd.t - 0.55) * 1.0);
+        // tip over: a quick fall with a small bounce, then sink into the ground
+        const f = Math.min(1, dd.t / 0.32), fall = f < 1 ? f * f : 1 + Math.sin(Math.min(1, (dd.t - 0.32) / 0.18) * Math.PI) * 0.06;
+        crowd.add(dd.kind, 0, p.x, p.y, p.z, dd.face, -1.42 * fall, 0, UNIT.dead, Math.max(0, 1 - dd.t / 0.1));
+        if (dd.t > 1.3) dying.splice(k, 1);
+      }
+      // townsfolk by day; at night the survivors sit round the camp fire
+      villagers.each((v, g) => { if (!g.visible) return; const p = Wv(v.x, v.y); crowd.add('folk' + (g.userData.folk || 0), v.frames[1].visible ? 1 : 0, p.x, p.y, p.z, g.rotation.y, v.body.rotation.x, 0, 1); fx2.blobs.add(p.x, p.y, p.z, 0.3, 0.26); });
+      if (dark > 0.55 && !S.keep.ruined && keepFires.length) {
+        const [fx0, fz0] = keepFires[0], n = Math.min(7, Math.max(2, Math.round(game.pop() / 3)));
+        for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2 + 0.4, x = fx0 + Math.cos(a) * 1.05, z = fz0 + Math.sin(a) * 1.05; crowd.add('folk' + (k % 6) + 's', 0, x, 0, z, Math.atan2(fx0 - x, fz0 - z), 0, 0, 1); fx2.blobs.add(x, 0, z, 0.3, 0.26); }
+      }
+      crowd.end();
     }
-    for (const dd of [...dying]) {
-      dd.t += dt; const p = W(dd.x, dd.y, -Math.max(0, dd.t - 0.4) * 1.2);
-      crowd.add(dd.kind, 0, p.x, p.y, p.z, dd.face, -Math.min(1.45, dd.t * 4), 0, 1);
-      if (dd.t > 1.2) dying.splice(dying.indexOf(dd), 1);
-    }
-    crowd.end();
     for (const f of [...effects]) { f.t += dt; if (!f.line) { const s = 0.5 + f.t * f.r * 2.2; f.m.scale.set(s, s, s); } f.m.material.opacity = Math.max(0, 0.9 - f.t * 1.4); if (f.t > 0.7) { fx.remove(f.m); effects.splice(effects.indexOf(f), 1); } }
     for (const g of cMeshes.values()) { g.rotation.y += dt; g.position.y = 0.08 + Math.abs(Math.sin(time * 3)) * 0.12; }
-    stepPuffs(dt); stepConfetti(dt);
 
     // buildings
     for (const b of S.buildings) {
       const e = bMeshes.get(b.id); if (!e) continue;
-      // Red Alert style: the building unfolds out of the ground with a little overshoot
-      if (e.rise < 1 && !(b.built < 1)) { e.rise = Math.min(1, e.rise + dt * 2.4); const k = e.rise, c1 = 1.9, ob = 1 + (c1 + 1) * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); e.g.scale.set(1, Math.max(0.02, ob), 1); }
-      else { const sc = e.g.scale.x; if (sc < 1 && !(b.built < 1)) e.g.scale.setScalar(Math.min(1, sc + dt * 3.2)); }
+      // the pop: rises out of the ground 0 → 1.08 → 1 in 350 ms
+      if (e.pop >= 0 && !(b.built < 1)) { e.pop += dt / 0.35; const k = Math.min(1, e.pop), y = k < 0.65 ? 1.08 * Math.sin(k / 0.65 * Math.PI / 2) : 1.08 - 0.08 * Math.sin((k - 0.65) / 0.35 * Math.PI / 2); e.g.scale.set(1 + (1 - k) * 0.06, Math.max(0.001, y), 1 + (1 - k) * 0.06); if (k >= 1) { e.pop = -1; e.g.scale.set(1, 1, 1); } }
       if (b.built < 1) e.g.scale.set(1, 0.15 + 0.85 * b.built, 1);
+      // the upgrade sweep: the new colours climb from the ground
+      if (e.sweep >= 0) { e.sweep += dt / 0.9; K.SWEEP.userData.y.value = e.g.position.y - 0.3 + e.sweep * (b.type === 'tower' ? 3.6 : 3.2); if (e.sweep >= 1) { e.sweep = -1; K.SWEEP.userData.y.value = -99; e.g.traverse(o => { if (o.isMesh && o.material === K.SWEEP) o.material = K.VCM; }); } }
       if (!b.ruined) setBar(e.bar, b.x, b.type === 'tower' ? 2.9 + b.level * 0.25 : b.type === 'wall' ? 1.7 : 3.2, b.y, b.hp / b.maxHp); else e.bar.visible = false;
     }
     keepG.visible = !S.keep.ruined;
+    if (keepG.userData.flames) keepG.userData.flames.forEach((f, k) => { f.scale.set(1, 0.85 + 0.25 * Math.abs(Math.sin(animT * (9 + k) + k)), 1); f.rotation.y = animT * (1 + k * 0.3); });
     setBar(keepBar, C, 4.6, C, S.keep.hp / S.keep.maxHp);
 
     // hives: live ones glow and breathe; sleeping ones next to your land stay dark; far ones stay hidden in the ruins
@@ -931,11 +974,23 @@ export function createView(canvas, game, opts = {}) {
       else if (sel.type === 'rubble') { x = Math.floor(sel.x) + 0.5; y = Math.floor(sel.y) + 0.5; s = 1.0; }
       else if (sel.type === 'landmark') { const l = S.landmarks[sel.id]; x = l.x; y = l.y; s = l.size * 0.6; }
       else if (sel.type === 'site') { const st = S.scav.sites[sel.id]; x = st.x; y = st.y; s = 0.6; }
-      selRing.position.copy(W(x, y, 0.1)); const k = s + Math.sin(time * 4) * 0.04; selRing.scale.set(k, k, k);
-      if (sel.range) { rangeRing.visible = true; rangeRing.position.copy(W(x, y, 0.09)); rangeRing.scale.set(sel.range, sel.range, sel.range); }
+      selRing.position.copy(Wv(x, y, 0.1)); const k = s + Math.sin(time * 4) * 0.04; selRing.scale.set(k, k, k);
+      if (sel.range) { rangeRing.visible = true; rangeRing.position.copy(Wv(x, y, 0.09)); rangeRing.scale.set(sel.range, sel.range, sel.range); }
     }
     if (moveMark.material.opacity > 0) { moveMark.material.opacity = Math.max(0, moveMark.material.opacity - dt * 1.5); moveMark.scale.multiplyScalar(1 + dt * 0.8); }
     setGhost(ui.ghost || null); setZone(ui.zone || null);
+    // ambient particles: embers off the camp fire and fireflies in the woods by night, pollen drifting by day
+    emberT -= dt;
+    if (emberT <= 0 && !frozen) {
+      emberT = 0.12;
+      if (keepFires.length && !S.keep.ruined) { const [fx0, fz0] = keepFires[vis() * keepFires.length | 0]; fx2.emit('ember', fx0, 0.5, fz0, 1, { spread: 0.2 }); if (vis() < 0.25) fx2.emit('smoke', fx0, 0.9, fz0, 1, { size: 0.5, speed: 0.8 }); }
+      for (const [sx0, sz0, , sy0] of keepSmoke) if (vis() < 0.4) fx2.emit('smoke', sx0, sy0, sz0, 1, { size: 0.7 });
+      const rx = camTarget.x + (vis() - 0.5) * R * 2.4, rz = camTarget.z + (vis() - 0.7) * R * 3;
+      if (dark > 0.6 && vis() < 0.5) fx2.emit('firefly', rx, 0.4 + vis() * 1.2, rz, 1);
+      else if (dark < 0.3 && vis() < 0.35) fx2.emit('pollen', rx, 0.3 + vis() * 1.5, rz, 1);
+    }
+    fx2.blobs.end(0.42 - 0.12 * dark);
+    fx2.update(animT, 1 - 0.78 * dark);
     look.render(time);
   }
 
@@ -957,11 +1012,12 @@ export function createView(canvas, game, opts = {}) {
     if (cx2 >= 0 && cy2 >= 0 && cx2 < N && cy2 < N) { const i = idx(cx2, cy2), r = map.region[i], t = map.terrain[i]; if (r >= 0 && (t === T.FOREST || t === T.ROCK) && S.occ[i] < 0 && game.zone()[i] === 1) return { type: 'rubble', ...p }; if (r >= 0 && !S.claimed.has(r)) return { type: 'region', id: r, ...p }; }
     return { type: 'ground', ...p };
   }
-  function showMove(x, y) { moveMark.position.copy(W(x, y, 0.07)); moveMark.scale.set(1, 1, 1); moveMark.material.opacity = 0.9; }
+  function showMove(x, y) { moveMark.position.copy(Wv(x, y, 0.07)); moveMark.scale.set(1, 1, 1); moveMark.material.opacity = 0.9; }
   function project(x, y, h = 0.6) { const v = W(x, y, h).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, behind: v.z > 1 }; }
 
   return {
     frame, pick, project, showMove, resize, routes: () => routes, groundAt, startOrbit: () => { orbit = 0.001; },
+    debug: { K, look, fx: fx2, city, snap: () => { snapT = 3; } },   // snap: jump the light to the current time of day (tests, screenshots)
     scene, camera, info: () => new Promise(res => { const I = renderer.info; I.autoReset = false; requestAnimationFrame(() => { I.reset(); requestAnimationFrame(() => { const o = { calls: I.render.calls, tris: I.render.triangles, geos: I.memory.geometries }; I.autoReset = true; res(o); }); }); }),   // one whole frame (all passes)
     setZoom: z => { zoom = Math.max(0.45, Math.min(1.8, z)); }, getZoom: () => zoom,
     setQuality: q => { look.setQuality(q); resize(); }, quality: () => look.quality(),

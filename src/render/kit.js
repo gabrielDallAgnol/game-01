@@ -19,34 +19,157 @@ export const K = (() => {
     zskin: '#8e957c', zcloth: '#5e5f58', zcloth2: '#6e675b', toxic: '#b4ff4e', hive: '#8fff3a', danger: '#d5513d', blood: '#5a3a30',
   };
 
-  // territory tint: every surface outside your land is drawn cooler, darker and desaturated.
-  // A 512×512 mask texture (1 = claimed, one texel per cell) is sampled in world space by every standard material.
+  // ---------- the world-space hook every lit material shares ----------
+  // A 512×512 mask (one texel per cell, sampled in world space): r = your land, g = explored (blurred),
+  // b = spare, a = contact shadow (blurred footprints of buildings, ruins and trees; 255 = open ground).
+  // On top of the material's own lighting, territory() adds: the footprint contact shadow, the cooler wild,
+  // the night light pools (a top-down additive light texture around the camera), glowing vertices (aEmit),
+  // rim light on figures, the hit flash on the crowd, dawn/dusk mist, and the System's fog of war.
   const MS = 512, maskData = new Uint8Array(MS * MS * 4);
   const maskTex = new THREE.DataTexture(maskData, MS, MS, THREE.RGBAFormat);
   maskTex.magFilter = THREE.LinearFilter; maskTex.minFilter = THREE.LinearFilter; maskTex.needsUpdate = true;
-  const T = { mask: { value: maskTex }, off: { value: 32 }, amount: { value: 0.8 }, dark: { value: 0.7 } };
-  // R = your land, G = explored (the shroud is black where G = 0)
+  for (let k = 3; k < maskData.length; k += 4) maskData[k] = 255;
+  const T = {
+    mask: { value: maskTex }, off: { value: 32 }, amount: { value: 0.8 }, dark: { value: 0.7 },
+    light: { value: null }, lightO: { value: new THREE.Vector2(-1e4, -1e4) }, lightS: { value: 64 }, lightK: { value: 0 },
+    emitK: { value: 0 }, emitCol: { value: lin('#ffb15a') }, rim: { value: new THREE.Vector4(1, 0.8, 0.6, 0.15) },
+    mist: { value: new THREE.Vector4(0.8, 0.8, 0.85, 0) }, time: { value: 0 }, ao: { value: 0.55 },
+    fogCol: { value: lin('#16223a') }, cyan: { value: lin('#5fd3ff') }, front: { value: 1 }, scan: { value: new THREE.Vector4(0, 0, 0, 0) },
+    sway: { value: 1 }, night: { value: 0 },
+  };
+  // the explored channel is blurred so the frontier is soft; the contact-shadow channel is a blurred footprint
+  const blurA = new Float32Array(MS * MS), blurB = new Float32Array(MS * MS);
+  function blur(src, n, passes) {
+    let a = src, b = blurB;
+    for (let p = 0; p < passes; p++) {
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * MS + x; b[i] = (a[i] * 2 + (x > 0 ? a[i - 1] : a[i]) + (x < n - 1 ? a[i + 1] : a[i])) * 0.25; }
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * MS + x; a[i] = (b[i] * 2 + (y > 0 ? b[i - MS] : b[i]) + (y < n - 1 ? b[i + MS] : b[i])) * 0.25; }
+    }
+  }
+  let footFn = null;
+  /** foot(i) → 0..1 how much a cell is covered (buildings 1, trees ~0.5); stamped into the contact-shadow channel */
+  function setFootprints(fn) { footFn = fn; }
   // fast path: arrays straight from the sim (zone and shroud), one texel per cell
-  function setMaskArrays(zone, seen, n) { T.off.value = n / 2; for (let y = 0; y < MS; y++) for (let x = 0; x < MS; x++) { const k = (y * MS + x) * 4, i = y * n + x, inMap = x < n && y < n; maskData[k] = maskData[k + 2] = inMap && zone[i] === 1 ? 255 : 0; maskData[k + 1] = inMap && seen[i] === 1 ? 255 : 0; maskData[k + 3] = 255; } maskTex.needsUpdate = true; }
+  function setMaskArrays(zone, seen, n) {
+    T.off.value = n / 2;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) blurA[y * MS + x] = seen[y * n + x] === 1 ? 1 : 0;
+    blur(blurA, n, 2);
+    for (let y = 0; y < MS; y++) for (let x = 0; x < MS; x++) { const k = (y * MS + x) * 4, inMap = x < n && y < n, i = y * n + x; maskData[k] = maskData[k + 2] = inMap && zone[i] === 1 ? 255 : 0; maskData[k + 1] = inMap ? Math.round(blurA[y * MS + x] * 255) : 0; }
+    if (footFn) {
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) blurA[y * MS + x] = footFn(y * n + x);
+      blur(blurA, n, 2);
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) maskData[(y * MS + x) * 4 + 3] = Math.round(255 * (1 - Math.min(1, blurA[y * MS + x] * 1.25)));
+    }
+    maskTex.needsUpdate = true;
+  }
   function setMask(fn, n = 64, seen = null) { T.off.value = n / 2; for (let y = 0; y < MS; y++) for (let x = 0; x < MS; x++) { const inMap = x < n && y < n, v = inMap && fn(x, y) ? 255 : 0, k = (y * MS + x) * 4; maskData[k] = maskData[k + 2] = v; maskData[k + 1] = !seen || (inMap && seen(x, y)) ? 255 : 0; maskData[k + 3] = 255; } maskTex.needsUpdate = true; }
-  function territory(m) {
+  const NOISE = `
+    float tHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }`;
+  /**
+   * territory(material, { emit, rim, flash, ground, sway, fog })
+   *   emit:  the geometry carries aEmit (0..2): those vertices glow amber with the town's lights (windows, lanterns, bulbs)
+   *   rim:   a rim light (warm by day, moon-blue by night) — figures
+   *   flash: instanced aFlash (0..1): white flash + squash when hit — the crowd
+   *   ground: ground textures with organic path edges and noise variation (see city.js)
+   *   sway:  wind sway for instanced trees and scrub
+   *   fog: false to skip the fog of war (things drawn above it)
+   */
+  function territory(m, o = {}) {
+    const defs = [o.emit && 'T_EMIT', o.rim && 'T_RIM', o.flash && 'T_FLASH', o.ground && 'T_GROUND', o.sway && 'T_SWAY', o.fog === false && 'T_NOFOG'].filter(Boolean);
     m.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, { tMask: T.mask, tOff: T.off, tAmount: T.amount, tDark: T.dark });
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTWorld;')
+      Object.assign(sh.uniforms, { tMask: T.mask, tOff: T.off, tAmount: T.amount, tDark: T.dark, tLight: T.light, tLightO: T.lightO, tLightS: T.lightS, tLightK: T.lightK,
+        tEmitK: T.emitK, tEmitCol: T.emitCol, tRim: T.rim, tMist: T.mist, tTime: T.time, tAO: T.ao, tFogCol: T.fogCol, tCyan: T.cyan, tFront: T.front, tScan: T.scan, tSway: T.sway, tNight: T.night }, o.uniforms || {});
+      const head = defs.map(d => `#define ${d}`).join('\n');
+      sh.vertexShader = head + '\n' + sh.vertexShader.replace('#include <common>', `#include <common>
+varying vec3 vTWorld;
+uniform float tTime, tSway;
+#ifdef T_EMIT
+attribute float aEmit; varying float vEmit;
+#endif
+#ifdef T_FLASH
+attribute float aFlash; varying float vFlash;
+#endif`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+#ifdef T_FLASH
+  vFlash = aFlash; transformed.y *= 1.0 - 0.16 * aFlash; transformed.xz *= 1.0 + 0.12 * aFlash;
+#endif
+#ifdef T_EMIT
+  vEmit = aEmit;
+#endif
+#if defined(T_SWAY) && defined(USE_INSTANCING)
+  { vec2 ip = instanceMatrix[3].xz; float hh = max(transformed.y, 0.0);
+    float w = sin(tTime * 1.7 + ip.x * 0.37 + ip.y * 0.23) + 0.5 * sin(tTime * 2.9 + ip.x * 0.11 - ip.y * 0.31);
+    transformed.xz += vec2(0.8, 0.45) * w * hh * hh * 0.012 * tSway; }
+#endif`)
         .replace('#include <project_vertex>', '#include <project_vertex>\n  vec4 tw = vec4(transformed, 1.0);\n  #ifdef USE_INSTANCING\n  tw = instanceMatrix * tw;\n  #endif\n  vTWorld = (modelMatrix * tw).xyz;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTWorld; uniform sampler2D tMask; uniform float tOff, tAmount, tDark;')
+      sh.fragmentShader = head + '\n' + sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vTWorld; uniform sampler2D tMask, tLight; uniform float tOff, tAmount, tDark, tLightS, tLightK, tEmitK, tTime, tAO, tFront, tNight;
+uniform vec2 tLightO; uniform vec3 tEmitCol, tFogCol, tCyan; uniform vec4 tRim, tMist, tScan;
+#ifdef T_EMIT
+varying float vEmit;
+#endif
+#ifdef T_FLASH
+varying float vFlash;
+#endif
+${NOISE}
+${o.fragHead || ''}`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+${o.fragColor || ''}`)
         .replace('#include <dithering_fragment>', `#include <dithering_fragment>
-  float own = texture2D(tMask, (vTWorld.xz + tOff) / 512.0).r;
-  float wild = (1.0 - smoothstep(0.25, 0.75, own)) * tAmount;
+  vec4 tM = texture2D(tMask, (vTWorld.xz + tOff) / 512.0);
+  float tLow = 1.0 - smoothstep(0.02, 0.7, vTWorld.y);
+  gl_FragColor.rgb *= mix(1.0, 0.25 + 0.75 * tM.a, tLow * tAO);
+  float own = tM.r, wild = (1.0 - smoothstep(0.25, 0.75, own)) * tAmount;
   vec3 c = gl_FragColor.rgb; float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-  vec3 cool = mix(vec3(l), c, 0.45) * vec3(0.9, 0.97, 1.08) * tDark;
-  gl_FragColor.rgb = mix(c, cool, wild);
-  float seen = texture2D(tMask, (vTWorld.xz + tOff) / 512.0).g;
-  // unexplored: the land shows through, grey and dim, like a map not yet walked
-  float lit = smoothstep(0.15, 0.85, seen); float gl = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-  gl_FragColor.rgb = mix(vec3(gl) * vec3(0.78, 0.84, 0.95) * 0.5, gl_FragColor.rgb, lit);`);
+  gl_FragColor.rgb = mix(c, mix(vec3(l), c, 0.55) * vec3(0.92, 0.97, 1.06) * tDark, wild);
+  float tPool = 0.0;
+#ifdef STANDARD
+  if (tLightK > 0.001) {
+    vec2 lUv = (vTWorld.xz - tLightO) / tLightS; lUv.y = 1.0 - lUv.y;
+    vec2 eg = smoothstep(0.0, 0.08, lUv) * smoothstep(1.0, 0.92, lUv);
+    vec3 lp = texture2D(tLight, lUv).rgb * (tLightK * eg.x * eg.y);
+    float up = dot(normal, (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+    gl_FragColor.rgb += diffuseColor.rgb * lp * exp(-max(vTWorld.y, 0.0) * 0.32) * (0.5 + 0.5 * max(up, 0.0));
+    tPool = dot(lp, vec3(0.33));
+  }
+#endif
+#ifdef T_EMIT
+  gl_FragColor.rgb += tEmitCol * vEmit * tEmitK;
+#endif
+#ifdef T_RIM
+  float rim = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 2.4);
+#ifdef T_FLASH
+  // the dead beyond the light: no moon rim, so only their eyes show until they step into a pool of light
+  rim *= mix(1.0, clamp(tPool * 2.5, 0.05, 1.0), tNight);
+  gl_FragColor.rgb *= mix(1.0, 0.45 + 0.55 * clamp(tPool * 3.0, 0.0, 1.0), tNight * 0.8);
+#endif
+  gl_FragColor.rgb += tRim.rgb * rim * tRim.a;
+#endif
+#ifdef T_FLASH
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(2.4, 2.3, 2.2), vFlash);
+#endif
+  float mist = tMist.a * exp(-max(vTWorld.y, 0.0) * 1.5) * (0.5 + 0.5 * tNoise(vTWorld.xz * 0.08 + tTime * vec2(0.035, 0.02)));
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, tMist.rgb, clamp(mist, 0.0, 1.0));
+#ifndef T_NOFOG
+  // the System's fog of war: unexplored land is a dim navy blueprint with a faint cyan grid;
+  // the frontier is a living cyan line, and new ground lights up under a scan wave
+  float sw = tM.g + (tNoise(vTWorld.xz * 0.42 + tTime * 0.12) - 0.5) * 0.3;
+  float seen = smoothstep(0.36, 0.6, sw);
+  if (seen < 0.999 || tScan.w > 0.001) {
+    float gl = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    vec2 gq = abs(fract(vTWorld.xz * 0.5) - 0.5);
+    float grid = smoothstep(0.455, 0.49, max(gq.x, gq.y));
+    vec3 bp = (tFogCol * (0.75 + 0.5 * tNoise(vTWorld.xz * 0.06)) + gl * vec3(0.10, 0.14, 0.22) + tCyan * grid * 0.04) * (1.0 - 0.6 * tNight);
+    float front = smoothstep(0.11, 0.0, abs(sw - 0.48)) * tFront;
+    float sd = distance(vTWorld.xz, tScan.xy);
+    float scan = tScan.w * smoothstep(1.4, 0.0, abs(sd - tScan.z)) * smoothstep(tScan.z + 1.0, tScan.z - 6.0, sd);
+    gl_FragColor.rgb = mix(bp, gl_FragColor.rgb, seen) + tCyan * (front * 0.55 + scan * 0.5 * seen);
+  }
+#endif`);
     };
-    m.customProgramCacheKey = () => 'territory';
+    m.customProgramCacheKey = () => 'territory|' + defs.join(',');
     return m;
   }
   // shared materials the renderer animates by night: lit windows and searchlight lenses
@@ -56,7 +179,9 @@ export const K = (() => {
   const glowWith = (m, k, base) => Object.defineProperty(m, 'emissiveIntensity', { get: () => base + WIN.emissiveIntensity * k, set() {}, configurable: true });
   const BULB = glowWith(new THREE.MeshStandardMaterial({ color: lin('#f6e6bd'), roughness: 0.4, emissive: lin('#ffc468') }), 1.6, 0.12);
   const LANTERN = glowWith(new THREE.MeshStandardMaterial({ color: lin('#7d6c50'), roughness: 0.5, emissive: lin('#ff9038') }), 0.5, 0);
-  const VCM = territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 }));
+  const VCM = territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 }), { emit: true });
+  // how strongly each night-lit material glows once merged into a vertex-coloured model
+  const EMITW = new Map([[WIN, 1.0], [LANTERN, 0.6], [BULB, 1.7], [LENS, 1.3]]);
   const mats = new Map();
   function M(key, o = {}) {
     const id = key + JSON.stringify(o);
@@ -101,17 +226,33 @@ export const K = (() => {
     cyl(mat, rt, rb, h, x, y, z, o = {}) { return this.geo(mat, new THREE.CylinderGeometry(rt, rb, h, o.seg || 10, 1, !!o.open), x, y + h / 2, z, o.rx || 0, o.ry || 0, o.rz || 0); }
     sph(mat, r, x, y, z, o = {}) { return this.geo(mat, new THREE.IcosahedronGeometry(r, o.detail ?? 2), x, y, z, o.rx || 0, o.ry || 0, o.rz || 0, o.sx || 1, o.sy || 1, o.sz || 1); }
     add(obj) { this.extra.push(obj); return this; }
-    // vc: every plain colour (a palette key or '#hex' with default options) is merged into ONE vertex-coloured mesh,
-    // so a many-coloured model still costs a single draw call (used for the player's buildings).
+    // Every plain colour (a palette key, '#hex', or a plain lit material) is merged into ONE vertex-coloured mesh, so a
+    // many-coloured model costs a single draw call. Glowing parts (windows, lanterns, bulbs) join it too: they carry
+    // aEmit and light up with the town at dusk. Grounding: vertex colours darken toward the model's base (aoH: the
+    // height in model units over which the darkening fades) and on faces turned to the ground.
+    // o.vc = false keeps one mesh per material (old behaviour); o.ao = aoH; o.aoMin = darkest; o.cast = shadows.
     build(o = {}) {
       const g = new THREE.Group();
       let parts = [...this.parts.values()];
-      if (o.vc) {
-        const rest = [], list = [];
+      if (o.vc !== false) {
+        const rest = [], list = [], aoH = o.ao ?? 1.4, aoMin = o.aoMin ?? 0.6;
         for (const p of parts) {
-          if (!p.plain) { rest.push(p); continue; }
-          const c = p.mat.color;
-          for (const gg of p.list) { const n = gg.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } gg.setAttribute('color', new THREE.BufferAttribute(a, 3)); list.push(gg); }
+          const mt = p.mat, em = EMITW.get(mt) || 0;
+          const plainLit = mt.isMeshStandardMaterial && !mt.transparent && !mt.map && mt.side === THREE.FrontSide && !mt.vertexColors && (em > 0 || !(mt.emissive && mt.emissive.r + mt.emissive.g + mt.emissive.b > 0 && mt.emissiveIntensity > 0));
+          if (!plainLit) { rest.push(p); continue; }
+          const c = mt.color;
+          for (let gg of p.list) {
+            if (gg.attributes.uv) gg.deleteAttribute('uv');
+            if (mt.flatShading) gg.computeVertexNormals();
+            const pa = gg.attributes.position, na = gg.attributes.normal, n = pa.count, a = new Float32Array(n * 3), e = new Float32Array(n);
+            for (let i = 0; i < n; i++) {
+              let k = 1;
+              if (!em) { const y = pa.getY(i), t = Math.min(1, Math.max(0, y / aoH)); k = aoMin + (1 - aoMin) * t * t * (3 - 2 * t); const ny = na.getY(i); if (ny < -0.3) k *= 0.78; else if (ny > 0.6) k *= 1.04; }
+              a[i * 3] = c.r * k; a[i * 3 + 1] = c.g * k; a[i * 3 + 2] = c.b * k; e[i] = em;
+            }
+            gg.setAttribute('color', new THREE.BufferAttribute(a, 3)); gg.setAttribute('aEmit', new THREE.BufferAttribute(e, 1));
+            list.push(gg);
+          }
         }
         if (list.length) rest.push({ mat: VCM, list });
         parts = rest;
@@ -674,13 +815,13 @@ export const K = (() => {
     if (lvl === 1) {
       // survival: scaffold poles and odd timbers lashed together, a pallet deck, sandbags, a tarp against the wind
       H = 3.9; const sz = 2.1, h = sz / 2;
-      for (const [a, c, m] of [[-1, -1, 'steel'], [1, -1, '#6a5a48'], [-1, 1, '#6a5a48'], [1, 1, 'metal']]) b.box(m, 0.11, H, 0.11, a * h, 0, c * h, { r: 0.02, rz: a * 0.02 });
-      rod(b, '#6f675b', [-h, 0.3, h], [h, 2.3, h], 0.08); rod(b, 'metal', [h, 0.5, -h], [h, 2.6, h], 0.06); rod(b, '#5a5045', [-h, 2.4, -h], [h, 0.4, -h], 0.08); rod(b, 'steel', [-h, 0.2, -h], [-h, 2.0, h], 0.06);
+      for (const [a, c, m] of [[-1, -1, '#7a5a3c'], [1, -1, '#6a5a48'], [-1, 1, '#6a5a48'], [1, 1, '#86654a']]) b.box(m, 0.13, H, 0.13, a * h, 0, c * h, { r: 0.02, rz: a * 0.02 });
+      rod(b, '#6f5a45', [-h, 0.3, h], [h, 2.3, h], 0.08); rod(b, '#7a5a3c', [h, 0.5, -h], [h, 2.6, h], 0.07); rod(b, '#5a4535', [-h, 2.4, -h], [h, 0.4, -h], 0.08); rod(b, '#6c4f35', [-h, 0.2, -h], [-h, 2.0, h], 0.07);
       for (const y of [2.1]) { rod(b, '#6f675b', [-h, y, h], [h, y + 0.05, h], 0.07); rod(b, '#6f675b', [h, y, h], [h, y - 0.04, -h], 0.07); }
       for (let k = 0; k < 4; k++) b.cbox(['#8a7356', '#6f675b', '#7b6a52'][k % 3], sz + 0.45, 0.1, 0.52, (r() - 0.5) * 0.12, H + 0.05, -h - 0.05 + k * 0.62, { r: 0.01, ry: (r() - 0.5) * 0.06 });
       bagRow(b, 0, h + 0.05, sz + 0.3, 2, 0, r, H + 0.1); bagRow(b, h + 0.05, 0, sz + 0.3, 2, Math.PI / 2, r, H + 0.1);
       for (const z of [-h - 0.1, h - 0.4]) b.box('#5a5045', 0.07, 1.25, 0.07, -h - 0.15, H + 0.1, z, { r: 0.01 });
-      b.cbox('#59625e', 0.04, 0.95, sz + 0.1, -h - 0.18, H + 0.75, -0.25, { r: 0.006, rz: 0.08 });
+      b.cbox('#6f8a8c', 0.04, 0.95, sz + 0.1, -h - 0.18, H + 0.75, -0.25, { r: 0.006, rz: 0.08 });
       for (const s of [-0.25, 0.25]) rod(b, '#6a5a48', [s, 0, h + 0.75], [s, H, h + 0.2], 0.06);
       for (let k = 1; k < 6; k++) { const t = k / 6; b.cbox('#7b6a52', 0.55, 0.05, 0.06, 0, H * t, h + 0.75 - 0.55 * t, { r: 0.005 }); }
       b.cbox(LANTERN, 0.14, 0.2, 0.14, -h - 0.15, H + 1.45, h - 0.4, { r: 0.02 });
@@ -704,33 +845,27 @@ export const K = (() => {
       for (let k = 1; k < 10; k++) b.cbox('#7b6a52', 0.6, 0.05, 0.06, 0, k * H / 10, h + 0.18, { r: 0.005 });
       b.box('wood', 0.6, 0.5, 0.6, -h - 0.3, 0, h - 0.1, { r: 0.03, ry: 0.3 }); drum(b, '#5c6e78', h + 0.45, -h + 0.2, 0.9);
     } else {
-      // thriving: a turret on a painted base, a bright conical roof, the town banners, pennants and lights
-      H = 7.6; const acc = o.accent || '#2f8f88', cream = '#efe6d2', trim = '#f6f0e2', roofC = o.roof || '#c8553d';
-      b.box('#d9cfbb', 3.4, 2.2, 3.4, 0, 0, 0, { r: 0.12 });
-      b.cbox('#8f8a80', 3.46, 0.4, 3.46, 0, 0.2, 0, { r: 0.04 }); b.cbox('amber', 3.44, 0.3, 3.44, 0, 1.55, 0, { r: 0.02 });
-      b.cbox(trim, 3.6, 0.16, 3.6, 0, 2.2, 0, { r: 0.03 });
-      b.cyl(cream, 1.0, 1.25, H - 2.2, 0, 2.2, 0, { seg: 16 });
-      for (let k = 0; k < 2; k++) b.cyl(k ? acc : 'amber', 1.12 - k * 0.07, 1.12 - k * 0.07, 0.24, 0, 3.4 + k * 1.6, 0, { seg: 16 });
-      for (let k = 0; k < 3; k++) b.cbox(glass(o), 0.3, 0.55, 0.06, Math.sin(k * 2.1) * 1.1, 3.9 + k * 0.6, Math.cos(k * 2.1) * 1.1, { r: 0.01, ry: k * 2.1 });
-      b.cyl('steel', 1.55, 1.3, 1.0, 0, H, 0, { seg: 8 });
-      b.cyl(acc, 1.6, 1.6, 0.14, 0, H + 1.0, 0, { seg: 8 });
-      b.cbox('dark', 0.5, 0.42, 0.9, 0, H + 0.55, 1.3, { r: 0.06 });
-      b.cbox('dark', 0.14, 0.14, 1.7, 0.09, H + 0.6, 2.4, { r: 0.04 }); b.cbox('dark', 0.14, 0.14, 1.7, -0.09, H + 0.6, 2.4, { r: 0.04 });
-      b.cyl('steel', 0.35, 0.42, 0.55, 0.9, H + 1.12, -0.5, { rx: -1.15, seg: 14 });
-      b.cyl(o.game ? LENS : M('pale', { emissive: '#fff1d0', ei: o.night ? 6 : 0.2 }), 0.33, 0.33, 0.04, 0.9, H + 1.33, -0.12, { rx: -1.15, seg: 14 });
-      // the roof on four posts, lights around its eaves, the flag on top
-      for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2; b.box('#3a3a38', 0.09, 1.5, 0.09, Math.cos(a) * 1.45, H + 1.0, Math.sin(a) * 1.45, { r: 0.01 }); }
-      b.cyl(roofC, 0.05, 2.05, 1.6, 0, H + 2.5, 0, { seg: 8 }); b.cyl(trim, 2.08, 2.08, 0.14, 0, H + 2.44, 0, { seg: 8 });
-      for (let k = 0; k < 8; k++) { const a0 = k * Math.PI / 4, a1 = (k + 1) * Math.PI / 4, R = 2.08; lights(b, [Math.cos(a0) * R, H + 2.4, Math.sin(a0) * R], [Math.cos(a1) * R, H + 2.4, Math.sin(a1) * R], 2, 0.12); }
-      flag(b, 0, H + 3.95, 0, 1.7, 1.2);
-      // two long banners in the town colour hanging from the turret
-      for (const s of [-1, 1]) { b.cbox('amber', 0.05, 2.6, 0.75, s * 1.32, H - 1.4, 0, { r: 0.006 }); b.cbox(trim, 0.06, 0.18, 0.77, s * 1.33, H - 0.55, 0, { r: 0.004 }); b.geo('amber', PEN, s * 1.32, H - 2.7, 0, 0, Math.PI / 2, 0, 2.2, 1.2, 1); }
-      // bunting round the base, planters with flowers at its feet, sandbags only on the gun side
-      const c = 1.75;
-      for (const [x, z] of [[-c, -c], [c, -c], [c, c], [-c, c]]) b.box('#3a3a38', 0.07, 1.0, 0.07, x, 2.28, z, { r: 0.01 });
-      bunting(b, [-c, 3.2, c], [c, 3.2, c], 6, 0.18); bunting(b, [c, 3.2, -c], [c, 3.2, c], 6, 0.18); bunting(b, [-c, 3.2, -c], [-c, 3.2, c], 6, 0.18); bunting(b, [-c, 3.2, -c], [c, 3.2, -c], 6, 0.18);
-      bagRow(b, 0, 1.45, 2.6, 2, 0, r, 2.28);
-      for (const [x, z] of [[-1.95, 1.95], [1.95, 1.95], [1.95, -1.95], [-1.95, -1.95]]) planter(b, x, z, 0.8, r);
+      // thriving: a tall timber lookout — log legs braced in two stages, a plank-walled platform, a shingle roof,
+      // a brazier and the camp's banners
+      H = 7.4; const sz = 2.8, h = sz / 2, roofC = '#5a4636';
+      for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) rod(b, ['#7a5a3c', '#6c4f35'][(a + c + 2) / 2 % 2], [a * (h + 0.5), 0, c * (h + 0.5)], [a * h, H, c * h], 0.26);
+      for (const [y0, y1, k0, k1] of [[0.4, 3.6, 0.45, 0.25], [3.8, 7.0, 0.24, 0.02]]) for (const [p, q] of [[[-1, 1], [1, 1]], [[1, -1], [1, 1]], [[-1, -1], [1, -1]], [[-1, -1], [-1, 1]]]) { rod(b, '#5f4530', [p[0] * (h + k0), y0, p[1] * (h + k0)], [q[0] * (h + k1), y1, q[1] * (h + k1)], 0.1); rod(b, '#5f4530', [q[0] * (h + k0), y0, q[1] * (h + k0)], [p[0] * (h + k1), y1, p[1] * (h + k1)], 0.1); }
+      b.box('#86654a', sz + 1.0, 0.18, sz + 1.0, 0, H, 0, { r: 0.03 });
+      const ph = h + 0.45;
+      for (const s2 of [-1, 1]) { for (let k = 0; k < 3; k++) { b.cbox(k % 2 ? '#7a5a3c' : '#86654a', sz + 0.95, 0.3, 0.12, 0, H + 0.35 + k * 0.32, s2 * ph, { r: 0.02 }); b.cbox(k % 2 ? '#86654a' : '#7a5a3c', 0.12, 0.3, sz + 0.95, s2 * ph, H + 0.35 + k * 0.32, 0, { r: 0.02 }); } }
+      for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box('#5f4530', 0.16, 2.3, 0.16, a * ph, H + 0.1, c * ph, { r: 0.02 });
+      b.geo(roofC, new THREE.ConeGeometry((ph + 0.5) * Math.SQRT2, 1.8, 4), 0, H + 3.3, 0, 0, Math.PI / 4, 0);
+      b.cbox('#3e3026', 0.3, 0.6, 0.3, 0, H + 4.35, 0, { r: 0.04 });
+      flag(b, 0, H + 4.5, 0, 1.6, 1.2);
+      // the brazier at the front corner and a lantern on the other
+      b.cyl('#3a3836', 0.38, 0.26, 0.45, ph - 0.4, H + 1.1, ph - 0.4, { seg: 8 }); b.cbox(LANTERN, 0.5, 0.18, 0.5, ph - 0.4, H + 1.6, ph - 0.4, { r: 0.05 });
+      b.cbox(LANTERN, 0.2, 0.28, 0.2, -ph, H + 1.9, -ph + 0.3, { r: 0.03 });
+      // two long banners in the camp colour hanging off the platform
+      for (const s2 of [-1, 1]) { b.cbox('amber', 0.06, 2.4, 0.8, s2 * (ph + 0.08), H - 1.15, 0, { r: 0.006 }); b.geo('amber', PEN, s2 * (ph + 0.08), H - 2.35, 0, 0, Math.PI / 2, 0, 2.3, 1.2, 1); }
+      // a ladder, sandbags and a barrel at the foot
+      for (const s2 of [-0.3, 0.3]) rod(b, '#6a5848', [s2, 0, h + 1.3], [s2, H, h + 0.5], 0.07);
+      for (let k = 1; k < 12; k++) { const t = k / 12; b.cbox('#7b6a52', 0.66, 0.06, 0.07, 0, H * t, h + 1.3 - 0.8 * t, { r: 0.005 }); }
+      bagRow(b, -h - 0.4, 0, 2.4, 2, Math.PI / 2, r); drum(b, '#6a5440', h + 0.9, -h - 0.4, 0.9);
     }
     const g = b.build({ vc: true }); g.userData.top = H; return g;
   }
@@ -994,6 +1129,213 @@ export const K = (() => {
     g.add(b.build());
     return g;
   }
+  // ======================================================================
+  // THE FRONTIER KIT: timber, tarp and canvas. Everything the camp builds speaks one language.
+  // ======================================================================
+  const TIMBER = ['#7a5a3c', '#6c4f35', '#86654a', '#5f4530'], TARP = '#6f8a8c', CANVAS = '#d8c9a4', CANVAS2 = '#c9b78e', SHINGLE = '#5a4636', STONE = '#8f8a80';
+  /** a log lying along x (axis 'x') or z, centred on (x, y, z) */
+  function log(b, col, len, r, x, y, z, axis = 'x', seg = 6) { b.geo(col, new THREE.CylinderGeometry(r, r * 1.06, len, seg, 1, false), x, y, z, axis === 'x' ? 0 : Math.PI / 2, 0, axis === 'x' ? Math.PI / 2 : 0); }
+  /** a wall of stacked logs from (x0, z0) to (x1, z1), h tall, alternating tones */
+  function logWall(b, x0, z0, x1, z1, h, r = 0.17, y0 = 0, tones = TIMBER) {
+    const len = Math.hypot(x1 - x0, z1 - z0), ax = Math.abs(x1 - x0) > Math.abs(z1 - z0) ? 'x' : 'z', n = Math.max(1, Math.round(h / (r * 1.8)));
+    for (let k = 0; k < n; k++) log(b, tones[k % tones.length], len + r * 1.6, r, (x0 + x1) / 2, y0 + r + k * r * 1.8, (z0 + z1) / 2, ax);
+  }
+  function fireRing(b, x, z, s = 1) {
+    for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI * 2; b.sph(k % 2 ? STONE : '#7c776d', 0.2 * s, x + Math.cos(a) * 0.62 * s, 0.08 * s, z + Math.sin(a) * 0.62 * s, { detail: 0, sy: 0.7 }); }
+    for (let k = 0; k < 4; k++) { const a = k * 0.8 + 0.3; b.geo('#4a3626', new THREE.CylinderGeometry(0.07 * s, 0.08 * s, 0.9 * s, 5), x, 0.18 * s, z, 0.9, a, 0); }
+    b.cbox('#2a2220', 0.8 * s, 0.04, 0.8 * s, x, 0.02, z, { r: 0.02 });
+  }
+  /** the flames of a fire: emissive cones (they bloom at night and burn by day) */
+  function flames(g, x, z, s = 1, y = 0.15) {
+    const m1 = new THREE.MeshBasicMaterial({ color: lin('#ff9a3a').multiplyScalar(3) }), m2 = new THREE.MeshBasicMaterial({ color: lin('#ffe0a0').multiplyScalar(4) });
+    const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.34 * s, 1.0 * s, 6), m1); f1.position.set(x, y + 0.5 * s, z); g.add(f1);
+    const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.7 * s, 5), m2); f2.position.set(x + 0.08 * s, y + 0.38 * s, z - 0.05 * s); g.add(f2);
+    g.userData.flames = (g.userData.flames || []).concat([f1, f2]);
+  }
+  function bench(b, x, z, ry, len = 1.6) { const c = Math.cos(ry), s2 = Math.sin(ry); log(b, TIMBER[(len * 10 | 0) % 4], len, 0.17, x, 0.2, z, Math.abs(c) > 0.7 ? 'x' : 'z'); }
+  function crate(b, x, z, s = 1, y = 0, ry = 0) { b.box('#8a6a48', 0.7 * s, 0.6 * s, 0.6 * s, x, y, z, { r: 0.03, ry }); b.cbox('#6b5038', 0.72 * s, 0.08 * s, 0.62 * s, x, y + 0.3 * s, z, { r: 0.01, ry }); }
+  function barrel(b, x, z, col = '#6a5440', s = 1) { b.cyl(col, 0.3 * s, 0.28 * s, 0.85 * s, x, 0, z, { seg: 8 }); for (const t of [0.15, 0.68]) b.cyl('#3f3a35', 0.31 * s, 0.31 * s, 0.05 * s, x, t * s, z, { seg: 8 }); }
+  function lanternPost(b, x, z, h = 2.1) { b.box(TIMBER[1], 0.09, h, 0.09, x, 0, z, { r: 0.02 }); b.cbox(TIMBER[0], 0.5, 0.07, 0.07, x + 0.22, h - 0.05, z, { r: 0.01 }); b.cbox(LANTERN, 0.16, 0.22, 0.16, x + 0.42, h - 0.25, z, { r: 0.03 }); b.cbox('#2f2c29', 0.2, 0.05, 0.2, x + 0.42, h - 0.12, z, { r: 0.01 }); }
+  /** a tarp stretched between four corners [x, y, z] (two triangles, slightly sagging) */
+  function tarp(b, col, a, c, d, e) { const s = new THREE.BufferGeometry(); const mid = [(a[0] + c[0] + d[0] + e[0]) / 4, (a[1] + c[1] + d[1] + e[1]) / 4 - 0.12, (a[2] + c[2] + d[2] + e[2]) / 4]; const P = [a, c, mid, c, d, mid, d, e, mid, e, a, mid].flat(); s.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); s.computeVertexNormals(); b.geo(col, s); const s2 = s.clone(); const p2 = s2.attributes.position; for (let i = 0; i < p2.count; i += 3) { const t = [p2.getX(i + 1), p2.getY(i + 1), p2.getZ(i + 1)]; p2.setXYZ(i + 1, p2.getX(i + 2), p2.getY(i + 2), p2.getZ(i + 2)); p2.setXYZ(i + 2, ...t); } s2.computeVertexNormals(); b.geo(shade(col, -0.12), s2); }
+  function pennants(b, p, q, n) { bunting(b, p, q, n, 0.25, ['#f0a040', '#d8c9a4', '#c9702e', '#f4ead2']); }
+  /** a school bus that stalled here: faded yellow, flat tyres, roof rack of salvage */
+  function busInto(b, x, z, ry, o = {}) {
+    const c = Math.cos(ry), s2 = Math.sin(ry), P = (u, w) => [x + u * c + w * s2, z - u * s2 + w * c];
+    const L = 11, Wd = 2.5, body = o.color || '#d9a441', at = (u, w, y, wx, hy, dz, col, r = 0.06) => { const [px, pz] = P(u, w); b.cbox(col, wx, hy, dz, px, y, pz, { r, ry }); };
+    at(0, 0, 1.75, L, 2.4, Wd, body, 0.3);
+    at(-0.3, 0, 2.15, L - 2.6, 0.9, Wd + 0.03, '#3a4648', 0.08);   // window band
+    for (let k = 0; k < 7; k++) at(-4.1 + k * 1.25, 0, 2.15, 0.12, 0.95, Wd + 0.06, body, 0.02);
+    at(0, 0, 1.25, L + 0.03, 0.22, Wd + 0.05, '#2f2c29', 0.04);   // black rub strip
+    at(L / 2 + 0.6, 0, 0.95, 1.4, 1.2, Wd - 0.1, body, 0.25); at(L / 2 + 1.25, 0, 0.9, 0.1, 0.5, Wd - 0.6, '#3a3836', 0.02);   // the nose
+    at(L / 2 + 0.05, 0, 2.1, 0.08, 1.1, Wd - 0.3, '#3a4648', 0.02);
+    at(-L / 2 - 0.02, 0, 1.0, 0.1, 0.25, 0.6, '#c0462f', 0.02);
+    for (const u of [-3.4, 3.8]) for (const w of [-1.2, 1.2]) { const [px, pz] = P(u, w); b.geo('tyre', new THREE.CylinderGeometry(0.5, 0.5, 0.32, 10), px, 0.45, pz, Math.PI / 2, ry, 0, 1, 1, 0.92); }
+    // roof rack: salvage, a rolled tarp, crates
+    at(-1, 0, 3.02, 6, 0.08, Wd - 0.3, '#4a4440', 0.02);
+    at(-2.6, 0.2, 3.3, 1.0, 0.5, 0.8, '#8a6a48', 0.04); at(-1.2, -0.3, 3.25, 0.8, 0.4, 0.7, '#6b5038', 0.04);
+    const [rx, rz] = P(0.6, 0); log(b, TARP, 2.2, 0.22, rx, 3.3, rz, Math.abs(c) > 0.7 ? 'z' : 'x');
+  }
+
+  /**
+   * the hall: the heart of the camp, by level.
+   *   1 — the stalled bus with tarps stretched off it, a campfire ringed with log benches
+   *   2 — a timber longhouse built round the bus (its nose still sticks out of the end wall), a porch and lit windows
+   *   3 — the palisaded lodge: a bigger hall with a lookout loft, a stake palisade with a gate, braziers and banners
+   * Front faces -z (the view turns it to face the camera). userData.fires: [[x, y, z, r]] in model metres.
+   */
+  function hall(o = {}) {
+    const lvl = o.level || 1, g = new THREE.Group(), b = new B(), r = rng(91 + lvl);
+    const fires = [];
+    // packed earth yard
+    b.geo('#9c8664', new THREE.CylinderGeometry(9.5, 9.8, 0.06, 20), 0, 0.03, -0.5, 0, 0, 0, 1, 1, 0.8);
+    if (lvl === 1) {
+      busInto(b, 0.5, 2.8, 0);
+      // tarps off the bus roof to poles in front: the camp's first shelter
+      for (const [x0, x1] of [[-5, -1.2], [-0.8, 3.4]]) {
+        for (const x of [x0, x1]) b.box(TIMBER[2], 0.12, 2.1, 0.12, x, 0, -0.9, { r: 0.02, rz: (r() - 0.5) * 0.06 });
+        tarp(b, x0 < -2 ? TARP : CANVAS2, [x0, 2.9, 1.6], [x1, 2.9, 1.6], [x1, 2.1, -0.9], [x0, 2.1, -0.9]);
+      }
+      // bedrolls and crates under the tarps
+      for (let k = 0; k < 4; k++) b.cbox(['#7a5a48', '#5d6b6a', '#8a7a5a', '#6b4a3a'][k], 0.7, 0.16, 1.7, -4.2 + k * 1.15, 0.08, 0.5, { r: 0.07 });
+      crate(b, 2.6, 0.9); crate(b, 3.2, 0.4, 0.8, 0, 0.4); barrel(b, 4.4, 1.2); barrel(b, 4.9, 0.6, '#59625e');
+      // the campfire and its benches
+      const fx = 0.5, fz = -3.6; fireRing(b, fx, fz); fires.push([fx, 0.4, fz, 5]);
+      bench(b, fx - 2.0, fz, Math.PI / 2, 2.2); bench(b, fx + 2.1, fz - 0.2, Math.PI / 2, 2.0); bench(b, fx, fz - 2.1, 0, 2.4);
+      b.cbox('#6b5038', 0.5, 0.5, 0.5, fx + 1.4, 0.25, fz + 1.5, { r: 0.04, ry: 0.4 });
+      // a cooking tripod over the fire
+      for (let k = 0; k < 3; k++) { const a = k * 2.1; rod(b, '#3a2f28', [fx + Math.cos(a) * 0.8, 0, fz + Math.sin(a) * 0.8], [fx, 1.7, fz], 0.05); }
+      b.cyl('#3a3836', 0.22, 0.18, 0.3, fx, 0.95, fz, { seg: 8 });
+      lanternPost(b, -5.8, -2.5); lanternPost(b, 6, -1.8);
+      flag(b, 6.3, 0, 2.6, 4.2, 1.3);
+      // the woodpile and a chopping block
+      for (let k = 0; k < 9; k++) log(b, TIMBER[k % 4], 1.3, 0.14, -7.2, 0.15 + Math.floor(k / 3) * 0.26, 1.6 + (k % 3) * 0.3, 'x');
+      b.cyl('#6b5038', 0.32, 0.36, 0.5, -6.6, 0, -0.6, { seg: 8 });
+    } else {
+      // the longhouse: log walls on a stone footing, a shingle roof, the bus's yellow nose out of the east end
+      const hw = lvl === 2 ? 13 : 15, hd = lvl === 2 ? 6.4 : 7.2, wh = lvl === 2 ? 2.9 : 3.3, cz = 2.2;
+      busInto(b, 1.5, cz, 0);
+      b.box(STONE, hw + 0.4, 0.4, hd + 0.4, 0, 0, cz, { r: 0.06 });
+      for (const s of [-1, 1]) logWall(b, -hw / 2, cz + s * hd / 2, hw / 2 - (s < 0 ? 0 : 0), cz + s * hd / 2, wh, 0.19, 0.4);
+      // west end wall closed; east end wall with a gap the bus nose fills
+      logWall(b, -hw / 2, cz - hd / 2, -hw / 2, cz + hd / 2, wh, 0.19, 0.4);
+      for (const s of [-1, 1]) logWall(b, hw / 2, cz + s * hd / 2, hw / 2, cz + s * 1.5, wh, 0.19, 0.4);
+      logWall(b, hw / 2, cz - 1.5, hw / 2, cz + 1.5, 0.6, 0.19, wh - 0.2);
+      for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box(TIMBER[3], 0.4, wh + 0.4, 0.4, x * hw / 2, 0, cz + z * hd / 2, { r: 0.05 });
+      // windows (warm by night) and the door under the porch
+      for (const x of [-4.4, -1.6, 1.6, 4.4]) { if (x === 1.6 && lvl === 2) continue; b.cbox(WIN, 1.0, 0.9, 0.08, x, 1.9, cz - hd / 2 - 0.16, { r: 0.01 }); b.cbox(TIMBER[0], 1.25, 0.12, 0.22, x, 1.4, cz - hd / 2 - 0.2, { r: 0.02 }); b.cbox(TIMBER[0], 1.25, 0.12, 0.22, x, 2.42, cz - hd / 2 - 0.2, { r: 0.02 }); }
+      b.cbox('#4a3626', 1.4, 2.2, 0.1, 0, 1.5, cz - hd / 2 - 0.16, { r: 0.01 }); b.cbox(WIN, 1.1, 0.25, 0.06, 0, 2.75, cz - hd / 2 - 0.2, { r: 0.01 });
+      for (const x of [-3, 3]) b.cbox(WIN, 0.9, 0.8, 0.08, x, 1.9, cz + hd / 2 + 0.16, { r: 0.01 });
+      // roof: two shingle slabs with a ridge and a smoke hole
+      const pitch = lvl === 2 ? 2.6 : 3.0, H = wh + 0.4;
+      const ov = 0.6, run = hd / 2 + ov, a = Math.atan2(pitch, run), Lr = Math.hypot(run, pitch) + 0.1;
+      for (const s of [-1, 1]) { b.cbox(SHINGLE, hw + 1.2, 0.2, Lr, 0, H + pitch / 2, cz + s * run / 2, { r: 0.04, rx: s * a }); for (let k = 1; k < 5; k++) b.cbox(shade(SHINGLE, -0.05), hw + 1.22, 0.05, 0.08, 0, H + pitch * (1 - k / 5) + 0.12, cz + s * run * k / 5, { r: 0.01 }); }
+      b.cbox('#3e3026', hw + 1.3, 0.3, 0.4, 0, H + pitch + 0.05, cz, { r: 0.05 });
+      { const sg = new THREE.Shape(); sg.moveTo(-hd / 2, 0); sg.lineTo(hd / 2, 0); sg.lineTo(0, pitch); sg.closePath(); const eg = new THREE.ExtrudeGeometry(sg, { depth: 0.3, bevelEnabled: false }); for (const x of [-hw / 2 - 0.15, hw / 2 - 0.15]) b.geo(TIMBER[2], eg, x, H, cz, 0, Math.PI / 2, 0); }
+      b.cbox('#2a2422', 1.2, 0.5, 1.0, -2.5, H + pitch - 0.1, cz, { r: 0.04 }); fires.push([-2.5, H + pitch, cz, 0]);
+      // porch: posts and a lean-to roof over the door
+      for (const x of [-2.4, 2.4]) b.box(TIMBER[1], 0.22, 2.6, 0.22, x, 0, cz - hd / 2 - 2.0, { r: 0.04 });
+      b.cbox(SHINGLE, 6, 0.15, 2.5, 0, 2.75, cz - hd / 2 - 1.05, { r: 0.03, rx: -0.2 });
+      b.cbox(TIMBER[2], 5.2, 0.1, 2.1, 0, 0.45, cz - hd / 2 - 1.0, { r: 0.02 });
+      b.cbox(LANTERN, 0.2, 0.28, 0.2, -2.4, 2.25, cz - hd / 2 - 2.0, { r: 0.03 }); b.cbox(LANTERN, 0.2, 0.28, 0.2, 2.4, 2.25, cz - hd / 2 - 2.0, { r: 0.03 });
+      // amber banners either side of the door
+      for (const x of [-3.4, 3.4]) { b.cbox('amber', 0.9, 2.0, 0.06, x, 2.1, cz - hd / 2 - 0.3, { r: 0.01 }); b.geo('amber', PEN, x, 1.1, cz - hd / 2 - 0.3, 0, 0, 0, 2.6, 1.3, 1); }
+      // the yard fire, benches, the woodpile along the west wall
+      const fx = 0, fz = -5.2; fireRing(b, fx, fz, 1.1); fires.push([fx, 0.4, fz, 5.5]);
+      bench(b, fx - 2.2, fz, Math.PI / 2, 2.2); bench(b, fx + 2.2, fz, Math.PI / 2, 2.2); bench(b, fx, fz - 2.1, 0, 2.6);
+      for (let k = 0; k < 12; k++) log(b, TIMBER[k % 4], 1.3, 0.14, -hw / 2 - 0.9, 0.15 + Math.floor(k / 4) * 0.26, cz - 1.5 + (k % 4) * 0.3 + 1, 'x');
+      barrel(b, hw / 2 + 0.9, cz - 3.4); crate(b, hw / 2 + 1.0, cz - 2.4, 0.9);
+      if (lvl === 2) { lanternPost(b, -6, -5.6); lanternPost(b, 6.2, -5.4); flag(b, -hw / 2 - 0.4, 0, cz - hd / 2 - 0.4, 5.2, 1.5); pennants(b, [-2.4, 2.6, cz - hd / 2 - 2.0], [-6, 2.0, -5.6], 6); pennants(b, [2.4, 2.6, cz - hd / 2 - 2.0], [6.2, 2.0, -5.4], 6); }
+      if (lvl === 3) {
+        // a lookout loft on the roof: posts, a rail, a little roof, a lantern
+        const lx = 3.5, ly = H + pitch - 0.2;
+        for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box(TIMBER[1], 0.16, 2.2, 0.16, lx + x * 1.1, ly, cz + z * 1.1, { r: 0.02 });
+        b.cbox(TIMBER[2], 2.6, 0.12, 2.6, lx, ly + 0.2, cz, { r: 0.02 }); for (const s of [-1, 1]) { b.cbox(TIMBER[0], 2.5, 0.09, 0.09, lx, ly + 1.1, cz + s * 1.1, { r: 0.01 }); b.cbox(TIMBER[0], 0.09, 0.09, 2.5, lx + s * 1.1, ly + 1.1, cz, { r: 0.01 }); }
+        b.geo(SHINGLE, new THREE.ConeGeometry(2.0, 1.2, 4), lx, ly + 2.8, cz, 0, Math.PI / 4, 0);
+        b.cbox(LANTERN, 0.22, 0.3, 0.22, lx, ly + 1.7, cz, { r: 0.03 });
+        flag(b, lx, ly + 3.3, cz, 2.2, 1.6);
+        // the palisade: sharpened stakes round the yard, a gate in front with two braziers
+        const PX = 9.2, PZ0 = -8.4, PZ1 = 6.9, stake = (x, z, k) => { const hh = 2.6 + ((k * 7) % 5) * 0.12; b.cyl(TIMBER[k % 4], 0.19, 0.21, hh, x, 0, z, { seg: 6 }); b.geo(TIMBER[(k + 1) % 4], new THREE.ConeGeometry(0.2, 0.5, 6), x, hh + 0.25, z); };
+        let k = 0;
+        for (let x = -PX; x <= PX + 0.01; x += 0.42) { if (Math.abs(x) > 1.9) stake(x, PZ0, k++); stake(x, PZ1, k++); }
+        for (let z = PZ0 + 0.42; z < PZ1; z += 0.42) { stake(-PX, z, k++); stake(PX, z, k++); }
+        for (const s of [-1, 1]) for (const y of [0.8, 2.0]) b.cbox(TIMBER[3], 0.12, 0.16, PZ1 - PZ0, s * (PX - 0.25), y, (PZ0 + PZ1) / 2, { r: 0.02 });
+        // the gate: two big posts, a lintel with the camp's banner, braziers
+        for (const s of [-1, 1]) { b.box(TIMBER[1], 0.42, 3.8, 0.42, s * 2.1, 0, PZ0, { r: 0.05 }); b.cyl('#3a3836', 0.32, 0.22, 0.5, s * 2.9, 0.7, PZ0 - 0.5, { seg: 8 }); b.box('#3a3836', 0.1, 0.7, 0.1, s * 2.9, 0, PZ0 - 0.5); fires.push([s * 2.9, 1.3, PZ0 - 0.5, 3.2]); }
+        b.cbox(TIMBER[0], 4.8, 0.36, 0.42, 0, 3.7, PZ0, { r: 0.04 }); b.cbox('amber', 2.2, 0.9, 0.08, 0, 3.0, PZ0 - 0.26, { r: 0.01 });
+        // string lights from the porch to the gate
+        lights(b, [-2.4, 2.65, cz - hd / 2 - 2.0], [-2.1, 3.5, PZ0], 6, 0.35); lights(b, [2.4, 2.65, cz - hd / 2 - 2.0], [2.1, 3.5, PZ0], 6, 0.35);
+        pennants(b, [-PX, 3.1, PZ0], [-2.1, 3.6, PZ0], 9); pennants(b, [2.1, 3.6, PZ0], [PX, 3.1, PZ0], 9);
+        barrel(b, -7.5, -6.8, '#59625e'); crate(b, 7.4, -7, 0.9); crate(b, 7.9, -6.3, 0.7, 0, 0.6);
+      }
+    }
+    g.add(b.build({ ao: 1.6, aoMin: 0.55 }));
+    for (const f of fires) if (f[3] > 0) flames(g, f[0], f[2], f[3] > 4 ? 1.1 : 0.7, f[1] - 0.3);
+    g.userData.fires = fires.filter(f => f[3] > 0);
+    g.userData.smoke = fires.filter(f => f[3] === 0);
+    return g;
+  }
+
+  /** homes: 1 a canvas tent with a tarp lean-to, 2 a log cabin with a chimney, 3 a bigger cabin with a porch and lit windows. Front +z. */
+  function home(o = {}) {
+    const lvl = o.level || 1, b = new B(), r = rng(o.seed || 21), v = (o.seed || 0) % 4;
+    const tones = [CANVAS, CANVAS2, '#c7b99a', '#b9a888'];
+    if (lvl === 1) {
+      // an A-frame canvas tent, guy ropes, a patched tarp lean-to, bedroll and a small fire ring
+      const tw = 3.6, td = 4.6, th = 2.6, col = tones[v];
+      const s = new THREE.Shape(); s.moveTo(-tw / 2, 0); s.lineTo(tw / 2, 0); s.lineTo(0, th); s.closePath();
+      const tg = new THREE.ExtrudeGeometry(s, { depth: td, bevelEnabled: false }); tg.translate(0, 0, -td / 2); b.geo(col, tg, -0.6, 0, -0.3);
+      b.geo(shade(col, -0.06), new THREE.BoxGeometry(0.6, 0.6, 0.02), -0.6 + 0.9, 1.1, -0.3 + td / 2 + 0.01, 0, 0, Math.atan2(th, tw / 2) - Math.PI / 2);
+      b.cbox('#3a3028', 1.1, 1.5, 0.04, -0.6, 0.75, -0.3 + td / 2 + 0.02, { r: 0.01 });   // the open flap
+      b.cbox('#7a5a48', 0.06, th + 0.3, 0.06, -0.6, th / 2, -0.3 + td / 2 + 0.05, { r: 0.01 });
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) rod(b, '#d8d1c2', [-0.6 + sx * tw * 0.3, th * 0.45, -0.3 + sz * td * 0.42], [-0.6 + sx * (tw / 2 + 0.9), 0.02, -0.3 + sz * td * 0.48], 0.02);
+      // lean-to tarp on two poles at the side, sacks and crates under it
+      const lx = 2.0;
+      for (const z of [-1.4, 1.2]) b.box(TIMBER[(z > 0) + 1], 0.09, 1.7, 0.09, lx + 0.9, 0, z, { r: 0.02 });
+      tarp(b, v % 2 ? TARP : '#7f7a5e', [lx - 0.6, 1.25, -1.4], [lx - 0.6, 1.25, 1.2], [lx + 0.9, 1.7, 1.2], [lx + 0.9, 1.7, -1.4]);
+      crate(b, lx + 0.2, -0.6, 0.8); for (let k = 0; k < 3; k++) b.sph('bag', 0.26, lx + 0.1 + (k % 2) * 0.4, 0.22, 0.4 + k * 0.25, { detail: 0, sy: 0.75 });
+      b.cbox('#7a5a48', 0.6, 0.14, 1.6, -0.6, 0.07, td / 2 + 0.8, { r: 0.07, ry: 0.2 });
+      fireRing(b, 0.9, td / 2 + 1.4, 0.55);
+      b.cbox(LANTERN, 0.14, 0.2, 0.14, -0.6, th - 0.25, -0.3 + td / 2 + 0.12, { r: 0.02 });
+      return b.build({ ao: 1.1, aoMin: 0.6 });
+    }
+    // cabins
+    const w = lvl === 2 ? 5.2 : 6.0, d = lvl === 2 ? 4.8 : 5.4, wh = lvl === 2 ? 2.5 : 2.8, ox = lvl === 2 ? 0 : -0.2;
+    const logTones = lvl === 2 ? TIMBER : ['#8a6644', '#7c5b3c', '#957050', '#6e5136'];
+    b.box(STONE, w + 0.3, 0.35, d + 0.3, ox, 0, 0, { r: 0.05 });
+    logWall(b, ox - w / 2, -d / 2, ox + w / 2, -d / 2, wh, 0.16, 0.35, logTones); logWall(b, ox - w / 2, d / 2, ox + w / 2, d / 2, wh, 0.16, 0.35, logTones);
+    logWall(b, ox - w / 2, -d / 2, ox - w / 2, d / 2, wh, 0.16, 0.35, logTones); logWall(b, ox + w / 2, -d / 2, ox + w / 2, d / 2, wh, 0.16, 0.35, logTones);
+    const H = wh + 0.35, pitch = lvl === 2 ? 1.9 : 2.2, roof = lvl === 2 ? ['#5a4636', '#4f4a44', '#5d4a3a', '#6a5040'][v] : ['#7a4a36', '#3d5a5c', '#6a3a30', '#4a5a3c'][v];
+    // windows and door on the front (+z)
+    const win = (x, y, z, s = 1, ww = 1.0, hh = 0.95) => { b.cbox(WIN, ww, hh, 0.08, x, y, z, { r: 0.01 }); b.cbox(TIMBER[0], ww + 0.24, 0.1, 0.2, x, y - hh / 2 - 0.04, z + s * 0.06, { r: 0.02 }); b.cbox(TIMBER[0], ww + 0.24, 0.1, 0.16, x, y + hh / 2 + 0.04, z + s * 0.04, { r: 0.02 }); };
+    win(ox - 1.5, 1.65, d / 2 + 0.17); win(ox + 1.5, 1.65, d / 2 + 0.17); win(ox - 1.2, 1.65, -d / 2 - 0.17, -1); win(ox + 1.2, 1.65, -d / 2 - 0.17, -1); b.cbox(WIN, 0.08, 0.9, 1.0, ox + w / 2 + 0.17, 1.65, 0.3, { r: 0.01 }); b.cbox(WIN, 0.08, 0.9, 1.0, ox - w / 2 - 0.17, 1.65, 0.6, { r: 0.01 });
+    b.cbox('#4a3626', 0.95, 1.9, 0.08, ox, 1.3, d / 2 + 0.18, { r: 0.01 });
+    // the gable roof (ridge along x), gable ends in planks, a stone chimney
+    { const run = d / 2 + 0.45, a = Math.atan2(pitch, run), Lr = Math.hypot(run, pitch) + 0.1;
+      for (const s of [-1, 1]) b.cbox(roof, w + 0.8, 0.16, Lr, ox, H + pitch / 2, s * run / 2, { r: 0.03, rx: s * a });
+      b.cbox(shade(roof, -0.1), w + 0.9, 0.2, 0.28, ox, H + pitch + 0.04, 0, { r: 0.04 });
+      const sg = new THREE.Shape(); sg.moveTo(-d / 2, 0); sg.lineTo(d / 2, 0); sg.lineTo(0, pitch); sg.closePath(); const eg = new THREE.ExtrudeGeometry(sg, { depth: 0.2, bevelEnabled: false });
+      for (const x of [ox - w / 2 - 0.1, ox + w / 2 - 0.1]) b.geo(TIMBER[2], eg, x, H, 0, 0, Math.PI / 2, 0); }
+    b.box(STONE, 0.75, H + pitch + 0.6, 0.75, ox - w / 2 + 0.7, 0, -d / 2 + 0.9, { r: 0.05 }); b.cbox('#5f5a52', 0.9, 0.14, 0.9, ox - w / 2 + 0.7, H + pitch + 0.65, -d / 2 + 0.9, { r: 0.02 });
+    // the woodpile and a barrel
+    for (let k = 0; k < 6; k++) log(b, TIMBER[k % 4], 1.1, 0.13, ox + w / 2 + 0.55, 0.14 + Math.floor(k / 3) * 0.24, -d / 2 + 0.6 + (k % 3) * 0.28, 'x');
+    barrel(b, ox - w / 2 - 0.45, d / 2 - 0.3, '#5c6e78', 0.85);
+    if (lvl === 2) { b.cbox(LANTERN, 0.16, 0.22, 0.16, ox + 0.75, 2.2, d / 2 + 0.3, { r: 0.02 }); return b.build({ ao: 1.2, aoMin: 0.58 }); }
+    // level 3: a porch the width of the house, posts, a lean-to roof, a rocking chair, flower boxes, lights, a flag
+    const pz = d / 2 + 1.5;
+    b.cbox(TIMBER[2], w + 0.6, 0.14, 1.8, ox, 0.42, d / 2 + 0.95, { r: 0.02 });
+    for (const x of [-w / 2, -w / 6, w / 6, w / 2]) b.box(TIMBER[1], 0.16, 2.35, 0.16, ox + x, 0.42, pz, { r: 0.02 });
+    b.cbox(roof, w + 0.9, 0.12, 2.1, ox, 2.95, d / 2 + 0.95, { r: 0.02, rx: 0.2 });
+    b.cbox(TIMBER[0], w + 0.2, 0.08, 0.08, ox, 1.15, pz, { r: 0.01 });
+    for (const x of [-1.5, 1.5]) windowBox(b, ox + x, 1.1, d / 2 + 0.35, 1.0, r);
+    b.cbox('#6b4a32', 0.6, 0.08, 0.55, ox + 1.6, 0.85, pz - 0.6, { r: 0.02 }); b.cbox('#6b4a32', 0.6, 0.7, 0.08, ox + 1.6, 1.2, pz - 0.85, { r: 0.02, rx: -0.15 });
+    lights(b, [ox - w / 2, 2.6, pz], [ox + w / 2, 2.6, pz], 9, 0.18);
+    b.cbox(LANTERN, 0.18, 0.24, 0.18, ox - w / 6, 2.15, pz, { r: 0.02 });
+    flag(b, ox + w / 2 + 0.3, H, -d / 2 + 0.4, 2.6, 0.9);
+    planter(b, ox - w / 2 - 0.5, d / 2 + 1.2, 0.8, r);
+    return b.build({ ao: 1.2, aoMin: 0.58 });
+  }
+
   function sandbagsInto(g, x, y, z, len, ry = 0) { const s = sandbags(len, 3); s.position.set(x, y, z); s.rotation.y = ry; g.add(s); return s; }
 
   // ======================================================================
@@ -1060,10 +1402,11 @@ export const K = (() => {
   const FIGMAT = territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 }));
   // people colours (hex, linearised by M)
   const C = {
-    cape: '#b23a2e', capeIn: '#5e2220', scarf: '#c8443a', leather: '#5a3d29', leather2: '#7a5434', belt: '#3a2a20', buckle: '#d8b25a',
+    cape: '#d9822b', capeIn: '#6e3a1c', scarf: '#f0a040', leather: '#5a3d29', leather2: '#7a5434', belt: '#3a2a20', buckle: '#d8b25a',
     shirt: '#d9c8a2', shirtB: '#4f6f8f', denim: '#3e5a78', olive: '#56603e', khaki: '#8a7a58', forest: '#3f5a36', tabard: '#cf8a32', mail: '#8b9094', helm: '#7b8286',
     hairDark: '#2a221d', hairBrown: '#5a3922', hairAuburn: '#8a4326', hairBlond: '#d2a95e', hairGrey: '#9a9690', hairBlack: '#1e1c1b',
-    zskin: '#7d8c6c', zskin2: '#8f9a7e', zrot: '#66745a', wound: '#6b2a26', zshirt: '#56606a', zshirt2: '#7a5646', zpants: '#4a4640', zpants2: '#3f4148',
+    // the dead: ash-violet skin and clothes gone grey; rot-green is for their eyes and wounds only
+    zskin: '#8a8794', zskin2: '#9a96a2', zrot: '#6f6a78', wound: '#8fc443', zshirt: '#5b5765', zshirt2: '#6a6170', zpants: '#45424d', zpants2: '#3c3a44',
   };
   const SKINS = ['#efc3a0', '#d9a47e', '#b07a55', '#7d5136'];
   // a lathe from [radius, y] pairs (bottom to top), flat faces front/back/sides
@@ -1281,7 +1624,7 @@ export const K = (() => {
     sellsword: () => rig({ outfit: { top: C.mail, sleeve: C.mail, tabard: C.tabard, belt: C.belt, legs: '#3c3a36', boots: C.leather, helmet: C.helm, hair: C.hairDark, gloves: C.leather }, bw: 1.05, pose: { sR: [-0.5, 0, 0.15], eR: -1.0, sL: [-0.3, 0, 0.1], eL: -0.8 }, props: p => { sword(p); shield(p); } }),
   };
   // townsfolk: a seeded mix of skin, hair, clothes and hats; crew = a scavenging crew member (pack, amber vest)
-  const FOLK_TOPS = ['#c98b4a', '#5f8fa8', '#a8584a', '#7d9a5a', '#d9c8a2', '#8a6a9a', '#d8b04e', '#4f7a72', '#b86a7a'];
+  const FOLK_TOPS = ['#c98b4a', '#8a6a52', '#a8584a', '#d9c8a2', '#d8b04e', '#6d7f8f', '#b86a4a', '#9a7a52', '#c9a27a'];   // survivors: warm, earthy — never ash-violet or rot-green
   const FOLK_LEGS = ['#3e5a78', '#5b4a3a', '#46464a', '#7a6a52', '#56603e'];
   const FOLK_HAIR = [C.hairDark, C.hairBrown, C.hairAuburn, C.hairBlond, C.hairGrey, C.hairBlack];
   function folk(seed = 1, o = {}) {
@@ -1295,19 +1638,21 @@ export const K = (() => {
     if (r() < 0.3) { F.pack = C.leather2; F.roll = pick([C.olive, '#a8584a', '#5f8fa8']); }
     if (r() < 0.3) F.bareArms = true;
     if (o.crew) Object.assign(F, { vest: '#c9702e', pack: C.leather2, roll: C.olive, apron: null, beanie: null, cap: '#8a8780' });
-    return rig({ outfit: F, bw: 0.92 + Math.floor(r() * 4) * 0.07, bh: 0.94 + Math.floor(r() * 3) * 0.05, pose: { sL: [0.15, 0, 0], sR: [-0.15, 0, 0], hL: [0.25], hR: [-0.25], kR: 0.2 } });
+    const pose = o.sit ? { lean: 0.22, neck: 0.15, hL: [-1.45, 0.12], kL: 1.55, hR: [-1.45, 0.12], kR: 1.55, sL: [-0.75, 0, 0.12], eL: -1.15, sR: [-0.75, 0, 0.12], eR: -1.15 }
+      : { sL: [0.15, 0, 0], sR: [-0.15, 0, 0], hL: [0.25], hR: [-0.25], kR: 0.2 };
+    return rig({ outfit: F, bw: 0.92 + Math.floor(r() * 4) * 0.07, bh: 0.94 + Math.floor(r() * 3) * 0.05, pose });
   }
   // the dead: grey-green skin, torn and stained clothes, hunched, glowing eyes
-  const ZO = { top: C.zshirt, legs: C.zpants, skin: C.zskin, boots: '#3a3734', hair: '#2f2a25', hairStyle: 'patchy', torn: true, wounds: C.wound, sole: false };
+  const ZO = { top: C.zshirt, legs: C.zpants, skin: C.zskin, boots: '#34323a', hair: '#2c2a30', hairStyle: 'patchy', torn: true, wounds: C.wound, sole: false };
   const dead = {
     walker: o => rig({ ...o, outfit: { ...ZO, ...(o && o.outfit) }, eyes: true, pose: { lean: 0.48, neck: 0.15, head: -0.05, headTilt: 0.25, sL: [-1.25, 0, -0.05], eL: -0.2, sR: [-0.95, 0, 0.1], eR: -0.35, hL: [-0.35], kL: 0.4, hR: [0.25], kR: 0.1 } }),
     runner: o => rig({ ...o, outfit: { ...ZO, top: C.zshirt2, legs: C.zpants2, skin: C.zskin2, bareArms: true, hairStyle: 'short' }, seed: 3, eyes: true, bw: 0.9, pose: { lean: 0.6, neck: -0.25, head: -0.3, sL: [-1.4, 0, -0.1], eL: -0.4, sR: [0.8, 0, 0.1], eR: -0.9, hL: [-0.9], kL: 1.1, hR: [0.5], kR: 0.6 } }),
     crawler: o => rig({ ...o, outfit: { ...ZO, top: '#5b5a50', skin: C.zrot, bareArms: true, hairStyle: 'bald' }, seed: 5, eyes: true, bw: 0.85, pose: { lean: 1.25, neck: -0.9, head: -0.4, sL: [-1.7, 0, -0.25], eL: 0.2, sR: [-1.2, 0, 0.3], eR: 0.1, hL: [-1.4], kL: 1.9, hR: [-0.6], kR: 1.6 } }),
-    brute: o => rig({ ...o, outfit: { ...ZO, top: 'rust', sleeveless: true, hairStyle: 'bald', legs: '#3f3c38' }, seed: 9, eyes: true, bw: 1.55, chestDepth: 1.2, scale: 1.4, pose: { lean: 0.22, neck: 0.4, head: 0.1, sL: [-0.4, 0, 0.25], eL: -0.5, sR: [-0.6, 0, 0.2], eR: -0.6, hL: [-0.2], kL: 0.25, hR: [0.15], kR: 0.1 } }),
-    spitter: o => { const r = rig({ ...o, outfit: { ...ZO, top: 'olive2', skin: C.zskin2 }, seed: 11, eyes: true, bw: 0.95, pose: { lean: -0.15, neck: -0.45, head: -0.35, sL: [0.2, 0, 0.35], eL: -0.3, sR: [0.15, 0, 0.35], eR: -0.3, hL: [0.1], hR: [-0.1] } }); const s = glowSprite('#b4ff4e', 0.5, 1.4); s.position.set(0, 1.6, 0.2); r.add(s); return r; },
-    bloater: o => rig({ ...o, outfit: { ...ZO, top: 'moss', belly: '#8f9466', hairStyle: 'bald' }, seed: 13, eyes: true, belly: 1.6, bw: 1.35, chestDepth: 1.4, scale: 1.1, pose: { lean: -0.05, neck: 0.2, sL: [-0.2, 0, 0.6], eL: -0.3, sR: [-0.2, 0, 0.6], eR: -0.3, hL: [0, 0.15], hR: [0, 0.15] } }),
-    screamer: o => rig({ ...o, outfit: { ...ZO, top: 'pale', skin: C.zskin2, bareArms: true, hair: '#8a8780', hairStyle: 'long' }, seed: 17, eyes: true, bw: 0.85, pose: { lean: -0.3, neck: -0.5, head: -0.4, sL: [-2.7, 0, -0.35], eL: -0.3, sR: [-2.6, 0, -0.3], eR: -0.25, hL: [0.1], hR: [-0.1] } }),
-    gravelord: o => rig({ ...o, outfit: { ...ZO, top: 'soot', legs: 'dark', sleeveless: true, skin: C.zrot, hairStyle: 'bald' }, seed: 19, eyes: true, eyesI: 10, bw: 1.7, chestDepth: 1.25, scale: 2.4, pose: { lean: 0.18, neck: 0.3, sL: [-0.35, 0, 0.35], eL: -0.4, sR: [-1.3, 0, 0.25], eR: -0.5, hL: [-0.15], kL: 0.2, hR: [0.15], kR: 0.1 }, props: p => { for (let k = 0; k < 7; k++) { const a = k * 0.9; pc(p.head, geo('crown', () => new THREE.BoxGeometry(0.05, 0.2, 0.03)), k % 2 ? 'slab' : 'rebar', Math.cos(a) * 0.12, 0.2 + (k % 3) * 0.03, Math.sin(a) * 0.12, { s: [1, 0.8 + (k % 3) * 0.3, 1], rx: Math.sin(a) * 0.4, rz: -Math.cos(a) * 0.4 }); } } }),
+    brute: o => rig({ ...o, outfit: { ...ZO, top: '#5e5466', sleeveless: true, hairStyle: 'bald', legs: '#38353f', skin: C.zrot }, seed: 9, eyes: true, bw: 1.55, chestDepth: 1.2, scale: 1.4, pose: { lean: 0.22, neck: 0.4, head: 0.1, sL: [-0.4, 0, 0.25], eL: -0.5, sR: [-0.6, 0, 0.2], eR: -0.6, hL: [-0.2], kL: 0.25, hR: [0.15], kR: 0.1 } }),
+    spitter: o => { const r = rig({ ...o, outfit: { ...ZO, top: '#686572', skin: C.zskin2 }, seed: 11, eyes: true, bw: 0.95, pose: { lean: -0.15, neck: -0.45, head: -0.35, sL: [0.2, 0, 0.35], eL: -0.3, sR: [0.15, 0, 0.35], eR: -0.3, hL: [0.1], hR: [-0.1] } }); const s = glowSprite('#b4ff4e', 0.5, 1.4); s.position.set(0, 1.6, 0.2); r.add(s); return r; },
+    bloater: o => rig({ ...o, outfit: { ...ZO, top: '#605a68', belly: '#9a92a0', hairStyle: 'bald' }, seed: 13, eyes: true, belly: 1.6, bw: 1.35, chestDepth: 1.4, scale: 1.1, pose: { lean: -0.05, neck: 0.2, sL: [-0.2, 0, 0.6], eL: -0.3, sR: [-0.2, 0, 0.6], eR: -0.3, hL: [0, 0.15], hR: [0, 0.15] } }),
+    screamer: o => rig({ ...o, outfit: { ...ZO, top: '#b8b3bd', skin: C.zskin2, bareArms: true, hair: '#8a8790', hairStyle: 'long' }, seed: 17, eyes: true, bw: 0.85, pose: { lean: -0.3, neck: -0.5, head: -0.4, sL: [-2.7, 0, -0.35], eL: -0.3, sR: [-2.6, 0, -0.3], eR: -0.25, hL: [0.1], hR: [-0.1] } }),
+    gravelord: o => rig({ ...o, outfit: { ...ZO, top: '#2e2b33', legs: '#26242b', sleeveless: true, skin: C.zrot, hairStyle: 'bald' }, seed: 19, eyes: true, eyesI: 10, bw: 1.7, chestDepth: 1.25, scale: 2.4, pose: { lean: 0.18, neck: 0.3, sL: [-0.35, 0, 0.35], eL: -0.4, sR: [-1.3, 0, 0.25], eR: -0.5, hL: [-0.15], kL: 0.2, hR: [0.15], kR: 0.1 }, props: p => { for (let k = 0; k < 7; k++) { const a = k * 0.9; pc(p.head, geo('crown', () => new THREE.BoxGeometry(0.05, 0.2, 0.03)), k % 2 ? 'slab' : 'rebar', Math.cos(a) * 0.12, 0.2 + (k % 3) * 0.03, Math.sin(a) * 0.12, { s: [1, 0.8 + (k % 3) * 0.3, 1], rx: Math.sin(a) * 0.4, rz: -Math.cos(a) * 0.4 }); } } }),
   };
   // the woods: simple four-legged game (two frames: legs swapped)
   function beast(o, c) {
@@ -1370,5 +1715,49 @@ export const K = (() => {
     m.rotation.x = -Math.PI / 2; m.renderOrder = 5; return m;
   }
 
-  return { P, M, T, setMask, setMaskArrays, territory, WIN, LENS, lin, rng, B, weeds, beam, place, post, rboxGeo, sign, textTex, glowDecal, glowSprite, apartment, rubble, streets, grass, car, bus, container, sandbags, jersey, lamp, trafficLight, busStop, tree, bush, barrelFire, townhouse, tower, barricade, farm, keep, hospital, metro, petrol, police, figure, heroes, dead, folk, FIGMAT, zoneCells, chevrons, ghost, ring, chainMat };
+  // ---------- one draw per model: fold every vertex-coloured mesh under a group into one ----------
+  const _fm = new THREE.Matrix4(), _fi = new THREE.Matrix4();
+  function flattenVC(g) {
+    g.updateMatrixWorld(true); _fi.copy(g.matrixWorld).invert();
+    const list = [], drop = [];
+    g.traverse(o => { if (o.isMesh && o.material === VCM && !o.isInstancedMesh) { const gg = o.geometry.clone(); gg.applyMatrix4(_fm.multiplyMatrices(_fi, o.matrixWorld)); for (const k of Object.keys(gg.attributes)) if (!['position', 'normal', 'color', 'aEmit'].includes(k)) gg.deleteAttribute(k); list.push(gg); drop.push(o); } });
+    if (!list.length) return g;
+    for (const o of drop) o.parent.remove(o);
+    const out = new THREE.Group(), m = new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(list, false), VCM); m.castShadow = true; m.receiveShadow = true; out.add(m);
+    // what could not be folded (glass, canvas, chain-link) keeps its own meshes, re-parented with its world transform
+    const rest = []; g.traverse(o => { if (o.isMesh) rest.push(o); });
+    for (const o of rest) { const c = new THREE.Mesh(o.geometry, o.material); _fm.multiplyMatrices(_fi, o.matrixWorld).decompose(c.position, c.quaternion, c.scale); c.castShadow = o.castShadow; c.receiveShadow = true; out.add(c); }
+    return out;
+  }
+  /** a ruin of a flattened model: the walls slump and break, everything is charred, a heap of rubble in the middle */
+  function ruinOf(g, seed = 1, height = 1) {
+    let src = null; g.traverse(o => { if (!src && o.isMesh && o.material === VCM) src = o; }); if (!src) return new THREE.Group();
+    const gg = src.geometry.clone(), pa = gg.attributes.position, ca = gg.attributes.color, ea = gg.attributes.aEmit, r = rng(seed);
+    const bx = new THREE.Box3().setFromBufferAttribute(pa), H = Math.max(0.01, bx.max.y - bx.min.y), cx = (bx.min.x + bx.max.x) / 2, cz = (bx.min.z + bx.max.z) / 2;
+    const ph = r() * 6.28, keep = 0.22 + r() * 0.12;
+    for (let i = 0; i < pa.count; i++) {
+      const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i), a = Math.atan2(z - cz, x - cx);
+      // a jagged break line round the walls: high on one side, low on the other
+      const cut = H * (keep + 0.18 * Math.sin(a * 3 + ph) + 0.1 * Math.sin(a * 7 + ph * 2) + 0.12 * Math.cos(a - ph));
+      if (y > cut) { pa.setY(i, cut + (y - cut) * 0.06); pa.setX(i, x + (x - cx) * 0.05); pa.setZ(i, z + (z - cz) * 0.05); }
+      const t = Math.min(1, Math.max(0, y / H)), soot = 0.16 + 0.14 * (1 - t) + r() * 0.04;
+      ca.setXYZ(i, ca.getX(i) * soot + 0.012, ca.getY(i) * soot + 0.01, ca.getZ(i) * soot + 0.012); ea.setX(i, 0);
+    }
+    gg.computeVertexNormals();
+    const out = new THREE.Group(), m = new THREE.Mesh(gg, VCM); m.castShadow = true; m.receiveShadow = true; out.add(m);
+    const b = new B(); rubble(b, cx, cz, Math.max(0.6, (bx.max.x - bx.min.x) * 0.32), 16, r, 'soot');
+    for (let k = 0; k < 4; k++) b.cbox(k % 2 ? 'soot' : '#3a2f28', 0.12 * height, 0.12 * height, (bx.max.z - bx.min.z) * 0.7, cx + (r() - 0.5) * H * 0.5, H * 0.12 + r() * H * 0.1, cz, { r: 0.01, rx: (r() - 0.5) * 0.6, ry: r() * 3, rz: (r() - 0.5) * 0.5 });
+    const rb = b.build({ ao: H * 0.3, aoMin: 0.5 }); rb.traverse(o => { if (o.isMesh && o.geometry.attributes.color) { const c = o.geometry.attributes.color; for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * 0.5, c.getY(i) * 0.5, c.getZ(i) * 0.5); } });
+    out.add(rb);
+    return flattenVC(out);
+  }
+  // the upgrade sweep: new colours climb the building from the ground behind an amber band (one at a time)
+  const sweepY = { value: -99 };
+  const SWEEP = territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 }), { emit: true, uniforms: { tSweepY: sweepY },
+    fragHead: 'uniform float tSweepY;',
+    fragColor: `float swd = vTWorld.y - tSweepY; float swl = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(swl) * 0.7, step(0.0, swd)) + vec3(1.6, 0.85, 0.3) * smoothstep(0.35, 0.0, abs(swd));` });
+  SWEEP.userData.y = sweepY;
+
+  return { hall, home, VCM, flattenVC, ruinOf, SWEEP, P, M, T, setMask, setMaskArrays, setFootprints, territory, EMITW, WIN, LENS, lin, rng, B, weeds, beam, place, post, rboxGeo, sign, textTex, glowDecal, glowSprite, apartment, rubble, streets, grass, car, bus, container, sandbags, jersey, lamp, trafficLight, busStop, tree, bush, barrelFire, townhouse, tower, barricade, farm, keep, hospital, metro, petrol, police, figure, heroes, dead, folk, FIGMAT, zoneCells, chevrons, ghost, ring, chainMat };
 })();
