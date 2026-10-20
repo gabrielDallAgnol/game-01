@@ -188,7 +188,7 @@ export function createRoadView({ world, fx, game, W, K, lc, makeBar, setBar, bur
       else if (e.t === 'convoyHome') { burst(e.x, e.y, 0.9, '#ffd27a'); floatLabel(e.x, e.y, e.cart ? '+cart' : '+1 person', '#ffd9a0'); }
       else if (e.t === 'roadAmbush') { /* the mark is drawn from state */ }
       else if (e.t === 'ambushSprung') { burst(e.x, e.y, 2.4, '#ff5a3a'); }
-      else if (e.t === 'embers') { const d = K.glowDecal('#ff6a2a', e.r, 1.4); d.position.copy(W(e.x, e.y, 0.05)); fx.add(d); embers.push({ d, t: e.t, life: e.t, x: e.x, y: e.y }); }
+      else if (e.t === 'embers') { const d = K.glowDecal('#ff6a2a', e.r, 1.4); d.position.copy(W(e.x, e.y, 0.05)); fx.add(d); const dur = e.dur || 30; embers.push({ d, t: dur, life: dur, x: e.x, y: e.y }); }
       else if (e.t === 'fireHit') { const v = views.find(q => q.st.id === e.id); if (v) v.hitT = 0.25; }
     }
   }

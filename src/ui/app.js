@@ -113,7 +113,7 @@ export function startApp() {
     const tr = S.story.trial; if (tr && !tr.done) dot(tr.x, tr.y, big ? 6 : 4, '#ff4a4a', true);
     const k = S.story.contract; if (k && !k.won && k.finale.kind === 'hive') { const n = m.regions[k.finale.region].nest; if (n) dot(n.x, n.y, big ? 9 : 6, '#7fe3ff', true); }
     if (big && game.hearRadius) { const r = game.hearRadius() * s; ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = 'rgba(240,166,73,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc((m.town.x - ox) * s, (m.town.y - oy) * s, r, 0, 7); ctx.stroke(); ctx.restore();
-      ctx.font = '600 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.7)'; const ly = (m.town.y - oy) * s - r - 6; ctx.strokeText('the hives hear you to here', (m.town.x - ox) * s, ly); ctx.fillStyle = '#f0c27a'; ctx.fillText('the hives hear you to here', (m.town.x - ox) * s, ly); }
+    }
     dot(m.town.x, m.town.y, big ? 7 : 4, '#f0a649');
     // [road] begin
     if (roadUI) roadUI.marks(ctx, ox, oy, s, big);
@@ -134,7 +134,7 @@ export function startApp() {
     paused = true; if (placing) stopPlacing(); closePanel();
     showCard('map', `<button class="closex" id="mapX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Map] ${esc(game.map.name)} · day ${S.night}</div><h1 class="sm">The woods and the city</h1>
       <div class="mapwrap"><canvas id="bigMap" aria-label="Map of the woods and the city"></canvas></div>
-      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span><span><i style="background:#ff5a4a"></i>City hive</span><span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#7fe3ff"></i>Beacon</span></div>
+      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span><span><i style="background:#ff5a4a"></i>City hive</span><span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#7fe3ff"></i>Beacon</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>
       <p class="note">Dark ground is unexplored. The old road starts deep in the woods and leads to the city: about a minute on foot.</p>
       <div class="cardrow foot"><button class="btn big" id="mapOk">Back</button></div>`, { sys: true, arm: false });
     const cv = $('#bigMap'); cv.width = w * s; cv.height = hh * s; const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
@@ -590,13 +590,13 @@ export function startApp() {
     if (SUPPRESS.some(r => r.test(msg))) return;
     if (/^\[Title acquired: First Light\]/.test(msg) && game && game.state.night <= 2) return;   // the arrival window already stamped it
     const dawn = /^Dawn\. ([+-]?\d+) scrap.*?, \+(\d+) food\. Citizens ate (\d+)\./.exec(msg);
-    if (dawn) { ctoast.show(`Dawn · **${+dawn[1] >= 0 ? '+' : ''}${dawn[1]}** scrap · **+${dawn[2]}** food · ate ${dawn[3]}`, 'good', 'sun'); return; }
+    if (dawn) { const line = `Dawn · **${+dawn[1] >= 0 ? '+' : '−'}${Math.abs(+dawn[1])}** scrap · **+${dawn[2]}** food · ate ${dawn[3]}`; dawnLine = line; setTimeout(() => { if (!ledgerUp) ctoast.show(line, 'good', 'sun'); }, 700); return; }
     const sys = /^\[[^\]]+\]/.exec(msg);
     if (sys && systemHere()) { strip.say(msg, kind === 'win' ? 'sys' : kind, BEAT.test(msg) || kind === 'win'); return; }
     ctoast.show(sys ? msg.replace(/^\[([^\]]+)\]\s*/, '$1. ') : msg, kind, kind === 'bad' ? 'skull' : null);
   }
   // the night's losses, grouped: one line at dawn ("3 towers and a farm fell on the east side")
-  let losses = [], pendingLedger = null;
+  let losses = [], pendingLedger = null, dawnLine = '', ledgerUp = false;
   function noteLoss(id) { const b = game.state.byId.get(id); if (!b || b.type === 'wall' && losses.filter(l => l.type === 'wall').length > 12) return; const a = Math.atan2(b.y - game.map.town.y, b.x - game.map.town.x); losses.push({ type: b.type, dir: DIR8[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8] }); }
   function lossLine() {
     if (!losses.length) return null;
@@ -617,7 +617,7 @@ export function startApp() {
   function showEpisode(e) { banner(`<span class="ep">Season ${e.season} · Episode ${e.n}</span><b>${esc(e.title)}</b>`); holdCards(2.4); }
   let nightLine = '';
   function showDusk(e) {
-    nightLine = e.line;
+    nightLine = e.line; callouts.hide();   // tips are for the day
     const blood = e.night % 5 === 0;
     banner(`<span class="ep">${blood ? 'Blood moon' : 'Dusk'}</span><b>Night ${e.night}</b><span class="ln">${esc(e.line.replace(/^Blood moon\. /, ''))}</span>`, `night${blood ? ' blood' : ''}`, 3400);
     if (systemHere()) strip.say(`[Night ${e.night}] ${e.line}`, blood ? 'bad' : 'sys');
@@ -962,7 +962,7 @@ export function startApp() {
     }
     renderTray(); renderAbility();
     const tb = $('.topbar').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();
-    edge.top = tb.bottom + 10; edge.bot = innerHeight - db.top + 10;
+    edge.top = tb.bottom + 10; edge.bot = innerHeight - db.top + 92;   // clear of the map and the ability button
     callouts.place();
   }
   function sunDial(t, soon, moon = false) {
@@ -1112,7 +1112,7 @@ export function startApp() {
       if (e.t === 'ruin') noteLoss(e.id);
       if (e.t === 'difficulty' && typeof game.setDifficulty !== 'function') { const D = game.difficulty && game.difficulty(); if (D && DIFFICULTY[e.key]) Object.assign(D, DIFFICULTY[e.key]); }   // one game per page: the shared table is safe to retune
       if (e.t === 'claim' && selected && selected.type === 'region') closePanel();
-      if (e.t === 'dawn') { inventToday(); holdCards(DAWN_DELAY); endJoy(); const ll = lossLine(), L = pendingLedger; pendingLedger = null; if (roadUI && L && (L.fell.length || L.ruins)) setTimeout(() => roadUI && roadUI.showLedger(L, ll), 500); else if (ll) setTimeout(() => ctoast.show(ll, 'bad', 'skull'), 400); const snap = game.snapshot(); if (snap) saves.save(snap).then(w => { lastSave = { day: snap.night, where: w }; }); }
+      if (e.t === 'dawn') { inventToday(); holdCards(DAWN_DELAY); endJoy(); const ll = lossLine(), L = pendingLedger; pendingLedger = null; if (roadUI && L && (L.fell.length || L.ruins)) { ledgerUp = true; setTimeout(() => { if (roadUI) roadUI.showLedger(L, ll, dawnLine); ledgerUp = false; }, 600); } else if (ll) setTimeout(() => ctoast.show(ll, 'bad', 'skull'), 400); const snap = game.snapshot(); if (snap) saves.save(snap).then(w => { lastSave = { day: snap.night, where: w }; }); }
       if (e.t === 'over') { saves.clear(); { const L = store.get('legacy', { fame: 0, owned: {} }); S.fameEarned = fameOf(S); L.fame += S.fameEarned; store.set('legacy', L); } endT = now + 2600; paused = false; closePanel(); stopPlacing(); hideCard(); if (view.startOrbit) view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && selected && selected.type === 'building' && !S.byId.get(selected.id)) closePanel();
       // [road] road-ui reads the same events here

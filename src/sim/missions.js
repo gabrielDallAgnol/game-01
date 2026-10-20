@@ -117,7 +117,7 @@ export function createMissions(ctx, getRoad) {
     } else if (e.t === 'claim') {
       const reg = map.regions[e.region], n = reg && reg.nest; if (!n) return;
       embers.push({ x: n.x, y: n.y, t: MISSION.embers.t });
-      ev('embers', { x: n.x, y: n.y, r: MISSION.embers.r, t: MISSION.embers.t });
+      ev('embers', { x: n.x, y: n.y, r: MISSION.embers.r, dur: MISSION.embers.t });   // the type wins over a payload .t: the duration rides in .dur
       if (M.id === 'hunt' && night()) {
         const bonus = Math.round(WAVES.plunder(reg.ring) * (MISSION.hunt.pay - 1));
         ctx.earn(bonus); ctx.gainXp(20); M.burned++; S.stats.nightHives = (S.stats.nightHives || 0) + 1;

@@ -26,7 +26,7 @@ const CSS = `
 .rd-chip.sys .btn.ghost{background:transparent;color:var(--cyan);border:1px solid var(--cyan-d)}
 .rd-chip.sys::before,.rd-chip.sys::after,.rd-win::before,.rd-win::after{content:"";position:absolute;width:8px;height:8px;border:2px solid var(--cyan);pointer-events:none}
 .rd-chip.sys::before,.rd-win::before{left:-1px;top:-1px;border-right:0;border-bottom:0}.rd-chip.sys::after,.rd-win::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
-.rd-chip.ledger{border-color:rgba(255,106,85,.45)}.rd-chip.ledger .t b .ic{color:var(--blood)}
+.rd-chip.ledger{border-color:rgba(255,106,85,.45)}.rd-chip .t span.dl{display:block;margin-top:2px}.rd-chip .t span.dl em{color:var(--amber)}.rd-chip.ledger .t b .ic{color:var(--blood)}
 .rd-hp{display:inline-block;width:56px;height:5px;border-radius:3px;background:rgba(236,223,198,.14);overflow:hidden;vertical-align:middle;margin-left:2px}.rd-hp i{display:block;height:100%;background:var(--amber);transition:width .2s}
 .rd-hp.fire i{background:linear-gradient(90deg,var(--ember),#ffcf80)}
 .rd-prog{display:inline-block;width:46px;height:5px;border-radius:3px;background:rgba(255,207,128,.18);overflow:hidden;vertical-align:middle;margin-left:4px}.rd-prog i{display:block;height:100%;background:#ffcf80}
@@ -186,11 +186,11 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     }
   }
   // ---------- the dawn ledger: what the night took, and one tap to rebuild it ----------
-  function showLedger(L, line) {
+  function showLedger(L, line, dawn) {
     if (!L || S.over || (!L.fell.length && !L.ruins)) return;
     const ruins = game.ruins ? game.ruins() : [], all = L.rebuildAll || ruins.reduce((a, r) => a + r.cost, 0), cheap = ruins.length && S.gold >= all;
     const lost = line || `${L.fell.length} ${L.fell.length === 1 ? 'building' : 'buildings'} fell.`;
-    ledEl.innerHTML = `<div class="t"><b>${icon('skull')}Night ${L.night}: the Camp held at ${L.held}%</b><span>${esc(lost)}${ruins.length ? ` · <em>${ruins.length} ${ruins.length === 1 ? 'ruin' : 'ruins'}</em>${cheap ? '' : ' · tap a ruin to rebuild it'}` : ''}</span></div>
+    ledEl.innerHTML = `<div class="t"><b>${icon('skull')}Night ${L.night}: the Camp held at ${L.held}%</b><span>${esc(lost)}${ruins.length ? ` · <em>${ruins.length} ${ruins.length === 1 ? 'ruin' : 'ruins'}</em>${cheap ? '' : ' · tap a ruin to rebuild it'}` : ''}</span>${dawn ? `<span class="dl">${esc(dawn).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>')}</span>` : ''}</div>
       <div class="acts">${cheap ? `<button class="btn sm" data-rb>Rebuild all · ${all}</button>` : ''}<button class="x" data-x aria-label="Close">${icon('close')}</button></div>`;
     const rb = ledEl.querySelector('[data-rb]'); if (rb) rb.onclick = () => { const n = game.rebuildAll(); if (n) toast(`${n} ${n === 1 ? 'ruin' : 'ruins'} rebuilt.`, 'good'); closeLedger(); };
     ledEl.querySelector('[data-x]').onclick = closeLedger;
@@ -254,7 +254,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     if ((hudT -= dt) > 0) { return; } hudT = 0.12;
     renderTool(); renderStation(); renderConvoy(); renderKit();
     if (hordeT > 0) hordeT -= 0.12;
-    if (ledT > 0) { ledT -= 0.12; if (ledT <= 0 || S.phase === 'night') closeLedger(); }
+    if (ledT > 0) { if (!isBusy()) ledT -= 0.12; if (ledT <= 0 || S.phase === 'night') closeLedger(); }
     if (trip) { tripT -= 0.12; if (tripT <= 0 || S.hero.dead || (S.hero.input.x || S.hero.input.y)) closeTrip(); }
     edgeArrows();
     if (S.over) { win.hidden = true; tool.hidden = true; tag.hidden = true; kit.hidden = true; closeLedger(); }

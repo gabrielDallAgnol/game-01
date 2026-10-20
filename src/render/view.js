@@ -726,8 +726,8 @@ export function createView(canvas, game, opts = {}) {
       if (e.t === 'heroDie') { shake(0.6); look.fx.hit = 1; }
       if (e.t === 'claim') { shake(0.5); const n = map.regions[e.region].nest; if (n) { const p = Wv(n.x, n.y, 0.6); fx2.emit('ember', p.x, p.y, p.z, 40, { spread: 2.2, speed: 2 }); fx2.emit('smoke', p.x, p.y + 0.5, p.z, 16, { spread: 2 }); burst(n.x, n.y, 6, '#f0a040'); } }
       if (e.t === 'erupt') { shake(Math.hypot(e.x - S.hero.x, e.y - S.hero.y) < 25 ? 0.4 : 0.15); const p = Wv(e.x, e.y, 0.5); fx2.emit('rot', p.x, p.y, p.z, 30, { spread: 2, speed: 2.5 }); }
-      // the sim's flare event carries its duration in .t, which overwrites the type: a numeric .t with a place is a flare
-      if (e.t === 'flare' || (typeof e.t === 'number' && e.x !== undefined)) { flares.push({ x: e.x, y: e.y, t0: time, t: typeof e.t === 'number' ? e.t : 8 }); const p = Wv(e.x, e.y, 0.5); fx2.emit('spark', p.x, p.y, p.z, 24, { speed: 1.4 }); fx2.emit('ember', p.x, p.y, p.z, 16, { spread: 0.4 }); }
+      // the flare carries its duration in .dur (the event type always wins over a payload .t)
+      if (e.t === 'flare') { flares.push({ x: e.x, y: e.y, t0: time, t: e.dur || 8 }); const p = Wv(e.x, e.y, 0.5); fx2.emit('spark', p.x, p.y, p.z, 24, { speed: 1.4 }); fx2.emit('ember', p.x, p.y, p.z, 16, { spread: 0.4 }); }
       if (e.t === 'smoke') { const p = Wv(e.x, e.y, 0.3); fx2.emit('smoke', p.x, p.y, p.z, 40, { spread: 2.5, size: 1.6, life: 1.6 }); }
       if (e.t === 'levelUp') { const p = Wv(S.hero.x, S.hero.y, 0.4); fx2.emit('cyan', p.x, p.y, p.z, 30, { spread: 0.5 }); fx2.ring(p.x, p.y - 0.3, p.z, 2.2, '#5fd3ff', 0.8); fx2.label(p.x, p.y + 2.1, p.z, 'LEVEL UP', '#5fd3ff', { size: 0.42, life: 1.8 }); }
       if (e.t === 'built') { const b = S.byId.get(e.id); if (b) dust(b.x, b.y, FOOT[b.type] || 1); }
