@@ -13,6 +13,7 @@ export function createHives(G) {
     const loot = WAVES.plunder(map.regions[r].ring); earn(loot);
     if (S.season && S.season.finaleHive === r && S.night <= S.season.end) G.finale(true);
     for (const m of S.mobs) if (m.stream === r) m.stream = -1;
+    if (G.nestBurned) G.nestBurned(r);   // [nests] its guards run with the horde, its sites unlock
     ev('claim', { region: r }); toast(`Hive burned: +${loot} scrap and a rare blessing.`, 'good');
     // [acts] begin
     if (G.actCheck) G.actCheck();
@@ -48,6 +49,7 @@ export function createHives(G) {
     if (G.road) d *= G.road.hiveMult(r);
     // [road] end
     hiveDmg[r] = (hiveDmg[r] || 0) + d * (S.story && S.story.flags.hiveTip ? 1.15 : 1); rage[r] = STREAM.rageTime;
+    if (G.angerNest) G.angerNest(r);   // [nests] a strike angers it faster
     ev('hitHive', { region: r, hp: Math.max(0, 1 - hiveDmg[r] / hiveMax(r)) });
     if (hiveDmg[r] >= hiveMax(r)) { G.gainXp(40); burnHive(r); hiveFall(r); S.picks.push('nest'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); G.dropSupply('The hive is ash.'); delete hiveDmg[r]; delete rage[r]; }
     return true;

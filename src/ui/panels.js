@@ -16,7 +16,7 @@ export function createPanels(ui) {
   function selB() { const S = ui.game.state; return ui.selected && ui.selected.type === 'building' ? S.byId.get(ui.selected.id) : ui.selected && ui.selected.type === 'keep' ? S.keep : null; }
   function panelSig() {
     const S = ui.game.state, b = selB();
-    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? ui.game.landmarkReach(ui.selected.id) : '', b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : ''].join('|');
+    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? `${ui.game.landmarkReach(ui.selected.id)}${ui.game.siteLock(ui.selected.id)}` : ui.selected && ui.selected.type === 'region' ? `${(ui.game.nestRage(ui.selected.id) || {}).lv || 0}:${ui.game.nestGuards(ui.selected.id)}` : '', b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : ''].join('|');
   }
   /** re-render the open panel only when what it shows changed */
   function refreshPanel() { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } }
@@ -56,7 +56,7 @@ export function createPanels(ui) {
       $('#pTitle').textContent = info.nest ? `Hive: ${hiveName(ui.game.map.seed, ui.selected.id)} · ${info.active ? 'awake' : 'asleep'}` : ui.names[ui.selected.id];
       let html = '';
       if (info.nest) html += ui.game.keepLevel() < info.needKeep ? `<p class="note">Too strong for now: <b>raise the Camp to level ${info.needKeep}</b> to break a ${reg.ring >= 3 ? 'core' : 'city'} hive.</p>`
-        : `<div class="stat"><span>Hive health <b>${Math.round(ui.game.hiveHealth(ui.selected.id) * 100)}%</b></span><span>Walk up and strike it, day or night. While you hit it, it pours out its dead.</span></div><p class="note">When it burns: a legendary blessing and scrap. Its last dead come after you.</p>`;
+        : `<div class="stat"><span>Hive health <b>${Math.round(ui.game.hiveHealth(ui.selected.id) * 100)}%</b>${(() => { const rg = ui.game.nestRage(ui.selected.id), gd = ui.game.nestGuards(ui.selected.id); return (gd ? ` · <b class="bad">${gd}</b> on guard` : '') + (rg && rg.lv ? ` · <b class="bad">Rage ${rg.lv}</b>` : ''); })()}</span><span>Guarded: its dead rise when you come near. Stay close and it rages, sending more every few seconds. Come ready.</span></div><p class="note">When it burns: a legendary blessing, scrap, and the site beside it unlocks. Its last dead come after you.</p>`;
       else html += '<p class="note">No hive here.</p>';
       body.innerHTML = html;
       return;
@@ -66,7 +66,9 @@ export function createPanels(ui) {
       $('#pEyebrow').textContent = l.owned ? 'Yours · a forward base' : L.signature ? 'Landmark of the city' : 'A place out there';
       $('#pTitle').textContent = L.name;
       let html = `<div class="stat"><span>${L.desc}</span><span>${l.owned ? 'You can build around it.' : 'Claim it and you can build around it too.'}</span></div>`;
-      if (!l.owned) html += `<div class="opts one">${opt('opt-claim', 'data-claim="1"', near ? `Claim the ${L.name}` : 'Walk up to it first', near ? L.cost : null, near ? 'Yours for good: its bonus and a build zone around it.' : 'Your hero is on the way. Tap again when you are next to it.', !near || S.gold < L.cost || !day)}</div>`;
+      const lock = l.owned ? -1 : ui.game.siteLock(ui.selected.id);   // [nests] a living hive guards it: burn the nest first
+      if (lock >= 0) { const n = ui.game.map.regions[lock].nest, d = Math.round(Math.hypot(n.x - l.x, n.y - l.y)); html += `<div class="opts one">${opt('opt-claim', `data-hive="${lock}"`, 'Burn the nest first', null, `<b class="bad">Locked</b> · its dead guard this place. The hive is ${d} steps away${l.promised ? ' · <b class="good">promised to you</b>' : ''}. Tap to see it.`, false)}</div>`; }
+      else if (!l.owned) html += `<div class="opts one">${opt('opt-claim', 'data-claim="1"', near ? `Claim the ${L.name}` : 'Walk up to it first', near ? L.cost : null, near ? 'Yours for good: its bonus and a build zone around it.' : 'Your hero is on the way. Tap again when you are next to it.', !near || S.gold < L.cost || !day)}</div>`;
       body.innerHTML = html; return;
     }
     if (ui.selected.type === 'rubble') {
@@ -106,6 +108,7 @@ export function createPanels(ui) {
   $('#pBody').addEventListener('click', e => {
     const btn = e.target.closest('button'); if (!btn || btn.disabled || !ui.selected) return;
     if (btn.dataset.claim && ui.game.claimLandmark(ui.selected.id)) { closePanel(); ui.updateHud(); return; }
+    if (btn.dataset.hive) { openSel({ type: 'region', id: +btn.dataset.hive }); return; }   // [nests] point at the hive that locks the site
     if (btn.dataset.clear) { const n = ui.game.clearRubble(ui.selected.x, ui.selected.y); if (n) { ui.toast(`${n} ${n === 1 ? 'cell' : 'cells'} cleared.`); closePanel(); ui.updateHud(); return; } }
     if (btn.dataset.rebuild) { if (ui.game.rebuild(ui.selected.id)) { audio.play('build'); ui.toast(`${BUILDINGS[ui.game.state.byId.get(ui.selected.id).type].name} rebuilt.`, 'good'); renderPanel(); ui.updateHud(); } return; }
     if (btn.dataset.keep && ui.game.upgradeKeep()) ui.toast('The Camp rises higher.');

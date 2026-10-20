@@ -5,7 +5,7 @@
 // context `G`, runs the start-of-run setup in a fixed order (the order is part of determinism: do not reorder), and
 // owns the per-frame step(). Each rule lives in its own module (createX(G) factories, see CLAUDE.md for the map):
 //   core · economy · buildings · build · waves · forecast · combat · noise · brain · hives · loot · districts ·
-//   seasons · hero · blessings · save · api
+//   seasons · hero · blessings · save · nests · api
 // G holds: the run's constants (S, map, c, keep, rng, perkRng, mobById, seed, …), every module's functions, and five
 // late or changing slots read as G.x at call time: G.HC (the hero's class, changes on evolve), G.DIFF (difficulty),
 // G.story, G.sc (scavenging), G.road, G.api.
@@ -21,7 +21,7 @@ import { createStory } from './story.js';
 // [road] begin
 import { createRoad } from './road.js';
 // [road] end
-import { createState, STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS } from './state.js';
+import { createState, STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST } from './state.js';
 import { createCore } from './core.js';
 import { createEconomy } from './economy.js';
 import { createBuildings } from './buildings.js';
@@ -41,12 +41,13 @@ import { createSave } from './save.js';
 import { createApi } from './api.js';
 import { createActs } from './acts.js';
 import { createSpots } from './spots.js';
+import { createNests } from './nests.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
-export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS };
+export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots];
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests];
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';
@@ -114,7 +115,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     findSpot: () => G.findSpot(),   // beacons, trials and story places (sim/spots.js)
     guard: (x, y, n) => { for (let k = 0, tries = 0; k < n && tries < 40; tries++) { const a = rng.range(0, Math.PI * 2), gx = x + Math.cos(a) * rng.range(1, 2.8), gy = y + Math.sin(a) * rng.range(1, 2.8), cx = Math.floor(gx), cy = Math.floor(gy); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue; k++; const m = spawnMob(rng.pick(S.night >= 4 ? ['walker', 'runner'] : ['walker']), gx, gy, { instant: true }); m.roam = { x, y, region: -1 }; } },
     actGoal: () => G.actGoal(),   // [acts]
-    landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) takeSite(l); }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
+    landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) { if (G.siteLocked(l)) G.promiseSite(l); else takeSite(l); } }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
     risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the dead.', 'bad'); } });
   G.story.start();
   // legacy edges from earlier runs
@@ -168,6 +169,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.drops.length) stepDrops(dt);
     if (S.pickups.length || S.hero.carry.scrap || S.hero.carry.food) stepPickups();
     stepStream(dt);
+    G.stepNests(dt);   // [nests] the hives defend themselves
     // [road] begin
     if (G.road) G.road.tick(dt);
     // [road] end

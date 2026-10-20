@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateMap, validateMap, mapChoices, BIOMES, N, idx, PASSABLE } from '../src/sim/mapgen.js';
-import { createGame as newGame, LEVEL, NOISE, HEAT, TENSION, PRESENCE, TOOLS, CUT } from '../src/sim/game.js';
+import { createGame as newGame, LEVEL, NOISE, HEAT, TENSION, PRESENCE, TOOLS, CUT, NEST } from '../src/sim/game.js';
 import { HEROES } from '../src/content/heroes.js';
 import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../src/content/season.js';
 import { BUILDINGS } from '../src/content/buildings.js';
@@ -795,4 +795,42 @@ test('events: the type is never overwritten by a payload; hits and deaths carry 
   for (let k = 0; k < 60 * 60 && !S.events.some(e => e.t === 'die' && e.src === 'hero'); k++) { const m = S.mobs.find(q => !q.roam); if (m) g.heroTo(m.x, m.y); g.step(); }
   const hit = S.events.find(e => e.t === 'hitM'); assert.ok(hit && hit.src && hit.dmg > 0, JSON.stringify(hit));
   const die = S.events.find(e => e.t === 'die' && e.src); assert.ok(die && 'dmg' in die, JSON.stringify(die));
+});
+
+test('nests defend themselves: a guard pack wakes, rage climbs while you stay and cools when you leave; its site stays locked until it burns', () => {
+  const g = createGame({ seed: 5, hero: 'warrior' }); const S = g.state; readyDay(g);
+  const reg = g.map.regions.find(r => r.nest && r.ring === 1 && S.landmarks.some(l => l.region === r.id && l.kind !== 'unknown'));
+  const site = S.landmarks.find(l => l.region === reg.id), n = reg.nest;
+  // locked: the card can say why and point at the hive
+  assert.equal(g.siteLock(site.id), reg.id);
+  S.hero.x = site.x; S.hero.y = site.y + site.size / 2 + 1; S.gold = 999; S.events.length = 0;
+  assert.equal(g.claimLandmark(site.id), false, 'claimed a site next to a living hive');
+  assert.ok(S.events.some(e => e.t === 'fail' && /Burn the hive first/.test(e.msg)), 'no reason given');
+  // walk up to the hive: the guard rises and comes for you
+  S.hero.hp = S.hero.maxHp = 1e6; S.hero.x = n.x + 1.5; S.hero.y = n.y; S.events.length = 0;
+  const pin = () => { S.hero.x = n.x + 1.5; S.hero.y = n.y; S.hero.target = null; };
+  g.step();
+  const wake = S.events.find(e => e.t === 'nestGuard'); assert.ok(wake && wake.n >= NEST.pack[1], 'no guard pack');
+  assert.ok(S.mobs.filter(m => m.guard === reg.id).every(m => m.hunt), 'the guard does not come for you');
+  // stay: the rage climbs a level every NEST.step seconds, each one a wave, with System lines
+  for (let k = 0; k < 60 * NEST.step * 3.2; k++) { pin(); S.hero.cd = 1; g.step(); }   // stand without striking (the hive must not burn)
+  const waves = S.events.filter(e => e.t === 'nestRage');
+  assert.ok(waves.length >= 3, `${waves.length} rage waves`); assert.ok(waves[2].n >= waves[0].n, 'the rage does not grow');
+  assert.ok(g.nestRage(reg.id).lv >= 3 && S.events.some(e => e.t === 'toast' && /Hive stirs/.test(e.msg)), 'no rage telegraph');
+  // a second visit the same day does not raise a second pack
+  assert.equal(S.events.filter(e => e.t === 'nestGuard').length, 1);
+  // walk away: it cools down and stops sending
+  S.hero.x = n.x + NEST.near + 25; S.hero.y = n.y; S.events.length = 0;
+  for (let k = 0; k < 60 * (NEST.step * NEST.max / NEST.decay + 2); k++) { S.hero.x = n.x + NEST.near + 25; S.hero.target = null; g.step(); }
+  assert.equal(g.nestRage(reg.id), null, 'the rage never cooled');
+  assert.equal(S.events.filter(e => e.t === 'nestRage').length, 0, 'it kept sending dead after you left');
+  // burn it: the guards run with the horde, the site unlocks with a line
+  pin(); S.events.length = 0;
+  for (let k = 0; k < 900 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
+  assert.ok(!S.nestAlive[reg.id]);
+  assert.equal(g.siteLock(site.id), -1, 'the site is still locked');
+  assert.ok(S.events.some(e => e.t === 'siteFree' && e.id === site.id) && S.events.some(e => e.t === 'toast' && /Site unlocked/.test(e.msg)), 'no unlock line');
+  assert.ok(S.mobs.every(m => m.guard !== reg.id), 'guards left behind at a burned hive');
+  S.hero.x = site.x; S.hero.y = site.y + site.size / 2 + 1;
+  assert.equal(g.claimLandmark(site.id), true, 'cannot claim the freed site');
 });

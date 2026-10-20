@@ -74,6 +74,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `noise.js` | the Noise meter |
 | `brain.js` | the dead's minds: roamers, scent, hunting, ambushes |
 | `hives.js` | streams from hives, burning a hive, the horde |
+| `nests.js` | hives defend themselves: the guard pack, proximity rage, sites locked until their hive burns |
 | `loot.js` | street finds, supply drops |
 | `districts.js` | sites, sealed districts, kits |
 | `seasons.js`, `contracts.js` | season rules, weather, contracts (the engine side) |

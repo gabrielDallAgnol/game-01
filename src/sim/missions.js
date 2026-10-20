@@ -181,7 +181,7 @@ export function createMissions(ctx, getRoad) {
     for (const m of S.mobs) {
       if (m.rise < 1 || m.hp <= 0 || MOBS[m.kind].animal) continue;
       for (const st of lit) { const r = road.ringOf(st) + TR.outpostPad; if (Math.abs(m.x - st.x) < r && Math.abs(m.y - st.y) < r && Math.hypot(m.x - st.x, m.y - st.y) < r) burn(m, TR.outpostDps * hs); }
-      for (const em of embers) { const r = MISSION.embers.r; if (Math.abs(m.x - em.x) < r && Math.abs(m.y - em.y) < r && Math.hypot(m.x - em.x, m.y - em.y) < r) { burn(m, MISSION.embers.dps * hs); if (m.piped) m.wade = 0.3; } }
+      for (const em of embers) { const r = MISSION.embers.r; if (m.horde !== undefined && m.horde === em.region) continue; if (Math.abs(m.x - em.x) < r && Math.abs(m.y - em.y) < r && Math.hypot(m.x - em.x, m.y - em.y) < r) { burn(m, MISSION.embers.dps * hs); if (m.piped) m.wade = 0.3; } }
       for (const p of pyres) if (Math.abs(m.x - p.x) < TR.pyreR && Math.abs(m.y - p.y) < TR.pyreR && Math.hypot(m.x - p.x, m.y - p.y) < TR.pyreR) burn(m, TR.pyreDps * hs);
       if (wet && m.piped) for (const f of fords) if (Math.abs(m.x - f.x) < TR.fordR && Math.abs(m.y - f.y) < TR.fordR && Math.hypot(m.x - f.x, m.y - f.y) < TR.fordR) { m.wade = 0.3; ctx.hitMob(m, TR.fordDps * hs * 0.2, 'ford'); break; }
     }
@@ -195,7 +195,7 @@ export function createMissions(ctx, getRoad) {
     } else if (e.t === 'claim') {
       const reg = map.regions[e.region], n = reg && reg.nest; if (!n) return;
       // a burned hollow smoulders through the night that follows (or the rest of this one)
-      embers.push({ x: n.x, y: n.y, until: S.night, t: MISSION.embers.t });
+      embers.push({ x: n.x, y: n.y, until: S.night, t: MISSION.embers.t, region: e.region });   // its own horde runs out through it unhurt (stepTraps)
       ev('embers', { x: n.x, y: n.y, r: MISSION.embers.r, dur: MISSION.embers.t });   // the type wins over a payload .t: the duration rides in .dur
       if (M.id === 'hunt' && night()) {
         const bonus = Math.round(WAVES.plunder(reg.ring) * (MISSION.hunt.pay - 1));
