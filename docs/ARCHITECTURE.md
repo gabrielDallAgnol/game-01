@@ -82,6 +82,8 @@ In every root, creation order and per-frame call order are load-bearing:
 | `blessings.js` | offers and rerolls |
 | `save.js` | dawn snapshot and restore |
 | `story.js` | story engine: picks encounters and applies their effects (own RNG) |
+| `daily.js` | the daily quest: offered when calm (Accept / Not now), progress, settled at dawn |
+| `income.js` | scrap and food by the second (day and, slower, night); dawn closes the cycle for the ledger |
 | `road.js`, `missions.js` | the road, stations, convoys, night missions (`[road]` feature) |
 | `mapgen.js`, `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | map generation, flow fields, town builders, scavenging, seeded RNG |
 
