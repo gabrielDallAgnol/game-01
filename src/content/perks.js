@@ -20,7 +20,7 @@ export const PERKS = [
   { id: 'hymn',    fam: 'hero', rarity: C, name: 'Battle Hymn', desc: 'Hero attacks 20% faster.', max: 3, fx: P => { P.heroRate *= 1.2; } },
   { id: 'skin',    fam: 'hero', rarity: C, name: 'Iron Skin', desc: '+12 max health. Heal 1 per second at night.', max: 2, fx: P => { P.heroHp += 12; P.heroRegen += 1; } },
   { id: 'blood',   fam: 'hero', rarity: R, name: 'Bloodthirst', desc: 'Heal 2 for each zombie that dies within 6 of you.', max: 1, fx: P => { P.lifesteal = 2; } },
-  { id: 'rally',   fam: 'hero', rarity: R, name: 'Rallying Cry', desc: 'Towers within 5 of you shoot 30% faster.', max: 1, fx: P => { P.rally = true; } },
+  { id: 'rally',   fam: 'hero', rarity: R, name: 'Rallying Cry', desc: 'Your presence reaches 3 further (9 cells), and towers in it shoot a further 15% faster.', max: 1, fx: P => { P.rally = true; } },
   { id: 'execute', fam: 'hero', rarity: R, name: 'Executioner', desc: 'Your hits kill zombies left below 25% health.', max: 1, fx: P => { P.execute = true; } },
   { id: 'wardance',fam: 'hero', rarity: R, name: 'War Dance', desc: 'Every 3rd attack hits every zombie in reach.', max: 1, fx: P => { P.wardance = true; } },
   { id: 'shout',   fam: 'hero', rarity: C, name: 'Big Voice', desc: 'War Cry recharges 40% faster and reaches 2 further.', max: 1, fx: P => { P.abilityCd *= 0.6; P.abilityRadius += 2; } },
@@ -41,7 +41,7 @@ export const PERKS = [
   { id: 'thorns',  fam: 'stone', rarity: R, name: 'Thorned Stakes', desc: 'Zombies that hit a barricade take 3 damage.', max: 1, fx: P => { P.thorns += 3; } },
   { id: 'tar',     fam: 'stone', rarity: R, name: 'Tar Pits', desc: 'Zombies within 2 of a barricade move 40% slower.', max: 1, fx: P => { P.tar = true; } },
   { id: 'bastion', fam: 'stone', rarity: R, name: 'Bastions', desc: 'Towers within 3 of a barricade deal 40% more damage.', max: 1, fx: P => { P.bastion = true; } },
-  { id: 'salvage', fam: 'stone', rarity: R, name: 'Salvage', desc: 'Whenever a building falls, gain 2 scrap.', max: 1, fx: P => { P.salvage = true; } },
+  { id: 'salvage', fam: 'stone', rarity: R, name: 'Salvage', desc: 'Whenever a building falls, recover a quarter of what it cost (never from barricades).', max: 1, fx: P => { P.salvage = true; } },
   { id: 'bell',    fam: 'stone', rarity: L, name: 'Bell of Last Light', desc: 'Once a run, when the keep would fall it holds at 30% and every zombie within 8 takes 20 damage.', max: 1, fx: P => { P.bell = true; } },
   // Harvest
   { id: 'market',  fam: 'harvest', rarity: C, name: 'Market Day', desc: 'Each house pays 1 more scrap at dawn.', max: 3, fx: P => { P.houseGold += 1; } },
@@ -57,7 +57,7 @@ export const PERKS = [
   { id: 'quiver',  fam: 'ranger', rarity: C, name: 'Quick Hands', desc: 'You shoot 12% faster.', max: 2, fx: P => { P.heroRate *= 1.12; } },
   { id: 'longshot',fam: 'ranger', rarity: C, name: 'Long Shot', desc: 'You reach 1 further.', max: 2, fx: P => { P.heroRange += 1; } },
   { id: 'pierce',  fam: 'ranger', rarity: R, name: 'Pierce', desc: 'Each bolt also hits one zombie just behind its target.', max: 1, fx: P => { P.pierce = true; } },
-  { id: 'mark',    fam: 'ranger', rarity: R, name: 'Marked', desc: 'Zombies you hit take 30% more damage from towers for 4 seconds.', max: 1, fx: P => { P.mark = true; } },
+  { id: 'mark',    fam: 'ranger', rarity: R, name: 'Deep Mark', desc: 'The dead you hit stay Marked twice as long (8 seconds) and take 60% more from towers instead of 30%.', max: 1, fx: P => { P.mark = true; } },
   { id: 'storm',   fam: 'ranger', rarity: R, name: 'Bolt Storm', desc: 'Volley covers a wider area and hits 50% harder.', max: 1, fx: P => { P.abilityRadius += 1; P.abilityDmg *= 1.5; } },
   { id: 'nimble',  fam: 'ranger', rarity: R, name: 'Light Feet', desc: 'You run 20% faster and heal 1 per second while running.', max: 1, fx: P => { P.heroSpeed *= 1.2; P.runHeal = 1; } },
   { id: 'sentinel',fam: 'ranger', rarity: L, name: 'Sentinel', desc: 'Standing still, every 3rd bolt also hits two more zombies.', max: 1, fx: P => { P.sentinel = true; } },
@@ -76,7 +76,7 @@ export const PERKS = [
   { id: 'triage',  fam: 'heart', rarity: C, name: 'Triage', desc: 'Your ability heals 50% more and reaches 2 further.', max: 1, fx: P => { P.abilityDmg *= 1.5; P.abilityRadius += 2; } },
   { id: 'kinship', fam: 'heart', rarity: R, name: 'Kinship', desc: 'Companions at your side hit 50% harder and have 50% more health.', max: 1, fx: P => { P.compBuff = 1.5; } },
   { id: 'shelter', fam: 'heart', rarity: R, name: 'Safe Rooms', desc: 'When a home falls, its families hide instead of rising with the dead.', max: 1, fx: P => { P.shelter = true; } },
-  { id: 'calm',    fam: 'heart', rarity: R, name: 'A Calm Voice', desc: 'The town draws 20% less heat.', max: 1, fx: P => { P.calm = 0.8; } },
+  { id: 'calm',    fam: 'heart', rarity: R, name: 'A Calm Voice', desc: 'The camp makes 20% less noise.', max: 1, fx: P => { P.calm = 0.8; } },
   { id: 'sanct',   fam: 'heart', rarity: L, name: 'Sanctuary', desc: 'The keep mends 2 health a second at night.', max: 1, fx: P => { P.sanctuary = true; } },
   // Pacts: rare, with a real downside
   { id: 'pactBlood', fam: 'bow', rarity: R, pact: true, name: 'Blood Arrows', desc: 'Towers deal 50% more damage.', cost: 'The keep has 30% less health.', max: 1, fx: P => { P.towerDmg += 0.5; P.keepHpMult *= 0.7; } },
@@ -91,7 +91,7 @@ export const SYNERGIES = [
   { a: 'rally', b: 'watch', text: 'Rallying Cry reaches 8, and paired towers get it anywhere.' },
   { a: 'guarded', b: 'bastion', text: 'Houses within 3 of a barricade pay 1 more scrap.' },
   { a: 'blood', b: 'bounty', text: 'Every kill by your hero pays 1 scrap.' },
-  { a: 'salvage', b: 'mortar', text: 'Fallen buildings give 4 scrap instead of 2.' },
+  { a: 'salvage', b: 'mortar', text: 'Fallen buildings give back 40% of their cost instead of 25%.' },
 ];
 
 export const MASTERIES = {
@@ -109,7 +109,7 @@ export const MASTERIES = {
   ],
   heart: [
     { id: 'saint', name: 'Saint of the Ruins', desc: 'Your ability also burns the dead around you for 6 damage.' },
-    { id: 'lifeline', name: 'Lifeline', desc: 'You come back in 2 seconds instead of 6, and companions get up the moment they fall.' },
+    { id: 'lifeline', name: 'Lifeline', desc: 'You come back in 10 seconds instead of 30, and companions get up the moment they fall.' },
   ],
   bow: [
     { id: 'deadeye', name: 'Deadeye', desc: 'Towers and the keep deal 40% more damage.' },
@@ -142,3 +142,18 @@ export function freshPerkState() {
     houseGold: 0, farmFood: 0, tax: 0, bounty: false, ecoDiscount: 0, upkeepCut: 0,
   };
 }
+
+// What a blessing needs before it is ever offered (no barricade perks without barricades, no bolts for a fighter
+// with an axe, no ability perks for an ability you do not have, no Kinship without a companion).
+//   walls: 4+ standing barricade posts · ranged / melee / attack: the hero's weapon · warcry / volley / patch / bounty:
+//   that ability · purses: a hero who picks them up · companion: one has joined · homes: 4+ homes · noise: the meter is live
+export const NEEDS = {
+  timber: 'walls', thorns: 'walls', tar: 'walls', bastion: 'walls', pactStone: 'walls', fortress: 'walls',
+  tips: 'ranged', quiver: 'ranged', longshot: 'ranged', pierce: 'ranged', sentinel: 'ranged', sniper: 'ranged',
+  wardance: 'melee', whirlwind: 'melee', steel: 'attack', hymn: 'attack', execute: 'attack', mark: 'attack', pactRage: 'attack', champion: 'attack',
+  shout: 'warcry', storm: 'volley', hail: 'volley', triage: 'patch', saint: 'patch',
+  haggle: 'bounty', captains: 'bounty', band: 'bounty', loyal: 'bounty', kingpin: 'bounty', warband: 'bounty',
+  pockets: 'purses', nose: 'purses', kinship: 'companion', guild: 'homes', guarded: 'homes', market: 'homes', calm: 'noise',
+};
+// A burned hive offers three of these: blessings that change how a run plays, not stat bumps.
+export const NEST_POOL = ['ballista', 'bell', 'sanct', 'guild', 'volley', 'shelter', 'last', 'execute'];

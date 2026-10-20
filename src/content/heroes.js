@@ -17,14 +17,14 @@ export const HEROES = {
     ability: { id: 'volley', name: 'Volley', cooldown: 28, radius: 2.2, dmg: 4, reach: 9 },
   },
   merchant: {
-    name: 'Scavver', blurb: 'A poor shot with an old revolver, but runs the town by hand: picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays scrap.',
-    hp: 22, speed: 4.2, attack: { kind: 'ranged', dmg: 2.0, reach: 5.5, rate: 0.8 }, collects: true, discount: 0.1, extraOffer: 1, trader: true,
+    name: 'Scavver', blurb: 'Quick with an old revolver, and runs the town by hand: picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays scrap.',
+    hp: 22, speed: 4.2, attack: { kind: 'ranged', dmg: 2.6, reach: 5.5, rate: 0.65 }, collects: true, discount: 0.1, extraOffer: 1, trader: true,
     ability: { id: 'bounty', name: 'Bounty', cooldown: 45, duration: 20, radius: 9, gold: 1, bigGold: 3 },
   },
 };
 HEROES.medic = {
   name: 'Medic', blurb: 'A flare pistol and a bag of bandages. Weak in a fight, but Patch Up mends the buildings around you and puts you back on your feet.',
-  hp: 28, speed: 4.1, attack: { kind: 'ranged', dmg: 2.2, reach: 5.5, rate: 0.8 },
+  hp: 28, speed: 4.1, attack: { kind: 'ranged', dmg: 2.6, reach: 5.5, rate: 0.7 },
   ability: { id: 'patch', name: 'Patch Up', cooldown: 22, radius: 6, heal: 0.25 },
 };
 export const HERO_ORDER = ['warrior', 'archer', 'merchant', 'medic'];
@@ -37,6 +37,7 @@ Object.assign(HEROES, {
   quartermaster: { ...HEROES.medic, name: 'Quartermaster', base: 'medic', blurb: 'Keeps everyone fed and patched: +4 scrap and +2 food every dawn, and Patch Up mends the whole town.', hp: 26, quarter: true },
   deadeye: { ...HEROES.archer, name: 'Deadeye', base: 'archer', blurb: 'Ranger who sells the shot: reach 8, and every dead your Volley kills pays 2 scrap.', hp: 26, attack: { kind: 'ranged', dmg: 3.6, reach: 8, rate: 0.7 }, volleyPays: 2 },
 });
+// no Calling deals less than the Survivor (2.2 / 0.6 s ≈ 3.7 a second): a job change is never a downgrade
 // which hero family leads to which Calling, and which pair to which final class
 export const CALLINGS = { hero: 'warrior', ranger: 'archer', scavver: 'merchant', heart: 'medic' };
 export const FINALS = { 'archer+warrior': 'vanguard', 'merchant+warrior': 'warlord', 'archer+merchant': 'deadeye', 'medic+warrior': 'warden', 'archer+medic': 'marshal', 'medic+merchant': 'quartermaster' };

@@ -12,7 +12,7 @@ for (let s = S0; s < SEEDS; s += STRIDE) {
   const t0 = Date.now();
   const g = createGame({ seed: 100 + s, mapSeed: 300 + s, biome: biomes[s % 4], hero, difficulty: diff });
   const S = g.state; S.builders = 'balanced'; if (AUTO) g.setAutopilot(true);
-  let steps = 0, heatSum = 0, heatN = 0, peakHeat = 0, blackoutT = 0, minKeep = 1;
+  let steps = 0, heatSum = 0, heatN = 0, peakHeat = 0, blackoutT = 0, minKeep = 1, aggroN = 0;
   const nightLog = [], feats = {}, classes = [];
   while (!S.over && S.night <= DAYS && steps < 60 * 60 * 60) {
     while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]);
@@ -25,9 +25,13 @@ for (let s = S0; s < SEEDS; s += STRIDE) {
     if (ph === 'night' && S.phase === 'day') { nightLog.push({ n, keep: +minKeep.toFixed(2), bld: S.buildings.length, pop: g.pop(), mobs: S.mobs.length }); minKeep = 1; }
     for (const k of Object.keys(S.feat)) if (!(k in feats)) feats[k] = S.night;
     if (classes[classes.length - 2] !== S.heroClass) classes.push(S.heroClass, `@${S.night}`);
+    for (const e of S.events) if (e.t === 'aggro') aggroN++;
     S.events.length = 0;
   }
-  const r = { seed: s, biome: biomes[s % 4], diff, hero, reached: S.over ? S.night : S.night, fell: S.over, avgHeat: Math.round(heatSum / Math.max(1, heatN)), peakHeat: Math.round(peakHeat), eruptions: S.stats.eruptions || 0, blackoutSec: blackoutT, buildings: S.buildings.length, keepLvl: S.keep.level, pop: g.pop(), kills: S.kills, lvl: S.lvl, feats: JSON.stringify(feats), cls: classes.join(' '), path: Object.entries(S.path).map(([k, v]) => k[0] + Math.round(v)).join(''), seasons: S.season.n, trial: S.story.trial ? `${S.story.trial.cls}:${S.story.trial.started ? 's' : ''}${S.story.trial.done ? 'd' : ''}@${S.story.trial.day}` : '-', offered: JSON.stringify(S.evo.offered), sec: Math.round((Date.now() - t0) / 1000), nights: nightLog.map(l => `${l.n}:${l.keep}`).join(' ') };
+  // forecast vs what happened (calibrates forecastStrip) · collapse: the hall went from ≥90% one night to fallen the next
+  const fc = S.log.filter(l => l.forecast).map(l => ({ n: l.night, ratio: l.ratio, hall: l.forecast.hall, atRisk: l.forecast.atRisk, brutes: l.forecast.brutes, dead: l.forecast.dead, wave: l.wave, standing: l.standing, lost: (l.lost || []).length, held: l.held ?? (l.result === 'lost' ? 0 : null), noise: l.noise, fell: l.result === 'lost' }));
+  const last = nightLog[nightLog.length - 1], collapse = S.over && (!last || last.keep >= 0.9);
+  const r = { seed: s, collapse, fc, biome: biomes[s % 4], diff, hero, reached: S.over ? S.night : S.night, fell: S.over, avgHeat: Math.round(heatSum / Math.max(1, heatN)), peakHeat: Math.round(peakHeat), eruptions: S.stats.eruptions || 0, blackoutSec: blackoutT, buildings: S.buildings.length, keepLvl: S.keep.level, pop: g.pop(), kills: S.kills, lvl: S.lvl, feats: JSON.stringify(feats), cls: classes.join(' '), path: Object.entries(S.path).map(([k, v]) => k[0] + Math.round(v)).join(''), seasons: S.season.n, trial: S.story.trial ? `${S.story.trial.cls}:${S.story.trial.started ? 's' : ''}${S.story.trial.done ? 'd' : ''}@${S.story.trial.day}` : '-', offered: JSON.stringify(S.evo.offered), sec: Math.round((Date.now() - t0) / 1000), nights: nightLog.map(l => `${l.n}:${l.keep}`).join(' '), ruinsLeft: S.buildings.filter(b => b.ruined).length, mourned: S.mourned || 0, flares: S.stats.flares || 0, aggroEv: aggroN };
   out.push(r); console.log(JSON.stringify(r));
 }
 const fell = out.filter(r => r.fell);
