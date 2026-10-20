@@ -902,8 +902,7 @@ export function startApp() {
   function forecastText() {
     const S = game.state;
     if (S.phase === 'night') {
-      const left = S.mobs.filter(m => !m.roam && !MOBS[m.kind].animal).length + (S.queue ? S.queue.length : 0);
-      return `<span class="ic-w">${icon('moon')}</span><span>${esc(nightLine || `Night ${S.night}`)}</span>${left ? `<span class="sep">·</span><span>${left} left</span>` : ''}`;
+      return `<span class="ic-w">${icon('moon')}</span><span>${esc(nightLine || `Night ${S.night}`)}</span>`;
     }
     let f = null;
     if (typeof game.forecastStrip === 'function') { try { f = game.forecastStrip(); } catch { f = null; } }
