@@ -46,7 +46,7 @@ export function createCombat(G) {
   function defenceDps() {
     cacheNeighbours();
     let d = 0;
-    for (const b of live()) if (b.type === 'tower' && manned(b) && G.powered(b)) { const t = towerStats(b); d += t.dmg * t.shots / t.rate; }
+    for (const b of live()) if (b.type === 'tower' && manned(b) && G.powered(b)) { const t = towerStats(b); d += b.spec ? G.specDps(b, t) : t.dmg * t.shots / t.rate; }   // [towers] a specialised tower: sim/towers.js
     if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * KEEP.shots[keep.level - 1] + (has('ballista') ? 8 / 3 * 2 : 0);
     return d;
   }
@@ -184,6 +184,9 @@ export function createCombat(G) {
       if (b.type !== 'tower' || !manned(b) || !G.powered(b)) continue;
       const t = towerStats(b);
       if (mastery('rain')) { b.rainT += dt; if (b.rainT >= 6) { b.rainT = 0; for (const m of nearestMobs(b.x, b.y, t.range, 3)) fire(3, b.x, b.y, m, t.dmg, 'tower'); } }
+      // [towers] begin: a specialised tower fires its own way (sim/towers.js)
+      if (b.spec) { G.stepSpec(b, t, dt); continue; }
+      // [towers] end
       b.cd -= dt; if (b.cd > 0) continue;
       const near2 = nearestMobs(b.x, b.y, t.range, 2); if (!near2.length) continue;
       for (let k = 0; k < t.shots; k++) {
@@ -218,6 +221,9 @@ export function createCombat(G) {
       if (tgt) { p.tx = tgt.x; p.ty = tgt.y; }
       const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy); p.life -= dt;
       if (d < 0.4 || p.life <= 0) {
+        // [towers] begin: a mortar shell bursts where it lands
+        if (p.shell) { if (d < 0.8) G.shellBurst(p); S.projectiles.splice(S.projectiles.indexOf(p), 1); ev('shotEnd', { id: p.id }); continue; }
+        // [towers] end
         if (tgt && d < 0.8) {
           if (p.enemy) { if (tgt === S.hero) hurtHero(p.dmg); else if (tgt.ally) tgt.hp -= p.dmg; else damageBuilding(tgt, p.dmg); }
           else { if (p.burn) tgt.burn = { t: 4, dps: 1 }; hitMob(tgt, p.dmg, p.src); }

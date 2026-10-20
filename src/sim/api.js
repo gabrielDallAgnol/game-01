@@ -66,6 +66,8 @@ export function createApi(G) {
     findSpot: () => G.findSpot(), spotOk: (x, y) => G.spotOk(x, y),   // where an objective may stand (sim/spots.js)
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
     // [nests] the hive that keeps a site locked (-1: free), a hive's rage ({ rage, lv, hot, near } or null), its guards
+    // [towers] a level 3 tower takes a role for good (content/towers.js): '' when it can, else why not
+    specialise: (id, role) => G.specialise(id, role), specBlock: (id, role) => G.specBlock(S.byId.get(id), role), specCost: () => G.SPEC_COST, specRange: b => G.specRange(b),
     siteLock: id => G.lockedBy(S.landmarks[id]), nestRage: r => S.nestRage[r] || null, nestGuards: r => G.nestGuards(r),
   };
   return api;
