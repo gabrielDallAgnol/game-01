@@ -790,10 +790,10 @@ export function createView(canvas, game, opts = {}) {
       for (const d of S.drops) fx2.pools.light(d.x - C, d.y - C, 2.4, REDL, 0.5);
       const h = S.hero; if (!h.dead) fx2.pools.light(h.x - C, h.y - C, 4.2, LANT, 0.55 * fl(0), 0.25);
       if (opts.lights) opts.lights(fx2.pools, k);   // [road] stations and convoys can add their fires here
+      // [road] begin: lit station fires paint into the night light texture
+      if (roadView) for (const l of roadView.lights()) fx2.pools.light(l.x - C, l.y - C, l.d * 0.7, AMBER, 1.6 * fl(l.x | 0));
+      // [road] end
     }
-    // [road] begin: lit station fires paint into the night light texture
-    if (roadView) for (const l of roadView.lights()) fx2.pools.light(l.x - C, l.y - C, l.d * 0.7, AMBER, 1.6 * fl(3));
-    // [road] end
     fx2.pools.end(k);
   }
   const RIM_DAY = lc('#ffdcae'), RIM_NIGHT = lc('#8fb4ff'), MIST_DAWN = lc('#e6d2cc'), MIST_DUSK = lc('#a796b4'), MIST_NIGHT = lc('#30406a'), _rc = new THREE.Color();
