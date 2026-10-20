@@ -1403,6 +1403,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       const reach = A.reach + S.P.heroRange, dmg = heroDmg() * (S.nightFlags.lastT > 0 ? 2 : 1);
       let best = null, bd = reach;
       for (const m of S.mobs) { if (m.rise < 1) continue; const d = Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size; if (d < bd) { bd = d; best = m; } }
+      // [road] begin
+      if (best && road && road.preferHive(best, reach)) best = null;   // lantern off on a Hunt: leave the sleeping dead, strike the hive
+      // [road] end
       if (!best) {
         // nothing to fight: strike a hive in reach
         const hv = map.regions.find(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - h.x, r.nest.y - h.y) < reach + 1.4);

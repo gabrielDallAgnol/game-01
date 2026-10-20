@@ -366,6 +366,7 @@ export function createRoad(ctx) {
   /** how the dead perceive the hero's distance (the lantern) */
   const perceive = (m, hd) => missions.perceive(m, hd);
   const unseen = (hd, sight) => missions.unseen(hd, sight);
+  const preferHive = (best, reach) => missions.preferHive(best, reach);
 
   // ---------- trip planning ----------
   /** fastest walk from the hero to (x, y): the old road is quick, the woods slow. Returns seconds and the path. */
@@ -461,7 +462,7 @@ export function createRoad(ctx) {
     missions.load(o.mission);
   }
   const road = {
-    state: R, stations, missions, drive, perceive, unseen, tick, dawn, hiveMult, attach, save, load,
+    state: R, stations, missions, drive, perceive, unseen, preferHive, tick, dawn, hiveMult, attach, save, load,
     light: id => { const st = stations.find(s => s.id === id); return st && !st.lit ? light(st) : false; },
     buildTower, placeRule, plan, tripInfo, go, places, ringOf, members, inLitRing, lightCost,
     /** tell a convoy to wait where it stands (best by a lit fire), or to follow again */

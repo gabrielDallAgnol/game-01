@@ -44,12 +44,13 @@ export function createMissions(ctx, getRoad) {
     if (cap && !M.captainK) { M.captainK = MISSION.captain; S.P.towerDmg += M.captainK; M.captain = cap; }
     ev('missionOffer', { night: S.night, forecast: M.forecast.word, where: M.where, captain: M.captain });
   }
-  function choose(id) {
+  function choose(id, how) {
     if (!MISSIONS[id] || S.over) return false;
     if (!night()) return ctx.fail('Missions are chosen at dusk.');
-    const was = M.id; M.id = id; M.choosing = false; M.t = 0;
+    const was = M.id, auto = how === 'auto'; M.id = id; M.choosing = false; M.t = 0;
     if (id !== 'hunt' && !M.lantern) setLantern(true);
-    ev('mission', { id, was });
+    ev('mission', { id, was, auto });
+    if (auto) return true;   // nobody chose: Hold, quietly
     const D = MISSIONS[id];
     toast(`[Mission: ${D.name}] ${id === 'hold' ? 'You stand with the camp tonight.' : id === 'hunt' ? `The hives are emptying. **Lantern off** to move unseen.${M.captain ? ` ${M.captain} captains the camp.` : ''}` : `Sound the **horn** away from the camp: the dead come for you. Lead them into a trap: a lit outpost, a ford, a burning hive, a bloater.`}`, 'sys');
     return true;
@@ -58,7 +59,9 @@ export function createMissions(ctx, getRoad) {
   // ---------- The Hunt ----------
   function hiveMult(r) {
     if (M.id !== 'hunt' || !night() || !(S.wake[r] <= S.night)) return 1;
-    return 1 / MISSION.hunt.hiveK;
+    // in the dark, unnoticed: a strike the hive never saw coming
+    const h = S.hero, sneak = !M.lantern && !S.mobs.some(m => m.hunt && Math.hypot(m.x - h.x, m.y - h.y) < 8) ? MISSION.hunt.sneak : 1;
+    return sneak / MISSION.hunt.hiveK;
   }
   function setLantern(on) {
     on = !!on; if (on === M.lantern) return true;
@@ -66,6 +69,11 @@ export function createMissions(ctx, getRoad) {
     M.lantern = on;
     if (on) S.P.heroSpeed /= MISSION.hunt.speed; else S.P.heroSpeed *= MISSION.hunt.speed;
     ev('lantern', { on }); return true;
+  }
+  /** lantern off on a Hunt, by a live hive: the hero leaves the dead that have not noticed them and strikes the hive */
+  function preferHive(best, reach) {
+    if (M.lantern || M.id !== 'hunt' || !night() || best.hunt || best.piped || best.cv || best.attacking) return false;
+    const h = S.hero; return map.regions.some(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - h.x, r.nest.y - h.y) < reach + 1.4);
   }
   /** lantern off: the dead see you at half the distance (you seem twice as far away) */
   const perceive = (m, hd) => (M.lantern || S.hero.dead ? hd : hd / MISSION.hunt.sense);
@@ -78,15 +86,18 @@ export function createMissions(ctx, getRoad) {
     if (h.dead || M.hornCd > 0) return false;
     const H = MISSION.horn, cand = S.mobs.filter(m => !m.roam && !MOBS[m.kind].animal && !m.piped && !m.unique && m.rise >= 1 && Math.hypot(m.x - h.x, m.y - h.y) < H.r)
       .sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y));
+    if (!cand.length) return ctx.fail('Nothing in earshot yet: the horn carries about 30 steps. Wait for the dead to come.');
     const n = Math.min(H.cap, Math.ceil(cand.length * H.share));
     // the nearest half always, the rest by chance: the horn is loud, not a leash
     const take = cand.slice(0, n);
     for (const m of take) { m.piped = { t: H.t }; m.hunt = false; m.cv = null; m.siege = null; m.last = null; piped.add(m.id); }
     M.hornCd = H.cd; M.led += take.length; h.noiseT = 6;
     ev('horn', { x: h.x, y: h.y, r: H.r, n: take.length });
-    toast(take.length ? `[Horn] **${take.length} dead** turn from the camp toward you. Lead them somewhere that kills them.` : '[Horn] The note rolls through the trees. Nothing answers yet.', take.length ? 'sys' : undefined);
+    toast(`[Horn] **${take.length} dead** turn from the camp toward you. Lead them somewhere that kills them.`, 'sys');
     return take.length;
   }
+  /** how many of the dead the horn would reach right now */
+  function earshot() { const h = S.hero; if (h.dead) return 0; let n = 0; for (const m of S.mobs) if (!m.roam && !m.piped && !MOBS[m.kind].animal && m.rise >= 1 && Math.hypot(m.x - h.x, m.y - h.y) < MISSION.horn.r) n++; return Math.min(MISSION.horn.cap, Math.ceil(n * MISSION.horn.share)); }
   function drivePiped(m, D, dt, speed, hd, road) {
     const h = S.hero; m.piped.t -= dt;
     if (m.piped.t <= 0 || h.dead || hd > MISSION.horn.lose) { m.piped = null; if (outside(m.x, m.y) && !h.dead) { m.roam = { x: m.x, y: m.y, region: -1 }; m.lost = true; } return false; }
@@ -122,7 +133,7 @@ export function createMissions(ctx, getRoad) {
     }
   }
   function tick(dt) {
-    if (M.choosing) { M.t -= dt; if (M.t <= 0) { choose('hold'); ev('missionAuto', {}); } }
+    if (M.choosing) { M.t -= dt; if (M.t <= 0) choose('hold', 'auto'); }
     if (M.hornCd > 0) M.hornCd = Math.max(0, M.hornCd - dt);
     for (const em of [...embers]) {
       em.t -= dt; if (em.t <= 0) { embers.splice(embers.indexOf(em), 1); continue; }
@@ -139,5 +150,5 @@ export function createMissions(ctx, getRoad) {
   }
   const save = () => ({ last: M.last || null, offered: M.offered });
   const load = o => { if (o) { M.last = o.last; M.offered = o.offered || 0; } };
-  return { state: M, embers, nightfall, choose, hiveMult, setLantern, perceive, unseen, horn, drivePiped, onEvent, tick, dawn, forecast, save, load, attach: a => { api = a; } };
+  return { state: M, embers, earshot, preferHive, nightfall, choose, hiveMult, setLantern, perceive, unseen, horn, drivePiped, onEvent, tick, dawn, forecast, save, load, attach: a => { api = a; } };
 }
