@@ -45,7 +45,7 @@ export function createSave(G) {
     S.nextId = Math.max(R.nextId, S.nextId);
     keep.level = R.keep[0]; keep.r = 2.3 * (1 + 0.12 * (keep.level - 1)); G.refreshMax(); keep.hp = Math.min(keep.maxHp, R.keep[1]);
     G.refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, R.heroAt[0]); S.hero.x = R.heroAt[1]; S.hero.y = R.heroAt[2]; G.unstickHero();
-    for (const m of S.mobs) mobById.delete(m.id); S.mobs.length = 0; S.projectiles.length = 0; S.drops = []; S.chests = []; S.purses = [];
+    for (const m of S.mobs) mobById.delete(m.id); S.mobs.length = 0; S.animalsInit = false; S.projectiles.length = 0; S.drops = []; S.chests = []; S.purses = [];
     S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; dropLive(); G.dropCrew();
     for (const n of S.story.npcs) if (n.withHero && n.alive && n.joined) G.spawnCompanion(n);   // a travelling companion comes back with you
     G.spawnRoamers(); G.spawnAnimals(); syncPicks(); G.rollOffer(); G.newLog(); S.events.length = 0; S.restored = true;
