@@ -13,6 +13,19 @@ export function createMobs(V) {
   const crowd = createCrowd(world); crowd.warm(['walker', 'runner']);
   V.crowd = crowd;
 
+  // a boss's name plate: the text is measured, so a long name gets a wider plate (and only then a smaller font)
+  const camUp = new THREE.Vector3(), TAG_H = 0.72, TAG_GAP = 0.23 + 0.16;   // the boss bar's half-height with its frame, then a gap
+  function bossTag(name) {
+    const text = name.toUpperCase(), H = 72, c = document.createElement('canvas'), x = c.getContext('2d');
+    let size = 38; const font = s => `700 ${s}px Arial Narrow, Arial, sans-serif`;
+    x.font = font(size); if ('letterSpacing' in x) x.letterSpacing = '3px';
+    let w = x.measureText(text).width; const MAXW = 760; if (w > MAXW - 40) { size = Math.max(22, Math.floor(size * (MAXW - 40) / w)); x.font = font(size); w = x.measureText(text).width; }
+    c.width = Math.min(1024, Math.ceil(w + 44)); c.height = H;
+    x.fillStyle = '#2a0a10'; x.fillRect(0, 0, c.width, H); x.strokeStyle = 'rgba(255,138,106,.55)'; x.lineWidth = 3; x.strokeRect(1.5, 1.5, c.width - 3, H - 3);
+    x.fillStyle = '#ff8a6a'; x.font = font(size); if ('letterSpacing' in x) x.letterSpacing = '3px'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, c.width / 2, H / 2 + 2);
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false })); sp.scale.set(TAG_H * c.width / H, TAG_H, 1); sp.renderOrder = 22; return sp;
+  }
   function syncMobs() {
     const time = V.time, { makeBar } = V.bars;
     const seen = new Set();
@@ -21,10 +34,10 @@ export function createMobs(V) {
       if (!mobState.has(m.id)) {
         const size = MOBS[m.kind].size * (m.unique ? 1.35 : m.bossTier ? 1.2 + 0.2 * m.bossTier : 1);
         const boss = m.kind === 'gravelord' || m.kind === 'guardian' || !!m.unique || !!m.bossName, st = { bar: makeBar(boss ? 'boss' : 'z', boss ? Math.max(1.8, 0.8 * size) : 0.75 * Math.max(1, size), boss ? 0.34 : size > 1.2 ? 0.26 : 0.2), phase: vis() * 6, face: m.face || 0, size, kind: m.kind, x: m.x, y: m.y };
-        if (m.unique || m.bossName) { st.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex((m.unique || m.bossName).toUpperCase(), { w: 512, h: 64, size: Math.min(34, Math.floor(820 / (m.unique || m.bossName).length)), bg: '#2a0a10', fg: '#ff8a6a', spacing: '3px' }), transparent: true, depthTest: false })); st.tag.scale.set(3.2, 0.4, 1); st.tag.renderOrder = 22; fx.add(st.tag); st.glow = K.glowSprite('#ffd27a', 2.6, 1.6); fx.add(st.glow); }
+        if (m.unique || m.bossName) { st.tag = bossTag(m.unique || m.bossName); fx.add(st.tag); st.glow = K.glowSprite('#ffd27a', 2.6, 1.6); fx.add(st.glow); }
         mobState.set(m.id, st);
       }
-      const st = mobState.get(m.id); if (st.tag) { st.tag.position.copy(Wv(m.x, m.y, 3.4)); st.glow.position.copy(Wv(m.x, m.y, 2.4)); st.glow.material.opacity = 0.6 + Math.sin(time * 6) * 0.3; }
+      const st = mobState.get(m.id); if (st.tag) { st.glow.position.copy(Wv(m.x, m.y, 2.4)); st.glow.material.opacity = 0.6 + Math.sin(time * 6) * 0.3; }
     }
     for (const [id, e] of mobState) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) { fx.remove(e.tag); fx.remove(e.glow); } dying.push({ kind: e.kind, x: e.x, y: e.y, face: e.face, t: 0 }); mobState.delete(id); }
   }
@@ -52,7 +65,7 @@ export function createMobs(V) {
       for (const m of S.mobs) {
         const e = mobState.get(m.id); if (!e) continue;
         e.x = m.x; e.y = m.y;
-        if (!seenAt(m.x, m.y)) { e.bar.visible = false; continue; }   // the dead in unexplored streets stay hidden
+        if (!seenAt(m.x, m.y)) { e.bar.visible = false; if (e.tag) e.tag.visible = false; continue; }   // the dead in unexplored streets stay hidden
         let d = (m.face || 0) - e.face; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; e.face += d * Math.min(1, dt * 6);
         e.phase += dt * (m.speed || 1.5) * 3.2;
         const fr = m.attacking ? 0 : (Math.sin(e.phase) > 0 ? 0 : 1);
@@ -61,7 +74,8 @@ export function createMobs(V) {
         const p = Wv(m.x, m.y, (m.rise - 1) * 1.1 + (m.attacking ? 0 : Math.abs(Math.sin(e.phase)) * 0.03));
         crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, (m.unique ? 1.35 : m.bossTier ? 1.2 + 0.2 * m.bossTier : 1) * UNIT.dead, fl);
         if (m.rise >= 1) fx2.blobs.add(p.x, p.y, p.z, 0.36 * e.size, 0.32 * e.size);
-        setBar(e.bar, m.x, 1.45 * Math.max(1, e.size) + 0.15, m.y, m.hp / m.maxHp);
+        setBar(e.bar, m.x, 1.45 * Math.max(1, e.size) + 0.15, m.y, m.hp / m.maxHp, !!e.tag);
+        if (e.tag) { camUp.set(0, 1, 0).applyQuaternion(V.camera.quaternion); e.tag.position.copy(e.bar.position).addScaledVector(camUp, TAG_GAP + e.tag.scale.y / 2); e.tag.visible = true; }   // the name sits above the bar, never on it
       }
       for (let k = dying.length - 1; k >= 0; k--) {
         const dd = dying[k]; dd.t += dt; const p = Wv(dd.x, dd.y, -Math.max(0, dd.t - 0.55) * 1.0);
