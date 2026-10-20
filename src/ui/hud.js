@@ -170,11 +170,15 @@ export function createHud(ui) {
   const edge = { top: 60, bot: 100, pool: [], tags: [] }, EDGE_NEAR = 28;   // optional places get an arrow within this many metres
   function edgeMarks() {
     const S = ui.game.state, Wd = innerWidth, Hh = innerHeight, m = 22, t = edge.top, bt = Hh - edge.bot, cx = Wd / 2, cy = (t + bt) / 2, buckets = new Map();
+    const mp = ui.game.map, MN = Math.sqrt(mp.terrain.length);
     for (const z of S.mobs) {
       if (z.roam || z.lure || MOBS[z.kind].animal) continue;
-      if (Math.hypot(z.x - S.hero.x, z.y - S.hero.y) > 40 && Math.hypot(z.x - ui.game.map.town.x, z.y - ui.game.map.town.y) > 30) continue;
-      const p = ui.view.project(z.x, z.y); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
-      const ang = Math.atan2(p.y - cy, p.x - cx), key = Math.round(ang / (Math.PI / 16));
+      if (Math.hypot(z.x - S.hero.x, z.y - S.hero.y) > 40 && Math.hypot(z.x - mp.town.x, z.y - mp.town.y) > 30) continue;
+      { const zx = Math.floor(z.x), zy = Math.floor(z.y); if (zx < 0 || zy < 0 || zx >= MN || zy >= MN || (!mp.reach[zy * MN + zx] && !ui.game.inZone(z.x, z.y))) continue; }   // only the dead on ground you can reach: never an arrow into the void
+      // a dead behind the camera (far down the screen, e.g. at the camp while you stand at the woods' edge) projects
+      // mirrored: flip it, or its arrow points up into the dark
+      const p = ui.view.project(z.x, z.y); if (!p.behind && p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue;
+      let ang = Math.atan2(p.y - cy, p.x - cx); if (p.behind) ang += ang > 0 ? -Math.PI : Math.PI; const key = Math.round(ang / (Math.PI / 16));
       const b = buckets.get(key) || { ang, n: 0, big: false }; b.n++; if (MOBS[z.kind].size >= 1.6) b.big = true; buckets.set(key, b);
     }
     let tagN = 0;
