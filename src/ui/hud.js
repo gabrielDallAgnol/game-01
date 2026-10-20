@@ -12,7 +12,7 @@ export function createHud(ui) {
 
   // ---------- the System speaks; the Camp gets small toasts ----------
   const SUPPRESS = [/^Dusk\. Night \d+/, /^Something crawls out of the dark/, /destroyed\. It will be rebuilt at dawn/, /^A house fell\. Its family/, /^\[Tip:/, /^Tonight: /];
-  const BEAT = /^\[(Title acquired|Skill acquired|Class acquired|Level up|Contract|Quest complete|Daily quest|Penalty quest|System online|Unique Monster|Naming|Trial)/;
+  const BEAT = /^\[(The road is open|Title acquired|Skill acquired|Class acquired|Level up|Contract|Quest complete|Daily quest|Penalty quest|System online|Unique Monster|Naming|Trial)/;
   function toast(msg, kind) {
     msg = campCopy(msg);
     if (SUPPRESS.some(r => r.test(msg))) return;
@@ -198,7 +198,7 @@ export function createHud(ui) {
         const p = ui.view.project(o.x, o.y, main ? 2 : 1.5); if (on(p)) continue;
         buckets.set(`o:${o.key}`, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, main, opt: !main, contract: o.kind === 'contract', label: o.label, dist: o.dist });
       } }
-    { const c = ui.game.map.city, h = S.hero; if (c && Math.hypot(c.x - h.x, c.y - h.y) > c.r + 6) { const p = ui.view.project(c.x, c.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8000, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'City' }); } }
+    { const c = ui.game.map.city, h = S.hero; if (c && !(ui.game.act && ui.game.act() < 2) && Math.hypot(c.x - h.x, c.y - h.y) > c.r + 6) { const p = ui.view.project(c.x, c.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8000, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'City' }); } }
     { const tw = ui.game.map.town, h = S.hero; if (Math.hypot(tw.x - h.x, tw.y - h.y) > 24) { const p = ui.view.project(tw.x, tw.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8001, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'Camp' }); } }
     for (let k = tagN; k < edge.tags.length; k++) edge.tags[k].hidden = true;
     let i = 0;

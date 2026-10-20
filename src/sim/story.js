@@ -210,6 +210,7 @@ export function createStory(ctx) {
     const K = contracts.stripLine();
     if (K) out.push({ key: 'contract', kind: 'contract', priority: 'main', label: 'Contract', x: K.place ? K.place.x : undefined, y: K.place ? K.place.y : undefined,
       title: K.kind === 'hive' ? `Burn ${K.name}` : `Survive ${K.name}`, sub: `${K.left ? `${K.left} night${K.left === 1 ? '' : 's'} left` : 'Tonight'}${K.place ? ` · ${K.place.dir}` : ''}` });
+    { const A = ctx.actGoal && ctx.actGoal(); if (A && A.x !== undefined) out.push({ key: 'act', kind: 'act', priority: 'main', label: 'Hollow', x: A.x, y: A.y, title: `${A.text} · ${A.have}/${A.n}`, sub: `Nearest hollow · ${dirOf(A.x, A.y)}` }); }   // [acts] act 1: the nearest hollow is the main goal
     const tr = ST.trial; if (tr && !tr.done) out.push({ key: 'trial', kind: 'trial', priority: 'main', label: 'Trial', x: tr.x, y: tr.y, title: tr.name, sub: `Beat ${tr.boss} · ${dirOf(tr.x, tr.y)}, by day` });
     for (const q of ST.quests) if (q.thread && threadAtSite(q.thread)) { const T = THREADS[q.thread]; out.push({ key: `q${q.site}`, kind: 'thread', priority: 'main', label: 'Quest', site: q.site, x: q.x, y: q.y, title: T ? T.title : 'Story', sub: `Go to the ${LM[S.landmarks[q.site].kind].name} · ${dirOf(q.x, q.y)}` }); }
     for (const sp of ST.spots) if (sp.thread) { const T = THREADS[sp.thread]; out.push({ key: `s${sp.id}`, kind: 'thread', priority: 'main', label: 'Quest', spot: sp.id, x: sp.x, y: sp.y, title: T ? T.title : 'Story', sub: `Go ${dirOf(sp.x, sp.y)}` }); }
@@ -484,7 +485,8 @@ export function createStory(ctx) {
     const pool = DAILY.filter(q => (!q.when || q.when(S, openSites())) && (!prev || q.id !== prev.id));
     const T = ST.penalty && prev ? (DAILY.find(q => q.id === prev.id) || pool[0]) : pool[rng.int(pool.length)];
     if (!T) return;
-    const pen = !!ST.penalty, n0 = T.n(S.night), n = pen && n0 > 1 ? Math.ceil(n0 * 1.5) : n0;
+    const pen = !!ST.penalty, n0 = T.n(S.night), n1 = pen && n0 > 1 ? Math.ceil(n0 * 1.5) : n0;
+    const n = T.far ? Math.min(S.act === 1 ? 60 : 70, n1) : n1;   // [acts] the long walk stays a walk you can make (inside the fence in act 1)
     ST.daily = { id: T.id, title: T.title, goal: T.goal.replace('{n}', n), n, base: T.stat(S, ST), done: false, penalty: pen, day: S.night, far: 0, back: false };
     toast(`${(pen ? DAILY_TEXT.penalty : DAILY_TEXT.issued).replace('{title}', T.title)} ${ST.daily.goal}.${!ST.dailyWarned ? ` ${DAILY_TEXT.warn}` : ''}`, 'sys');
     ST.dailyWarned = true; ev('daily', { id: T.id });
@@ -501,6 +503,7 @@ export function createStory(ctx) {
     const qs = activeQuests(), d = dailyProgress();
     const tr = qs.find(q => q.kind === 'trial');
     if (tr) return withContract({ tag: '[Trial]', text: `${ST.trial.name.replace(/^Trial of (the )?/, '')} · ${dirOf(tr.x, tr.y)}` });
+    const A = ctx.actGoal && ctx.actGoal(); if (A) return withContract(A);   // [acts] act 1's main goal: burn the hollows
     const th = qs.find(q => q.kind === 'thread');
     if (th) { const tid = th.site !== undefined ? (ST.quests.find(q => q.site === th.site) || {}).thread : (ST.spots.find(sp => sp.id === th.spot) || {}).thread; const T = tid && THREADS[tid]; return withContract({ tag: '[Quest]', text: `${T ? T.title : 'Story'}: go ${dirOf(th.x, th.y)}` }); }
     if (d && !d.done) return withContract({ tag: d.penalty ? '[Penalty]' : '[Daily]', have: d.have, n: d.n, text: d.goal });
@@ -746,6 +749,8 @@ export function createStory(ctx) {
   }
   return { activeQuests, shownQuests, objectives, questCap, roomForQuest, invent, fullContext, hooks, offerTrial, trialWon, seasonCard, pathText, start, dawn, tick, choose, can, bonus, context, chron, npc, grant,
     offerWin: w => offer({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: 'Got it', hint: '', fx: [] }] }, w.pri || 6, 30),
+    // [acts] a System window now (by day; at night it waits for the dawn like any card)
+    windowNow: w => push({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: w.ok || 'Got it', hint: '', fx: [] }] }),
     release, flush, dailyProgress, questLine, nightLine, contracts, skillOf, endThread,
     rarityColor: r => (RARITY[r] || RARITY.common).color };
 }

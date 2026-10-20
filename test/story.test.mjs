@@ -2,11 +2,13 @@
 // hand-authored, the Window's daily quest, and seasons as contracts you can win or lose.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, SAVE_V } from '../src/sim/game.js';
+import { createGame, SAVE_V, CUT } from '../src/sim/game.js';
 import { mapChoices } from '../src/sim/mapgen.js';
 import { SLOT } from '../src/sim/story.js';
 import { TIDE } from '../src/content/mobs.js';
 import { chooseStory } from '../tools/bot.mjs';
+// tests of the districts and the city: the fence down from day 1 (act 2 at once; CUT.earlyRoad off, see sim/acts.js)
+const withOpenRoad = fn => () => { CUT.earlyRoad = false; try { return fn(); } finally { CUT.earlyRoad = true; } };
 
 const lastFinale = S => S.events.filter(e => e.t === 'finale' && e.won).pop();
 const frontier = (seed, o = {}) => { const ch = mapChoices(seed)[0]; return createGame({ seed, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor', ...o }); };
@@ -23,7 +25,7 @@ function reach(g, tid, x, y) {
   return false;
 }
 
-test('Channel 9 and the school reuse the site that is already open: no second copy, and the site stage fires', () => {
+test('Channel 9 and the school reuse the site that is already open: no second copy, and the site stage fires', withOpenRoad(() => {
   for (const seed of [1, 2, 3, 7]) {
     for (const [tid, kit] of [['channel9', 'substation'], ['school', 'school']]) {
       const g = frontier(seed), S = g.state; S.story.encounters = [];
@@ -37,7 +39,7 @@ test('Channel 9 and the school reuse the site that is already open: no second co
       assert.ok(reach(g, tid, l.x, l.y + l.size / 2 + 1), `${tid} seed ${seed}: the companion stage never fired`);
     }
   }
-});
+}));
 
 test('a thread whose site is gone gets a beacon instead, and the beacon plays the stage', () => {
   const g = frontier(2), S = g.state; S.story.encounters = [];

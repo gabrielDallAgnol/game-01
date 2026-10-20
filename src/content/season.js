@@ -23,7 +23,7 @@ export const FEATURES = {
       lines: ['**Noise** (top bar): how loud the Camp is.', 'Louder = **more dead** each night.', 'At the **red mark**, the nearest hive **bursts**.'] },
   },
   routes: {
-    when: S => S.night >= 6,
+    when: S => S.act !== 1 && (S.night >= 6 || S.actOpened > 0),   // act 1 (the woods) keeps the fences shut: routes come the dawn after the road opens
     win: { eyebrow: '[New system: Expeditions]', title: 'Beyond the fence',
       lines: ['Every other dawn, pick **one route** into a sealed district.', 'Far districts: **bigger, richer, more dangerous**.', 'Each has one **site** to claim. Some have a **hive**.'] },
   },

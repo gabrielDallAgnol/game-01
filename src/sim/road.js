@@ -449,10 +449,11 @@ export function createRoad(ctx) {
   /** places the map and the trip planner know about */
   function places() {
     const seen = (x, y) => S.seen[idx(Math.floor(x), Math.floor(y))] === 1, out = [];
-    for (const st of stations) out.push({ kind: 'station', id: st.id, name: st.name, x: st.x, y: st.y, lit: st.lit });
+    for (const st of stations) if (!S.sealed[st.region]) out.push({ kind: 'station', id: st.id, name: st.name, x: st.x, y: st.y, lit: st.lit });
     for (const l of S.landmarks) if (seen(l.x, l.y) && l.kind !== 'unknown') out.push({ kind: 'site', id: l.id, name: ctx.LANDMARKS[l.kind].name, x: l.x, y: l.y + l.size / 2 + 1, owned: l.owned });
     for (const r of map.regions) if (r.nest && S.nestAlive[r.id] && seen(r.nest.x, r.nest.y)) out.push({ kind: 'hive', id: r.id, name: r.ring === 1 ? 'Forest hollow' : 'City hive', x: r.nest.x, y: r.nest.y + 2.5 });
-    out.push({ kind: 'city', name: 'The city', x: map.city.x, y: map.city.y }, { kind: 'camp', name: 'Camp', x: c, y: c + 3.5 });
+    if (S.act !== 1) out.push({ kind: 'city', name: 'The city', x: map.city.x, y: map.city.y });   // [acts] act 1: the city is not on the map yet
+    out.push({ kind: 'camp', name: 'Camp', x: c, y: c + 3.5 });
     return out;
   }
 
