@@ -47,12 +47,14 @@ import { createPacify } from './pacify.js';
 // [pacify] end
 // [folk] the folk build by themselves
 import { createFolkBuild } from './folk-build.js';
+import { createSteer } from './steer.js';
+import { spotOk } from './spots.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild];   // [pacify] appended
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer];   // [pacify] appended
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';
@@ -88,10 +90,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // the deep woods at the edge, where the dead come from once every hive is burned (after the road: its glades change map.reach)
   for (let k = 0; k < 8; k++) {
     const a = k * Math.PI / 4;
-    for (let r = 58; r > 36; r -= 0.5) {   // the deep woods
-      const x = c + Math.cos(a) * r, y = c + Math.sin(a) * r, i = idx(Math.floor(x), Math.floor(y));
-      if (map.reach[i]) { edgeSpawns.push({ x, y }); break; }
-    }
+    let at = null;   // the deep woods: open ground the camp can reach, clear of the void round the world (spotOk), else any reachable cell
+    for (let r = 58; r > 36 && !at; r -= 0.5) { const x = c + Math.cos(a) * r, y = c + Math.sin(a) * r; if (spotOk(map, false, x, y)) at = { x, y }; }
+    for (let r = 58; r > 36 && !at; r -= 0.5) { const x = c + Math.cos(a) * r, y = c + Math.sin(a) * r; if (map.reach[idx(Math.floor(x), Math.floor(y))]) at = { x, y }; }
+    if (at) edgeSpawns.push(at);
   }
   S.edgeSpawns = edgeSpawns;
   // districts: the signature site's district, then the home ward's kits (draws from the districts stream)

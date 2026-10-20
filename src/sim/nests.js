@@ -2,7 +2,7 @@
 // close the angrier it gets (rage), sending more and tougher dead in waves. Sites next to a living hive stay locked
 // until it burns. Numbers: NEST in state.js. Nothing here is saved: the dead are not saved, the rage cools by dawn.
 import { MOBS } from '../content/mobs.js';
-import { LANDMARKS } from './mapgen.js';
+import { LANDMARKS, T, idx, inside } from './mapgen.js';
 import { NEST } from './state.js';
 import { Rng, hashSeed } from './rng.js';
 
@@ -24,10 +24,35 @@ export function createNests(G) {
     if (b) return Math.hypot(Math.max(0, Math.abs(x - b.x) - b.half), Math.max(0, Math.abs(y - b.y) - b.half));
     return Math.max(0, Math.hypot(x - n.x, y - n.y) - (reg.ring === 1 ? NEST.body.hollow : NEST.body.city));
   }
-  /** the living hive whose edge is within reach of a point (the nearest edge), or null */
+  /** the point of the hive's edge nearest (x, y) */
+  function edgePoint(reg, x, y) {
+    const n = reg.nest, b = n.body;
+    if (b) return { x: Math.max(b.x - b.half, Math.min(b.x + b.half, x)), y: Math.max(b.y - b.half, Math.min(b.y + b.half, y)) };
+    const rad = reg.ring === 1 ? NEST.body.hollow : NEST.body.city, d = Math.hypot(x - n.x, y - n.y) || 1;
+    return d <= rad ? { x, y } : { x: n.x + (x - n.x) * rad / d, y: n.y + (y - n.y) * rad / d };
+  }
+  /** a clear line from (x, y) to the hive's open face: no solid cell (a building, rock, a cliff) between. A hive in a
+   *  building is struck at its own walls (its footprint does not block); a city hive's open face is its door, so the
+   *  line runs to the nearest edge of its mound or to the door itself, never through the block behind it. */
+  function hiveInSight(reg, x, y) {
+    const n = reg.nest, b = n.body;
+    const own = (cx, cy) => !!b && Math.abs(cx + 0.5 - b.x) < b.half + 0.01 && Math.abs(cy + 0.5 - b.y) < b.half + 0.01;
+    const clear = e => {
+      const k = Math.ceil(Math.hypot(e.x - x, e.y - y) / 0.25);
+      for (let s = 1; s <= k; s++) {
+        const cx = Math.floor(x + (e.x - x) * s / k), cy = Math.floor(y + (e.y - y) * s / k);
+        if (!inside(cx, cy)) return false;
+        const i = idx(cx, cy), t = map.terrain[i];
+        if ((t === T.ROCK || t === T.CLIFF || t === T.VOID || map.lm[i] >= 0) && !own(cx, cy)) return false;
+      }
+      return true;
+    };
+    return clear(edgePoint(reg, x, y)) || (!b && clear(n));
+  }
+  /** the living hive whose edge is within reach of a point (the nearest edge) and in clear sight of it, or null */
   function hiveInReach(x, y, reach) {
     let best = null, bd = reach;
-    for (const r of map.regions) { if (!r.nest || !S.nestAlive[r.id]) continue; const d = nestEdge(r, x, y); if (d < bd) { bd = d; best = r; } }
+    for (const r of map.regions) { if (!r.nest || !S.nestAlive[r.id]) continue; const d = nestEdge(r, x, y); if (d < bd && hiveInSight(r, x, y)) { bd = d; best = r; } }
     return best;
   }
   /** is a point within d of a living hive's body (centre to point)? (the hero rests nowhere near one) */
@@ -101,5 +126,5 @@ export function createNests(G) {
   /** a story reward that hands you a locked site: it is promised, and yours the moment its hive burns */
   function promiseSite(l) { l.promised = true; toast(`[Promised] The **${LANDMARKS[l.kind].name}** is yours once the hive beside it burns.`, 'good'); }
   const nestGuards = r => S.mobs.filter(m => m.guard === r).length;
-  return { nestBody, nestEdge, hiveInReach, nearHive, stepNests, angerNest, nestBurned, siteLocked, lockedBy, promiseSite, nestGuards };
+  return { nestBody, nestEdge, hiveInSight, hiveInReach, nearHive, stepNests, angerNest, nestBurned, siteLocked, lockedBy, promiseSite, nestGuards };
 }

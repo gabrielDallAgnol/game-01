@@ -64,6 +64,6 @@ export const TIDE = {
   // night 1 (hand-authored): the first dead alone, then its pack from the same hive, then a second pack out of the
   // woods on the far side while the hero is still busy. A fight the hero wins alone with Shove.
   night1: { first: 3, packA: [13, 15, 17], packB: [29, 31, 33, 35] },
-  roam: { perRing: [0, 3, 12], radius: 4.5, sight: 6, leash: 10, lose: 16, cap: 150, animals: { deer: 4, wolves: 2 }, chase: { walker: 1.35, runner: 1.1, brute: 1.25, crawler: 1.2 } },   // a hunting roamer moves this much faster than it wanders
+  roam: { perRing: [0, 3, 12], hiveGap: 7, radius: 4.5, sight: 6, leash: 10, lose: 16, cap: 150, animals: { deer: 4, wolves: 2 }, chase: { walker: 1.35, runner: 1.1, brute: 1.25, crawler: 1.2 } },   // a hunting roamer moves this much faster than it wanders
 };
 
