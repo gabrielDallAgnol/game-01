@@ -5,7 +5,7 @@ import { generateMap, N, T, PASSABLE, idx, inside, LANDMARKS } from './mapgen.js
 import { computeFlow, computeNext } from './flow.js';
 import { BUILDINGS, KEEP, MAX_LEVEL, START, UNLOCKS, POWER, RISE, HANDS } from '../content/buildings.js';
 import { MOBS, WAVES, TIDE, BRAIN, ESCAPE } from '../content/mobs.js';
-import { HEROES, MERC, PURSE, TRADES, CALLINGS, FINALS, EVOLVE_AT } from '../content/heroes.js';
+import { HEROES, MERC, PURSE, TRADES, CALLINGS, FINALS, EVOLVE_AT, LEGEND_OF } from '../content/heroes.js';
 import { PERKS, FAMILIES, MASTERIES, SYNERGIES, ODDS, REROLL, freshPerkState, NEEDS, NEST_POOL } from '../content/perks.js';
 import { PACKS, PACK_RULES } from '../content/packs.js';
 import { createScavenge } from './scavenge.js';
@@ -17,7 +17,7 @@ import { createStory } from './story.js';
 import { createRoad } from './road.js';
 // [road] end
 import { TITLES } from '../content/story.js';
-import { FEATURES, CALLING_LVL, FINAL_LVL, PARTY, SEASONS, SEASON_POOL, RULES, seasonEnd } from '../content/season.js';
+import { FEATURES, CALLING_LVL, FINAL_LVL, LEGEND_LVL, PARTY, SEASONS, SEASON_POOL, RULES, seasonEnd } from '../content/season.js';
 
 export const STEP = 1 / 60;
 export const PICKS_PER_DAWN = 2;
@@ -36,7 +36,7 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 // across the routes soaked 50 damage in all; the dead walk round a line. They come back with a ring-building tool.
 // the save format: v4 (Oct 20) carries ruins, Noise, tools, contracts and the road; older saves are ignored at the start screen
 export const SAVE_V = 4;
-export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: true, secondCompanion: true, trader: true, crew: true };
+export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true };
 // Heat (old name, same meter): see NOISE below. `stir`, `erupt`, `warn`, `cool`, `burst` still apply.
 export const HEAT = { floorPer: 1.4, floorMax: 70, combatMax: 77, decay: 0.1, rise: 2.5, shot: 0.03, kill: 0.15, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Noise: ONE meter (0–100). It rests on a floor set by loud CHOICES (level 3 towers, the market and workshop,
@@ -71,7 +71,9 @@ export const DIFFICULTY = {
 };
 export const FOREMAN = { buildings: 6, keep: 3 };   // the Foreman: a toggle, never on by itself
 // hero levels: XP from the dead you put down yourself, sites, quests and districts. Each level: a little harder, a little tougher.
-export const LEVEL = { xp: lv => Math.round(20 * Math.pow(lv, 1.2)), dmg: 0.09, hp: 4, max: 50 };   // level 12 is reachable in a season   // the town learns to build by itself once it is this established
+// three class tiers (15 / 30 / 45) land around nights 9, 22 and ~37 for the autopilot bot (measured: ~390 xp by night 9,
+// ~2000 by night 22, then ~200 a night); each level is a small step (a third of the old one)
+export const LEVEL = { xp: lv => Math.round(1.2 * Math.pow(lv, 1.44) + 4), dmg: 0.03, hp: 1.3, max: 50, blessEvery: 15 };
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
 export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
@@ -463,9 +465,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function heroDmg() { return HC.attack ? (HC.attack.dmg + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult * (1 + LEVEL.dmg * (S.lvl - 1)) * (S.drained === S.night ? 0.75 : 1) : 0; }
   function gainXp(n) {
     if (S.lvl >= LEVEL.max) return; S.xp += n;
-    while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] Damage +${Math.round(LEVEL.dmg * 100)}%, health +${LEVEL.hp}.`, 'good'); }
+    while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] +${Math.round(LEVEL.dmg * 100)}% damage, +${Math.round(LEVEL.hp)} health.`, 'good'); }
     checkEvolution();
-    if (S.lvl % 5 === 0 && S.lvl > (S.blessLvl || 0)) { S.blessLvl = S.lvl; S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) rollOffer(); toast(`[Level ${S.lvl}] The System grants a blessing.`, 'good'); }
+    if (S.lvl % LEVEL.blessEvery === 0 && S.lvl > (S.blessLvl || 0)) { S.blessLvl = S.lvl; S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) rollOffer(); toast(`[Level ${S.lvl}] The System grants a blessing.`, 'good'); }
   }
   function heroRate() { return HC.attack ? HC.attack.rate / S.P.heroRate / (mastery('champion') ? 1.3 : 1) : 1; }
   function heroDps() {
@@ -553,7 +555,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (b.type === 'keep') { endRun(false); return; }
     S.cur.lost.push(b.type); S.stats.buildingsLost++; (S.cur.fellB || (S.cur.fellB = [])).push({ id: b.id, type: b.type, level: b.level });
     if (rule('raiders') && S.phase === 'night') S.gold = Math.max(0, S.gold - 2);
-    if (S.phase === 'night' && !S.nightFlags.breach && b.type !== 'wall') { S.nightFlags.breach = true; ev('breach', { x: b.x, y: b.y }); toast(`[Warning: breach] The dead are inside the ${compass(b.x, b.y)} ring. Get there, or pull back to the hall.`, 'bad'); }
+    if (S.phase === 'night' && !S.nightFlags.breach && b.type !== 'wall') { S.nightFlags.breach = true; ev('breach', { x: b.x, y: b.y }); toast(`[Breach: ${compass(b.x, b.y)}] The dead are inside. Get there!`, 'bad'); }
     // Salvage: a quarter of what the building cost (never a barricade post: no profit in losing things)
     if (has('salvage') && b.type !== 'wall') earn(Math.max(1, Math.floor(investOf(b) * (combo('salvage', 'mortar') ? 0.4 : 0.25))));
     if (b.type === 'house' && S.P.shelter) { S.stats.housesLost++; toast('A home fell. Its families hid in the safe room.', 'bad'); }
@@ -566,7 +568,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       for (let k = 0; k < n; k++) { const m = spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1), { instant: false }); m.rise = 0.4; }
       crewCache = null;
       toast(n ? `A home fell. ${n === 1 ? 'One of its people rises' : `${n} of its people rise`} with the dead${fled ? `; ${fled} fled to the Camp` : ''}.` : `A home fell${fled ? `; ${fled} fled to the Camp` : ''}. Rebuild it to take them in.`, 'bad');
-    } else toast(`${BUILDINGS[b.type].name} destroyed. It stays a ruin until you rebuild it.`, 'bad');
+    } else toast(`${BUILDINGS[b.type].name} destroyed. Rebuild it by hand.`, 'bad');
   }
   /** what a building cost to put up at its level (its rebuild price is half of this) */
   const investOf = b => { let s = 0; for (let l = 1; l <= b.level; l++) s += costOf(b.type, l); return s; };
@@ -852,7 +854,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       ratio: +threatRatio(S.night, purgeReg).toFixed(2), forecast: forecastStrip(), noise: Math.round(S.noise || 0), standing: S.buildings.filter(b => !b.ruined).length, purge: purgeReg, nests: activeNests().length, claimed: claimedCount(), bloodMoon: isBloodMoon(S.night),
     });
     if (!CUT.crew) sc.nightfall(keep);
-    { const rt = ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight is stronger than your defences. Expect the outer ring to break: keep the hero near the homes.`, 'bad'); }
+    { const rt = ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight beats your towers. Stay near the homes.`, 'bad'); }
     ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
     toast(isBloodMoon(S.night) ? `Blood moon. Night ${S.night} begins.` : `Dusk. Night ${S.night}: the dead come in force.`, isBloodMoon(S.night) ? 'bad' : undefined);
     return true;
@@ -1005,7 +1007,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       k++;
       const m = spawnMob(kind, x, y, { instant: true }); m.hp = m.maxHp = Math.ceil(m.maxHp * 1.5); m.roam = { x: d.x, y: d.y, region: -1 };
     }
-    ev('drop', { id: d.id, x: d.x, y: d.y }); toast(`${why} A supply drop came down to the ${compass(d.x, d.y)}. It is guarded. Stand by it for 3 seconds to open it.`, 'good');
+    ev('drop', { id: d.id, x: d.x, y: d.y }); toast(`${why} [Supply drop: ${compass(d.x, d.y)}] Stand by it 3 s to open it.`, 'good');
   }
   function openDrop(d) {
     S.drops.splice(S.drops.indexOf(d), 1);
@@ -1030,7 +1032,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const loot = WAVES.plunder(map.regions[r].ring); earn(loot);
     if (S.season && S.season.finaleHive === r && S.night <= S.season.end) finale(true);
     for (const m of S.mobs) if (m.stream === r) m.stream = -1;
-    ev('claim', { region: r }); toast(`The hive burns: +${loot} scrap and a rare blessing. New hives stir beyond it.`, 'good');
+    ev('claim', { region: r }); toast(`Hive burned: +${loot} scrap and a rare blessing.`, 'good');
   }
   // ---------- the stream: the dead never stop coming from awake hives, day and night ----------
   const streamAcc = {}, hiveDmg = {}, rage = {};
@@ -1098,7 +1100,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const r = cands[0];
     S.eruption = { region: r.id, t: HEAT.warn, x: r.nest.x, y: r.nest.y };
     ev('eruptWarn', { region: r.id, x: r.nest.x, y: r.nest.y });
-    toast(`[Warning] The town is too loud. The hive to the ${compass(r.nest.x, r.nest.y)} is swelling: it bursts in ${HEAT.warn} seconds.`, 'bad');
+    toast(`[Too loud] The ${compass(r.nest.x, r.nest.y)} hive bursts in ${HEAT.warn} s.`, 'bad');
   }
   function erupt() {
     const r = S.eruption.region; S.eruption = null; S.heatCool = HEAT.cool; S.noiseSpike = 0; S.noiseChoice = Math.min(S.noiseChoice || 0, Math.max(0, (S.noiseChoice || 0) + HEAT.after));   // the burst spends the fighting noise and most of the choices'
@@ -1217,7 +1219,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function checkForeman() {
     if (S.foreman || keep.level < FOREMAN.keep || S.buildings.filter(b => b.type !== 'wall').length < FOREMAN.buildings) return;
     S.foreman = true; ev('skill', { id: 'foreman' });
-    toast('[Skill acquired: Foreman] Your people **can** build and upgrade by themselves now. It is **off**: switch it on in the **build menu** when you want to step away.', 'win');
+    toast('[Skill acquired: Foreman] Your people can **build by themselves**. Switch it on in the **build menu**.', 'win');
   }
 
   function dawn() {
@@ -1432,9 +1434,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function evolve(cls) {
     const H = HEROES[cls]; if (!H) return false;
     const was = HC.name; S.heroClass = cls; HC = H; S.ability.cd = 0;
-    if (H.base) S.evo.final = cls; else S.evo.calling = cls;
+    if (H.legend) S.evo.legend = cls; else if (H.base) S.evo.final = cls; else S.evo.calling = cls;
     refreshMaxSoon(); ev('evolve', { cls });
-    toast(`[Class evolution: ${was} → ${H.name}] ${H.blurb}`, 'good');
+    toast(`[Class evolution: ${was} → ${H.name}]`, 'good');
     return true;
   }
   // ---------- the path: what you do decides what you become ----------
@@ -1458,6 +1460,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       if (!ranked.length) return;
       const opts = ranked.slice(0, 2).map(h => ({ cls: FINALS[[cls, h].sort().join('+')], second: h }));
       S.evo.offered.final = true; story.offerTrial(opts, cls);
+    } else if (HEROES[cls].base && !HEROES[cls].legend) {   // tier 3: the legendary form of the Calling you took
+      const id = LEGEND_OF[cls] && LEGEND_OF[cls][S.evo.calling || HEROES[cls].base];
+      if (S.lvl < LEGEND_LVL || S.evo.offered.legend || !id) return;
+      S.evo.offered.legend = true; story.offerTrial([{ cls: id, legend: true }], cls);
     }
   }
   function reroll() {
@@ -1994,7 +2000,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (road) road.tick(dt);
     // [road] end
     stepHeat(dt);
-    if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); story.tick(); if (S.blackout) S.sawBlackout = true; }
+    if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); story.tick(0.25); if (S.blackout) S.sawBlackout = true; }
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }
     // sunrise comes on time: the night's dead do not vanish. Far from the town they lose interest and roam where they stand.
     if (S.phase === 'night' && !S.over && !S.queue.length && (S.qT > WAVES.duration(S.night) + NIGHT_TAIL || !S.mobs.some(m => !m.roam && m.stream === undefined))) {
@@ -2005,7 +2011,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
         if (m.unique && S.unique) S.unique.escaped = true;   // at your walls: the sunrise burns the night's dead (the hives' stream keeps coming)
         S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: 'sun', dmg: 0 }); burnt++;
       }
-      if (burnt) toast(`The sun rises: **${burnt}** of the night's dead burn at your walls. The rest of the dead keep coming.`);
+      if (burnt) toast(`Sunrise: **${burnt}** of the dead burn at your walls.`);
       dawn();
     }
   }

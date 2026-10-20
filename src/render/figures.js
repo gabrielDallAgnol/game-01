@@ -45,6 +45,54 @@ export function xrayMat(color, o = {}) {
   m.customProgramCacheKey = () => 'xray';
   return m;
 }
+// ---------- outlines: an inverted hull a constant ~1.5 px wide at any zoom, so a figure reads without zooming in ----------
+// The hull grows along smoothed normals (the welded figures have flat normals: grown along those the faces split apart).
+const _key = (x, y, z) => `${Math.round(x * 2000)},${Math.round(y * 2000)},${Math.round(z * 2000)}`;
+export function outlineNormals(geo) {
+  if (!geo || geo.attributes.oNormal) return geo;
+  const p = geo.attributes.position, n = geo.attributes.normal, acc = new Map(), keys = new Array(p.count);
+  for (let i = 0; i < p.count; i++) {
+    const k = keys[i] = _key(p.getX(i), p.getY(i), p.getZ(i)); let a = acc.get(k); if (!a) acc.set(k, a = [0, 0, 0]);
+    if (n) { a[0] += n.getX(i); a[1] += n.getY(i); a[2] += n.getZ(i); }
+  }
+  const out = new Float32Array(p.count * 3);
+  for (let i = 0; i < p.count; i++) { const a = acc.get(keys[i]), l = Math.hypot(a[0], a[1], a[2]) || 1; out[i * 3] = a[0] / l; out[i * 3 + 1] = a[1] / l; out[i * 3 + 2] = a[2] / l; }
+  geo.setAttribute('oNormal', new THREE.BufferAttribute(out, 3));
+  return geo;
+}
+export const OUTLINE = { px: 0.0011 };   // hull width per unit of view distance (~1.5 px on a phone at fov 28)
+const outlineMats = {};
+/** a back-face hull in one flat colour; works on plain, instanced and skinned meshes */
+export function outlineMat(color, o = {}) {
+  const key = `${color}|${o.skinning ? 1 : 0}|${o.w || 1}`; if (outlineMats[key]) return outlineMats[key];
+  const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(color), side: THREE.BackSide, skinning: !!o.skinning, fog: false });
+  const w = { value: OUTLINE.px * (o.w || 1) };
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uOutline = w;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uOutline;\nattribute vec3 oNormal;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+  {
+    mat4 oM = modelMatrix;
+    #ifdef USE_INSTANCING
+      oM = oM * instanceMatrix;
+    #endif
+    vec4 oV = viewMatrix * oM * vec4(position, 1.0);
+    float oS = max(length(oM[0].xyz), 1e-4);
+    transformed += oNormal * uOutline * max(-oV.z, 1.0) / oS;
+  }`);
+  };
+  m.customProgramCacheKey = () => `outline${o.skinning ? 's' : ''}`;
+  return (outlineMats[key] = m);
+}
+/** a skinned figure gets its hull: the same geometry and skeleton, drawn back faces only */
+export function outlineSkinned(sm, color, w = 1) {
+  if (!sm) return null;
+  outlineNormals(sm.geometry);
+  const o = new THREE.SkinnedMesh(sm.geometry, outlineMat(color, { skinning: true, w }));
+  o.bind(sm.skeleton, sm.bindMatrix); o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false; o.userData.xray = true; o.userData.outline = true;
+  sm.parent.add(o); return o;
+}
+
 /** the figure palette is lit with a rim: warm by day, moon-blue by night (K.T.rim) */
 export const SKINMAT = K.territory(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, skinning: true }), { rim: true });
 const _m = new THREE.Matrix4();
@@ -83,6 +131,8 @@ function strideFrame(root, k = 1) {
   if (j.sL && j.sR) { j.sL.rotation.x += 0.25; j.sR.rotation.x -= 0.25; }
 }
 
+// the dead: a near-black violet edge (darker than the night ground, far darker than the meadow); people: dark umber
+export const CROWD_OUTLINE = { dead: '#07060b', folk: '#1c120a' };
 const KIND_RIG = {
   walker: 'walker', runner: 'runner', crawler: 'crawler', brute: 'brute', spitter: 'spitter', bloater: 'bloater', screamer: 'screamer', gravelord: 'gravelord', guardian: 'gravelord', deer: 'deer', wolf: 'wolf',
 };
@@ -110,7 +160,11 @@ export function createCrowd(world) {
       f.geo.setAttribute('aFlash', fl);
       const m = new THREE.InstancedMesh(f.geo, fm ? folkMat : bodyMat, cap); m.castShadow = true; m.receiveShadow = false; m.frustumCulled = false; m.count = 0; world.add(m);
       const e = f.glow ? new THREE.InstancedMesh(f.glow, eyeMat, cap) : null; if (e) { e.frustumCulled = false; e.count = 0; world.add(e); }
-      return { m, e, n: 0, fl };
+      // the hull shares the body's instance matrices: one extra draw per kind and frame
+      outlineNormals(f.geo);
+      const big = kind === 'gravelord' || kind === 'guardian' || kind === 'brute';
+      const ol = new THREE.InstancedMesh(f.geo, outlineMat(fm ? CROWD_OUTLINE.folk : CROWD_OUTLINE.dead, { w: big ? 1.35 : 1 }), cap); ol.instanceMatrix = m.instanceMatrix; ol.frustumCulled = false; ol.count = 0; ol.castShadow = false; world.add(ol);
+      return { m, e, ol, n: 0, fl };
     });
     return (kinds[kind] = { meshes, cap });
   }
@@ -125,7 +179,7 @@ export function createCrowd(world) {
     },
     end() {
       for (const k of Object.values(kinds)) for (const f of k.meshes) {
-        f.m.count = f.n; f.m.instanceMatrix.needsUpdate = true; f.fl.needsUpdate = true;
+        f.m.count = f.n; f.m.instanceMatrix.needsUpdate = true; f.fl.needsUpdate = true; if (f.ol) f.ol.count = f.n;
         if (f.e) { f.e.count = f.n; f.e.instanceMatrix.needsUpdate = true; }
       }
     },
@@ -145,16 +199,16 @@ export function bakedWalker(makeRig, mat) {
 }
 
 /** a full rig with live joints for the hero and sellswords */
-export function liveRig(root) {
+export function liveRig(root, outline = '#1c120a', ow = 1) {
   const j = root.userData.joints, legs = root.userData.legs;
-  skin(root);
+  const sm = skin(root), hull = outline ? outlineSkinned(sm, outline, ow) : null;
   const base = {
     legs: legs.map(l => ({ l, x: l.rotation.x, k: l.children.find(c => c.isGroup), kx: l.children.find(c => c.isGroup)?.rotation.x || 0 })),
     sL: j.sL && j.sL.rotation.x, sR: j.sR && j.sR.rotation.x, spine: j.spine.rotation.x,
   };
   const g = new THREE.Group(); g.add(root); root.scale.multiplyScalar(PEOPLE);
   return {
-    g, joints: j,
+    g, joints: j, hull,
     pose(walk, phase, swing = -1) {
       const s = walk ? Math.sin(phase) : 0;
       base.legs.forEach((q, i) => { q.l.rotation.x = q.x + (i ? -s : s) * 0.55; if (q.k) q.k.rotation.x = q.kx + Math.max(0, i ? s : -s) * 0.6; });

@@ -6,7 +6,7 @@ import { createGame, STEP, CREW_NEED, DIFFICULTY, HEAT, SAVE_V } from '../sim/ga
 import { mapChoices, generateMap, N, T, idx, BIOMES, LANDMARKS } from '../sim/mapgen.js';
 import { createView } from '../render/view.js';
 import { BUILDINGS, BUILD_ORDER, TECH_ORDER, UNLOCKS, KEEP, MAX_LEVEL } from '../content/buildings.js';
-import { HEROES, TRADES } from '../content/heroes.js';
+import { HEROES, TRADES, CLASS_TIERS } from '../content/heroes.js';
 import { PERKS, FAMILIES, MASTERIES } from '../content/perks.js';
 import { MOBS, ESCAPE } from '../content/mobs.js';
 import { regionNames, hiveName } from '../content/names.js';
@@ -74,6 +74,7 @@ export function startApp() {
   // [road] end
   let card = null;             // which card is open
   let dawnAt = 0, endT = -1;   // cards wait until performance.now() passes dawnAt
+  let calmT = 0, waitT = 0;   // seconds of calm (no dead near the hero or the Camp), seconds a card has waited
   const holdCards = sec => { dawnAt = Math.max(dawnAt, performance.now() + sec * 1000); };
   const keys = {};
   let setup = { hero: 'survivor', mode: 'classic', difficulty: store.get('difficulty', 'survivor'), runSeed: Math.floor(Math.random() * 1e6), pick: 0 };
@@ -122,7 +123,11 @@ export function startApp() {
     if (big) for (const l of S.landmarks) if (seenAt(l.x, l.y)) dot(l.x, l.y, 6, l.owned ? '#ffb347' : '#ffe08a', !l.owned);
     for (const sp of S.story.spots) if (big) dot(sp.x, sp.y, 4, '#7fe3ff');
     const tr = S.story.trial; if (tr && !tr.done) dot(tr.x, tr.y, big ? 6 : 4, '#ff4a4a', true);
-    const k = S.story.contract; if (k && !k.won && k.finale.kind === 'hive') { const n = m.regions[k.finale.region].nest; if (n) dot(n.x, n.y, big ? 9 : 6, '#7fe3ff', true); }
+    // the contract's place: a cyan double ring and its name (the big map), on every map; it shows even unexplored
+    const k = S.story.contract; if (k && !k.won && !k.lost && k.finale.kind === 'hive') { const n = m.regions[k.finale.region].nest; if (n) {
+      dot(n.x, n.y, big ? 11 : 6, '#7fe3ff', true); dot(n.x, n.y, big ? 6 : 3, '#7fe3ff', true);
+      if (big) { const t = 'CONTRACT'; ctx.font = 'bold 20px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(t, (n.x - ox) * s, (n.y - oy) * s - 18); ctx.fillStyle = '#7fe3ff'; ctx.fillText(t, (n.x - ox) * s, (n.y - oy) * s - 18); }
+    } }
     if (big && game.hearRadius) { const r = game.hearRadius() * s; ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = 'rgba(240,166,73,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc((m.town.x - ox) * s, (m.town.y - oy) * s, r, 0, 7); ctx.stroke(); ctx.restore();
     }
     dot(m.town.x, m.town.y, big ? 7 : 4, '#f0a649');
@@ -145,7 +150,7 @@ export function startApp() {
     paused = true; if (placing) stopPlacing(); closePanel();
     showCard('map', `<button class="closex" id="mapX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Map] ${esc(game.map.name)} · day ${S.night}</div><h1 class="sm">The woods and the city</h1>
       <div class="mapwrap"><canvas id="bigMap" aria-label="Map of the woods and the city"></canvas></div>
-      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span><span><i style="background:#ff5a4a"></i>City hive</span><span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#7fe3ff"></i>Beacon</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>
+      <div class="legend"><span><i style="background:#ffffff"></i>You</span>${S.story.contract && !S.story.contract.won && S.story.contract.finale.kind === 'hive' ? `<span><i style="background:none;border:2px solid #7fe3ff"></i>Contract: ${esc(S.story.contract.finale.name)}</span>` : ''}<span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span><span><i style="background:#ff5a4a"></i>City hive</span><span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#7fe3ff"></i>Beacon</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>
       <p class="note">Dark ground is unexplored. Tap a place to plan a trip.</p>
       <div class="cardrow foot"><button class="btn big" id="mapOk">Back</button></div>`, { sys: true, arm: false });
     const cv = $('#bigMap'); cv.width = w * s; cv.height = hh * s; const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
@@ -260,7 +265,7 @@ export function startApp() {
   function showCard(kind, html, o = {}) {
     const fresh = card !== kind || o.anim; card = kind; const c = $('#card');
     c.className = `card${o.sys ? ' sysw' : ''}${o.cls ? ` ${o.cls}` : ''}${o.narrow ? '' : ' wide'}`;
-    c.innerHTML = html; $('#overlay').hidden = false; if (kind !== 'start') $('#episode').hidden = true;   // a window never opens under the dusk/episode banner
+    c.innerHTML = html; $('#overlay').hidden = false; $('#overlay').classList.toggle('jobov', /jobw/.test(o.cls || '')); if (kind !== 'start') $('#episode').hidden = true;   // a window never opens under the dusk/episode banner
     ctoast.clear(); callouts.hide();
     if (o.arm !== false) { c.classList.add('arming'); c.dataset.armed = '0'; setTimeout(() => { if (c.dataset.armed === '0') { c.dataset.armed = '1'; c.classList.remove('arming'); } }, ARM_MS); }
     else c.dataset.armed = '1';
@@ -352,6 +357,7 @@ export function startApp() {
     const isNew = !st.opened; st.opened = true;
     if (enc.kind === 'arrival') return showArrival(enc);
     if (enc.kind === 'contract') return showContract(enc, st, swap || !isNew);
+    if (enc.kind === 'evolve' && enc.jobs) return showJob(enc, st, !isNew);
     if (enc.kind === 'victory') return showVictory(enc, st);
     if (enc.kind === 'skill') return showSkill(enc);
     if (enc.kind === 'window' || enc.kind === 'chapter') return showWindow(enc);
@@ -393,7 +399,7 @@ export function startApp() {
       await typeOn($('#arEb'), enc.eyebrow, speed());
       await typeOn($('#arT'), enc.title, speed());
       for (let k = 0; k < lines.length; k++) { await typeOn($(`#arL${k}`), lines[k], speed()); if (!skip && !reduced()) await new Promise(r => setTimeout(r, 160)); }
-      await typeOn($('#arG0'), '[Choose your starting gift]', speed());
+      if (enc.choices.length > 1) await typeOn($('#arG0'), '[Choose your starting gift]', speed());
       if ($('#arr')) $('#arr').classList.add('ready');
     })();
     $$('[data-gift]').forEach(b => b.onclick = e => {
@@ -429,17 +435,56 @@ export function startApp() {
     typeOn($('#iEb'), w.eyebrow, 60);
     $('#iOk').onclick = onArmed(() => { hideCard(); paused = false; });
   }
+  // ---------- the job change: a System event, bigger with each tier ----------
+  // tier 1 (Lv 15) the window opens over a dimmed world; tier 2 (Lv 30) it cracks; tier 3 (Lv 45) the whole screen
+  function showJob(enc, st, again) {
+    const t = enc.tier || 1, sel = st.sel || null, J = enc.jobs, pick = sel && J.find(j => j.cls === sel);
+    const crack = t >= 2 ? `<svg class="jcrack" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M50 0 L46 18 L54 27 L44 41 L52 52 L41 66 L49 78 L43 100" /><path d="M46 18 L30 22 L18 15" /><path d="M44 41 L62 44 L74 36" /><path d="M41 66 L26 70 L12 64" />${t >= 3 ? '<path d="M54 27 L70 20 L88 26" /><path d="M52 52 L66 58 L84 54" /><path d="M49 78 L62 84 L80 80" />' : ''}</svg>` : '';
+    const jcard = j => `<button class="jcard${j.yours ? ' yours' : ''}" data-job="${j.cls}" aria-pressed="${sel === j.cls}">
+        <span class="jhead"><span class="jglyph">${icon(j.icon || 'star')}</span><span class="jname">${esc(j.name)}</span></span>
+        ${j.famName ? `<span class="jfam${j.yours ? ' on' : ''}">${j.yours ? 'Your path · ' : ''}${esc(j.famName)} ${j.pct}%</span>` : ''}
+        <span class="jwho">${esc(j.who)}</span>
+        <ul class="jperks">${j.perks.map(p => `<li>${esc(p)}</li>`).join('')}</ul></button>`;
+    showCard('enc', `<div class="job t${t}${again ? ' shown' : ''}">${crack}
+      <div class="eyebrow"><span id="jEb"></span></div>
+      <h1 class="jt">${esc(enc.title)}</h1>
+      <p class="jpath">Your path: <b>${esc(enc.path)}</b></p>
+      <p class="jscene">${rich(enc.scene)}</p>
+      <div class="jobs n${J.length}">${J.map(jcard).join('')}</div>
+      <p class="jboss">${icon('skull')}<span>Trial: beat <b>${esc(enc.boss)}</b> at the red marker, by day.</span></p>
+      <div class="cardrow foot spread"><button class="btn ghost sm" id="jWait">Not yet</button><button class="btn big" id="jGo" ${pick ? '' : 'disabled'}>${pick ? `Take the trial: ${esc(pick.name)}` : J.length > 1 ? 'Pick a class' : `Take the trial: ${esc(J[0].name)}`}</button></div></div>`, { sys: true, cls: `jobw jt${t}`, arm: !again, anim: !again });
+    if (J.length === 1 && !sel) { st.sel = J[0].cls; $('#jGo').disabled = false; }
+    const eb = $('#jEb'); if (again || st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; audio.play('jobOpen', t); typeOn(eb, enc.eyebrow, t >= 3 ? 26 : 40); }
+    $$('[data-job]').forEach(b => b.onclick = onArmed(() => { st.touched = true; st.sel = b.dataset.job; const y = $('#card').scrollTop; showJob(enc, st, true); $('#card').scrollTop = y; }));
+    $('#jWait').onclick = onArmed(() => { if (game.choose('wait')) { encState.delete(enc.id); afterEncounter(); } });
+    $('#jGo').onclick = onArmed(() => { if (!st.sel) return; if (game.choose(`trial-${st.sel}`)) { audio.play('claim'); encState.delete(enc.id); afterEncounter(); } });
+  }
+  /** the class is yours: the screen flashes in the tier's colour, the System stamps the name, the hero changes */
+  function classBeat(e) {
+    const t = e.tier || 1; let el = $('#jobBeat'); if (!el) { el = document.createElement('div'); el.id = 'jobBeat'; document.body.appendChild(el); }
+    el.className = `jb t${t}`; el.innerHTML = `<div class="jbin"><div class="jbe">${t >= 3 ? '[LEGENDARY CLASS ACQUIRED]' : '[Class acquired]'}</div><div class="jbn">${esc(e.name || '')}</div>${t >= 2 ? `<div class="jbs">${t >= 3 ? 'The city will learn this name.' : 'You are more than you were.'}</div>` : ''}</div>`;
+    el.hidden = false; void el.offsetWidth; el.classList.add('go'); audio.play('classUp', t);
+    clearTimeout(el._t); el._t = setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.hidden = true; }, 600); }, [2200, 3000, 4200][t - 1]);
+  }
   // ---------- seasons as contracts ----------
   function showContract(enc, st, swap) {
     const P = usePatch(enc), sel = st.sel || null;
     const pick = id => enc.offers.find(o => o.id === id);
+    const pips = n => `<span class="pips" aria-hidden="true">${[1, 2, 3].map(k => `<i class="${k <= n ? 'on' : ''}"></i>`).join('')}</span>`;
+    const card1 = o => { const nm = (P && P.names && P.names[o.id]) || o.name, tw = (P && P.twists && P.twists[o.id]) || o.twist, T = o.terms, tier = T.tier || { tag: 'Risky', pips: 2 };
+      return `<button class="contract t${tier.pips}" data-k="${o.id}" aria-pressed="${sel === o.id}">
+        <span class="ktop"><span class="ktag">${pips(tier.pips)}${esc(tier.tag)}</span><span class="kname">${esc(nm)}</span></span>
+        <span class="kgoal">${icon(o.finale.kind === 'unique' ? 'skull' : 'flame')}<span>${esc(T.goal)}</span></span>
+        <span class="kwhere">${esc(T.where)}</span>
+        <span class="kline catch"><b>Catch</b>${esc(T.catch)}</span>
+        <span class="kline gain"><b>Reward</b>${esc(T.gain)} <em>${esc(T.legacy)}</em></span>
+        ${tw ? `<span class="tw">${esc(tw)}</span>` : ''}</button>`; };
+    const selGoal = sel ? pick(sel).terms.goal.replace(/^\w/, c => c.toLowerCase()) : '';
     showCard('enc', `<div class="eyebrow"><span id="kEb"></span>${chronicler.available() ? `<span class="chr${enc.ai === 'pending' ? ' busy' : ''}">${icon('quill')}${P ? 'Chronicler' : enc.ai === 'pending' ? 'writing' : ''}</span>` : ''}</div>
-      <h1 class="sm">${esc(enc.title)}</h1><p class="scene" style="font-size:15px;line-height:21px">${rich(enc.scene)}</p>
-      <div class="contracts">${enc.offers.map(o => { const nm = (P && P.names && P.names[o.id]) || o.name, fr = (P && P.frames && P.frames[o.id]) || o.frame, tw = (P && P.twists && P.twists[o.id]) || o.twist, T2 = o.terms;
-        return `<button class="contract" data-k="${o.id}" aria-pressed="${sel === o.id}"><span class="cn">${esc(nm)}${o.big ? '<span class="big">HIGH STAKES</span>' : ''}</span><span class="cf">${esc(fr)}</span><span class="tw">${icon('quill')}<span>${esc(tw)}</span></span>
-          <span class="terms"><div>${icon('noise')}<span><b>${esc(T2.rule.name)}.</b> ${esc(T2.rule.desc)}</span></div><div>${icon(o.finale.kind === 'unique' ? 'skull' : 'flame')}<span><b>Finale:</b> ${esc(T2.finale)}</span></div><div>${icon('star')}<span><b>Win:</b> ${esc(T2.reward)}</span></div></span></button>`; }).join('')}</div>
-      <p class="note">Lose the finale and the run ends with the contract's name.</p>
-      <div class="cardrow foot end"><button class="btn big" id="kSign" ${sel ? '' : 'disabled'}>${sel ? `Sign · ${esc(((P && P.names && P.names[sel]) || pick(sel).name))}` : 'Choose a contract'}</button></div>`, { sys: true, arm: !swap, anim: !swap });
+      <h1 class="sm">${esc(enc.title)}</h1><p class="scene kscene">${rich(enc.scene)}</p>
+      <div class="contracts">${enc.offers.map(card1).join('')}</div>
+      <p class="note">${rich(CONTRACT_COPY.legacyNote)}</p>
+      <div class="cardrow foot end"><button class="btn big" id="kSign" ${sel ? '' : 'disabled'}>${sel ? esc(CONTRACT_COPY.sign.replace('{goal}', selGoal)) : CONTRACT_COPY.pick}</button></div>`, { sys: true, arm: !swap, anim: !swap });
     const eb = $('#kEb'); if (swap || st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; typeOn(eb, enc.eyebrow, 60); }
     $$('[data-k]').forEach(b => b.onclick = onArmed(() => { st.touched = true; st.sel = b.dataset.k; const y = $('#card').scrollTop; showContract(enc, st, true); $('#card').scrollTop = y; }));
     $('#kSign').onclick = onArmed(() => { if (!st.sel) return; if (game.choose(st.sel)) { audio.play('claim'); encState.delete(enc.id); afterEncounter(); } });
@@ -454,7 +499,7 @@ export function startApp() {
     showCard('enc', `<div class="eyebrow"><span id="vEb"></span>${chronicler.available() ? `<span class="chr">${icon('quill')}${P ? 'Chronicler' : ''}</span>` : ''}</div>
       <h1 class="big">${esc(enc.title)}</h1><p class="scene">${rich(enc.scene)}</p>
       <ul class="obit">${beats.map(b => `<li>${rich(b)}</li>`).join('')}</ul><div class="nexton">${esc(next)}</div>
-      <div class="chips" style="margin:12px 0 4px"><span class="chip pos">${icon('star')}+${enc.reward.fame} fame</span><span class="chip pos">${icon('scrap')}+${enc.reward.scrap}</span><span class="chip pos">${icon('skill')}a legendary blessing</span><span class="chip info">${icon('level')}the dead ease off</span></div>
+      <div class="chips" style="margin:12px 0 4px"><span class="chip info">${icon('level')}easier nights</span><span class="chip pos">${icon('scrap')}+${enc.reward.scrap}</span><span class="chip pos">${icon('skill')}a rare blessing</span><span class="chip pos">${icon('star')}+${enc.reward.fame} Legacy</span></div>
       <div class="cardrow foot end"><button class="btn big" id="vOk">${esc(enc.choices[0].label)}</button></div>`, { sys: true, anim: !st.ebDone });
     const eb = $('#vEb'); if (st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; typeOn(eb, enc.eyebrow, 60); }
     $('#vOk').onclick = onArmed(() => { st.touched = true; if (game.choose('take')) { const L = store.get('legacy', { fame: 0, owned: {} }); L.fame += enc.reward.fame; store.set('legacy', L); audio.play('claim'); afterEncounter(); } });
@@ -483,7 +528,7 @@ export function startApp() {
   }
   function pathHtml() {
     const S = game.state, P = S.path, tot = Object.values(P).reduce((a, b) => a + b, 0) || 1, cls = S.heroClass;
-    const next = cls === 'survivor' ? `At level 5 the System offers the class your path points to (level ${S.lvl} now).` : !HEROES[cls].base ? 'Your Calling is set.' : 'Your class is complete.';
+    const next = cls === 'survivor' ? `Your class unlocks at level ${CLASS_TIERS[0].lvl} (you are ${S.lvl}).` : !HEROES[cls].base ? `It grows at level ${CLASS_TIERS[1].lvl} (you are ${S.lvl}).` : !HEROES[cls].legend ? `Its legendary form: level ${CLASS_TIERS[2].lvl} (you are ${S.lvl}).` : 'Legendary. Your class is complete.';
     const tr = S.story.trial && !S.story.trial.done ? `<p class="note" style="color:#ff9a80">${esc(S.story.trial.name)} waits at the red marker.</p>` : '';
     return `<div class="path">${['hero', 'ranger', 'scavver', 'heart'].map(f => `<div class="pr" style="--fam:${FAMILIES[f].color}"><span>${FAMILIES[f].name}</span><span class="pb"><i style="width:${Math.round(P[f] / tot * 100)}%"></i></span><b>${Math.round(P[f] / tot * 100)}%</b></div>`).join('')}</div>
       <p class="note" style="margin-top:6px">Rescues and mercy lean to Heart, fighting up close to Brawn, scouting and quiet to Aim, deals and salvage to Wits. ${next}</p>${tr}`;
@@ -944,7 +989,7 @@ export function startApp() {
     if (!game) return;
     const S = game.state, night = S.phase === 'night', bm = game.isBloodMoon(S.night);
     // the System strip
-    strip.update({ show: systemHere() && !S.over, hp: S.hero.hp, maxHp: S.hero.maxHp, lv: S.lvl, quest: game.story().dailyProgress() });
+    strip.update({ show: systemHere() && !S.over, hp: S.hero.hp, maxHp: S.hero.maxHp, lv: S.lvl, quest: game.story().questLine() });
     // the Camp bar
     $('#nightNum').textContent = S.night;
     $('#dayIc').setAttribute('href', night ? '#i-moon' : '#i-sun');
@@ -983,6 +1028,21 @@ export function startApp() {
     const a = Math.PI * (1 - t), x = 22 + Math.cos(a) * 17, y = 19 - Math.sin(a) * 15;
     return `<span class="sundial${soon ? ' soon' : ''}${moon ? ' moon' : ''}"><svg viewBox="0 0 44 22" width="36" height="18" aria-hidden="true"><path d="M5 19 A17 15 0 0 1 39 19" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="2" y1="19.5" x2="42" y2="19.5" stroke="currentColor" stroke-opacity=".5"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" class="sun"/></svg></span>`;
   }
+  // ---------- the contract's place: tap its arrow (or the strip while it has a place) to plan a trip there ----------
+  let kTripEl = null;
+  function contractTrip() {
+    const K = game && game.story().contracts.stripLine(); if (!K || !K.place || !game.road || !game.road.tripInfo) return false;
+    const x = K.place.x, y = K.place.y + 2.4, info = game.road.tripInfo(x, y); if (!info) return false;
+    if (!kTripEl) { kTripEl = document.createElement('div'); kTripEl.className = 'kTrip'; document.body.appendChild(kTripEl); }
+    const cls = info.late ? 'late' : info.risky ? 'risky' : 'ok';
+    kTripEl.innerHTML = `<div class="t"><b>${icon('flame')}Contract: burn ${esc(K.name)}</b><span><em class="${cls}">${esc(info.label)}</em>${info.late ? ' · <em class="late">back after dark</em>' : ''}</span></div><button class="btn sm" data-go>Go</button><button class="x" data-x aria-label="Close">${icon('close')}</button>`;
+    kTripEl.hidden = false; game.road.preview = { path: info.path };
+    const close = () => { kTripEl.hidden = true; if (game.road) game.road.preview = null; clearTimeout(kTripEl._t); };
+    kTripEl.querySelector('[data-go]').onclick = () => { if (game.road.go(x, y)) { close(); toast(`[Trip] On the way to ${K.name}. Touch the stick to take over.`, 'sys'); } };
+    kTripEl.querySelector('[data-x]').onclick = close; clearTimeout(kTripEl._t); kTripEl._t = setTimeout(close, 12000);
+    return true;
+  }
+  document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('.ar.kontract'); if (a && game && !card) contractTrip(); });
   // ---------- edge arrows ----------
   const edge = { top: 60, bot: 100, pool: [], tags: [] };
   function edgeMarks() {
@@ -1007,9 +1067,9 @@ export function startApp() {
       }
     }
     for (const d of S.drops) { const p = view.project(d.x, d.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(3000 + d.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, drop: true }); }
-    for (const sp of S.story.spots) { const p = view.project(sp.x, sp.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(7000 + sp.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, quest: true, label: sp.thread ? 'Quest' : '!' }); }
-    { const tr = S.story.trial; if (tr && !tr.done) { const p = view.project(tr.x, tr.y, 1.5); if (!(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(6999, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: true, quest: true, label: 'Trial' }); } }
-    for (const q of S.story.quests) { const p = view.project(q.x, q.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(5000 + q.site, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, quest: true }); }
+    // quests: only what the gate shows (one at a time early on), never the whole list
+    for (const q of game.story().shownQuests()) { const p = view.project(q.x, q.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(q.key === 'trial' ? 6999 : q.spot ? 7000 + q.spot : 5000 + q.site, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: q.kind === 'trial', quest: true, label: q.label }); }
+    { const K = game.story().contracts.stripLine(); if (K && K.place) { const p = view.project(K.place.x, K.place.y, 2); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8100, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, quest: true, contract: true, label: 'Contract' }); } }
     { const c = game.map.city, h = S.hero; if (c && Math.hypot(c.x - h.x, c.y - h.y) > c.r + 6) { const p = view.project(c.x, c.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8000, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'City' }); } }
     { const tw = game.map.town, h = S.hero; if (Math.hypot(tw.x - h.x, tw.y - h.y) > 24) { const p = view.project(tw.x, tw.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8001, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'Camp' }); } }
     for (let k = tagN; k < edge.tags.length; k++) edge.tags[k].hidden = true;
@@ -1019,7 +1079,7 @@ export function startApp() {
       const c = Math.cos(b.ang), s = Math.sin(b.ang), hx = Wd / 2 - m, hy = Math.max(10, (bt - t) / 2 - m * 0.5), k = Math.min(Math.abs(hx / (c || 1e-6)), Math.abs(hy / (s || 1e-6)));
       el.style.transform = `translate(${cx + c * k}px, ${cy + s * k}px) rotate(${b.ang}rad)`;
       const sp = el.lastChild; sp.textContent = b.label ? b.label : b.quest ? 'Quest' : b.drop ? 'Drop' : b.day ? `~${b.n}` : b.n > 1 ? b.n : ''; sp.style.transform = `rotate(${-b.ang}rad)`;
-      el.classList.toggle('big', b.big); el.classList.toggle('drop', !!b.drop); el.classList.toggle('quest', !!b.quest); el.classList.toggle('ploc', !!b.place); el.hidden = false; i++;
+      el.classList.toggle('big', b.big); el.classList.toggle('drop', !!b.drop); el.classList.toggle('quest', !!b.quest); el.classList.toggle('ploc', !!b.place); el.classList.toggle('kontract', !!b.contract); el.hidden = false; i++;
     }
     for (; i < edge.pool.length; i++) edge.pool[i].hidden = true;
     if (S.over) for (const el of [...edge.pool, ...edge.tags]) el.hidden = true;
@@ -1131,10 +1191,17 @@ export function startApp() {
       if ((e.t === 'remove' || e.t === 'ruin') && selected && selected.type === 'building' && !S.byId.get(selected.id)) closePanel();
       // [road] road-ui reads the same events here
       if (e.t === 'ledger') pendingLedger = e;
+      if (e.t === 'classUp') classBeat(e);
     }
     if (roadUI && events.length) roadUI.onEvents(events);
     if (windowAtDawn) game.story().release();
-    if (!card && now >= dawnAt && S.story.encounters.length && !S.over) showEncounter();
+    // decisions wait for a calm moment: never while the hero fights or the dead are close (the night-1 arrival may
+    // type itself out); a card that waited long enough opens once the hero itself is out of reach
+    { const near = (x, y, r) => S.mobs.some(m => !m.dying && !(MOBS[m.kind] && MOBS[m.kind].animal) && (m.rise === undefined || m.rise >= 1) && Math.hypot(m.x - x, m.y - y) < r);
+      const h = S.hero, fight = !h.dead && near(h.x, h.y, 12), camp = near(game.map.town.x, game.map.town.y, 12);
+      calmT = fight || camp ? 0 : calmT + dt; waitT = S.story.encounters.length ? waitT + dt : 0; }
+    const calmOk = calmT > 2.5 || (waitT > 25 && !(S.hero && !S.hero.dead && S.mobs.some(m => Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 6))) || (S.story.encounters[0] && S.story.encounters[0].kind === 'arrival');
+    if (!card && now >= dawnAt && S.story.encounters.length && !S.over && calmOk) showEncounter();
     if (endT > 0 && now >= endT) { endT = -1; paused = true; showEnd(); }
     if (placing && placing.zone.ver !== S.occVersion) { refreshZone(); updateGhost(); }
     view.frame(dt, { events, selected, ghost: placing && placing.ghost, zone: placing && placing.zoneMask });

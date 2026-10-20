@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { generateMap, validateMap, mapChoices, BIOMES, N, idx, PASSABLE } from '../src/sim/mapgen.js';
 import { createGame as newGame, LEVEL, NOISE, HEAT, TENSION, PRESENCE, TOOLS, CUT } from '../src/sim/game.js';
 import { HEROES } from '../src/content/heroes.js';
+import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../src/content/season.js';
 import { BUILDINGS } from '../src/content/buildings.js';
 import { playRun } from '../tools/bot.mjs';
 
@@ -499,31 +500,45 @@ test('districts: sealed at the start, opened by choice, identity decided when of
   assert.ok(g.frontier().length >= front.length - 1);
 });
 
-// the path: decisions lean the hero; at level 5 a trial in the city earns the Calling, at 12 the final class
+// the path: decisions lean the hero; three tiers by level: the Calling (15), the advanced class (30), the legendary form (45)
 function passTrial(g, choiceId) {
   const S = g.state; g.story().flush(); S.story.encounters = S.story.encounters.filter(x => x.kind === 'evolve'); const e = S.story.encounters[0]; assert.ok(e && e.kind === 'evolve', 'no class quest offered');
-  assert.ok(e.choices.some(c => c.id === choiceId), `no ${choiceId} in ${e.choices.map(c => c.id)}`);
-  g.choose(choiceId); const tr = S.story.trial; assert.ok(tr && !tr.done, 'no trial placed');
+  const id = choiceId || e.choices.find(c => c.id.startsWith('trial-')).id;
+  assert.ok(e.choices.some(c => c.id === id), `no ${id} in ${e.choices.map(c => c.id)}`);
+  g.choose(id); const tr = S.story.trial; assert.ok(tr && !tr.done, 'no trial placed');
   S.hero.x = tr.x; S.hero.y = tr.y + 1.5; S.hero.hp = S.hero.maxHp = 999;
   for (let k = 0; k < 60 && !S.mobs.some(m => m.trial); k++) g.step();
-  const w = S.mobs.find(m => m.trial); assert.ok(w, 'the trial warden never came');
-  for (let k = 0; k < 60 * 60 && S.mobs.includes(w); k++) { S.hero.hp = 999; g.heroTo(w.x, w.y); g.step(); }
+  const w = S.mobs.find(m => m.trial); assert.ok(w, 'the trial warden never came'); assert.ok(w.bossName, 'the trial boss has no name');
+  for (let k = 0; k < 60 * 120 && S.mobs.includes(w); k++) { S.hero.hp = 999; g.heroTo(w.x, w.y); g.step(); }
   assert.ok(!S.mobs.includes(w), 'could not beat the warden'); assert.ok(tr.done);
+  return e;
 }
 const levelTo = (g, lv) => { while (g.state.lvl < lv) g.gainXp(g.xpNext() - g.state.xp); };
-test('evolution: decisions lead the way; a trial earns the Calling, then the final class', () => {
+test('evolution: three tiers by level, each earned by a trial with a named boss', () => {
   const g = createGame({ seed: 8, hero: 'survivor' }); const S = g.state; readyDay(g);
   g.addPath('hero', 6); g.addPath('heart', 1);
-  levelTo(g, 4); g.story().flush(); assert.equal(S.story.encounters.length, 0, 'offered before level 5');
-  levelTo(g, 5); g.story().flush();
-  { const e = S.story.encounters.find(x => x.kind === 'evolve'); assert.equal(e.choices.filter(c => c.id.startsWith('trial-')).length, 2, 'not two Callings'); }
+  levelTo(g, CALLING_LVL - 1); g.story().flush(); assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'offered before the Calling level');
+  levelTo(g, CALLING_LVL); g.story().flush();
+  { const e = S.story.encounters.find(x => x.kind === 'evolve'); assert.equal(e.tier, 1); assert.equal(e.choices.filter(c => c.id.startsWith('trial-')).length, 2, 'not two Callings');
+    assert.ok(e.jobs.every(j => j.perks.length >= 2 && j.who), 'a Calling without plain perks'); assert.ok(e.jobs.find(j => j.cls === 'warrior').yours, 'the lived path is not marked'); }
   passTrial(g, 'trial-warrior'); assert.equal(S.heroClass, 'warrior');
-  g.addPath('ranger', 8); levelTo(g, 12); g.story().flush();
-  assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'the final class is parked, but it was offered');
+  g.addPath('ranger', 8); levelTo(g, FINAL_LVL - 1); g.story().flush(); assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'tier 2 offered early');
+  levelTo(g, FINAL_LVL);
+  { const e = passTrial(g); assert.equal(e.tier, 2); }
+  assert.ok(HEROES[S.heroClass].base === 'warrior' && !HEROES[S.heroClass].legend, `not an advanced class: ${S.heroClass}`);
+  levelTo(g, LEGEND_LVL - 1); g.story().flush(); assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'tier 3 offered early');
+  levelTo(g, LEGEND_LVL);
+  { const e = passTrial(g); assert.equal(e.tier, 3); assert.equal(e.jobs.length, 1); }
+  const L = HEROES[S.heroClass]; assert.ok(L.legend && L.calling === 'warrior', `not the warrior's legendary form: ${S.heroClass}`);
+  assert.equal(L.name, 'Juggernaut');
 });
-test('the hero levels to 12 in a season, and no Calling deals less than the Survivor', () => {
-  let xp = 0; for (let lv = 1; lv < 12; lv++) xp += LEVEL.xp(lv);
-  assert.ok(xp <= 2000, `level 12 needs ${xp} xp`);
+test('the class tiers land in order on the XP curve, and no Calling deals less than the Survivor', () => {
+  const xpTo = lv => { let x = 0; for (let l = 1; l < lv; l++) x += LEVEL.xp(l); return x; };
+  assert.ok(xpTo(CALLING_LVL) < xpTo(FINAL_LVL) && xpTo(FINAL_LVL) < xpTo(LEGEND_LVL) && LEGEND_LVL <= LEVEL.max);
+  // calibrated on the autopilot bot: ~390 xp by night 9, ~2000 by night 22, then ~200 a night (tiers at ~9, ~22, ~37)
+  assert.ok(xpTo(CALLING_LVL) >= 300 && xpTo(CALLING_LVL) <= 480, `Calling needs ${xpTo(CALLING_LVL)} xp`);
+  assert.ok(xpTo(FINAL_LVL) >= 1600 && xpTo(FINAL_LVL) <= 2500, `the advanced class needs ${xpTo(FINAL_LVL)} xp`);
+  assert.ok(xpTo(LEGEND_LVL) >= 4500 && xpTo(LEGEND_LVL) <= 6500, `the legendary class needs ${xpTo(LEGEND_LVL)} xp`);
   const dps = h => HEROES[h].attack.dmg / HEROES[h].attack.rate;
   for (const h of ['warrior', 'archer', 'merchant', 'medic']) assert.ok(dps(h) >= dps('survivor'), `${h}: ${dps(h).toFixed(2)} < survivor ${dps('survivor').toFixed(2)}`);
 });
@@ -551,7 +566,7 @@ test('saving: a dawn snapshot restores the town, the story and the city', () => 
 test('the Heart family: a Medic patches the town', async () => {
   const g = createGame({ seed: 12, hero: 'survivor' }); const S = g.state; readyDay(g);
   const take = id => { S.picks = ['dawn']; S.offer = [id]; S.pendingPicks = 1; g.choosePerk(id); };
-  g.addPath('heart', 6); levelTo(g, 5); passTrial(g, 'trial-medic'); assert.equal(S.heroClass, 'medic');
+  g.addPath('heart', 6); levelTo(g, CALLING_LVL); passTrial(g, 'trial-medic'); assert.equal(S.heroClass, 'medic');
   S.gold = 99; const t = g.map.town; let b = null;
   for (let r = 4; r < 10 && !b; r++) for (let a = 0; a < 24 && !b; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) b = S.buildings[S.buildings.length - 1]; }
   b.hp = 1; S.hero.x = b.x + 1; S.hero.y = b.y + 1; S.ability.cd = 0;
@@ -674,7 +689,8 @@ test('the honest forecast strip and the dawn ledger', () => {
 });
 
 test('cuts: titles are flavour, no trader, one companion, no crew events, generators out of the build list', () => {
-  for (const k of ['walls', 'power', 'hands', 'weather', 'titleStats', 'finalClass', 'secondCompanion', 'trader', 'crew']) assert.ok(CUT[k], `${k} is not cut`);
+  for (const k of ['walls', 'power', 'hands', 'weather', 'titleStats', 'secondCompanion', 'trader', 'crew']) assert.ok(CUT[k], `${k} is not cut`);
+  assert.equal(CUT.finalClass, false, 'the advanced class (tier 2, Lv 30) is back');
   const g = createGame({ seed: 7, hero: 'merchant' }); readyDay(g); const S = g.state;
   const dmg = S.P.heroDmg, keepHp = S.P.keepHp; g.story().grant('gravedigger'); g.story().grant('firstLight'); g.step();
   assert.equal(S.P.heroDmg, dmg); assert.equal(S.P.keepHp, keepHp); assert.ok(S.story.titles.includes('gravedigger'), 'the title itself is gone');
