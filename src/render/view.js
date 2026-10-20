@@ -492,8 +492,8 @@ export function createView(canvas, game, opts = {}) {
       if (lv >= 3 && type !== 'tower') {
         // corner posts with strings of pennants on all four sides
         for (const [x, z] of posts) { b.box('#5a4630', 0.06, 1.2, 0.06, x, 0, z); b.sph(CHEER[0], 0.05, x, 1.22, z, { detail: 0 }); }
-        for (const [z, ax] of [[-h, 'x'], [h, 'x'], [-h, 'z'], [h, 'z']]) for (let k = 1; k < 8; k++) { const t = k / 8, u = -h + 2 * h * t, sag = Math.sin(t * Math.PI) * 0.16; if (ax === 'x') b.cbox(CHEER[k % CHEER.length], 0.24, 0.24, 0.02, u, 1.02 - sag, z, { r: 0.002, rz: Math.PI / 4 }); else b.cbox(CHEER[(k + 2) % CHEER.length], 0.02, 0.24, 0.24, z, 1.02 - sag, u, { r: 0.002, rx: Math.PI / 4 }); }
-        for (const [z, ax] of [[-h, 'x'], [h, 'x'], [-h, 'z'], [h, 'z']]) for (let k = 0; k < 8; k++) { const t0 = k / 8, t1 = (k + 1) / 8, y0 = 1.14 - Math.sin(t0 * Math.PI) * 0.16, y1 = 1.14 - Math.sin(t1 * Math.PI) * 0.16, u = -h + 2 * h * (t0 + t1) / 2, L = 2 * h / 8, rz = Math.atan2(y1 - y0, L); if (ax === 'x') b.cbox('#3b3631', L + 0.01, 0.012, 0.012, u, (y0 + y1) / 2, z, { r: 0.001, rz }); else b.cbox('#3b3631', 0.012, 0.012, L + 0.01, z, (y0 + y1) / 2, u, { r: 0.001, rx: -rz }); }
+        for (const [z, ax] of [[h, 'x'], [h, 'z']]) for (let k = 1; k < 8; k++) { const t = k / 8, u = -h + 2 * h * t, sag = Math.sin(t * Math.PI) * 0.16; if (ax === 'x') b.cbox(CHEER[k % CHEER.length], 0.24, 0.24, 0.02, u, 1.02 - sag, z, { r: 0.002, rz: Math.PI / 4 }); else b.cbox(CHEER[(k + 2) % CHEER.length], 0.02, 0.24, 0.24, z, 1.02 - sag, u, { r: 0.002, rx: Math.PI / 4 }); }
+        for (const [z, ax] of [[h, 'x'], [h, 'z']]) for (let k = 0; k < 8; k++) { const t0 = k / 8, t1 = (k + 1) / 8, y0 = 1.14 - Math.sin(t0 * Math.PI) * 0.16, y1 = 1.14 - Math.sin(t1 * Math.PI) * 0.16, u = -h + 2 * h * (t0 + t1) / 2, L = 2 * h / 8, rz = Math.atan2(y1 - y0, L); if (ax === 'x') b.cbox('#3b3631', L + 0.01, 0.012, 0.012, u, (y0 + y1) / 2, z, { r: 0.001, rz }); else b.cbox('#3b3631', 0.012, 0.012, L + 0.01, z, (y0 + y1) / 2, u, { r: 0.001, rx: -rz }); }
         // planters with flowers on two corners
         for (const [x, z] of posts.slice(2)) { b.cbox('#8a5a3a', 0.34, 0.16, 0.34, x, 0.08, z, { r: 0.03 }); b.sph('#5c8a3c', 0.15, x, 0.2, z, { detail: 0 }); for (let k = 0; k < 4; k++) b.sph(CHEER[(k + Math.floor(r() * 4)) % CHEER.length], 0.05, x + (r() - 0.5) * 0.22, 0.32, z + (r() - 0.5) * 0.22, { detail: 0 }); }
       } else if (type !== 'tower') {
@@ -773,8 +773,8 @@ export function createView(canvas, game, opts = {}) {
       for (const b of S.buildings) {
         if (b.ruined || b.built < 1) continue;
         const p = Wv(b.x, b.y);
-        if (b.type === 'house') fx2.pools.light(p.x, p.z, 1.6 + b.level * 0.5, WARM, (0.25 + 0.2 * b.level) * lit * fl(b.id));
-        else if (b.type === 'tower') fx2.pools.light(p.x, p.z, 2.4, WARM, 0.55 * lit * fl(b.id));
+        if (b.type === 'house') fx2.pools.light(p.x, p.z, 1.8 + b.level * 0.6, WARM, (0.35 + 0.3 * b.level) * lit * fl(b.id), 0.2);
+        else if (b.type === 'tower') fx2.pools.light(p.x, p.z, 2.2 + b.level * 0.5, AMBER, (0.35 + 0.25 * b.level) * fl(b.id));
         else if (b.level >= 2 && b.type !== 'wall') fx2.pools.light(p.x, p.z, 1.8, WARM, 0.3 * lit);
       }
       for (const [r, hv] of hives) if (hv.glow > 0.05 && hv.g.visible) { const n = map.regions[r].nest; fx2.pools.light(n.x - C, n.y - C, 6, S.eruption && S.eruption.region === r ? REDL : S.purge === r ? SIEGE : ROT, hv.glow * 0.9, 0.3); }
@@ -790,7 +790,7 @@ export function createView(canvas, game, opts = {}) {
   const RIM_DAY = lc('#ffdcae'), RIM_NIGHT = lc('#8fb4ff'), MIST_DAWN = lc('#e6d2cc'), MIST_DUSK = lc('#a796b4'), MIST_NIGHT = lc('#30406a'), _rc = new THREE.Color();
   // camera: a spring that leads the hero a little in the direction they walk; trauma shake on top
   const camVel = new THREE.Vector3(), camGoal = new THREE.Vector3(), lead = new THREE.Vector3(); let prevHx = null, prevHy = 0, dolly = 0;
-  let boK = 0, animT = 0, emberT = 0, snapT = 0;
+  let boK = 0, animT = 0, emberT = 0, snapT = 0, scanV = -1, scanT0 = -9, scanX = 0, scanZ = 0;
   function frame(dt, ui = {}) {
     time += dt;
     handleEvents(ui.events || []);
@@ -798,6 +798,9 @@ export function createView(canvas, game, opts = {}) {
     trauma = Math.max(0, trauma - 1.6 * dt); look.fx.hit = Math.max(0, look.fx.hit - dt * 2.6);
     syncKeep(); syncBuildings(); syncMobs(); syncProjectiles(); syncChests(); syncAllies(); syncPurses(); updateSites(dt, time); stepWalkers(dt); stepRain(dt); updateLandmarks(time); syncDrops(time); syncSpots(time); syncPickups(time); syncFences();
     game.zone();
+    // the System's scan: when the hero opens new ground, a cyan wave rolls out from them (0.6 s)
+    if (S.seenVersion !== scanV) { scanV = S.seenVersion; if (time - scanT0 > 1.6 && time > 2) { scanT0 = time; scanX = S.hero.x - C; scanZ = S.hero.y - C; } }
+    { const st = (time - scanT0) / 0.6; K.T.scan.value.set(scanX, scanZ, st * 13, st < 1 ? (1 - st) * (1 - st) : 0); }
     if ((S.seenVersion !== seenV || S.zoneVersion !== zoneV) && (shroudT -= dt) <= 0) { shroudT = 0.3; if (S.zoneVersion !== zoneV) repaint = true; seenV = S.seenVersion; zoneV = S.zoneVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }
     const night = S.phase === 'night' || S.phase === 'over';

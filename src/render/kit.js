@@ -808,13 +808,13 @@ ${o.fragColor || ''}`)
     if (lvl === 1) {
       // survival: scaffold poles and odd timbers lashed together, a pallet deck, sandbags, a tarp against the wind
       H = 3.9; const sz = 2.1, h = sz / 2;
-      for (const [a, c, m] of [[-1, -1, 'steel'], [1, -1, '#6a5a48'], [-1, 1, '#6a5a48'], [1, 1, 'metal']]) b.box(m, 0.11, H, 0.11, a * h, 0, c * h, { r: 0.02, rz: a * 0.02 });
-      rod(b, '#6f675b', [-h, 0.3, h], [h, 2.3, h], 0.08); rod(b, 'metal', [h, 0.5, -h], [h, 2.6, h], 0.06); rod(b, '#5a5045', [-h, 2.4, -h], [h, 0.4, -h], 0.08); rod(b, 'steel', [-h, 0.2, -h], [-h, 2.0, h], 0.06);
+      for (const [a, c, m] of [[-1, -1, '#7a5a3c'], [1, -1, '#6a5a48'], [-1, 1, '#6a5a48'], [1, 1, '#86654a']]) b.box(m, 0.13, H, 0.13, a * h, 0, c * h, { r: 0.02, rz: a * 0.02 });
+      rod(b, '#6f5a45', [-h, 0.3, h], [h, 2.3, h], 0.08); rod(b, '#7a5a3c', [h, 0.5, -h], [h, 2.6, h], 0.07); rod(b, '#5a4535', [-h, 2.4, -h], [h, 0.4, -h], 0.08); rod(b, '#6c4f35', [-h, 0.2, -h], [-h, 2.0, h], 0.07);
       for (const y of [2.1]) { rod(b, '#6f675b', [-h, y, h], [h, y + 0.05, h], 0.07); rod(b, '#6f675b', [h, y, h], [h, y - 0.04, -h], 0.07); }
       for (let k = 0; k < 4; k++) b.cbox(['#8a7356', '#6f675b', '#7b6a52'][k % 3], sz + 0.45, 0.1, 0.52, (r() - 0.5) * 0.12, H + 0.05, -h - 0.05 + k * 0.62, { r: 0.01, ry: (r() - 0.5) * 0.06 });
       bagRow(b, 0, h + 0.05, sz + 0.3, 2, 0, r, H + 0.1); bagRow(b, h + 0.05, 0, sz + 0.3, 2, Math.PI / 2, r, H + 0.1);
       for (const z of [-h - 0.1, h - 0.4]) b.box('#5a5045', 0.07, 1.25, 0.07, -h - 0.15, H + 0.1, z, { r: 0.01 });
-      b.cbox('#59625e', 0.04, 0.95, sz + 0.1, -h - 0.18, H + 0.75, -0.25, { r: 0.006, rz: 0.08 });
+      b.cbox('#6f8a8c', 0.04, 0.95, sz + 0.1, -h - 0.18, H + 0.75, -0.25, { r: 0.006, rz: 0.08 });
       for (const s of [-0.25, 0.25]) rod(b, '#6a5a48', [s, 0, h + 0.75], [s, H, h + 0.2], 0.06);
       for (let k = 1; k < 6; k++) { const t = k / 6; b.cbox('#7b6a52', 0.55, 0.05, 0.06, 0, H * t, h + 0.75 - 0.55 * t, { r: 0.005 }); }
       b.cbox(LANTERN, 0.14, 0.2, 0.14, -h - 0.15, H + 1.45, h - 0.4, { r: 0.02 });
@@ -838,33 +838,27 @@ ${o.fragColor || ''}`)
       for (let k = 1; k < 10; k++) b.cbox('#7b6a52', 0.6, 0.05, 0.06, 0, k * H / 10, h + 0.18, { r: 0.005 });
       b.box('wood', 0.6, 0.5, 0.6, -h - 0.3, 0, h - 0.1, { r: 0.03, ry: 0.3 }); drum(b, '#5c6e78', h + 0.45, -h + 0.2, 0.9);
     } else {
-      // thriving: a turret on a painted base, a bright conical roof, the town banners, pennants and lights
-      H = 7.6; const acc = o.accent || '#2f8f88', cream = '#efe6d2', trim = '#f6f0e2', roofC = o.roof || '#c8553d';
-      b.box('#d9cfbb', 3.4, 2.2, 3.4, 0, 0, 0, { r: 0.12 });
-      b.cbox('#8f8a80', 3.46, 0.4, 3.46, 0, 0.2, 0, { r: 0.04 }); b.cbox('amber', 3.44, 0.3, 3.44, 0, 1.55, 0, { r: 0.02 });
-      b.cbox(trim, 3.6, 0.16, 3.6, 0, 2.2, 0, { r: 0.03 });
-      b.cyl(cream, 1.0, 1.25, H - 2.2, 0, 2.2, 0, { seg: 16 });
-      for (let k = 0; k < 2; k++) b.cyl(k ? acc : 'amber', 1.12 - k * 0.07, 1.12 - k * 0.07, 0.24, 0, 3.4 + k * 1.6, 0, { seg: 16 });
-      for (let k = 0; k < 3; k++) b.cbox(glass(o), 0.3, 0.55, 0.06, Math.sin(k * 2.1) * 1.1, 3.9 + k * 0.6, Math.cos(k * 2.1) * 1.1, { r: 0.01, ry: k * 2.1 });
-      b.cyl('steel', 1.55, 1.3, 1.0, 0, H, 0, { seg: 8 });
-      b.cyl(acc, 1.6, 1.6, 0.14, 0, H + 1.0, 0, { seg: 8 });
-      b.cbox('dark', 0.5, 0.42, 0.9, 0, H + 0.55, 1.3, { r: 0.06 });
-      b.cbox('dark', 0.14, 0.14, 1.7, 0.09, H + 0.6, 2.4, { r: 0.04 }); b.cbox('dark', 0.14, 0.14, 1.7, -0.09, H + 0.6, 2.4, { r: 0.04 });
-      b.cyl('steel', 0.35, 0.42, 0.55, 0.9, H + 1.12, -0.5, { rx: -1.15, seg: 14 });
-      b.cyl(o.game ? LENS : M('pale', { emissive: '#fff1d0', ei: o.night ? 6 : 0.2 }), 0.33, 0.33, 0.04, 0.9, H + 1.33, -0.12, { rx: -1.15, seg: 14 });
-      // the roof on four posts, lights around its eaves, the flag on top
-      for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2; b.box('#3a3a38', 0.09, 1.5, 0.09, Math.cos(a) * 1.45, H + 1.0, Math.sin(a) * 1.45, { r: 0.01 }); }
-      b.cyl(roofC, 0.05, 2.05, 1.6, 0, H + 2.5, 0, { seg: 8 }); b.cyl(trim, 2.08, 2.08, 0.14, 0, H + 2.44, 0, { seg: 8 });
-      for (let k = 0; k < 8; k++) { const a0 = k * Math.PI / 4, a1 = (k + 1) * Math.PI / 4, R = 2.08; lights(b, [Math.cos(a0) * R, H + 2.4, Math.sin(a0) * R], [Math.cos(a1) * R, H + 2.4, Math.sin(a1) * R], 2, 0.12); }
-      flag(b, 0, H + 3.95, 0, 1.7, 1.2);
-      // two long banners in the town colour hanging from the turret
-      for (const s of [-1, 1]) { b.cbox('amber', 0.05, 2.6, 0.75, s * 1.32, H - 1.4, 0, { r: 0.006 }); b.cbox(trim, 0.06, 0.18, 0.77, s * 1.33, H - 0.55, 0, { r: 0.004 }); b.geo('amber', PEN, s * 1.32, H - 2.7, 0, 0, Math.PI / 2, 0, 2.2, 1.2, 1); }
-      // bunting round the base, planters with flowers at its feet, sandbags only on the gun side
-      const c = 1.75;
-      for (const [x, z] of [[-c, -c], [c, -c], [c, c], [-c, c]]) b.box('#3a3a38', 0.07, 1.0, 0.07, x, 2.28, z, { r: 0.01 });
-      bunting(b, [-c, 3.2, c], [c, 3.2, c], 6, 0.18); bunting(b, [c, 3.2, -c], [c, 3.2, c], 6, 0.18); bunting(b, [-c, 3.2, -c], [-c, 3.2, c], 6, 0.18); bunting(b, [-c, 3.2, -c], [c, 3.2, -c], 6, 0.18);
-      bagRow(b, 0, 1.45, 2.6, 2, 0, r, 2.28);
-      for (const [x, z] of [[-1.95, 1.95], [1.95, 1.95], [1.95, -1.95], [-1.95, -1.95]]) planter(b, x, z, 0.8, r);
+      // thriving: a tall timber lookout — log legs braced in two stages, a plank-walled platform, a shingle roof,
+      // a brazier and the camp's banners
+      H = 7.4; const sz = 2.8, h = sz / 2, roofC = '#5a4636';
+      for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) rod(b, ['#7a5a3c', '#6c4f35'][(a + c + 2) / 2 % 2], [a * (h + 0.5), 0, c * (h + 0.5)], [a * h, H, c * h], 0.26);
+      for (const [y0, y1, k0, k1] of [[0.4, 3.6, 0.45, 0.25], [3.8, 7.0, 0.24, 0.02]]) for (const [p, q] of [[[-1, 1], [1, 1]], [[1, -1], [1, 1]], [[-1, -1], [1, -1]], [[-1, -1], [-1, 1]]]) { rod(b, '#5f4530', [p[0] * (h + k0), y0, p[1] * (h + k0)], [q[0] * (h + k1), y1, q[1] * (h + k1)], 0.1); rod(b, '#5f4530', [q[0] * (h + k0), y0, q[1] * (h + k0)], [p[0] * (h + k1), y1, p[1] * (h + k1)], 0.1); }
+      b.box('#86654a', sz + 1.0, 0.18, sz + 1.0, 0, H, 0, { r: 0.03 });
+      const ph = h + 0.45;
+      for (const s2 of [-1, 1]) { for (let k = 0; k < 3; k++) { b.cbox(k % 2 ? '#7a5a3c' : '#86654a', sz + 0.95, 0.3, 0.12, 0, H + 0.35 + k * 0.32, s2 * ph, { r: 0.02 }); b.cbox(k % 2 ? '#86654a' : '#7a5a3c', 0.12, 0.3, sz + 0.95, s2 * ph, H + 0.35 + k * 0.32, 0, { r: 0.02 }); } }
+      for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box('#5f4530', 0.16, 2.3, 0.16, a * ph, H + 0.1, c * ph, { r: 0.02 });
+      b.geo(roofC, new THREE.ConeGeometry((ph + 0.5) * Math.SQRT2, 1.8, 4), 0, H + 3.3, 0, 0, Math.PI / 4, 0);
+      b.cbox('#3e3026', 0.3, 0.6, 0.3, 0, H + 4.35, 0, { r: 0.04 });
+      flag(b, 0, H + 4.5, 0, 1.6, 1.2);
+      // the brazier at the front corner and a lantern on the other
+      b.cyl('#3a3836', 0.38, 0.26, 0.45, ph - 0.4, H + 1.1, ph - 0.4, { seg: 8 }); b.cbox(LANTERN, 0.5, 0.18, 0.5, ph - 0.4, H + 1.6, ph - 0.4, { r: 0.05 });
+      b.cbox(LANTERN, 0.2, 0.28, 0.2, -ph, H + 1.9, -ph + 0.3, { r: 0.03 });
+      // two long banners in the camp colour hanging off the platform
+      for (const s2 of [-1, 1]) { b.cbox('amber', 0.06, 2.4, 0.8, s2 * (ph + 0.08), H - 1.15, 0, { r: 0.006 }); b.geo('amber', PEN, s2 * (ph + 0.08), H - 2.35, 0, 0, Math.PI / 2, 0, 2.3, 1.2, 1); }
+      // a ladder, sandbags and a barrel at the foot
+      for (const s2 of [-0.3, 0.3]) rod(b, '#6a5848', [s2, 0, h + 1.3], [s2, H, h + 0.5], 0.07);
+      for (let k = 1; k < 12; k++) { const t = k / 12; b.cbox('#7b6a52', 0.66, 0.06, 0.07, 0, H * t, h + 1.3 - 0.8 * t, { r: 0.005 }); }
+      bagRow(b, -h - 0.4, 0, 2.4, 2, Math.PI / 2, r); drum(b, '#6a5440', h + 0.9, -h - 0.4, 0.9);
     }
     const g = b.build({ vc: true }); g.userData.top = H; return g;
   }
@@ -1306,7 +1300,7 @@ ${o.fragColor || ''}`)
     logWall(b, ox - w / 2, -d / 2, ox - w / 2, d / 2, wh, 0.16, 0.35, logTones); logWall(b, ox + w / 2, -d / 2, ox + w / 2, d / 2, wh, 0.16, 0.35, logTones);
     const H = wh + 0.35, pitch = lvl === 2 ? 1.9 : 2.2, roof = lvl === 2 ? ['#5a4636', '#4f4a44', '#5d4a3a', '#6a5040'][v] : ['#7a4a36', '#3d5a5c', '#6a3a30', '#4a5a3c'][v];
     // windows and door on the front (+z)
-    const win = (x, y, z, s = 1, ww = 0.8, hh = 0.8) => { b.cbox(WIN, ww, hh, 0.08, x, y, z, { r: 0.01 }); b.cbox(TIMBER[0], ww + 0.24, 0.1, 0.2, x, y - hh / 2 - 0.04, z + s * 0.06, { r: 0.02 }); b.cbox(TIMBER[0], ww + 0.24, 0.1, 0.16, x, y + hh / 2 + 0.04, z + s * 0.04, { r: 0.02 }); };
+    const win = (x, y, z, s = 1, ww = 1.0, hh = 0.95) => { b.cbox(WIN, ww, hh, 0.08, x, y, z, { r: 0.01 }); b.cbox(TIMBER[0], ww + 0.24, 0.1, 0.2, x, y - hh / 2 - 0.04, z + s * 0.06, { r: 0.02 }); b.cbox(TIMBER[0], ww + 0.24, 0.1, 0.16, x, y + hh / 2 + 0.04, z + s * 0.04, { r: 0.02 }); };
     win(ox - 1.5, 1.65, d / 2 + 0.17); win(ox + 1.5, 1.65, d / 2 + 0.17); win(ox, 1.65, -d / 2 - 0.17, -1); win(ox + w / 2 + 0.17, 1.65, 0, 1, 0.08, 0.8);
     b.cbox('#4a3626', 0.95, 1.9, 0.08, ox, 1.3, d / 2 + 0.18, { r: 0.01 });
     // the gable roof (ridge along x), gable ends in planks, a stone chimney
