@@ -6,7 +6,7 @@
 export const SYSTEM = {
   intro: 'You **survived** night one. Pick a **gift** for it.',
   // night 1, hand-authored: the System arrives when the first of the dead reaches you (Solo Leveling, episode 2)
-  dayOne: 'Light the fire. **One of them is coming.**',
+  dayOne: 'Light the fire. **They come at dusk.**',
   arrival: ['[Status window]', 'Survivor · Lv 1 · HP {hp}', '[Skill acquired: Shove]', 'Push the dead back. Tap the round button.', '[Quest] Survive the night. A **gift** waits at dawn.'],
   arrivalTitle: 'The window only you can see',
   firstLight: '[Title acquired: First Light]',
