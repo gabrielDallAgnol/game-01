@@ -40,8 +40,8 @@ test('growth helps: the noise multiplier is capped at ×1.5 and the dead toughen
   const rows = model('survivor', 20);
   for (const r of rows.filter(q => q.night >= 9)) assert.ok(r.dps >= at(rows, r.night - 3).dps, `night ${r.night}: dps fell to ${r.dps}`);
 });
-// The bot band. Calibration (tools/sweep.mjs survivor 16 12 survivor, Oct 20): the clock bot's median run ends on
-// night 13–14 with no single-night collapse from ≥90% hall. In the model, that town sits in this band: still
+// The bot band. Calibration (tools/sweep.mjs survivor 16 12 survivor, Oct 20): the clock bot's runs end on nights
+// 11–14, median 13 (was 8–12, median 9), with no single-night collapse from ≥90% hall. In the model, that town sits in this band: still
 // holding on nights 12–14 (ratio well under 1) but no longer trivial, and clearly losing by night 25.
 test('the bot band: nights 12–14 are hard but holdable; night 22 is not trivial', () => {
   const rows = model('survivor', 25);

@@ -730,3 +730,14 @@ test('contracts: stacked rules, a finale, and a won contract steps the difficult
   const L = lastEv(T, 'finale'); assert.ok(L && L.won === false, 'no lost finale when the season ended');
   assert.equal(T.season.n, 2); assert.ok(T.season.rules.includes('raiders'), 'the new season lost its rule');
 });
+
+test('engine calls for contracts.js and the UI: setDifficulty, endRun with a reason, contractWon(share), lightsout alias', () => {
+  const g = createGame({ seed: 12 }); readyDay(g); const S = g.state; S.night = 6;
+  const b0 = g.forecast().reduce((a, r) => a + r.count, 0);
+  assert.ok(g.setDifficulty('nightmare')); assert.equal(S.difficulty, 'nightmare'); assert.ok(g.forecast().reduce((a, r) => a + r.count, 0) > b0, 'difficulty did not retune the run');
+  assert.equal(g.setDifficulty('nope'), false);
+  g.setSeasonRules(['lightsout']); assert.ok(g.rule('lightsOut') && g.rule('lightsout'));
+  S.night = 11; S.season.start = 1; assert.ok(g.contractWon(0.5)); assert.equal(S.diffNight, 5);
+  assert.ok(g.endRun(false, 'The Toll-King')); assert.ok(S.over); assert.equal(S.log[S.log.length - 1].reason, 'The Toll-King');
+  assert.equal(lastEv(S, 'over').reason, 'The Toll-King'); assert.equal(g.endRun(false), false, 'ended twice');
+});

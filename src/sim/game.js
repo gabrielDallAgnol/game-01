@@ -91,7 +91,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const rng = new Rng(hashSeed(seed, 'run'));
   const perkRng = new Rng(hashSeed(seed, 'perks'));
   let HC = HEROES[hero];
-  const DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
+  let DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
   const c = map.town.x;
 
   const S = {
@@ -1139,7 +1139,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   // ---------- seasons: an arc every SEASON_LEN nights, with a rule and a finale on its last blood moon ----------
   // a season's rules live in S.season.rules (a won contract's rules stack); S.season.rule is the newest, for old readers
-  const rule = id => !!S.season && ((S.season.rules || []).includes(id) || S.season.rule === id);
+  const RULE_ALIAS = { lightsout: 'lightsOut', 'lights-out': 'lightsOut' };
+  const rule = id => { if (!S.season) return false; const list = S.season.rules || [], a = RULE_ALIAS[id] || id; return list.some(r => (RULE_ALIAS[r] || r) === a) || (RULE_ALIAS[S.season.rule] || S.season.rule) === a; };
   const ADJ = ['Hollow', 'Weeping', 'Iron', 'Burning', 'Silent', 'Thousand-Handed', 'Pale', 'Drowned'], NOUN = ['Choir', 'Shepherd', 'Matron', 'Engine', 'Bride', 'Tide', 'Bellringer', 'Warden'];
   function startSeason(n) {
     const seasonRng = new Rng(hashSeed(seed, 'season', n));
@@ -1161,10 +1162,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   /** a won contract: the difficulty curve steps back ~40% of the nights this season ran (night N then plays like
    *  N − 0.4×(N − season start)); the rules you chose stay. Idempotent per season. */
-  function contractWon() {
+  function contractWon(share = 0.4) {
     if (!S.season || S.season.contractWon) return false;
     S.season.contractWon = true; S.season.won = true;
-    const back = +(0.4 * Math.max(0, S.night - (S.season.start || 1))).toFixed(2);
+    const back = +(Math.max(0, Math.min(1, +share || 0)) * Math.max(0, S.night - (S.season.start || 1))).toFixed(2);
     S.diffNight = +((S.diffNight || 0) + back).toFixed(2);
     ev('contractWon', { season: S.season.n, back, diffNight: S.diffNight });
     return true;
@@ -1264,10 +1265,18 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (isBloodMoon(S.night + 1)) toast(`[Warning: red sky] The sky is turning red. **Tomorrow night is a blood moon**${S.unique && !S.unique.slain && S.unique.night === S.night + 1 ? `, and ${S.unique.name} comes with it` : ''}. Build up today and tomorrow.`, 'win');
   }
 
-  function endRun(won) {
-    S.over = true; S.won = won; S.phase = 'over'; closeLog({ result: won ? 'won' : 'lost' });
+  /** the run ends: the hall fell, or (contracts.js) a lost contract ends it with a name. Closes the run log. */
+  function endRun(won, reason) {
+    if (S.over) return false;
+    S.over = true; S.won = !!won; S.phase = 'over'; if (reason) S.endReason = reason; closeLog({ result: won ? 'won' : 'lost', reason: reason || (won ? 'won' : 'hall') });
     S.stats.nights = S.night - 1; S.stats.peakPop = Math.max(S.stats.peakPop, pop());
-    ev('over', { won, night: S.night });
+    ev('over', { won: !!won, night: S.night, reason: reason || null });
+    return true;
+  }
+  /** retune the live run (never mutates the shared DIFFICULTY table) */
+  function setDifficulty(key) {
+    if (!DIFFICULTY[key]) return false;
+    DIFF = DIFFICULTY[key]; S.difficulty = key; floorKey = ''; return true;
   }
 
   // ---------- abilities ----------
@@ -1990,9 +1999,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
 
   // ---------- the honest forecast: "Hall: safe · ~N buildings at risk · 2 brutes" ----------
-  // Calibrated from sweep logs (tools/clockbot.mjs FORECAST=1): the share of standing buildings a night takes grows with
-  // the threat ratio past FORECAST.r0; last night's losses, grown by tonight's budget, set a floor.
-  const FORECAST = { r0: 0.35, slope: 0.55, last: 0.85, safe: 0.6, fall: 1.05 };
+  // Calibrated from the Oct 20 sweep logs (12 seeds × 16 nights, tools/sweep.mjs with SWEEP_OUT, 125 nights): the share of
+  // standing buildings a night takes is ≈ (ratio − 0.25) × 1.6; last night's losses, grown by tonight's budget, set a
+  // floor (mean error 2.2 buildings, was 2.9 and 2.6 low). Hall: below 0.6 it held 118 of 119 nights; from 1.05 it fell 9 of 14.
+  const FORECAST = { r0: 0.25, slope: 1.6, last: 0.85, safe: 0.6, fall: 1.05 };
   function forecastStrip(n = S.night) {
     const ratio = threatRatio(n), u = unlocked(n), wc = u.reduce((a, [, m]) => a + m.weight * m.cost, 0);
     const budget = nightBudget(n), every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / DIFF.threat;
@@ -2117,7 +2127,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     forecastStrip: () => forecastStrip(), ledger: () => S.ledger || null,
     keepCost: () => { const n = KEEP.need[keep.level]; return keep.level >= 3 ? null : { scrap: KEEP.cost[keep.level], food: (n && n.food) || 0, needs: keepNeeds() }; },
     // contracts (sim/contracts.js builds the offer): stacked rules, the finale, the difficulty step back
-    rule: id => rule(id), contractWon, setSeasonRules, setFinale, season: () => S.season, effNight: (n = S.night) => effN(n),
+    rule: id => rule(id), contractWon, setSeasonRules, setDifficulty, endRun, setFinale, season: () => S.season, effNight: (n = S.night) => effN(n),
     cut: CUT, raiseBlock: id => raiseBlock(S.byId.get(id)), perkOk,
     hitBuilding: (id, d) => { const b = S.byId.get(id); if (b) damageBuilding(b, d); return b ? b.hp : 0; }, hurtHero: n => hurtHero(n),   // scripted events and tests
     keepNeeds, hasTech, crewing, manned, handsMax, handsFree, powerIn, powerOut, powered, heatFloor, addHeat, difficulty: () => DIFF, newCost, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
