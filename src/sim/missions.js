@@ -91,7 +91,7 @@ export function createMissions(ctx, getRoad) {
   /** lantern off on a Hunt, by a live hive: the hero leaves the dead that have not noticed them and strikes the hive */
   function preferHive(best, reach) {
     if (M.lantern || M.id !== 'hunt' || !night() || best.hunt || best.piped || best.cv || best.attacking) return false;
-    const h = S.hero; return map.regions.some(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - h.x, r.nest.y - h.y) < reach + 1.4);
+    const h = S.hero; return !!(ctx.hiveInReach ? ctx.hiveInReach(h.x, h.y, reach) : map.regions.some(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - h.x, r.nest.y - h.y) < reach + 1.4));   // [nests] reach to the hive's edge
   }
   /** lantern off: the dead see you at half the distance (you seem twice as far away) */
   const perceive = (m, hd) => (M.lantern || S.hero.dead ? hd : hd / MISSION.hunt.sense);

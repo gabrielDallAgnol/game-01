@@ -21,7 +21,7 @@ import { createStory } from './story.js';
 // [road] begin
 import { createRoad } from './road.js';
 // [road] end
-import { createState, STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST } from './state.js';
+import { createState, STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN } from './state.js';
 import { createCore } from './core.js';
 import { createEconomy } from './economy.js';
 import { createBuildings } from './buildings.js';
@@ -44,7 +44,7 @@ import { createSpots } from './spots.js';
 import { createNests } from './nests.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
-export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST };
+export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
 const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests];
@@ -78,7 +78,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // [road] begin: stations, convoys, ambushes and night missions live in src/sim/road.js and src/sim/missions.js
   G.road = createRoad({ S, map, ev, toast, rng: new Rng(hashSeed(seed, 'road')), LANDMARKS, mobById, story: () => G.story, fail: m => fail(m), earn: g => earn(g), gainXp: n => gainXp(n), reveal, compass: (x, y) => compass(x, y),
     placeBuilding, isWall: id => isWall(id), spawnMob, killMob, hitMob, hurtHero, moveToward, standable, heroOk: i => heroOk(i), inZone: i => inZone(i), zone: () => zone(), rankOf: m => rankOf(m), senseMult: m => senseMult(m),
-    heroSpeed: () => G.HC.speed * S.P.heroSpeed, addNoise: v => addHeat(v), removeMob: m => { const i = S.mobs.indexOf(m); if (i >= 0) { S.mobs.splice(i, 1); mobById.delete(m.id); } } });
+    heroSpeed: () => G.HC.speed * S.P.heroSpeed, addNoise: v => addHeat(v), removeMob: m => { const i = S.mobs.indexOf(m); if (i >= 0) { S.mobs.splice(i, 1); mobById.delete(m.id); } }, hiveInReach: (x, y, r) => G.hiveInReach(x, y, r) });
   // [road] end
   // the deep woods at the edge, where the dead come from once every hive is burned (after the road: its glades change map.reach)
   for (let k = 0; k < 8; k++) {

@@ -117,10 +117,17 @@ export function createState({ seed, biome, map, hero, mode, clock, difficulty, l
 // Nests defend themselves (sim/nests.js): a guard pack rises when you come within `wake` of a living hive (once a
 // day), and while you stay within `near` its rage climbs one level every `step` seconds (a strike adds `hit`), each
 // level a wave of (wave + waveLv × lv) × night × tier dead, tougher by hpLv a level. Away from it the rage cools at `decay`.
-// Measured (bot hero standing at the hollow, Oct 20): day 1 ≈16 dead over a 50 s burn, a warrior ends near 70% health;
-// night 8 ≈20 dead and he needs his ability and smoke to live (standing still he dies). Brutes: city hives' frenzy only.
+// Re-measured with no healing by a hive (Oct 20 pm, tools: day-1 warrior striking a hollow from its edge, War Cry when
+// 3+ dead are on him): it burns in ~45 s and he ends at 59–80% (lowest 18–48% mid-fight); without War Cry 41–62%.
+// Standing beside it without striking, he dies in 90–260 s: a frenzied hive (rage at max) keeps sending a wave every
+// `step`. Brutes: city hives' frenzy only. `hit` 0.2 → 0.1: with no regen, every strike also stoking the rage was too much.
+// The hero's own healing (sim/hero.js): none while fighting (hit or hitting in the last `combat` s) or within `hive`
+// cells of a living hive; slow out in the field by day, quick at the Camp (within `campR` of the fire, or on your land).
+// Perks, the Clinic and companions add their regen on top, except next to a hive.
+export const REGEN = { combat: 5, hive: 11, field: 0.5, camp: 4, campNight: 2, campR: 7 };
 export const NEST = {
-  wake: 11, near: 8, step: 9, hit: 0.2, decay: 1.2, max: 12, cap: 5, bruteLv: 5, bruteNight: 11, hpLv: 0.05,
+  wake: 11, near: 8, step: 9, hit: 0.1, decay: 1.2, max: 12, cap: 5, bruteLv: 5, bruteNight: 11, hpLv: 0.05,
+  body: { hollow: 3, city: 2.2 }, struck: 2.5,   // a mound hive's body radius (the model's footprint, cells); striking it counts as standing near it this long
   pack: [0, 3, 5, 7], packPer: 0.25, wave: 1, waveLv: 0.45, nightBase: 0.85, nightPer: 0.02, nightMax: 1.15, tier: [1, 1, 1.6, 2.2],
   lines: { 1: '[Hive stirs] It knows you are here: **{n} more** crawl out. The longer you stay, the more it sends.', 3: '[Hive enraged] **{n} more**, faster and tougher. Burn it now or back off.', 5: '[Hive frenzied] It pours out everything it has.' },
 };

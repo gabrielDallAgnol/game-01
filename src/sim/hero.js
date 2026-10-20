@@ -1,7 +1,7 @@
 // The hero: levels and xp, the ability, class evolution and the path, walking and pathing, the autopilot,
 // attacking, companions and sellswords, max health.
 import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../content/season.js';
-import { CUT, DIRS8, LEVEL, MinHeap } from './state.js';
+import { CUT, DIRS8, LEVEL, MinHeap, REGEN } from './state.js';
 import { FAMILIES } from '../content/perks.js';
 import { FINALS, HEROES, LEGEND_OF, MERC } from '../content/heroes.js';
 import { MOBS, TIDE } from '../content/mobs.js';
@@ -177,6 +177,19 @@ export function createHero(G) {
       const x = Math.floor(h.x) + dx + 0.5, y = Math.floor(h.y) + dy + 0.5; if (walkable(x, y)) { h.x = x; h.y = y; return; }
     }
   }
+  /** the hero heals only when the fight is over: never mid-fight (hit or hitting in the last REGEN.combat s), never next
+   *  to a living hive; slowly out in the field by day, quickly at the Camp. h.rest tells the view: 'camp' | 'field' | '' */
+  function regen(dt) {
+    const h = S.hero;
+    if (h.hp < (h.hpSeen ?? h.hp) - 1e-6) h.fightT = REGEN.combat;   // took a hit since the last step
+    h.fightT = Math.max(0, (h.fightT || 0) - dt);
+    const hive = G.nearHive(h.x, h.y, REGEN.hive), day = S.phase === 'day';
+    const camp = Math.hypot(h.x - c, h.y - c) < REGEN.campR || G.inZone(idx(Math.floor(h.x), Math.floor(h.y)));
+    const base = hive || h.fightT > 0 ? 0 : camp ? (day ? (S.P.noDayHeal ? 0 : REGEN.camp) : REGEN.campNight) : day && !S.P.noDayHeal ? REGEN.field : 0;
+    const bonus = hive ? 0 : (day ? 0 : S.P.heroRegen) + (owns('clinic') ? 2 : 0) + (G.story ? G.story.bonus.regen() : 0);   // perks, the Clinic, companions: as their words say (not by a hive)
+    h.rest = h.hp < h.maxHp && base > 0 ? (camp ? 'camp' : 'field') : '';
+    h.hp = Math.min(h.maxHp, h.hp + dt * (base + bonus)); h.hpSeen = h.hp;
+  }
   function stepHero(dt) {
     const h = S.hero;
     if (h.dead) { h.respawn -= dt; if (h.respawn <= 0) G.heroBack(); return; }
@@ -209,11 +222,11 @@ export function createHero(G) {
       // [road] end
       if (!best) {
         // nothing to fight: strike a hive in reach
-        const hv = map.regions.find(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - h.x, r.nest.y - h.y) < reach + 1.4);
-        if (hv && G.hitHive(hv.id, dmg)) { h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.face = Math.atan2(hv.nest.x - h.x, hv.nest.y - h.y); ev(A.kind === 'melee' ? 'swing' : 'shot', { src: 'hero' }); }
+        const hv = G.hiveInReach(h.x, h.y, reach);   // reach is measured to the hive's edge: you strike it from outside, never from inside the model
+        if (hv && G.hitHive(hv.id, dmg)) { const b = G.nestBody(hv); h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.fightT = REGEN.combat; h.face = Math.atan2(b.x - h.x, b.y - h.y); ev(A.kind === 'melee' ? 'swing' : 'shot', { src: 'hero' }); }
       }
       if (best) {
-        h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.noiseT = 3; if (!moving) h.face = Math.atan2(best.x - h.x, best.y - h.y);
+        h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.noiseT = 3; h.fightT = REGEN.combat; if (!moving) h.face = Math.atan2(best.x - h.x, best.y - h.y);
         const cleave = mastery('whirlwind') || (has('wardance') && h.attacks % 3 === 0);
         if (A.kind === 'melee') {
           if (cleave) S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size < reach).forEach(m => G.hitMob(m, dmg, 'hero'));
@@ -227,7 +240,7 @@ export function createHero(G) {
         }
       }
     }
-    h.hp = Math.min(h.maxHp, h.hp + dt * ((S.phase === 'day' ? (S.P.noDayHeal ? 0 : 3) : S.P.heroRegen) + (owns('clinic') ? 2 : 0) + (G.story ? G.story.bonus.regen() : 0)));
+    regen(dt);
     for (const ch of [...S.chests]) {
       if (Math.hypot(ch.x - h.x, ch.y - h.y) > 1.3) continue;
       S.chests.splice(S.chests.indexOf(ch), 1); ev('chestOpen', { id: ch.id }); S.stats.chests++;

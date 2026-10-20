@@ -9,12 +9,29 @@ import { Rng, hashSeed } from './rng.js';
 export function createNests(G) {
   const { S, map, ev, toast, mobById, seed } = G;
   const nrng = new Rng(hashSeed(seed, 'nests'));
-  const st = {};   // per hive: { pack: night the pack last rose, rage: seconds, lv: waves sent this bout, told: highest line said }
+  const st = {};   // per hive: { pack: night the pack last rose, rage: seconds, lv: waves sent this bout, told: highest line said, struck: s since a strike counts as near }
   S.nestRage = {};  // what the view and the panel read: { [region]: { rage 0..1 to the next wave, lv, guards } }
   const of = r => st[r] || (st[r] = { pack: 0, rage: 0, lv: 0, told: 0 });
   const tier = r => NEST.tier[Math.min(3, map.regions[r].ring)] || 1;
   const nightK = () => Math.min(NEST.nightMax, NEST.nightBase + NEST.nightPer * S.night);
 
+  // ---------- the hive's body: a mound (round) or the building it nests in (its footprint) ----------
+  /** where the hive's body stands (the building's middle for a hive in a building) */
+  const nestBody = reg => reg.nest.body || reg.nest;
+  /** how far a point is from the hive's outer edge (0 inside it): what the hero's reach is measured to */
+  function nestEdge(reg, x, y) {
+    const n = reg.nest, b = n.body;
+    if (b) return Math.hypot(Math.max(0, Math.abs(x - b.x) - b.half), Math.max(0, Math.abs(y - b.y) - b.half));
+    return Math.max(0, Math.hypot(x - n.x, y - n.y) - (reg.ring === 1 ? NEST.body.hollow : NEST.body.city));
+  }
+  /** the living hive whose edge is within reach of a point (the nearest edge), or null */
+  function hiveInReach(x, y, reach) {
+    let best = null, bd = reach;
+    for (const r of map.regions) { if (!r.nest || !S.nestAlive[r.id]) continue; const d = nestEdge(r, x, y); if (d < bd) { bd = d; best = r; } }
+    return best;
+  }
+  /** is a point within d of a living hive's body (centre to point)? (the hero rests nowhere near one) */
+  const nearHive = (x, y, d) => map.regions.some(r => r.nest && S.nestAlive[r.id] && !S.sealed[r.id] && Math.hypot(x - nestBody(r).x, y - nestBody(r).y) < d);
   /** the living hive that keeps a site locked (-1 when the site is free to claim) */
   const lockedBy = l => (l && !l.owned && !S.sealed[l.region] && map.regions[l.region] && map.regions[l.region].nest && S.nestAlive[l.region] ? l.region : -1);
   const siteLocked = l => lockedBy(l) >= 0;
@@ -54,19 +71,21 @@ export function createNests(G) {
     const h = S.hero;
     for (const reg of map.regions) {
       const r = reg.id; if (!reg.nest || !S.nestAlive[r] || S.sealed[r]) { if (S.nestRage[r]) delete S.nestRage[r]; continue; }
-      const d = h.dead ? Infinity : Math.hypot(h.x - reg.nest.x, h.y - reg.nest.y), s = of(r);
+      const b = nestBody(reg), s = of(r); if (s.struck > 0) s.struck -= dt;
+      const d = h.dead ? Infinity : s.struck > 0 ? Math.min(NEST.near - 0.01, Math.hypot(h.x - b.x, h.y - b.y)) : Math.hypot(h.x - b.x, h.y - b.y);   // striking it from range angers it as much as standing close
       if (d < NEST.wake && s.pack !== S.night) wakePack(r);
       if (d < NEST.near) s.rage = Math.min(NEST.max * NEST.step, s.rage + dt);
       else if (s.rage > 0) { s.rage = Math.max(0, s.rage - dt * NEST.decay); if (s.rage === 0) { s.lv = 0; s.told = 0; } }
       const lv = Math.floor(s.rage / NEST.step);
-      if (lv > s.lv) { s.lv = lv; rageWave(r); }
+      if (lv > s.lv) { s.lv = lv; rageWave(r); s.top = 0; }
+      else if (d < NEST.near && s.rage >= NEST.max * NEST.step && (s.top = (s.top || 0) + dt) >= NEST.step) { s.top = 0; rageWave(r); }   // frenzied: it never stops sending while you stay
       else if (lv < s.lv - 1) s.lv = lv + 1;   // cooled off a level: leaving and coming back does not start from zero, nor from the top
       if (s.rage > 0 || d < NEST.wake) S.nestRage[r] = { rage: +((s.rage % NEST.step) / NEST.step).toFixed(2), lv: s.lv, hot: +(s.rage / (NEST.max * NEST.step)).toFixed(2), near: d < NEST.near };
       else if (S.nestRage[r]) delete S.nestRage[r];
     }
   }
   /** striking the hive angers it faster */
-  function angerNest(r) { const s = of(r); s.rage = Math.min(NEST.max * NEST.step, s.rage + NEST.hit); }
+  function angerNest(r) { const s = of(r); s.rage = Math.min(NEST.max * NEST.step, s.rage + NEST.hit); s.struck = NEST.struck; }
   /** the hive burned: its guards run out with the horde (its fire does not burn them), its sites unlock */
   function nestBurned(r) {
     for (const m of S.mobs) if (m.guard === r) { m.roam = null; m.hunt = true; m.horde = r; m.guard = undefined; }
@@ -82,5 +101,5 @@ export function createNests(G) {
   /** a story reward that hands you a locked site: it is promised, and yours the moment its hive burns */
   function promiseSite(l) { l.promised = true; toast(`[Promised] The **${LANDMARKS[l.kind].name}** is yours once the hive beside it burns.`, 'good'); }
   const nestGuards = r => S.mobs.filter(m => m.guard === r).length;
-  return { stepNests, angerNest, nestBurned, siteLocked, lockedBy, promiseSite, nestGuards };
+  return { nestBody, nestEdge, hiveInReach, nearHive, stepNests, angerNest, nestBurned, siteLocked, lockedBy, promiseSite, nestGuards };
 }

@@ -259,6 +259,21 @@ export function generateMap(seed, biome) {
     placeLm(reg.ring === 1 ? WILD_KINDS[wk++ % WILD_KINDS.length] : 'unknown', cands);
   }
 
+  // 8b. a forest hollow beside a wild building moves into it: the building is the hive (Gabriel's call, Oct 20). Its
+  // body is the building's footprint (what you hit, from any side); the nest point is its door, the walkable cell on the
+  // camp side where the dead come out, so spawns, paths and homes stay on open ground. Burnt, it is the site to claim.
+  for (const reg of regions) {
+    const n = reg.nest; if (reg.ring !== 1 || !n) continue;
+    const l = landmarks.find(q => q.region === reg.id && WILD_KINDS.includes(q.kind) && Math.hypot(q.x - n.x, q.y - n.y) < 10); if (!l) continue;
+    const h = l.size / 2; let door = null, bd = Infinity;
+    for (let y = Math.floor(l.y - h) - 1; y <= Math.floor(l.y + h); y++) for (let x = Math.floor(l.x - h) - 1; x <= Math.floor(l.x + h); x++) {
+      const ox = x + 0.5 - l.x, oy = y + 0.5 - l.y; if (Math.max(Math.abs(ox), Math.abs(oy)) < h || (Math.abs(ox) > h && Math.abs(oy) > h)) continue;   // the ring round the walls, no corners
+      if (!inside(x, y)) continue; const i = idx(x, y); if (!reach[i] || lm[i] >= 0 || !PASSABLE[terrain[i]]) continue;
+      const d = dCamp(x, y); if (d < bd) { bd = d; door = { x: x + 0.5, y: y + 0.5 }; }
+    }
+    if (door) reg.nest = { x: door.x, y: door.y, back: null, hollow: true, site: l.id, body: { x: l.x, y: l.y, half: h } };
+  }
+
   // 9. build slots round the camp: 3×3 lots on a street grid aligned to the keep
   const slots = [];
   const lotOk = (cx, cy) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = cx + dx, y = cy + dy; if (!inside(x, y)) return false; const i = idx(x, y), t = terrain[i]; if (!reach[i] || !(BUILDABLE[t] || t === T.FOREST) || road[i]) return false; } return true; };
