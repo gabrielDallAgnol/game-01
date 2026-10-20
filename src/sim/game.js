@@ -5,7 +5,7 @@ import { generateMap, N, T, PASSABLE, idx, inside, LANDMARKS } from './mapgen.js
 import { computeFlow, computeNext } from './flow.js';
 import { BUILDINGS, KEEP, MAX_LEVEL, START, UNLOCKS, POWER, RISE, HANDS } from '../content/buildings.js';
 import { MOBS, WAVES, TIDE, BRAIN, ESCAPE } from '../content/mobs.js';
-import { HEROES, MERC, PURSE, TRADES, CALLINGS, FINALS, EVOLVE_AT } from '../content/heroes.js';
+import { HEROES, MERC, PURSE, TRADES, CALLINGS, FINALS, EVOLVE_AT, LEGEND_OF } from '../content/heroes.js';
 import { PERKS, FAMILIES, MASTERIES, SYNERGIES, ODDS, REROLL, freshPerkState, NEEDS, NEST_POOL } from '../content/perks.js';
 import { PACKS, PACK_RULES } from '../content/packs.js';
 import { createScavenge } from './scavenge.js';
@@ -17,7 +17,7 @@ import { createStory } from './story.js';
 import { createRoad } from './road.js';
 // [road] end
 import { TITLES } from '../content/story.js';
-import { FEATURES, CALLING_LVL, FINAL_LVL, PARTY, SEASONS, SEASON_POOL, RULES, seasonEnd } from '../content/season.js';
+import { FEATURES, CALLING_LVL, FINAL_LVL, LEGEND_LVL, PARTY, SEASONS, SEASON_POOL, RULES, seasonEnd } from '../content/season.js';
 
 export const STEP = 1 / 60;
 export const PICKS_PER_DAWN = 2;
@@ -36,7 +36,7 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 // across the routes soaked 50 damage in all; the dead walk round a line. They come back with a ring-building tool.
 // the save format: v4 (Oct 20) carries ruins, Noise, tools, contracts and the road; older saves are ignored at the start screen
 export const SAVE_V = 4;
-export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: true, secondCompanion: true, trader: true, crew: true };
+export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true };
 // Heat (old name, same meter): see NOISE below. `stir`, `erupt`, `warn`, `cool`, `burst` still apply.
 export const HEAT = { floorPer: 1.4, floorMax: 70, combatMax: 77, decay: 0.1, rise: 2.5, shot: 0.03, kill: 0.15, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Noise: ONE meter (0–100). It rests on a floor set by loud CHOICES (level 3 towers, the market and workshop,
@@ -71,7 +71,9 @@ export const DIFFICULTY = {
 };
 export const FOREMAN = { buildings: 6, keep: 3 };   // the Foreman: a toggle, never on by itself
 // hero levels: XP from the dead you put down yourself, sites, quests and districts. Each level: a little harder, a little tougher.
-export const LEVEL = { xp: lv => Math.round(20 * Math.pow(lv, 1.2)), dmg: 0.09, hp: 4, max: 50 };   // level 12 is reachable in a season   // the town learns to build by itself once it is this established
+// three class tiers (15 / 30 / 45) land around nights 9, 21 and 37 for a steady player (bot-measured XP ≈ 37.5·(n−2)^1.15);
+// each level is a small step (a third of the old one), so the hero's strength at a given night stays where it was
+export const LEVEL = { xp: lv => Math.round(6.5 * Math.pow(lv, 0.68) - 1), dmg: 0.03, hp: 1.3, max: 50, blessEvery: 15 };   // the town learns to build by itself once it is this established
 const WALL_COST = 6;            // extra path cost of breaking through a palisade
 // thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
 export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
@@ -460,9 +462,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function heroDmg() { return HC.attack ? (HC.attack.dmg + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult * (1 + LEVEL.dmg * (S.lvl - 1)) * (S.drained === S.night ? 0.75 : 1) : 0; }
   function gainXp(n) {
     if (S.lvl >= LEVEL.max) return; S.xp += n;
-    while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] Damage +${Math.round(LEVEL.dmg * 100)}%, health +${LEVEL.hp}.`, 'good'); }
+    while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] +${Math.round(LEVEL.dmg * 100)}% damage, +${Math.round(LEVEL.hp)} health.`, 'good'); }
     checkEvolution();
-    if (S.lvl % 5 === 0 && S.lvl > (S.blessLvl || 0)) { S.blessLvl = S.lvl; S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) rollOffer(); toast(`[Level ${S.lvl}] The System grants a blessing.`, 'good'); }
+    if (S.lvl % LEVEL.blessEvery === 0 && S.lvl > (S.blessLvl || 0)) { S.blessLvl = S.lvl; S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) rollOffer(); toast(`[Level ${S.lvl}] The System grants a blessing.`, 'good'); }
   }
   function heroRate() { return HC.attack ? HC.attack.rate / S.P.heroRate / (mastery('champion') ? 1.3 : 1) : 1; }
   function heroDps() {
@@ -1427,9 +1429,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function evolve(cls) {
     const H = HEROES[cls]; if (!H) return false;
     const was = HC.name; S.heroClass = cls; HC = H; S.ability.cd = 0;
-    if (H.base) S.evo.final = cls; else S.evo.calling = cls;
+    if (H.legend) S.evo.legend = cls; else if (H.base) S.evo.final = cls; else S.evo.calling = cls;
     refreshMaxSoon(); ev('evolve', { cls });
-    toast(`[Class evolution: ${was} → ${H.name}] ${H.blurb}`, 'good');
+    toast(`[Class evolution: ${was} → ${H.name}]`, 'good');
     return true;
   }
   // ---------- the path: what you do decides what you become ----------
@@ -1453,6 +1455,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       if (!ranked.length) return;
       const opts = ranked.slice(0, 2).map(h => ({ cls: FINALS[[cls, h].sort().join('+')], second: h }));
       S.evo.offered.final = true; story.offerTrial(opts, cls);
+    } else if (HEROES[cls].base && !HEROES[cls].legend) {   // tier 3: the legendary form of the Calling you took
+      const id = LEGEND_OF[cls] && LEGEND_OF[cls][S.evo.calling || HEROES[cls].base];
+      if (S.lvl < LEGEND_LVL || S.evo.offered.legend || !id) return;
+      S.evo.offered.legend = true; story.offerTrial([{ cls: id, legend: true }], cls);
     }
   }
   function reroll() {

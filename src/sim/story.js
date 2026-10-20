@@ -12,6 +12,7 @@ import { EPISODES, seasonEnd } from '../content/season.js';
 import { TIDE } from '../content/mobs.js';
 import { PERKS, MASTERIES } from '../content/perks.js';
 import { createContracts } from './contracts.js';
+import { CLASS_TIERS, CLASS_INFO, CALLINGS } from '../content/heroes.js';
 
 export const DAY_ONE = 40;   // seconds: day 1 is short (TIDE.dayLen stays the rule for every other day: the story gives day 1 a head start)
 // which slot each kind of card takes in the dawn budget
@@ -97,7 +98,7 @@ export function createStory(ctx) {
       case 'gamble': if (rng.next() >= f.p) { for (const b of f.bad) apply(b, enc); } else if (f.good) { for (const b of f.good) apply(b, enc); } else toast('The fever broke at dawn. He lives.', 'good'); break;
       case 'hurt': ctx.hurtHero(f.n); break;
       case 'unique': S.unique = { name: f.name, mult: f.mult, night: f.later ? nextMoon(S.night + 1) : nextMoon(S.night), thread: enc && enc.thread }; contracts.armFinale(); break;
-      case 'evolve': if (S.heroClass === f.from) { ctx.evolve(f.cls); chron(`Became a ${ctx.heroes[f.cls].name}.`, 5, ['hero']); ST.encounters = ST.encounters.filter(e => e === enc || e.kind !== 'evolve' || e.from === S.heroClass); ST.later = ST.later.filter(x => x.enc.kind !== 'evolve' || x.enc.from === S.heroClass); if (ST.evoLater && ST.evoLater.from !== S.heroClass) ST.evoLater = null; toast(`[Class acquired: ${ctx.heroes[f.cls].name}]`, 'sys'); ev('classUp', { cls: f.cls }); } break;
+      case 'evolve': if (S.heroClass === f.from) { ctx.evolve(f.cls); chron(`Became a ${ctx.heroes[f.cls].name}.`, 5, ['hero']); ST.encounters = ST.encounters.filter(e => e === enc || e.kind !== 'evolve' || e.from === S.heroClass); ST.later = ST.later.filter(x => x.enc.kind !== 'evolve' || x.enc.from === S.heroClass); if (ST.evoLater && ST.evoLater.from !== S.heroClass) ST.evoLater = null; ev('classUp', { cls: f.cls, tier: f.tier || 1, name: ctx.heroes[f.cls].name }); } break;
       case 'evolveLater': ST.evoLater = { from: f.from, enc: { ...enc, id: undefined, ai: null } }; break;
       case 'advance': if (th) { if (enc && enc.noRegion) endThread(enc.thread, 'no way through'); else { th.stage++; th.since = S.night; } } break;
       case 'resolve': if (th) { th.status = 'done'; } break;
@@ -292,27 +293,35 @@ export function createStory(ctx) {
   // ---------- the trial: a class is earned out in the woods, not picked from a menu ----------
   const FAMN = { hero: 'Brawn', ranger: 'Aim', scavver: 'Wits', heart: 'Heart' };
   function pathText() { const P = S.path, tot = Object.values(P).reduce((a, b) => a + b, 0) || 1; return Object.keys(P).sort((a, b) => P[b] - P[a]).filter(k => P[k] > 0).map(k => `${FAMN[k]} ${Math.round(P[k] / tot * 100)}%`).join(', ') || 'unwritten'; }
+  /** the job change: tier 1 the Calling, 2 the advanced class, 3 the legendary form; each option is a trial (a named boss) */
+  const famOfCls = cls => { const H = ctx.heroes[cls]; const c = (H && H.calling) || (H && H.base) || cls; return Object.keys(CALLINGS).find(f => CALLINGS[f] === c) || null; };
   function offerTrial(opts, from) {
-    const fin = !!opts[0].second, desc = H => `${H.attack ? (H.attack.kind === 'melee' ? 'Fights up close' : 'Fights from range') : 'Never fights'} · ability: ${H.ability.name} · ${H.hp} health`;
-    offer({ kind: 'evolve', from, eyebrow: fin ? '[Final class quest]' : '[Job change quest]', title: fin ? 'The last door' : 'The System has been watching',
-      scene: `${fin ? 'Your Calling has grown into something else.' : 'Every choice you made was written down.'} Your path: **${pathText()}**. It wants proof: **a trial waits out there.**`,
-      choices: opts.map(o => { const H = ctx.heroes[o.cls]; return { id: `trial-${o.cls}`, label: `Trial of the ${H.name}`, hint: `${H.blurb} ${desc(H)}. A marked place: walk there by day and win the fight.`, fx: [{ op: 'trial', cls: o.cls, from, second: o.second || null }] }; })
-        .concat([{ id: 'wait', label: 'Not yet', hint: 'The window waits. It comes back at dawn.', fx: [{ op: 'evolveLater', from }] }]) }, 8, 30);
+    const tier = opts[0].legend ? 3 : opts[0].second ? 2 : 1, T = CLASS_TIERS[tier - 1];
+    const P = S.path, tot = Object.values(P).reduce((a, b) => a + b, 0) || 1, pct = f => Math.round(((P[f] || 0) / tot) * 100);
+    const lead = Object.keys(P).sort((a, b) => P[b] - P[a])[0];
+    const jobs = opts.map(o => { const H = ctx.heroes[o.cls], I = CLASS_INFO[o.cls] || {}, fam = tier === 2 ? famOfCls(o.second) : famOfCls(o.cls);
+      return { cls: o.cls, name: H.name, who: I.who || H.blurb, perks: (I.perks || []).slice(0, 3), icon: I.icon || null, fam, famName: fam ? FAMN[fam] : null, pct: fam ? pct(fam) : 0, yours: fam === lead }; });
+    const boss = T.boss;
+    offer({ kind: 'evolve', from, tier, jobs, boss, path: pathText(), eyebrow: T.eyebrow, title: T.title,
+      scene: tier === 1 ? 'Your choices picked a side. **Choose your class.** Then beat its trial.' : tier === 2 ? 'Your class can **grow**. Pick what it becomes. Then beat its trial.' : 'One last form. **Legendary.** Beat the trial to take it.',
+      choices: jobs.map(J => ({ id: `trial-${J.cls}`, label: `Become a ${J.name}`, hint: `${J.who} Trial: beat ${boss}.`, fx: [{ op: 'trial', cls: J.cls, from, second: (opts.find(o => o.cls === J.cls) || {}).second || null, tier, boss }] }))
+        .concat([{ id: 'wait', label: 'Not yet', hint: 'It asks again next dawn.', fx: [{ op: 'evolveLater', from }] }]) }, 8, 30);
   }
   function startTrial(f) {
     if (S.heroClass !== f.from) return;
     const spot = ctx.findSpot();
     ST.encounters = ST.encounters.filter(e => e.kind !== 'evolve'); ST.later = ST.later.filter(x => x.enc.kind !== 'evolve'); ST.evoLater = null;
-    if (!spot) { trialWon({ cls: f.cls, from: f.from, second: f.second }); return; }
-    const H = ctx.heroes[f.cls];
-    ST.trial = { cls: f.cls, from: f.from, second: f.second, x: spot.x, y: spot.y, day: S.night, started: false, done: false, name: `Trial of the ${H.name}` };
-    toast(`[Trial accepted] Go to the **red marker** by day. Win the fight.`, 'sys');
+    if (!spot) { trialWon({ cls: f.cls, from: f.from, second: f.second, tier: f.tier }); return; }
+    const H = ctx.heroes[f.cls], tier = f.tier || 1;
+    ST.trial = { cls: f.cls, from: f.from, second: f.second, x: spot.x, y: spot.y, day: S.night, started: false, done: false, tier, boss: f.boss || CLASS_TIERS[tier - 1].boss, name: `Trial of the ${H.name}` };
+    toast(`[Trial accepted] Beat **${ST.trial.boss}** at the **red marker**, by day.`, 'sys');
+    ev('trialAccepted', { cls: f.cls, tier, boss: ST.trial.boss });
   }
   function trialWon(t) {
     if (ST.trial) ST.trial.done = true;
     if (S.heroClass !== t.from) return;
     if (t.second) S.evo.second = t.second;
-    apply({ op: 'evolve', cls: t.cls, from: t.from }, null);
+    apply({ op: 'evolve', cls: t.cls, from: t.from, tier: t.tier || (ST.trial && ST.trial.tier) || 1 }, null);
     grant(t.second ? 'ascended' : 'called');
   }
 
@@ -611,7 +620,7 @@ export function createStory(ctx) {
     tips(); nightTick(); dailyTick(); gateTick(dt);
     contracts.check();
     const tr = ST.trial;
-    if (tr && !tr.done && !tr.started && !S.hero.dead && Math.hypot(S.hero.x - tr.x, S.hero.y - tr.y) < 3) { tr.started = true; ctx.spawnTrial(tr); toast(`[${tr.name}] Kill the **warden**. It won't follow you home.`, 'bad'); }
+    if (tr && !tr.done && !tr.started && !S.hero.dead && Math.hypot(S.hero.x - tr.x, S.hero.y - tr.y) < 3) { tr.started = true; ctx.spawnTrial(tr); const w = S.mobs.find(m => m.trial && !m.bossName); if (w) { const k = [1, 1.6, 2.4][(tr.tier || 1) - 1]; w.bossName = tr.boss || 'The Warden'; w.bossTier = tr.tier || 1; w.hp = w.maxHp = Math.round(w.maxHp * k); } toast(`[${tr.boss || tr.name}] Kill it. It won't follow you home.`, 'bad'); ev('trialStart', { boss: tr.boss, tier: tr.tier || 1 }); }
     if (ST.encounters.length || S.hero.dead || S.phase !== 'day') return;   // places speak by day: at night they wait for you
     if (spotTick()) return;
     for (const l of S.landmarks) if (typeof ST.visited[l.id] === 'number' && ST.visited[l.id] < S.night && !ctx.landmarkReach(l)) ST.visited[l.id] = false;   // left yesterday: it can ask again

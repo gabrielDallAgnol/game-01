@@ -11,6 +11,7 @@ import { buildCity } from './city.js';
 import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE, xrayMat } from './figures.js';
 import { createFx } from './fx.js';
 import { KITS, RARITY } from '../content/districts.js';
+import { HEROES, CLASS_INFO } from '../content/heroes.js';
 // [road] begin
 import { createRoadView } from './road-view.js';
 // [road] end
@@ -19,6 +20,8 @@ const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
 const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
 const FOOT = { house: 2, farm: 2, tower: 1, workshop: 3, market: 3, generator: 2 };   // cells each building covers   // world units per metre of each kit model
 const HERO_OUTLINE = '#e89512';   // the hero's edge: amber, the colour of the hero ring and the hero's bar
+/** the hero's model: the rig of its family, in its class colours */
+function heroModel(cls) { const H = HEROES[cls] || {}, base = H.legendOf || cls, rig = HERO_RIG[base] || HERO_RIG[H.base] || 'brawler', I = CLASS_INFO[cls] || CLASS_INFO[base] || {}; return K.heroes[rig](I.look || {}); }
 const HERO_RIG = { warrior: 'brawler', archer: 'ranger', merchant: 'scavver', steward: 'scavver', survivor: 'brawler', vanguard: 'brawler', warlord: 'brawler', deadeye: 'ranger', medic: 'scavver', warden: 'brawler', marshal: 'ranger', quartermaster: 'scavver' };
 const UNIT = { hero: 1.7, companion: 1.45, ally: 1.3, dead: 1.25 };   // people read bigger than the buildings (Thronefall-style scale)
 // your homes by level: 1 bare scrap (the kit's own drab woods and tin), 2 one coat of muted paint, 3 bright paint and a coloured roof
@@ -470,8 +473,17 @@ export function createView(canvas, game, opts = {}) {
     for (const o of list) { const x = new THREE.Mesh(o.geometry, mat); x.userData.xray = true; x.renderOrder = 30; x.castShadow = false; o.add(x); }
     return g;
   }
-  let heroRig = liveRig(K.heroes[HERO_RIG[S.heroClass] || 'brawler'](), HERO_OUTLINE, 1.2), rigClass = S.heroClass; xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g);
-  function syncRig() { if (rigClass === S.heroClass) return; const want = HERO_RIG[S.heroClass] || 'brawler'; if (want !== HERO_RIG[rigClass]) { world.remove(heroRig.g); heroRig = liveRig(K.heroes[want](), HERO_OUTLINE, 1.2); xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g); } rigClass = S.heroClass; burst(S.hero.x, S.hero.y, 2.2, '#7fd4ff'); }
+  let heroRig = liveRig(heroModel(S.heroClass), HERO_OUTLINE, 1.2), rigClass = S.heroClass; xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g);
+  // a new class: a new rig in its colours (and, for a legendary form, an aura that breathes under the hero)
+  function syncRig() {
+    if (rigClass === S.heroClass) return;
+    world.remove(heroRig.g); heroRig = liveRig(heroModel(S.heroClass), HERO_OUTLINE, 1.2); xray(heroRig.g, '#7fd4ff'); world.add(heroRig.g);
+    rigClass = S.heroClass; const I = CLASS_INFO[S.heroClass] || {};
+    burst(S.hero.x, S.hero.y, 2.2 + (I.tier || 1) * 0.8, I.glow || '#7fd4ff');
+    if (heroAura) { fx.remove(heroAura); heroAura = null; }
+    if (I.glow) { heroAura = new THREE.Mesh(ringGeo(0.55, 1.15), new THREE.MeshBasicMaterial({ color: lc(I.glow).multiplyScalar(1.6), transparent: true, opacity: 0.55, depthWrite: false, fog: false, blending: THREE.AdditiveBlending })); heroAura.rotation.x = -Math.PI / 2; fx.add(heroAura); }
+  }
+  let heroAura = null;
   const heroBar = makeBar('hero', 1.25);
   const arrowGeo = new THREE.BoxGeometry(0.04, 0.04, 0.6), spitGeo = new THREE.IcosahedronGeometry(0.13, 0);
   const arrowMat = new THREE.MeshBasicMaterial({ color: lc('#f0e2c4').multiplyScalar(1.5) }), spitMat = new THREE.MeshBasicMaterial({ color: lc('#b4ff4e').multiplyScalar(2) });
@@ -558,9 +570,9 @@ export function createView(canvas, game, opts = {}) {
     for (const m of S.mobs) {
       seen.add(m.id);
       if (!mobState.has(m.id)) {
-        const size = MOBS[m.kind].size * (m.unique ? 1.35 : 1);
-        const boss = m.kind === 'gravelord' || m.kind === 'guardian' || !!m.unique, st = { bar: makeBar(boss ? 'boss' : 'z', boss ? Math.max(1.8, 0.8 * size) : 0.75 * Math.max(1, size), boss ? 0.34 : size > 1.2 ? 0.26 : 0.2), phase: vis() * 6, face: m.face || 0, size, kind: m.kind, x: m.x, y: m.y };
-        if (m.unique) { st.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(m.unique.toUpperCase(), { w: 512, h: 64, size: 34, bg: '#2a0a10', fg: '#ff8a6a', spacing: '3px' }), transparent: true, depthTest: false })); st.tag.scale.set(3.2, 0.4, 1); st.tag.renderOrder = 22; fx.add(st.tag); st.glow = K.glowSprite('#ffd27a', 2.6, 1.6); fx.add(st.glow); }
+        const size = MOBS[m.kind].size * (m.unique ? 1.35 : m.bossTier ? 1.2 + 0.2 * m.bossTier : 1);
+        const boss = m.kind === 'gravelord' || m.kind === 'guardian' || !!m.unique || !!m.bossName, st = { bar: makeBar(boss ? 'boss' : 'z', boss ? Math.max(1.8, 0.8 * size) : 0.75 * Math.max(1, size), boss ? 0.34 : size > 1.2 ? 0.26 : 0.2), phase: vis() * 6, face: m.face || 0, size, kind: m.kind, x: m.x, y: m.y };
+        if (m.unique || m.bossName) { st.tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex((m.unique || m.bossName).toUpperCase(), { w: 512, h: 64, size: Math.min(34, Math.floor(820 / (m.unique || m.bossName).length)), bg: '#2a0a10', fg: '#ff8a6a', spacing: '3px' }), transparent: true, depthTest: false })); st.tag.scale.set(3.2, 0.4, 1); st.tag.renderOrder = 22; fx.add(st.tag); st.glow = K.glowSprite('#ffd27a', 2.6, 1.6); fx.add(st.glow); }
         mobState.set(m.id, st);
       }
       const st = mobState.get(m.id); if (st.tag) { st.tag.position.copy(Wv(m.x, m.y, 3.4)); st.glow.position.copy(Wv(m.x, m.y, 2.4)); st.glow.material.opacity = 0.6 + Math.sin(time * 6) * 0.3; }
@@ -903,6 +915,7 @@ export function createView(canvas, game, opts = {}) {
       heroRig.pose(h.moving, animT * 10, h.swing > 0 ? 1 - h.swing / 0.25 : -1);
     }
     heroRing.visible = !h.dead; heroRing.position.copy(Wv(h.x, h.y, 0.05));
+    if (heroAura) { heroAura.visible = !h.dead; heroAura.position.copy(Wv(h.x, h.y, 0.07)); heroAura.material.opacity = 0.4 + 0.2 * Math.sin(time * 3); heroAura.scale.setScalar(1 + 0.08 * Math.sin(time * 2)); }
     { const on = S.bountyT > 0 && !h.dead, R = (game.heroDef.ability && game.heroDef.ability.radius || 9) + S.P.bountyRadius; bountyRing.visible = on; if (on) { bountyRing.position.copy(Wv(h.x, h.y, 0.06)); bountyRing.scale.setScalar(R); bountyRing.material.opacity = 0.35 + Math.sin(time * 5) * 0.15; } }
     if (!h.dead) setBar(heroBar, h.x, 1.95, h.y, h.hp / h.maxHp, h.hp < h.maxHp * 0.999 || S.phase === 'night'); else heroBar.visible = false;
 
@@ -922,7 +935,7 @@ export function createView(canvas, game, opts = {}) {
         const lunge = m.attacking ? Math.max(0, Math.sin(time * 6 + e.phase)) * 0.25 : 0;
         const fl = e.hitT ? Math.max(0, 1 - (time - e.hitT) / 0.07) : 0;
         const p = Wv(m.x, m.y, (m.rise - 1) * 1.1 + (m.attacking ? 0 : Math.abs(Math.sin(e.phase)) * 0.03));
-        crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, (m.unique ? 1.35 : 1) * UNIT.dead, fl);
+        crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, (m.unique ? 1.35 : m.bossTier ? 1.2 + 0.2 * m.bossTier : 1) * UNIT.dead, fl);
         if (m.rise >= 1) fx2.blobs.add(p.x, p.y, p.z, 0.36 * e.size, 0.32 * e.size);
         setBar(e.bar, m.x, 1.45 * Math.max(1, e.size) + 0.15, m.y, m.hp / m.maxHp);
       }

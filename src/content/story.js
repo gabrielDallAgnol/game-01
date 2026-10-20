@@ -327,7 +327,7 @@ export const TIPS = [
   { id: 'forecast', at: 'forecast', when: S => S.night >= 2 && S.phase === 'day', text: 'Tonight\'s forecast: what may fall tonight.' },
   { id: 'quest', at: 'strip', when: S => S.night >= 2 && S.phase === 'day' && S.dayT > 4 && !!(S.story.daily && S.story.daily.id), text: 'Your quest. Finish it before dusk.' },
   { id: 'street', at: 'map', when: S => S.night >= 2 && S.story.spots.length > 0 && S.phase === 'day', text: 'Blue beacon: someone needs you. A few dead guard it.' },
-  { id: 'evolve', at: 'strip', when: S => S.lvl >= 3, text: 'Every choice leans you toward Brawn, Aim, Wits or Heart. At level 5 the System offers the class you have been living.' },
+  { id: 'evolve', at: 'strip', when: S => S.lvl >= 8, text: 'Your choices shape your class. It unlocks at level 15.' },
   { id: 'roam', at: 'camp', when: S => S.night >= 2 && S.mobs.some(m => m.hunt), text: 'The dead follow you home. Lead them into your towers.' },
   { id: 'clear', at: 'build', when: S => S.night >= 3 && S.phase === 'day', text: 'Tap rubble on your land to clear it.' },
 ];

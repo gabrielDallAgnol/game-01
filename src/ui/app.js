@@ -6,7 +6,7 @@ import { createGame, STEP, CREW_NEED, DIFFICULTY, HEAT, SAVE_V } from '../sim/ga
 import { mapChoices, generateMap, N, T, idx, BIOMES, LANDMARKS } from '../sim/mapgen.js';
 import { createView } from '../render/view.js';
 import { BUILDINGS, BUILD_ORDER, TECH_ORDER, UNLOCKS, KEEP, MAX_LEVEL } from '../content/buildings.js';
-import { HEROES, TRADES } from '../content/heroes.js';
+import { HEROES, TRADES, CLASS_TIERS } from '../content/heroes.js';
 import { PERKS, FAMILIES, MASTERIES } from '../content/perks.js';
 import { MOBS, ESCAPE } from '../content/mobs.js';
 import { regionNames, hiveName } from '../content/names.js';
@@ -265,7 +265,7 @@ export function startApp() {
   function showCard(kind, html, o = {}) {
     const fresh = card !== kind || o.anim; card = kind; const c = $('#card');
     c.className = `card${o.sys ? ' sysw' : ''}${o.cls ? ` ${o.cls}` : ''}${o.narrow ? '' : ' wide'}`;
-    c.innerHTML = html; $('#overlay').hidden = false; if (kind !== 'start') $('#episode').hidden = true;   // a window never opens under the dusk/episode banner
+    c.innerHTML = html; $('#overlay').hidden = false; $('#overlay').classList.toggle('jobov', /jobw/.test(o.cls || '')); if (kind !== 'start') $('#episode').hidden = true;   // a window never opens under the dusk/episode banner
     ctoast.clear(); callouts.hide();
     if (o.arm !== false) { c.classList.add('arming'); c.dataset.armed = '0'; setTimeout(() => { if (c.dataset.armed === '0') { c.dataset.armed = '1'; c.classList.remove('arming'); } }, ARM_MS); }
     else c.dataset.armed = '1';
@@ -357,6 +357,7 @@ export function startApp() {
     const isNew = !st.opened; st.opened = true;
     if (enc.kind === 'arrival') return showArrival(enc);
     if (enc.kind === 'contract') return showContract(enc, st, swap || !isNew);
+    if (enc.kind === 'evolve' && enc.jobs) return showJob(enc, st, !isNew);
     if (enc.kind === 'victory') return showVictory(enc, st);
     if (enc.kind === 'skill') return showSkill(enc);
     if (enc.kind === 'window' || enc.kind === 'chapter') return showWindow(enc);
@@ -434,6 +435,37 @@ export function startApp() {
     typeOn($('#iEb'), w.eyebrow, 60);
     $('#iOk').onclick = onArmed(() => { hideCard(); paused = false; });
   }
+  // ---------- the job change: a System event, bigger with each tier ----------
+  // tier 1 (Lv 15) the window opens over a dimmed world; tier 2 (Lv 30) it cracks; tier 3 (Lv 45) the whole screen
+  function showJob(enc, st, again) {
+    const t = enc.tier || 1, sel = st.sel || null, J = enc.jobs, pick = sel && J.find(j => j.cls === sel);
+    const crack = t >= 2 ? `<svg class="jcrack" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M50 0 L46 18 L54 27 L44 41 L52 52 L41 66 L49 78 L43 100" /><path d="M46 18 L30 22 L18 15" /><path d="M44 41 L62 44 L74 36" /><path d="M41 66 L26 70 L12 64" />${t >= 3 ? '<path d="M54 27 L70 20 L88 26" /><path d="M52 52 L66 58 L84 54" /><path d="M49 78 L62 84 L80 80" />' : ''}</svg>` : '';
+    const jcard = j => `<button class="jcard${j.yours ? ' yours' : ''}" data-job="${j.cls}" aria-pressed="${sel === j.cls}">
+        <span class="jhead"><span class="jglyph">${icon(j.icon || 'star')}</span><span class="jname">${esc(j.name)}</span></span>
+        ${j.famName ? `<span class="jfam${j.yours ? ' on' : ''}">${j.yours ? 'Your path · ' : ''}${esc(j.famName)} ${j.pct}%</span>` : ''}
+        <span class="jwho">${esc(j.who)}</span>
+        <ul class="jperks">${j.perks.map(p => `<li>${esc(p)}</li>`).join('')}</ul></button>`;
+    showCard('enc', `<div class="job t${t}${again ? ' shown' : ''}">${crack}
+      <div class="eyebrow"><span id="jEb"></span></div>
+      <h1 class="jt">${esc(enc.title)}</h1>
+      <p class="jpath">Your path: <b>${esc(enc.path)}</b></p>
+      <p class="jscene">${rich(enc.scene)}</p>
+      <div class="jobs n${J.length}">${J.map(jcard).join('')}</div>
+      <p class="jboss">${icon('skull')}<span>Trial: beat <b>${esc(enc.boss)}</b> at the red marker, by day.</span></p>
+      <div class="cardrow foot spread"><button class="btn ghost sm" id="jWait">Not yet</button><button class="btn big" id="jGo" ${pick ? '' : 'disabled'}>${pick ? `Take the trial: ${esc(pick.name)}` : J.length > 1 ? 'Pick a class' : `Take the trial: ${esc(J[0].name)}`}</button></div></div>`, { sys: true, cls: `jobw jt${t}`, arm: !again, anim: !again });
+    if (J.length === 1 && !sel) { st.sel = J[0].cls; $('#jGo').disabled = false; }
+    const eb = $('#jEb'); if (again || st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; audio.play('jobOpen', t); typeOn(eb, enc.eyebrow, t >= 3 ? 26 : 40); }
+    $$('[data-job]').forEach(b => b.onclick = onArmed(() => { st.touched = true; st.sel = b.dataset.job; const y = $('#card').scrollTop; showJob(enc, st, true); $('#card').scrollTop = y; }));
+    $('#jWait').onclick = onArmed(() => { if (game.choose('wait')) { encState.delete(enc.id); afterEncounter(); } });
+    $('#jGo').onclick = onArmed(() => { if (!st.sel) return; if (game.choose(`trial-${st.sel}`)) { audio.play('claim'); encState.delete(enc.id); afterEncounter(); } });
+  }
+  /** the class is yours: the screen flashes in the tier's colour, the System stamps the name, the hero changes */
+  function classBeat(e) {
+    const t = e.tier || 1; let el = $('#jobBeat'); if (!el) { el = document.createElement('div'); el.id = 'jobBeat'; document.body.appendChild(el); }
+    el.className = `jb t${t}`; el.innerHTML = `<div class="jbin"><div class="jbe">${t >= 3 ? '[LEGENDARY CLASS ACQUIRED]' : '[Class acquired]'}</div><div class="jbn">${esc(e.name || '')}</div>${t >= 2 ? `<div class="jbs">${t >= 3 ? 'The city will learn this name.' : 'You are more than you were.'}</div>` : ''}</div>`;
+    el.hidden = false; void el.offsetWidth; el.classList.add('go'); audio.play('classUp', t);
+    clearTimeout(el._t); el._t = setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.hidden = true; }, 600); }, [2200, 3000, 4200][t - 1]);
+  }
   // ---------- seasons as contracts ----------
   function showContract(enc, st, swap) {
     const P = usePatch(enc), sel = st.sel || null;
@@ -496,7 +528,7 @@ export function startApp() {
   }
   function pathHtml() {
     const S = game.state, P = S.path, tot = Object.values(P).reduce((a, b) => a + b, 0) || 1, cls = S.heroClass;
-    const next = cls === 'survivor' ? `At level 5 the System offers the class your path points to (level ${S.lvl} now).` : !HEROES[cls].base ? 'Your Calling is set.' : 'Your class is complete.';
+    const next = cls === 'survivor' ? `Your class unlocks at level ${CLASS_TIERS[0].lvl} (you are ${S.lvl}).` : !HEROES[cls].base ? `It grows at level ${CLASS_TIERS[1].lvl} (you are ${S.lvl}).` : !HEROES[cls].legend ? `Its legendary form: level ${CLASS_TIERS[2].lvl} (you are ${S.lvl}).` : 'Legendary. Your class is complete.';
     const tr = S.story.trial && !S.story.trial.done ? `<p class="note" style="color:#ff9a80">${esc(S.story.trial.name)} waits at the red marker.</p>` : '';
     return `<div class="path">${['hero', 'ranger', 'scavver', 'heart'].map(f => `<div class="pr" style="--fam:${FAMILIES[f].color}"><span>${FAMILIES[f].name}</span><span class="pb"><i style="width:${Math.round(P[f] / tot * 100)}%"></i></span><b>${Math.round(P[f] / tot * 100)}%</b></div>`).join('')}</div>
       <p class="note" style="margin-top:6px">Rescues and mercy lean to Heart, fighting up close to Brawn, scouting and quiet to Aim, deals and salvage to Wits. ${next}</p>${tr}`;
@@ -1157,12 +1189,13 @@ export function startApp() {
       if ((e.t === 'remove' || e.t === 'ruin') && selected && selected.type === 'building' && !S.byId.get(selected.id)) closePanel();
       // [road] road-ui reads the same events here
       if (e.t === 'ledger') pendingLedger = e;
+      if (e.t === 'classUp') classBeat(e);
     }
     if (roadUI && events.length) roadUI.onEvents(events);
     if (windowAtDawn) game.story().release();
     // decisions wait for a calm moment: never while the hero fights or the dead are close (the night-1 arrival may
     // type itself out); a card that waited long enough opens once the hero itself is out of reach
-    { const near = (x, y, r) => S.mobs.some(m => !m.dying && (m.rise === undefined || m.rise >= 1) && Math.hypot(m.x - x, m.y - y) < r);
+    { const near = (x, y, r) => S.mobs.some(m => !m.dying && !(MOBS[m.kind] && MOBS[m.kind].animal) && (m.rise === undefined || m.rise >= 1) && Math.hypot(m.x - x, m.y - y) < r);
       const h = S.hero, fight = !h.dead && near(h.x, h.y, 12), camp = near(game.map.town.x, game.map.town.y, 12);
       calmT = fight || camp ? 0 : calmT + dt; waitT = S.story.encounters.length ? waitT + dt : 0; }
     const calmOk = calmT > 2.5 || (waitT > 25 && !(S.hero && !S.hero.dead && S.mobs.some(m => Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 6))) || (S.story.encounters[0] && S.story.encounters[0].kind === 'arrival');

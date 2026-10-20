@@ -74,6 +74,15 @@ export function createAudio(store) {
       hiss('lowpass', 300, 0.6, 0.12, 3, { a: 1.5, rate: 0.4 });
     },
     bad() { tone('sine', 220, 0.06, 0.5, { to: 160, a: 0.02 }); },
+    // the job change: the window opens (tier 1 a shimmer, 2 a crack and a low swell, 3 thunder and a rising chord)
+    jobOpen(t = 1) { hiss('bandpass', 3200, 2, 0.05, 0.6, { a: 0.1 }); for (const [f, at] of [[523, 0.1], [784, 0.3]]) tone('triangle', f * (t >= 2 ? 0.5 : 1), 0.04, 1.2, { at, a: 0.05 }); if (t >= 2) { hiss('highpass', 1800, 1, 0.12, 0.25, { at: 0.05 }); tone('sawtooth', 65, 0.08, 2.4, { a: 0.6, lp: 400 }); } if (t >= 3) S.thunder(); },
+    // the class is yours: a rising chord, bigger with each tier (the sting)
+    classUp(t = 1) {
+      const base = [[392, 0], [523, 0.12], [659, 0.24], [784, 0.36]], big = t >= 2 ? [...base, [1046, 0.5], [1318, 0.64]] : base;
+      for (const [f, at] of big) tone('triangle', f, 0.06, 1.4, { at, a: 0.02 });
+      if (t >= 2) { tone('sawtooth', 98, 0.1, 1.8, { a: 0.05, lp: 700 }); hiss('lowpass', 500, 0.7, 0.2, 1.2, { a: 0.02 }); }
+      if (t >= 3) { S.thunder(); for (const [f, at] of [[196, 0.8], [262, 0.8], [392, 0.8], [523, 0.8]]) tone('sawtooth', f, 0.05, 2.6, { at, a: 0.3, lp: 1600 }); }
+    },
   };
 
   /** turn sim events into sound; `from` gives the listener (the hero) for distance falloff */
@@ -99,7 +108,9 @@ export function createAudio(store) {
         case 'bounty': S.claim(); break;
         case 'warcry': case 'volley': S.warcry(); break;
         case 'claim': case 'dropOpen': case 'landmark': S.claim(); break;
-        case 'levelUp': case 'title': case 'evolve': S.claim(); break;
+        case 'levelUp': case 'title': S.claim(); break;
+        case 'evolve': break;   // the job-change sting plays on classUp (the UI's confirmation beat)
+        case 'trialStart': S.first(); break;
         case 'eruptWarn': case 'breach': S.first(); break;
         case 'blackout': S.bad(); break;
         case 'drop': S.thunder(); break;
