@@ -16,7 +16,7 @@ export function createNests(G) {
   const nightK = () => Math.min(NEST.nightMax, NEST.nightBase + NEST.nightPer * S.night);
 
   /** the living hive that keeps a site locked (-1 when the site is free to claim) */
-  const lockedBy = l => (l && !l.owned && map.regions[l.region] && map.regions[l.region].nest && S.nestAlive[l.region] ? l.region : -1);
+  const lockedBy = l => (l && !l.owned && !S.sealed[l.region] && map.regions[l.region] && map.regions[l.region].nest && S.nestAlive[l.region] ? l.region : -1);
   const siteLocked = l => lockedBy(l) >= 0;
 
   function raise(r, kind, hpK) {
@@ -30,7 +30,7 @@ export function createNests(G) {
     const s = of(r), ring = map.regions[r].ring, n = map.regions[r].nest;
     s.pack = S.night;
     const k = Math.max(2, Math.round((NEST.pack[Math.min(3, ring)] + NEST.packPer * (S.night - 1)) * G.DIFF.threat / 0.88));
-    const kinds = []; if (S.night >= 3 || ring >= 2) kinds.push('runner'); if (S.night >= 5 && ring >= 2 || S.night >= 8) kinds.push('brute');
+    const kinds = []; if (S.night >= 3 || ring >= 2) kinds.push('runner'); if (S.night >= 5 && ring >= 2 || S.night >= NEST.bruteNight + 3) kinds.push('brute');
     while (kinds.length < k) kinds.push('walker');
     for (const kind of kinds) raise(r, kind, 1);
     ev('nestGuard', { region: r, x: n.x, y: n.y, n: kinds.length });
@@ -41,7 +41,7 @@ export function createNests(G) {
     const s = of(r), lv = Math.min(NEST.cap, s.lv), n = map.regions[r].nest;
     const k = Math.max(1, Math.round((NEST.wave + NEST.waveLv * lv) * nightK() * tier(r) * G.DIFF.threat / 0.88));
     const u = G.unlocked(Math.max(1, S.night)), kinds = [];
-    if (lv >= NEST.bruteLv && (S.night >= 4 || map.regions[r].ring >= 2)) kinds.push('brute');
+    if (lv >= NEST.bruteLv && (map.regions[r].ring >= 2 || S.night >= NEST.bruteNight)) kinds.push('brute');   // a city hive's frenzy brings a brute; a hollow's only late (bruteNight)
     if (lv >= 2) kinds.push('runner');
     while (kinds.length < k) { const [kind] = u[nrng.weighted(u.map(([, m]) => m.weight))]; kinds.push(kind); }
     for (const kind of kinds) raise(r, kind, 1 + NEST.hpLv * lv);
