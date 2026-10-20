@@ -233,7 +233,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   const cellPos = (i, d, j = 0.3) => d.position.set((i % N) - C + 0.5 + (rand() - 0.5) * j, 0, ((i / N) | 0) - C + 0.5 + (rand() - 0.5) * j);
   const forest = []; for (let i = 0; i < N * N; i++) if (map.terrain[i] === T.FOREST) forest.push(i);
   // a forest hollow's mound clears its own glade: no trees grow through it
-  const hollows = map.regions.filter(r => r.nest && r.ring === 1).map(r => r.nest);
+  const hollows = map.regions.filter(r => r.nest && r.ring === 1).map(r => r.nest.body || r.nest);   // a hollow in a building clears the glade round the building
   const inHollow = i => { const x = (i % N) + 0.5, y = ((i / N) | 0) + 0.5; return hollows.some(n => Math.abs(n.x - x) < 3.6 && Math.abs(n.y - y) < 3.6 && Math.hypot(n.x - x, n.y - y) < 3.6); };
   const woods = forest.filter(i => wildAt(i) && !inHollow(i)), parks = forest.filter(i => !wildAt(i));
   const pick = (list, p) => list.filter(() => rand() < p);

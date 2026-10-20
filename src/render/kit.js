@@ -16,11 +16,11 @@ import { post, tower, barricade, chainMat } from './kit/defences.js';
 import { farm } from './kit/farm.js';
 import { keep } from './kit/keep.js';
 import { hall, home } from './kit/frontier.js';
-import { hospital, metro, petrol, police, hollow } from './kit/hives.js';
+import { hospital, metro, petrol, police, hollow, infest } from './kit/hives.js';
 import { FIGMAT } from './kit/rig.js';
 import { figure, heroes, dead, folk } from './kit/people.js';
 import { beam, zoneCells, chevrons, ghost, ring } from './kit/overlays.js';
 import { flattenVC, ruinOf, SWEEP } from './kit/flatten.js';
 
 export { CFG };
-export const K = { hall, home, VCM, flattenVC, ruinOf, SWEEP, P, M, T, setMask, setMaskArrays, setFootprints, territory, EMITW, WIN, LENS, lin, rng, B, weeds, beam, place, post, rboxGeo, sign, textTex, glowDecal, glowSprite, apartment, rubble, streets, grass, car, bus, container, sandbags, jersey, lamp, trafficLight, busStop, tree, bush, barrelFire, townhouse, tower, barricade, farm, keep, hospital, metro, petrol, police, hollow, figure, heroes, dead, folk, FIGMAT, zoneCells, chevrons, ghost, ring, chainMat };
+export const K = { hall, home, VCM, flattenVC, ruinOf, SWEEP, P, M, T, setMask, setMaskArrays, setFootprints, territory, EMITW, WIN, LENS, lin, rng, B, weeds, beam, place, post, rboxGeo, sign, textTex, glowDecal, glowSprite, apartment, rubble, streets, grass, car, bus, container, sandbags, jersey, lamp, trafficLight, busStop, tree, bush, barrelFire, townhouse, tower, barricade, farm, keep, hospital, metro, petrol, police, hollow, infest, figure, heroes, dead, folk, FIGMAT, zoneCells, chevrons, ghost, ring, chainMat };

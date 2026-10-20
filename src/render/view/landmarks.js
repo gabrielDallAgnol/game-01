@@ -119,7 +119,8 @@ export function createLandmarks(V) {
   }
   // special buildings read at a glance: a glowing frame round the lot in the colour of what it gives, and an icon
   const SITE_LOOK = { substation: ['#ffd84a', '⚡'], fuel: ['#ffd84a', '⛽'], allotment: ['#8fe36a', '❀'], flats: ['#ff8ac0', '⌂'], school: ['#ff8ac0', '✎'], police: ['#ff5a4a', '★'],
-    market: ['#f0a040', '$'], clinic: ['#7fffd0', '✚'], radio: ['#7fd4ff', '◉'], eiffel: ['#f0b04a', '♛'], tvtower: ['#f0b04a', '♛'], christ: ['#f0b04a', '♛'], unknown: ['#8a8a8a', '?'] };
+    market: ['#f0a040', '$'], clinic: ['#7fffd0', '✚'], radio: ['#7fd4ff', '◉'], eiffel: ['#f0b04a', '♛'], tvtower: ['#f0b04a', '♛'], christ: ['#f0b04a', '♛'], unknown: ['#8a8a8a', '?'],
+    farmstead: ['#8fe36a', '❀'], lodge: ['#8fe36a', '❀'], lumber: ['#f0a040', '$'], quarry: ['#f0a040', '$'], cabin: ['#ff8ac0', '⌂'] };   // the wild sites (a hollow may have taken one)
   const iconMats = {};
   const iconMat = kind => { const [col, ch] = SITE_LOOK[kind] || SITE_LOOK.unknown; return iconMats[kind] || (iconMats[kind] = new THREE.SpriteMaterial({ map: K.textTex(ch, { w: 96, h: 96, size: 62, bg: '#101418', fg: col }), transparent: true, depthTest: false })); };
   function siteFrame(size) {
@@ -141,6 +142,7 @@ export function createLandmarks(V) {
     const icon = new THREE.Sprite(iconMat(l.kind)); icon.scale.set(1.1, 1.1, 1); icon.position.y = mark.position.y + 1.1; icon.renderOrder = 9; g.add(icon);
     world.add(g); return { l, g, pole, flag, mark, m, kind: l.kind, frame, icon };
   });
+  const ROT = new THREE.Color(0.58, 0.68, 0.5), ASH = new THREE.Color(0.3, 0.28, 0.26);   // [nests] tints: a building the rot took, and what the fire left
   // quest marks: a story quest at a site is MAIN (the gold marker in markers.js stands over it, so the diamond steps
   // aside); a site you opened yourself is OPTIONAL (the same small diamond as any place to claim, a touch brighter)
   function updateLandmarks(t) {
@@ -156,6 +158,17 @@ export function createLandmarks(V) {
       v.mark.visible = !main && !v.l.owned && !v.l.stripped && v.l.kind !== 'unknown' && S.phase === 'day' && !S.sealed[v.l.region] && (!locked || opt);
       v.mark.scale.setScalar(opt ? 0.9 + Math.sin(t * 3) * 0.06 : 0.75);
       if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3;
+      // [nests] begin: a building a hollow took is rot-dark while the hive lives, scorched once it burns, itself again once claimed
+      if (v.nestR === undefined) { const reg = V.map.regions.find(r => r.nest && r.nest.site === v.l.id); v.nestR = reg ? reg.id : -1; }
+      if (v.nestR >= 0) {
+        const look = S.nestAlive[v.nestR] ? 'rot' : v.l.owned ? '' : 'ash';
+        if (look !== (v.look || '')) {
+          if (!v.orig) { v.orig = new Map(); v.m.traverse(o => { if (o.isMesh && o.material && o.material.color) v.orig.set(o, o.material); }); }
+          for (const [o, mt] of v.orig) { if (!look) { o.material = mt; continue; } const c = mt.clone(); c.color.multiply(look === 'rot' ? ROT : ASH); o.material = c; }
+          v.look = look;
+        }
+      }
+      // [nests] end
       if (v.l.stripped && !v.gutted) { v.gutted = true; v.m.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.45); } }); }
     }
   }

@@ -1,5 +1,6 @@
 // Hives: the landmarks the dead pour out of. Live ones glow and breathe, sleeping ones near your land stay dark,
-// a hive about to erupt swells red; a hollow (forest burrow) watches with blinking eyes until it burns.
+// a hive about to erupt swells red; a hollow (forest burrow) watches with blinking eyes until it burns. A hollow that took
+// a building (a wild landmark beside it) is drawn as the rot on that building: roots, green windows, eyes in the door.
 /* global THREE */
 import { K, CFG } from '../kit.js';
 import { lc, HIVES } from './shared.js';
@@ -36,15 +37,21 @@ export function createHives(V) {
   }
   const hives = new Map(); let nestKey = '', nearNests = new Set();
   const rageCol = new THREE.Color(), greenCol = lc('#8fff3a').clone(), redCol = lc('#ff4a2a').clone();   // [nests]
+  // [nests] a hollow that took a building: the rot goes on the building (landmarks.js draws it), centred on its footprint
+  const bodyOf = r => r.nest.body || r.nest;
+  V.hiveAt = r => bodyOf(map.regions[r]);
+  function infestModel(r) { CFG.hiveGlow = 1; const g = K.infest({ w: r.nest.body.half * 2 * 0.92, h: 3.4, seed: 43 + r.id }); return g; }
   for (const r of map.regions) if (r.nest) {
-    const kind = r.ring === 1 ? 'hollow' : HIVES[r.id % HIVES.length], g = new THREE.Group(); g.position.copy(Wv(r.nest.x, r.nest.y)); g.rotation.y = r.nest.back ? Math.atan2(-r.nest.back[0], -r.nest.back[1]) : Math.atan2(C - r.nest.x, C - r.nest.y);
-    g.add(hiveModel(kind));
-    const decal = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshBasicMaterial({ map: glowTex, color: lc('#8fff3a'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const b = bodyOf(r), inB = !!r.nest.body;
+    const kind = r.ring === 1 ? 'hollow' : HIVES[r.id % HIVES.length], g = new THREE.Group(); g.position.copy(Wv(b.x, b.y)); g.rotation.y = r.nest.back ? Math.atan2(-r.nest.back[0], -r.nest.back[1]) : Math.atan2(C - b.x, C - b.y);
+    g.add(inB ? infestModel(r) : hiveModel(kind));
+    const decal = new THREE.Mesh(new THREE.PlaneGeometry(inB ? 7 : 6, inB ? 7 : 6), new THREE.MeshBasicMaterial({ map: glowTex, color: lc('#8fff3a'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
     decal.rotation.x = -Math.PI / 2; decal.position.y = 0.05; decal.renderOrder = 3; g.add(decal);
     const haze = [];
     for (let k = 0; k < 5; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: lc('#9dff4a'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); sp.scale.setScalar(1.6 + k * 0.4); sp.position.set(Math.cos(k * 2.1) * 0.8, 0.6 + k * 0.45, Math.sin(k * 2.1) * 0.8); g.add(sp); haze.push(sp); }
     const model = g.children[0];
-    world.add(g); hives.set(r.id, { g, decal, haze, glow: 0, cleared: !S.nestAlive[r.id], model, burnt: model.userData.burnt || null, eyes: model.userData.eyes || null, pit: model.userData.pit || null });
+    if (inB) haze.forEach((sp, k) => sp.position.y += 2.2);   // over the roof, not inside the walls
+    world.add(g); hives.set(r.id, { g, decal, haze, glow: 0, cleared: !S.nestAlive[r.id], model, burnt: model.userData.burnt || null, eyes: model.userData.eyes || null, pit: model.userData.pit || null, wins: model.userData.wins || null, inB });
   }
 
   /** once a frame (after the buildings and the contract marker) */
@@ -55,9 +62,9 @@ export function createHives(V) {
     const nk = `${S.claimed.size}|${S.night}|${S.phase}`;
     if (nk !== nestKey) { nestKey = nk; nearNests = new Set(S.phase === 'day' ? [...hives.keys()].filter(r => game.canPurge(r)) : []); }
     for (const [r, hv] of hives) {
-      { const hp = game.hiveHealth(r), n = map.regions[r].nest; if (!hv.bar) hv.bar = makeBar('boss', 2.4); if (hp > 0 && hp < 1) setBar(hv.bar, n.x, 3.4, n.y, hp); else hv.bar.visible = false; }
+      { const hp = game.hiveHealth(r), n = bodyOf(map.regions[r]); if (!hv.bar) hv.bar = makeBar('boss', 2.4); if (hp > 0 && hp < 1) setBar(hv.bar, n.x, hv.inB ? 4.8 : 3.4, n.y, hp); else hv.bar.visible = false; }
       const live = (active.has(r) || S.purge === r) && !hv.cleared;
-      hv.g.visible = seenAt(map.regions[r].nest.x, map.regions[r].nest.y) || live;
+      hv.g.visible = seenAt(bodyOf(map.regions[r]).x, bodyOf(map.regions[r]).y) || live;
       const swell = S.eruption && S.eruption.region === r;   // a hive about to burst swells and throbs red
       // [nests] a hive you stand next to wakes and rages: it glows, reddens and throbs faster as the next wave nears
       const rg = !hv.cleared && S.nestRage ? S.nestRage[r] : null, hot = rg ? Math.min(1, rg.lv / 6 + 0.25 * rg.rage + (rg.near ? 0.15 : 0)) : 0;
@@ -74,7 +81,8 @@ export function createHives(V) {
         for (const e of hv.eyes) { const p = e.userData.pair, blink = Math.sin(time * 0.9 + p * 2.3 + r) > 0.96 ? 0.05 : 1; e.visible = !hv.cleared; e.material.opacity = (0.35 + 0.65 * dark) * (0.55 + 0.45 * Math.min(1, hv.glow)) * blink; }
         hv.pit.visible = !hv.cleared; hv.pit.material.opacity = (0.25 + 0.75 * dark) * (0.5 + 0.5 * Math.min(1, hv.glow));
       }
-      hv.haze.forEach((s, k) => { s.material.color.copy(colr); s.material.opacity = hv.glow * (0.12 + dark * 0.22) * (0.8 + 0.2 * Math.sin(time * 1.5 + k)); s.position.y = 0.6 + k * 0.45 + Math.sin(time * 0.7 + k) * 0.1; });
+      hv.haze.forEach((s, k) => { s.material.color.copy(colr); s.material.opacity = hv.glow * (0.12 + dark * 0.22) * (0.8 + 0.2 * Math.sin(time * 1.5 + k)); s.position.y = (hv.inB ? 2.8 : 0.6) + k * 0.45 + Math.sin(time * 0.7 + k) * 0.1; });
+      if (hv.wins) { hv.wins.color.copy(colr).multiplyScalar(1.2); hv.wins.opacity = hv.cleared ? 0 : (0.35 + 0.55 * dark) * (0.6 + 0.4 * Math.min(1.5, hv.glow)) * (0.85 + 0.15 * Math.sin(time * 2.3 + r)); }   // the windows breathe with the hive
     }
   }
   return { hives, update };

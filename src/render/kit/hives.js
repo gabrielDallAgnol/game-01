@@ -102,4 +102,53 @@ function police(o = {}) {
   return g;
 }
 
-export { hospital, metro, petrol, hollow, police };
+// A hollow that has taken a building (a wild landmark): the building stays (landmarks.js draws it), this is what the
+// rot puts on it. Roots up the walls and out of the door, earth and moss heaped at its feet, green light in the windows,
+// eyes in the doorway. o.w: the footprint (cells), o.h: the wall height; +z faces the camp (the door). userData: eyes,
+// pit, wins (the lit windows) and burnt (the charred roots and ash left after the fire, hidden until then).
+function infest(o = {}) {
+  const g = new THREE.Group(), rr = rng(o.seed || 43), w = o.w || 2.8, H = o.h || 3.4, hw = w / 2;
+  const roots = (burnt) => {
+    const b = new B(), ROOT = burnt ? '#1b1816' : '#3d3128', EARTH = burnt ? '#24201d' : '#3a322a', MOSS = burnt ? '#3a3633' : '#3c4430';
+    // a root: a bent tube of tapering segments through a list of points
+    const tube = (pts, r0) => { for (let k = 0; k < pts.length - 1; k++) { const [x0, y0, z0] = pts[k], [x1, y1, z1] = pts[k + 1], dx = x1 - x0, dy = y1 - y0, dz = z1 - z0, L = Math.hypot(dx, dy, dz), t = k / (pts.length - 1), r1 = r0 * (1 - t * 0.6), r2 = r0 * (1 - (k + 1) / (pts.length - 1) * 0.6);
+      const e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx, dy, dz).normalize()));
+      b.geo(ROOT, new THREE.CylinderGeometry(r2, r1, L + 0.04, 5), (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, e.x, e.y, e.z); } };
+    // up each wall: three roots climbing from the ground, wandering sideways, hugging the face
+    for (const [nx, nz] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) for (let k = 0; k < 3; k++) {
+      const u0 = (k / 2 - 0.5) * w * 0.8 + (rr() - 0.5) * 0.3, top = H * (0.35 + rr() * 0.6), lean = (rr() - 0.5) * 1.2, pts = [];
+      // splayed into the ground at the foot, then flat against the wall, wandering sideways as it climbs
+      for (let s2 = 0; s2 <= 6; s2++) { const t = s2 / 6, u = u0 + lean * t + Math.sin(t * 4 + k * 2) * 0.18, out = hw + 0.05 + (1 - t) * (1 - t) * 0.7; pts.push([nz ? u : nx * out, Math.max(-0.05, t * top - 0.1), nz ? nz * out : u]); }
+      tube(pts, 0.13 + rr() * 0.05);
+      // a side shoot off the main root
+      const j = 2 + (k % 3), [jx, jy, jz] = pts[j], su = (rr() < 0.5 ? -1 : 1) * 0.55; tube([[jx, jy, jz], [jx + (nz ? su : 0), jy + 0.45, jz + (nz ? 0 : su)], [jx + (nz ? su * 1.5 : 0), jy + 0.6, jz + (nz ? 0 : su * 1.5)]], 0.06);
+    }
+    // over the roof edge and out of the door: thick roots bursting from the doorway into the ground
+    for (const sx of [-1, 1]) tube([[sx * 0.25, 0.9, hw + 0.05], [sx * 0.55, 0.7, hw + 0.45], [sx * 0.85, 0.25, hw + 0.9], [sx * 1.05, -0.05, hw + 1.25]], 0.16);
+    tube([[0, 1.05, hw + 0.04], [0.1, 0.75, hw + 0.55], [-0.15, 0.2, hw + 1.1], [-0.2, -0.05, hw + 1.5]], 0.13);
+    // the heap at its feet: earth and moss in lumps round the walls
+    for (let k = 0; k < 20; k++) { const a = k / 20 * Math.PI * 2, d = hw * 1.3 + rr() * 0.35, x = Math.max(-hw - 0.5, Math.min(hw + 0.5, Math.cos(a) * d)), z = Math.max(-hw - 0.5, Math.min(hw + 0.5, Math.sin(a) * d)); b.sph(k % 3 ? EARTH : MOSS, 0.4 + rr() * 0.3, x, 0.02, z, { detail: 1, sy: 0.55, ry: rr() * 3 }); }
+    return b.build({ ao: 1.2, aoMin: 0.55 });
+  };
+  g.add(roots(false));
+  const burnt = new THREE.Group(); burnt.add(roots(true)); burnt.visible = false;
+  const ash = glowDecal('#000000', hw + 1.4, 1); ash.material.blending = THREE.NormalBlending; ash.material.opacity = 0.55; ash.position.y = 0.03; burnt.add(ash);
+  g.add(burnt); g.userData.burnt = burnt;
+  // the doorway: a black mouth, the rot-green deep in it, and eyes
+  const mouth = new B(); mouth.cbox('#0c0b0a', 0.95, 1.15, 0.06, 0, 0.55, hw + 0.04, { r: 0.02 }); g.add(mouth.build());
+  const pit = glowDecal('#8fff3a', 0.7, 1.6); pit.rotation.x = 0; pit.position.set(0, 0.45, hw + 0.08); g.add(pit);
+  const eyes = [];
+  for (const [x, y, s0] of [[-0.22, 0.62, 1], [0.15, 0.42, 0.8], [0.3, 0.8, 0.9]]) for (const e of [-0.07, 0.07]) { const sp = glowSprite('#b4ff4e', 0.17 * s0 * (CFG.eyeScale ?? 1), 2.2); sp.position.set(x + e * s0, y, hw + 0.12); sp.userData.pair = eyes.length >> 1; g.add(sp); eyes.push(sp); }
+  // green light in the windows: small lit panes on every face, some dark
+  const winMat = new THREE.MeshBasicMaterial({ color: lin('#9dff4a'), transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }), wins = [];
+  const pane = new THREE.PlaneGeometry(0.32, 0.42);
+  for (const [nx, nz] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) for (let fy = 1.5; fy < H - 0.3; fy += 0.85) for (const u of [-0.75, 0, 0.75]) {
+    if (rr() < 0.4 || (nz === 1 && fy < 1.2 && Math.abs(u) < 0.5)) continue;
+    const m = new THREE.Mesh(pane, winMat); m.position.set(nz ? u : nx * (hw + 0.03), fy, nz ? nz * (hw + 0.03) : u); m.rotation.y = Math.atan2(nx, nz); m.renderOrder = 4; g.add(m); wins.push(m);
+  }
+  g.userData.eyes = eyes; g.userData.pit = pit; g.userData.wins = winMat;
+  hiveFx(g, 0, 0, hw + 0.8, 2.4, o.night);
+  return g;
+}
+
+export { hospital, metro, petrol, hollow, police, infest };

@@ -67,7 +67,7 @@ export function createPanels(ui) {
       $('#pTitle').textContent = L.name;
       let html = `<div class="stat"><span>${L.desc}</span><span>${l.owned ? 'You can build around it.' : 'Claim it and you can build around it too.'}</span></div>`;
       const lock = l.owned ? -1 : ui.game.siteLock(ui.selected.id);   // [nests] a living hive guards it: burn the nest first
-      if (lock >= 0) { const n = ui.game.map.regions[lock].nest, d = Math.round(Math.hypot(n.x - l.x, n.y - l.y)); html += `<div class="opts one">${opt('opt-claim', `data-hive="${lock}"`, 'Burn the nest first', null, `<b class="bad">Locked</b> · its dead guard this place. The hive is ${d} steps away${l.promised ? ' · <b class="good">promised to you</b>' : ''}. Tap to see it.`, false)}</div>`; }
+      if (lock >= 0) { const n = ui.game.map.regions[lock].nest, d = Math.round(Math.hypot(n.x - l.x, n.y - l.y)); const inside = n.site === l.id; html += `<div class="opts one">${opt('opt-claim', `data-hive="${lock}"`, inside ? 'Burn it' : 'Burn the nest first', null, `<b class="bad">${inside ? 'Infested' : 'Locked'}</b> · ${inside ? 'the hive nests inside. Strike its walls until it burns, then claim the ruin' : `its dead guard this place. The hive is ${d} steps away`}${l.promised ? ' · <b class="good">promised to you</b>' : ''}. Tap to see it.`, false)}</div>`; }
       else if (!l.owned) html += `<div class="opts one">${opt('opt-claim', 'data-claim="1"', near ? `Claim the ${L.name}` : 'Walk up to it first', near ? L.cost : null, near ? 'Yours for good: its bonus and a build zone around it.' : 'Your hero is on the way. Tap again when you are next to it.', !near || S.gold < L.cost || !day)}</div>`;
       body.innerHTML = html; return;
     }

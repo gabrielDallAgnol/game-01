@@ -11,10 +11,10 @@ export function createEvents(V) {
     const time = V.time, hives = V.hives.hives, mobState = V.mobs.mobState, { sendWalkers } = V.folk, { bolt } = V.projectiles;
     const { burst, floatLabel, dust, hitStopFor, shake, mobOf } = V.feel, flares = V.flares;
     for (const e of events) {
-      if (e.t === 'claim') { city.setTerritory(); V.repaint = true; const h = hives.get(e.region); if (h) { const n = map.regions[e.region].nest; burst(n.x, n.y, 4, '#d9843a'); h.cleared = true; } }
+      if (e.t === 'claim') { city.setTerritory(); V.repaint = true; const h = hives.get(e.region); if (h) { const n = map.regions[e.region].nest && V.hiveAt(e.region); burst(n.x, n.y, 4, '#d9843a'); h.cleared = true; } }
       if (e.t === 'clear') { city.clear(e.cells); for (const i of e.cells) burst((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.5, '#b8ae9c'); }
       if (e.t === 'firstDead' && !V.cinema.active()) V.focus = { id: e.id, t: 5 };
-      if (e.t === 'hitHive') { const n = map.regions[e.region].nest; burst(n.x, n.y, 1.4, '#9dff4a'); }
+      if (e.t === 'hitHive') { const n = map.regions[e.region].nest && V.hiveAt(e.region); burst(n.x, n.y, 1.4, '#9dff4a'); }
       if (e.t === 'bountyGold') burst(e.x, e.y, 0.6, '#f0c050');
       if (e.t === 'pickup') { burst(e.x, e.y, 0.5, e.kind === 'scrap' ? '#f0a040' : '#9fe08a'); floatLabel(e.x, e.y, `+${e.n || 1} ${e.kind === 'scrap' ? 'scrap' : 'food'}`, e.kind === 'scrap' ? '#ffc070' : '#b4f09a'); }
       if (e.t === 'scavGo') sendWalkers(e.site, e.n, false);
@@ -33,7 +33,7 @@ export function createEvents(V) {
       if (e.t === 'bite') { const m = mobOf(e.id); if (m && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 1.9) { shake(m.kind === 'brute' || m.kind === 'gravelord' || m.kind === 'guardian' ? 0.35 : 0.15); const p = Wv(S.hero.x, S.hero.y, 0.9); fx2.emit('blood', p.x, p.y, p.z, 5); } }
       if (e.t === 'hitH') look.fx.hit = Math.min(1, look.fx.hit + 0.55);
       if (e.t === 'heroDie') { shake(0.6); look.fx.hit = 1; }
-      if (e.t === 'claim') { shake(0.5); const n = map.regions[e.region].nest; if (n) { const p = Wv(n.x, n.y, 0.6); fx2.emit('ember', p.x, p.y, p.z, 40, { spread: 2.2, speed: 2 }); fx2.emit('smoke', p.x, p.y + 0.5, p.z, 16, { spread: 2 }); burst(n.x, n.y, 6, '#f0a040'); } }
+      if (e.t === 'claim') { shake(0.5); const n = map.regions[e.region].nest && V.hiveAt(e.region); if (n) { const p = Wv(n.x, n.y, 0.6); fx2.emit('ember', p.x, p.y, p.z, 40, { spread: 2.2, speed: 2 }); fx2.emit('smoke', p.x, p.y + 0.5, p.z, 16, { spread: 2 }); burst(n.x, n.y, 6, '#f0a040'); } }
       // [nests] the guard claws out; each wave of rage throbs red and shakes the ground under you
       if (e.t === 'nestGuard') { const p = Wv(e.x, e.y, 0.4); fx2.emit('rot', p.x, p.y, p.z, 14, { spread: 1.6, speed: 1.6 }); burst(e.x, e.y, 3, '#b8d94a'); }
       if (e.t === 'nestRage') { const near = Math.hypot(e.x - S.hero.x, e.y - S.hero.y) < 14; if (near) shake(0.12 + 0.04 * Math.min(6, e.lv)); const p = Wv(e.x, e.y, 0.5); fx2.emit('rot', p.x, p.y, p.z, 10 + 4 * Math.min(6, e.lv), { spread: 1.8, speed: 2.2 }); burst(e.x, e.y, 2.5 + 0.5 * Math.min(6, e.lv), '#ff5a3a'); const h = hives.get(e.region); if (h) h.pulse = 1; }
