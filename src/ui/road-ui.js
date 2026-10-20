@@ -65,7 +65,7 @@ const CSS = `
 .rd-kit button .ic{font-size:20px}.rd-kit button b{font:700 11px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}.rd-kit button span{font:600 10px/1 var(--display);display:inline-flex;align-items:center;gap:2px}.rd-kit button span .ic{font-size:10px}
 .rd-kit button.cool{background:conic-gradient(rgba(240,166,73,.35) calc(var(--cd,0) * 360deg), transparent 0),var(--camp-solid);color:var(--bone);border-color:var(--line)}
 .rd-kit button.poor{opacity:.55}
-.rd-tag{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--dockH,72px) + 160px);font:500 10.5px/1 var(--mono);letter-spacing:.08em;color:var(--cyan);background:rgba(5,12,22,.88);border:1px solid var(--cyan-d);border-radius:2px;padding:4px 7px;pointer-events:none;text-transform:uppercase;z-index:4;white-space:nowrap}
+.rd-tag{position:fixed;right:max(16px,env(safe-area-inset-right,0px));max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis;bottom:calc(var(--dockH,72px) + 160px);font:500 10.5px/1 var(--mono);letter-spacing:.08em;color:var(--cyan);background:rgba(5,12,22,.88);border:1px solid var(--cyan-d);border-radius:2px;padding:4px 7px;pointer-events:none;text-transform:uppercase;z-index:4;white-space:nowrap}
 #edge .ar.rd-cv i{border-left-color:#ffd27a}#edge .ar.rd-cv span{color:#ffd27a;width:52px;left:-50px}
 #edge .ar.rd-fire i{border-left-color:#ff8a4a}#edge .ar.rd-fire span{color:#ffb07a;width:60px;left:-56px}
 #edge .ar.rd-trap i{border-left-color:#7fe3ff;border-left-width:20px;border-top-width:9px;border-bottom-width:9px;top:-9px}#edge .ar.rd-trap span{color:#bff0ff;font:600 11px/1 var(--mono);letter-spacing:.04em;width:84px;left:-80px}
@@ -172,7 +172,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
       tool.classList.toggle('cool', cd > 0 || !ear); tool.classList.remove('off'); tool.style.setProperty('--cd', cd > 0 ? cd / MISSION.horn.cd : 0);
       tool.onclick = () => { road.horn(); };
       const hi = road.missions.hornInfo(), pay = Math.round(M.pay);
-      tag.textContent = `Pied Piper · Horn Lv ${hi.lv} · led ${M.led} · fell ${M.ledKilled}${pay ? ` · +${pay} at dawn` : ''}`;
+      tag.textContent = `Piper · Horn ${hi.lv} · led ${M.led} · fell ${M.ledKilled}${pay ? ` · +${pay}` : ''}`;
     } else {
       const sig = `l${M.lantern}`;
       if (sig !== sigTool) { sigTool = sig; tool.innerHTML = `${icon('lantern')}<b>Lantern</b><span>${M.lantern ? 'on' : 'off'}</span>`; }
