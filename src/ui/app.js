@@ -260,7 +260,7 @@ export function startApp() {
   function showCard(kind, html, o = {}) {
     const fresh = card !== kind || o.anim; card = kind; const c = $('#card');
     c.className = `card${o.sys ? ' sysw' : ''}${o.cls ? ` ${o.cls}` : ''}${o.narrow ? '' : ' wide'}`;
-    c.innerHTML = html; $('#overlay').hidden = false;
+    c.innerHTML = html; $('#overlay').hidden = false; if (kind !== 'start') $('#episode').hidden = true;   // a window never opens under the dusk/episode banner
     ctoast.clear(); callouts.hide();
     if (o.arm !== false) { c.classList.add('arming'); c.dataset.armed = '0'; setTimeout(() => { if (c.dataset.armed === '0') { c.dataset.armed = '1'; c.classList.remove('arming'); } }, ARM_MS); }
     else c.dataset.armed = '1';
