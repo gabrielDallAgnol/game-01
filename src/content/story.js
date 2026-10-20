@@ -169,7 +169,7 @@ export const THREADS = {
         speaker: 'teacher', line: '"Single file. Nobody runs. **Nobody screams.** We practiced."',
         scene: '**Eleven children** and their teacher. How many can you feed?',
         choices: [
-          { id: 'all', label: 'Bring everyone to the Camp', hint: '+5 people. {name} joins (+1 food every dawn). Their garden: +1 food every dawn. -6 food now.', cost: { food: 6 }, fx: [{ op: 'survivors', n: 5 }, { op: 'recruit', role: 'teacher' }, { op: 'flag', key: 'garden' }, { op: 'title', id: 'warden' }, { op: 'advance' }] },
+          { id: 'all', label: 'Bring everyone to the Camp', hint: '+5 people. {name} joins (+1 food a day). Their garden: +1 food a day. -6 food now.', cost: { food: 6 }, fx: [{ op: 'survivors', n: 5 }, { op: 'recruit', role: 'teacher' }, { op: 'flag', key: 'garden' }, { op: 'title', id: 'warden' }, { op: 'advance' }] },
           { id: 'few', label: 'Take teacher and oldest', hint: '+2 people. {name} joins. The rest stay: -3 food left for them.', fx: [{ op: 'food', n: -3 }, { op: 'survivors', n: 2 }, { op: 'recruit', role: 'teacher' }, { op: 'advance' }] },
         ],
       },
@@ -211,7 +211,7 @@ THREADS.lantern = {
       scene: 'The Lantern-Eater is **dead**. What do you do with it?',
       choices: [
         { id: 'skull', label: 'Mount the lamp-skull', hint: 'Towers +10% damage for good. The dead fear the light.', fx: [{ op: 'perk', key: 'towerDmg', add: 0.1 }, { op: 'resolve' }] },
-        { id: 'burn', label: 'Burn it by the fire', hint: '-25 noise, and +1 food every dawn: people sleep again.', fx: [{ op: 'heat', n: -25 }, { op: 'flag', key: 'garden' }, { op: 'resolve' }] },
+        { id: 'burn', label: 'Burn it by the fire', hint: '-25 noise, and +1 food a day: people sleep again.', fx: [{ op: 'heat', n: -25 }, { op: 'flag', key: 'garden' }, { op: 'resolve' }] },
       ],
     },
   ],
@@ -251,7 +251,7 @@ THREADS.toll = {
 export const AMBIENT = [
   { id: 'dog', when: S => S.night >= 3, eyebrow: '[Event]', title: 'A dog at the gate',
     scene: 'A stray dog **followed you home**. Keep it?',
-    choices: [{ id: 'keep', label: 'Let it in', hint: 'Barks at the dead: hero 8% faster. The Camp sleeps better: +1 food each dawn.', fx: [{ op: 'perk', key: 'heroSpeed', mul: 1.08 }, { op: 'flag', key: 'garden' }] }, { id: 'shoo', label: 'Shoo it away', hint: 'One more mouth is too many.', fx: [] }] },
+    choices: [{ id: 'keep', label: 'Let it in', hint: 'Barks at the dead: hero 8% faster. The Camp sleeps better: +1 food a day.', fx: [{ op: 'perk', key: 'heroSpeed', mul: 1.08 }, { op: 'flag', key: 'garden' }] }, { id: 'shoo', label: 'Shoo it away', hint: 'One more mouth is too many.', fx: [] }] },
   { id: 'flag', when: S => S.night >= 4, eyebrow: '[Event]', title: 'Your flag on the old road',
     scene: 'Someone painted **your flag** on the road. **Strangers** will find you. **So will the dead.**',
     choices: [{ id: 'leave', label: 'Leave it up', hint: 'Survivors find you: +2 people next dawn. +10 noise.', fx: [{ op: 'heat', n: 10 }, { op: 'flag', key: 'beacon' }, { op: 'flag', key: 'beacon' }] }, { id: 'paint', label: 'Paint over it', hint: 'The road forgets you. -10 noise.', fx: [{ op: 'heat', n: -10 }] }] },
@@ -272,13 +272,13 @@ export const AMBIENT = [
 // Companion roles: what they give while they live, and what they can do at your side
 export const ROLES = {
   engineer: { post: 'Engineer', bonus: 'towers +8% damage', towers: 0.08 },
-  teacher: { post: 'Quartermaster', bonus: '+1 food every dawn', food: 1 },
+  teacher: { post: 'Quartermaster', bonus: '+1 food a day', food: 1 },
   revenant: { post: 'Revenant', bonus: 'the dead slow near the Camp', lullaby: 0.8 },
   raider: { post: 'Captain of the Watch', bonus: 'towers +10% damage', towers: 0.1 },
   // roles for the people Claude (or the woods) makes up
-  scout: { post: 'Scout', bonus: '+2 scrap every dawn', gold: 2 },
+  scout: { post: 'Scout', bonus: '+2 scrap a day', gold: 2 },
   medic: { post: 'Medic', bonus: 'you heal 1 health a second', regen: 1 },
-  cook: { post: 'Cook', bonus: '+2 food every dawn', food: 2 },
+  cook: { post: 'Cook', bonus: '+2 food a day', food: 2 },
   mechanic: { post: 'Mechanic', bonus: 'towers +5% damage', towers: 0.05 },
   gunner: { post: 'Gunner', bonus: 'towers +6% damage', towers: 0.06 },
 };
@@ -325,7 +325,7 @@ export const BARKS = {
 export const TIPS = [
   { id: 'noise', at: 'noise', when: (S, g) => S.night >= 2 && S.phase === 'day' && (S.noise ?? S.heat ?? 0) > 20, text: 'Noise: the louder the Camp, the more dead come.' },
   { id: 'forecast', at: 'forecast', when: S => S.night >= 2 && S.phase === 'day', text: 'Tonight\'s forecast: what may fall tonight.' },
-  { id: 'quest', at: 'strip', when: S => S.night >= 2 && S.phase === 'day' && S.dayT > 4 && !!(S.story.daily && S.story.daily.id), text: 'Your quest. Finish it before dusk.' },
+  { id: 'quest', at: 'strip', when: S => S.night >= 2 && S.phase === 'day' && S.dayT > 4 && !!(S.story.daily && S.story.daily.state === 'active'), text: 'Your daily quest. It ends at dawn.' },
   { id: 'street', at: 'map', when: S => S.night >= 2 && S.story.spots.length > 0 && S.phase === 'day', text: 'Blue beacon: someone needs you. A few dead guard it.' },
   { id: 'evolve', at: 'strip', when: S => S.lvl >= 8, text: 'Your choices shape your class. It unlocks at level 15.' },
   { id: 'roam', at: 'camp', when: S => S.night >= 2 && S.mobs.some(m => m.hunt), text: 'The dead follow you home. Lead them into your towers.' },
@@ -346,7 +346,7 @@ export const STREET = [
     choices: [{ id: 'answer', label: 'Answer Sparrow', hint: 'Sparrow and two others reach you: +3 people. +10 noise.', fx: [{ op: 'heat', n: 10 }, { op: 'survivors', n: 3 }] }, { id: 'keep', label: 'Keep it and listen', hint: 'Learn their patrol routes: the dead notice you later.', fx: [{ op: 'flag', key: 'quiet' }] }] },
   { id: 'church', eyebrow: '[Location discovered]', title: 'Candles in the chapel',
     scene: 'A chapel with **forty names** on the wall. Fresh candles.',
-    choices: [{ id: 'add', label: 'Add your own dead', hint: 'Your people take heart: +1 food each dawn. -15 noise.', fx: [{ op: 'heat', n: -15 }, { op: 'flag', key: 'garden' }] }, { id: 'take', label: 'Take the candles', hint: '+4 scrap. Light is light.', fx: [{ op: 'gold', n: 4 }] }] },
+    choices: [{ id: 'add', label: 'Add your own dead', hint: 'Your people take heart: +1 food a day. -15 noise.', fx: [{ op: 'heat', n: -15 }, { op: 'flag', key: 'garden' }] }, { id: 'take', label: 'Take the candles', hint: '+4 scrap. Light is light.', fx: [{ op: 'gold', n: 4 }] }] },
   { id: 'market', eyebrow: '[Encounter]', title: 'A trader with a trolley',
     scene: 'A trader with **tins and batteries**. "I trade. I don\'t give."',
     choices: [{ id: 'food', label: 'Trade scrap for food', hint: '-6 scrap, +8 food.', cost: { gold: 6 }, fx: [{ op: 'food', n: 8 }] }, { id: 'tip', label: 'Ask what she has seen', hint: 'Free. She knows a hive\'s weak spot: hero +15% damage to hives.', fx: [{ op: 'flag', key: 'hiveTip' }] }] },
@@ -388,7 +388,7 @@ export const STREET_GEN = {
 };
 
 // ---------- the Window's daily quest (Solo Leveling register) ----------
-// One a dawn from day 2. `stat(S, ST)` is a counter that only goes up; the quest is done when it has grown by `n`.
+// One a day from day 2, offered when you are calm (Accept / Not now: sim/daily.js). `stat(S, ST)` is a counter that only goes up; the quest is done when it has grown by `n`.
 // Rewards use only what the engine already has: xp, a lean on the path, scrap, food (and a title, as flavour).
 // Ignore it and the next dawn brings a penalty quest; ignore that too and the Camp pays.
 export const DAILY = [
@@ -408,12 +408,18 @@ export const DAILY = [
     reward: d => [{ op: 'xp', n: 15 + 3 * d }, { op: 'gold', n: 6 }, { op: 'lean', fam: 'scavver', n: 0.5 }] },
 ];
 export const DAILY_TEXT = {
+  offer: '[Daily quest offered]',
+  scene: '**{goal}**. Take it on, or let it go: saying no costs nothing.',
+  accept: 'Accept',
+  terms: 'Ends at dawn. Reward: {reward}. If it is not done by dawn: −{fail} scrap.',
+  later: 'Not now',
+  laterHint: 'No cost. Another one comes tomorrow.',
   issued: '[Daily quest: {title}]',
-  penalty: '[Penalty quest: {title}]',
+  ends: 'It ends at dawn.',
+  endsShort: 'ends at dawn',
+  remind: '[Daily: {title}] {have}/{n}. Dusk soon; it ends at dawn.',
   done: '[Quest complete: {title}]',
-  failed: '[Daily quest failed] Tomorrow\'s is harder.',
-  paid: '[Penalty] Skipped twice. The Camp pays: {cost}.',
-  warn: 'Skip it and tomorrow\'s is harder.',
+  failed: '[Daily quest failed: {title}] {cost}.',
 };
 
 // ---------- the night, in one line (scales with the wave) ----------
@@ -428,4 +434,13 @@ export const NIGHT_TEXT = {
   brutes: ' {B} brutes walk with them.',
   blood: 'Blood moon. ',
   unique: ' {name} comes with them.',
+};
+
+// ---------- how people arrive: every choice that adds people says it plainly (the engine adds this line, never the AI) ----------
+export const ARRIVE = {
+  now: { icon: 'camp', tag: 'At the Camp now', text: 'They\'re at the Camp now.' },
+  convoy: { icon: 'route', tag: 'Escort · convoy', text: 'You must escort them home from here ({dir}, {d} m out). The dead hunt them.' },
+  dawn: { icon: 'clock', tag: 'On their own', text: 'They walk to the Camp on their own (arrive by dawn).' },
+  join: { icon: 'camp', tag: 'At the Camp now', text: '{who} is at the Camp now.' },
+  more: ' +{n} more walk in on their own by dawn.',
 };

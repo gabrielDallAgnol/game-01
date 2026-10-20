@@ -83,6 +83,7 @@ b,strong{font-weight:700}
 .cb.camp .meter i{display:block;height:100%;width:100%;background:var(--amber);transition:width .25s}
 .cb.camp.hurt .meter i{background:var(--ember)}.cb.camp.low .meter i{background:var(--blood)}
 .cb.res b{min-width:1.6ch}
+.cb .rv{display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px}.cb .rt{font:700 10px/1 var(--body);font-style:normal;color:var(--good);letter-spacing:0;white-space:nowrap}.cb .rt.neg{color:var(--blood)}.cb .rt:empty{display:none}
 .cb .warn{color:var(--blood)}
 .cb.noise .nm{width:30px;height:6px;border-radius:3px;background:rgba(239,231,214,.14);position:relative;overflow:hidden}
 .cb.noise .nm i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--good),var(--amber) 55%,var(--blood));background-size:30px 100%;transition:width .3s}
@@ -256,6 +257,11 @@ b,strong{font-weight:700}
 .chip .ic{font-size:14px}.chip .dot{width:8px;height:8px}
 .chip.pos{color:#a8eb94;border-color:rgba(159,224,138,.45);background:rgba(159,224,138,.08)}.chip.neg{color:#ffa492;border-color:rgba(255,122,98,.45);background:rgba(255,122,98,.08)}
 .chip.info{color:#a6e9ff;border-color:rgba(127,227,255,.42);background:rgba(127,227,255,.07)}.chip.risk{color:#ffd77a;border-color:rgba(255,209,102,.5);background:rgba(255,209,102,.08)}
+/* [arrive] how the people a choice adds get here: one line, same icon and tag on every card */
+.arrive{display:flex;align-items:flex-start;gap:6px;margin-top:6px;padding:5px 8px;border-radius:8px;font:500 13px/18px var(--body);color:#d9f4ff;background:rgba(127,227,255,.06);border:1px solid rgba(127,227,255,.22)}
+.arrive .ic{flex:none;font-size:15px;margin-top:1px;color:#a6e9ff}.arrive b{flex:none;font-weight:700;color:#a6e9ff}
+.arrive.convoy{color:#ffe6b0;background:rgba(255,209,102,.07);border-color:rgba(255,209,102,.4)}.arrive.convoy .ic,.arrive.convoy b{color:#ffd77a}
+.arrive.dawn .ic,.arrive.dawn b{color:#b9c8ff}
 .pgdots{display:flex;gap:6px;margin:0 0 12px}.pgdots i{width:18px;height:3px;background:rgba(127,227,255,.2)}.pgdots i.on{background:var(--cyan)}.pgdots i.past{background:rgba(127,227,255,.5)}
 .enc .scene.page{min-height:3.2em;cursor:pointer}
 /* the two-beat open: a line draws, then the window unfolds; closing folds it away */
@@ -418,8 +424,8 @@ table.log{border-collapse:collapse;font:13px var(--body);font-variant-numeric:ta
       <button class="cb day" id="dayPill" aria-label="Your status: titles, companions, chronicle"><svg class="ic" aria-hidden="true"><use href="#i-sun" id="dayIc"/></svg><b id="nightNum">1</b></button>
       <span class="cbsep"></span>
       <span class="cb camp" id="campHp" title="The Camp"><svg class="ic" aria-hidden="true"><use href="#i-camp"/></svg><span class="meter"><i id="keepFill"></i></span></span>
-      <span class="cb res" id="rScrap" title="Scrap"><svg class="ic" aria-hidden="true"><use href="#i-scrap"/></svg><b id="gold">12</b></span>
-      <span class="cb res" id="rFood" title="Food"><svg class="ic" aria-hidden="true"><use href="#i-food"/></svg><b id="food">4</b></span>
+      <span class="cb res" id="rScrap" title="Scrap"><svg class="ic" aria-hidden="true"><use href="#i-scrap"/></svg><span class="rv"><b id="gold">12</b><i class="rt" id="goldRt"></i></span></span>
+      <span class="cb res" id="rFood" title="Food"><svg class="ic" aria-hidden="true"><use href="#i-food"/></svg><span class="rv"><b id="food">4</b><i class="rt" id="foodRt"></i></span></span>
       <span class="cb res" id="rPeople" title="People"><svg class="ic" aria-hidden="true"><use href="#i-people"/></svg><b id="pop">0</b></span>
       <span class="cb noise" id="rNoise" title="Noise: how far the Camp is heard" hidden><svg class="ic" aria-hidden="true"><use href="#i-noise"/></svg><span class="nm"><i id="noiseFill"></i></span></span>
       <button class="cb more" id="moreBtn" aria-label="More: sound, graphics, speed, autopilot"><svg class="ic" aria-hidden="true"><use href="#i-more"/></svg></button>
