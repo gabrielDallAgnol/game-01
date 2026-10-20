@@ -400,7 +400,7 @@ export function createView(canvas, game, opts = {}) {
   }
   function buildModel(type, level, v, links) {
     let m;
-    if (type === 'house') m = K.townhouse({ level, seed: v * 13 + 5, color: HOUSE_COLORS[level] && HOUSE_COLORS[level][v], roof: ROOF_COLORS[level] && ROOF_COLORS[level][v], accent: level === 3 ? ACCENTS[v] : undefined, game: true });
+    if (type === 'house') m = K.home({ level, seed: v });
     else if (type === 'farm') m = K.farm({ level, seed: v + 1, own: true, game: true, color: ['#8e9a88', '#8b95a0'][v], roof: ['#2f8f88', '#3d6b9a'][v] });
     else if (type === 'tower') m = K.tower({ level, game: true });
     else if (type === 'wall') m = K.post(level, links, v);
@@ -435,14 +435,14 @@ export function createView(canvas, game, opts = {}) {
   // homes face the keep, square to the street grid
   function faceKeep(x, y) { const dx = C - x, dy = C - y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? Math.PI / 2 : -Math.PI / 2) : (dy > 0 ? 0 : Math.PI); }
 
-  let keepLevel = 0, keepG = null; const lampGlow = []; let keepFires = [];
+  let keepLevel = 0, keepG = null; const lampGlow = []; let keepFires = [], keepSmoke = [];
   function syncKeep() {
     if (keepLevel === S.keep.level && keepG) return;
     if (keepG) world.remove(keepG); lampGlow.length = 0;
-    keepLevel = S.keep.level; keepG = K.keep({ level: keepLevel, game: true }); keepG.scale.setScalar(0.27); keepG.position.copy(Wv(C, C)); keepG.rotation.y = Math.PI; world.add(keepG);
+    keepLevel = S.keep.level; keepG = K.hall({ level: keepLevel }); keepG.scale.setScalar(0.27); keepG.position.copy(Wv(C, C)); keepG.rotation.y = Math.PI; world.add(keepG);
     keepG.updateMatrixWorld(true);
-    keepFires = (keepG.userData.fires || [[3.4, 0, 2.6]]).map(([x, y, z, r]) => { const v = new THREE.Vector3(x, y, z).applyMatrix4(keepG.matrixWorld); return [v.x, v.z, r || 4.5]; });
-    for (const [x, z, ry] of [[-11.5, 9.5, Math.PI / 2], [11.5, 9.5, Math.PI / 2], [-11.5, -9.5, -Math.PI / 2], [11.5, -9.5, -Math.PI / 2]]) { const l = K.lamp({}); l.position.set(x, 0, z); l.rotation.y = ry; l.traverse(o => { if (o.isMesh && o.material.emissive === undefined) return; }); keepG.add(l); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: lc('#ffa64d').multiplyScalar(0.6), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); sp.position.set(x + (ry > 0 ? 0 : 0), 5.8, z + (ry > 0 ? -1.3 : 1.3)); sp.scale.setScalar(2.2); keepG.add(sp); lampGlow.push(sp); }
+    const toW = ([x, y, z, r]) => { const v = new THREE.Vector3(x, y, z).applyMatrix4(keepG.matrixWorld); return [v.x, v.z, (r || 4.5) * 0.27 * 3, v.y]; };
+    keepFires = (keepG.userData.fires || []).map(toW); keepSmoke = (keepG.userData.smoke || []).map(toW);
   }
   syncKeep();
   const keepBar = makeBar('b', 2.2);
@@ -934,6 +934,7 @@ export function createView(canvas, game, opts = {}) {
       if (!b.ruined) setBar(e.bar, b.x, b.type === 'tower' ? 2.9 + b.level * 0.25 : b.type === 'wall' ? 1.7 : 3.2, b.y, b.hp / b.maxHp); else e.bar.visible = false;
     }
     keepG.visible = !S.keep.ruined;
+    if (keepG.userData.flames) keepG.userData.flames.forEach((f, k) => { f.scale.set(1, 0.85 + 0.25 * Math.abs(Math.sin(animT * (9 + k) + k)), 1); f.rotation.y = animT * (1 + k * 0.3); });
     setBar(keepBar, C, 4.6, C, S.keep.hp / S.keep.maxHp);
 
     // hives: live ones glow and breathe; sleeping ones next to your land stay dark; far ones stay hidden in the ruins
@@ -979,7 +980,8 @@ export function createView(canvas, game, opts = {}) {
     emberT -= dt;
     if (emberT <= 0 && !frozen) {
       emberT = 0.12;
-      if (dark > 0.3 && keepFires.length && !S.keep.ruined) { const [fx0, fz0] = keepFires[0]; fx2.emit('ember', fx0, 0.6, fz0, 1, { spread: 0.25 }); }
+      if (keepFires.length && !S.keep.ruined) { const [fx0, fz0] = keepFires[vis() * keepFires.length | 0]; fx2.emit('ember', fx0, 0.5, fz0, 1, { spread: 0.2 }); if (vis() < 0.25) fx2.emit('smoke', fx0, 0.9, fz0, 1, { size: 0.5, speed: 0.8 }); }
+      for (const [sx0, sz0, , sy0] of keepSmoke) if (vis() < 0.4) fx2.emit('smoke', sx0, sy0, sz0, 1, { size: 0.7 });
       const rx = camTarget.x + (vis() - 0.5) * R * 2.4, rz = camTarget.z + (vis() - 0.7) * R * 3;
       if (dark > 0.6 && vis() < 0.5) fx2.emit('firefly', rx, 0.4 + vis() * 1.2, rz, 1);
       else if (dark < 0.3 && vis() < 0.35) fx2.emit('pollen', rx, 0.3 + vis() * 1.5, rz, 1);
