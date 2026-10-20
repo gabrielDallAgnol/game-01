@@ -94,7 +94,8 @@ In every root, creation order and per-frame call order are load-bearing:
 | `view/terrain.js` | grid → world (`W`, `Wv`, plateaus), `seenAt`, city build, shroud and territory repaint, scan wave |
 | `view/feel.js` | fx hooks: `burst`, `dust`, `celebrate`, `floatLabel`; hit-stop, trauma, `mobOf`, flares list |
 | `view/events.js` | turns drained events into feedback |
-| `view/hives.js` | hive models, glow, haze, eyes, eruption swell, hive bars |
+| `view/hives.js` | hive models (a hollow that took a building: the rot on that building), glow, haze, eyes, eruption swell, hive bars |
+| `view/rest.js` | the "+ RESTING" tag while the hero heals at the Camp |
 | `view/landmarks.js` | landmark and district-site models, lot frames, icons, quest marks (plus retired scavenge caches) |
 | `view/beacons.js` | supply drops, street-encounter and trial beacons |
 | `view/fences.js` | quarantine fences, scouted-district banners |
