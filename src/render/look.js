@@ -17,13 +17,13 @@ export const PRESETS = {
     tint: 0.3, tdark: 0.85,
   },
   night: {
-    bg: '#0a1222', hemiSky: '#38558a', hemiGnd: '#0a0c12', hemi: 0.42, sun: '#7f9fd6', sunI: 0.62, sunDir: [0.5, 1.0, -0.2],
+    bg: '#0a1222', hemiSky: '#34508a', hemiGnd: '#0a0c12', hemi: 0.36, sun: '#7f9fd6', sunI: 0.62, sunDir: [0.5, 1.0, -0.2],
     exposure: 1.18, vignette: 0.5, grain: 0.02, outline: 0.22, haze: 0.22, hazeCol: '#0f1a30', tilt: 1.0,
     tint: 0.4, tdark: 0.85,
   },
   blood: {
-    bg: '#1a0a10', hemiSky: '#6a3040', hemiGnd: '#100608', hemi: 0.4, sun: '#ff8a7a', sunI: 0.6, sunDir: [0.5, 1.0, -0.2],
-    exposure: 1.22, vignette: 0.58, grain: 0.022, outline: 0.25, haze: 0.26, hazeCol: '#260c14', tilt: 1.0,
+    bg: '#1a0a10', hemiSky: '#5a2a3c', hemiGnd: '#100608', hemi: 0.3, sun: '#e0706a', sunI: 0.5, sunDir: [0.5, 1.0, -0.2],
+    exposure: 1.05, vignette: 0.6, grain: 0.022, outline: 0.25, haze: 0.26, hazeCol: '#260c14', tilt: 1.0,
     tint: 0.4, tdark: 0.82,
   },
 };
