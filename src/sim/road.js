@@ -192,6 +192,22 @@ export function createRoad(ctx) {
     const last = tr[tr.length - 1];
     if (!last || Math.hypot(h.x - last.x, h.y - last.y) > 0.35) { tr.push({ x: h.x, y: h.y }); if (tr.length > 700) { const cut = tr.length - 700; tr.splice(0, cut); for (const m of members()) m.ti = Math.max(0, m.ti - cut); } }
   }
+  /** Go with a convoy is an escort: the hero's auto-walk waits for the rear of the column (the stick always takes over) */
+  function stepEscort() {
+    const h = hero();
+    if (h.input.x || h.input.y || h.dead || !R.convoys.length) { h.held = null; h.defend = null; return; }
+    const mem = members().filter(m => m.state === 'follow'); if (!mem.length) return;
+    // escorting: turn on whatever is biting your people, then pick the walk up again
+    if (h.tripTo && (h.target || h.held)) {
+      let foe = null, fd = 11;
+      for (const z of S.mobs) if (z.cv && z.rise >= 1) { const d = Math.hypot(z.x - h.x, z.y - h.y); if (d < fd) { fd = d; foe = z; } }
+      if (foe) { if (!h.held) h.held = { target: h.target, path: h.path }; h.defend = foe.id; h.target = { x: foe.x, y: foe.y }; h.path = null; return; }
+      if (h.defend) { h.defend = null; h.target = null; h.path = null; }
+    }
+    const rear = Math.max(...mem.map(m => Math.hypot(m.x - h.x, m.y - h.y))), col = CONVOY.gap * Math.min(mem.length, 8);
+    if (h.target && h.tripTo && rear > col + 5) { h.held = { target: h.target, path: h.path }; h.target = null; h.path = null; ev('escortWait', {}); }
+    else if (h.held && !h.target && rear < col + 2) { h.target = h.held.target; h.path = h.held.path; h.held = null; }
+  }
   function stepConvoys(dt) {
     const h = hero(), tr = R.trail;
     for (const cv of [...R.convoys]) {
@@ -415,7 +431,7 @@ export function createRoad(ctx) {
   /** walk there along the fastest way (the player takes over by touching the joystick) */
   function go(x, y) {
     const h = hero(), p = plan(x, y); if (!p || !p.path.length || h.dead) return false;
-    h.target = { x: p.path[p.path.length - 1].x, y: p.path[p.path.length - 1].y }; h.path = p.path; h.tripTo = { x, y };
+    h.target = { x: p.path[p.path.length - 1].x, y: p.path[p.path.length - 1].y }; h.path = p.path; h.tripTo = { x, y }; h.held = null;
     ev('trip', { x, y, secs: p.secs }); return true;
   }
   /** places the map and the trip planner know about */
@@ -438,7 +454,7 @@ export function createRoad(ctx) {
     if (S.over) return;
     if (R.phase !== S.phase) { const was = R.phase; R.phase = S.phase; if (S.phase === 'night') { missions.nightfall(); for (const st of stations) if (st.lit) { st.maxHp = ROAD.hp(S.night); st.hp = Math.max(st.hp, st.maxHp); } } else if (was === 'night') syncPeople(); }
     cvHunters = 0; for (const m of S.mobs) if (m.cv) cvHunters++;
-    syncPeople(); stepTrail(); stepConvoys(dt); stepStations(dt); stepAmbush(dt);
+    syncPeople(); stepTrail(); stepEscort(); stepConvoys(dt); stepStations(dt); stepAmbush(dt);
     missions.tick(dt); scanEvents();
   }
   function dawn() { missions.dawn(); for (const st of stations) if (st.lit) st.hp = st.maxHp; R.outT = 0; }
