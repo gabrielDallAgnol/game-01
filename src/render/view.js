@@ -11,6 +11,9 @@ import { buildCity } from './city.js';
 import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE, xrayMat } from './figures.js';
 import { createFx } from './fx.js';
 import { KITS, RARITY } from '../content/districts.js';
+// [road] begin
+import { createRoadView } from './road-view.js';
+// [road] end
 
 const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
 const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
@@ -651,6 +654,9 @@ export function createView(canvas, game, opts = {}) {
   let folkN = 0;
   const villagers = createVillagers({ THREE, world, game, W, map, figure: () => { const g = new THREE.Group(), body = new THREE.Group(); g.add(body); g.userData.folk = folkN++ % 6; const frames = [new THREE.Object3D(), new THREE.Object3D()]; frames[1].visible = false; return { g, body, frames }; } });
   crowd.warm(['folk0', 'folk1', 'folk2', 'folk3', 'folk4', 'folk5']);
+  // [road] begin: stations, fires, the convoy, ambush marks (src/render/road-view.js)
+  const roadView = createRoadView({ world, fx, game, W, K, lc, makeBar, setBar, burst, floatLabel, heroLight, bakedWalker, camera });
+  // [road] end
   // ---------- scavengers: crews walk out to their site at nightfall and home at dawn ----------
   const crewWalkers = [];
   const scavRig = () => { const seed = Math.floor(Math.random() * 1e6); return bakedWalker(() => K.folk(seed, { crew: true }), villagerMat); };
@@ -785,6 +791,9 @@ export function createView(canvas, game, opts = {}) {
       const h = S.hero; if (!h.dead) fx2.pools.light(h.x - C, h.y - C, 4.2, LANT, 0.55 * fl(0), 0.25);
       if (opts.lights) opts.lights(fx2.pools, k);   // [road] stations and convoys can add their fires here
     }
+    // [road] begin: lit station fires paint into the night light texture
+    if (roadView) for (const l of roadView.lights()) fx2.pools.light(l.x - C, l.y - C, l.d * 0.7, AMBER, 1.6 * fl(3));
+    // [road] end
     fx2.pools.end(k);
   }
   const RIM_DAY = lc('#ffdcae'), RIM_NIGHT = lc('#8fb4ff'), MIST_DAWN = lc('#e6d2cc'), MIST_DUSK = lc('#a796b4'), MIST_NIGHT = lc('#30406a'), _rc = new THREE.Color();
@@ -991,6 +1000,9 @@ export function createView(canvas, game, opts = {}) {
     }
     fx2.blobs.end(0.42 - 0.12 * dark);
     fx2.update(animT, 1 - 0.78 * dark);
+    // [road] begin
+    if (roadView) roadView.frame(dt, time, dark, ui.events);
+    // [road] end
     look.render(time);
   }
 

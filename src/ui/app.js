@@ -20,6 +20,9 @@ import { RULES } from '../content/season.js';
 import { CONTRACT_COPY } from '../content/contracts.js';
 import { iconSprite, icon } from './icons.js';
 import { createStrip, createCallouts, createCampToast, typeOn, openBeat, sysRich, reduced } from './system.js';
+// [road] begin
+import { createRoadUI } from './road-ui.js';
+// [road] end
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -55,6 +58,9 @@ const campCopy = t => String(t).replace(/\b([Tt])he (keep|town hall|hall)\b/g, (
 
 export function startApp() {
   let game = null, view = null, names = [], selected = null, placing = null, paused = true, acc = 0, last = performance.now(), hudT = 0;
+  // [road] begin
+  let roadUI = null;
+  // [road] end
   let card = null;             // which card is open
   let dawnAt = 0, endT = -1;   // cards wait until performance.now() passes dawnAt
   const holdCards = sec => { dawnAt = Math.max(dawnAt, performance.now() + sec * 1000); };
@@ -107,6 +113,9 @@ export function startApp() {
     const tr = S.story.trial; if (tr && !tr.done) dot(tr.x, tr.y, big ? 6 : 4, '#ff4a4a', true);
     const k = S.story.contract; if (k && !k.won && k.finale.kind === 'hive') { const n = m.regions[k.finale.region].nest; if (n) dot(n.x, n.y, big ? 9 : 6, '#7fe3ff', true); }
     dot(m.town.x, m.town.y, big ? 7 : 4, '#f0a649');
+    // [road] begin
+    if (roadUI) roadUI.marks(ctx, ox, oy, s, big);
+    // [road] end
     const h = S.hero; dot(h.x, h.y, big ? 6 : 4, '#ffffff'); dot(h.x, h.y, big ? 9 : 6, 'rgba(255,255,255,.5)', true);
   }
   function drawMini() {
@@ -131,6 +140,9 @@ export function startApp() {
     marks(ctx, b.x0, b.y0, s, true);
     const lbl = (x, y, t) => { ctx.font = 'bold 22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(t, (x - b.x0) * s, (y - b.y0) * s); ctx.fillStyle = '#fff1d6'; ctx.fillText(t, (x - b.x0) * s, (y - b.y0) * s); };
     lbl(game.map.town.x, game.map.town.y - 8, 'CAMP'); const c = game.map.city; if (c) lbl(c.x, c.y + 4, 'THE CITY');
+    // [road] begin
+    if (roadUI) roadUI.onMap(cv, b.x0, b.y0, s);
+    // [road] end
     $('#mapOk').onclick = $('#mapX').onclick = () => { hideCard(); paused = false; };
   }
 
@@ -198,6 +210,11 @@ export function startApp() {
     if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); }
     window.__game = game; window.__view = view; window.__openSel = sel => openSel(sel);
     window.__ui = { strip, callouts, ctoast, showStatus, showMore, showMap, cards: () => card, toast, planTrip: () => planTrip() };
+    // [road] begin
+    if (roadUI) roadUI.dispose();
+    roadUI = createRoadUI({ game, view, toast: (m, k) => toast(m, k), hideCard: () => { hideCard(); paused = false; }, isBusy: () => paused || !!card || !!placing });
+    window.__roadUI = roadUI;
+    // [road] end
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = true;
     if (snap) { previouslyOn(); }
@@ -1117,6 +1134,9 @@ export function startApp() {
     if (placing && placing.zone.ver !== S.occVersion) { refreshZone(); updateGhost(); }
     view.frame(dt, { events, selected, ghost: placing && placing.ghost, zone: placing && placing.zoneMask });
     edgeMarks(); watchFrames(raw);
+    // [road] begin
+    if (roadUI) roadUI.tick(dt);
+    // [road] end
     if ((miniT -= dt) <= 0) { miniT = 0.4; drawMini(); }
     hudT -= dt; if (hudT <= 0) { updateHud(); hudT = 0.2; if (selected && !paused) { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } } }
   }

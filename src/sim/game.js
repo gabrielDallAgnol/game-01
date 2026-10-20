@@ -13,6 +13,9 @@ import { createPlanner, FOCI } from './planner.js';
 import { WEATHER } from '../content/weather.js';
 import { KITS, RARITY_ODDS } from '../content/districts.js';
 import { createStory } from './story.js';
+// [road] begin
+import { createRoad } from './road.js';
+// [road] end
 import { FEATURES, CALLING_LVL, FINAL_LVL, PARTY, SEASONS, SEASON_POOL, RULES, seasonEnd } from '../content/season.js';
 
 export const STEP = 1 / 60;
@@ -178,6 +181,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (BUILDINGS[type].tech) { if (keep.level < BUILDINGS[type].keep) return { ok: false, reason: `Raise the keep to level ${BUILDINGS[type].keep} first.`, cells: [] }; if (S.buildings.some(b => b.type === type)) return { ok: false, reason: `You already have a ${BUILDINGS[type].name}.`, cells: [] }; }
     const { cells, lot, cx, cy } = shape(type, x, y, rot);
     const out = { ok: false, x: cx, y: cy, rot, cells: cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), lot: lot.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), reason: '' };
+    // [road] begin
+    { const why = road && road.placeRule(type, cx, cy); if (why) { out.reason = why; return out; } }
+    // [road] end
     if (out.cells.length !== cells.length || out.lot.length !== lot.length) { out.reason = 'Too close to the edge.'; return out; }
     const own = new Set(out.cells);
     for (const i of out.lot) {
@@ -245,6 +251,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const keep = { id: 0, type: 'keep', x: c, y: c, r: 2.3, level: 1, hp: KEEP.hp[0], maxHp: KEEP.hp[0], cd: 0, ruined: false, cells: [], boltT: 3 };
   S.keep = keep; S.byId = new Map([[0, keep]]);
   occupy(keep);
+  // [road] begin: stations, convoys, ambushes and night missions live in src/sim/road.js and src/sim/missions.js
+  let road = null;
+  road = createRoad({ S, map, ev, toast, rng: new Rng(hashSeed(seed, 'road')), LANDMARKS, mobById, story: () => story, fail: m => fail(m), earn: g => earn(g), gainXp: n => gainXp(n), reveal, compass: (x, y) => compass(x, y),
+    placeBuilding, isWall: id => isWall(id), spawnMob, killMob, hitMob, hurtHero, moveToward, standable, heroOk: i => heroOk(i), inZone: i => inZone(i), zone: () => zone(), rankOf: m => rankOf(m), senseMult: m => senseMult(m),
+    heroSpeed: () => HC.speed * S.P.heroSpeed, removeMob: m => { const i = S.mobs.indexOf(m); if (i >= 0) { S.mobs.splice(i, 1); mobById.delete(m.id); } } });
+  // [road] end
 
   // ---------- the shroud: the city starts dark; you, your buildings and your land reveal it ----------
   function reveal(x, y, r) {
@@ -794,6 +806,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), heroHome = inZone(idx(Math.floor(h.x), Math.floor(h.y)));
     // once a roamer has your scent it hunts you: it follows you home and joins the attack on the town
     const sight = Math.max(R.sight, BRAIN.sense[rank]) * senseMult(m), lose = Math.max(R.lose, sight * BRAIN.forget[rank]);
+    // [road] begin
+    if (road && !m.hunt && hd < sight && road.unseen(hd, sight)) return;   // lantern off: it stops and sniffs the air
+    // [road] end
     if (m.kind !== 'deer' && !m.hunt && !h.dead && hd < sight - (S.story.flags.quiet ? 1.5 : 0) && !heroHome && (m.warden || huntN < huntCap()) && (!m.warden || Math.hypot(h.x - home.x, h.y - home.y) < R.leash)) { m.hunt = true; huntN++; ev('aggro', { id: m.id }); }
     if (m.hunt && (h.dead || hd > lose || Math.hypot(m.x - home.x, m.y - home.y) > (m.warden ? R.leash + 4 : 30))) m.hunt = false;   // nobody follows you more than 30 cells from its ground
     if (m.hunt && !m.warden && heroHome && baseDist(m.x, m.y) < 4) { if (S.night < 4 || MOBS[m.kind].animal || rng.next() < 0.7) { m.hunt = false; m.wp = { x: home.x, y: home.y }; } else { m.roam = null; m.hunt = false; ev('drift', { id: m.id }); return; } }
@@ -908,6 +923,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const reg = map.regions[r];
     if (keep.level < keepForRing(reg.ring)) { if (!S.nightFlags.keepWarn) { S.nightFlags.keepWarn = true; fail(`This hive is too strong: raise the keep to level ${keepForRing(reg.ring)} first.`); } return false; }
     if (!hiveDmg[r]) { toast('You strike the hive. It wakes and pours out its dead!', 'bad'); if (S.wake[r] > S.night) S.wake[r] = S.night; }
+    // [road] begin
+    if (road) d *= road.hiveMult(r);
+    // [road] end
     hiveDmg[r] = (hiveDmg[r] || 0) + d * (S.story && S.story.flags.hiveTip ? 1.15 : 1); rage[r] = STREAM.rageTime;
     ev('hitHive', { region: r, hp: Math.max(0, 1 - hiveDmg[r] / hiveMax(r)) });
     if (hiveDmg[r] >= hiveMax(r)) { gainXp(40); burnHive(r); hiveFall(r); S.picks.push('nest'); syncPicks(); if (S.picks.length === 1) rollOffer(); dropSupply('The hive is ash.'); delete hiveDmg[r]; delete rage[r]; }
@@ -1064,6 +1082,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.sawBlackout && !S.blackout) story.grant('ironGrid');
     checkFeatures();
     if (S.night - 1 === seasonEnd(S.season.n)) startSeason(S.season.n + 1);
+    // [road] begin
+    if (road) road.dawn();
+    // [road] end
     story.dawn();
     checkEvolution();
     if (HC.trader) S.trade = { deals: rng.shuffle([...TRADES]).slice(0, 3).map(t => t.id), done: false };
@@ -1382,6 +1403,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       const reach = A.reach + S.P.heroRange, dmg = heroDmg() * (S.nightFlags.lastT > 0 ? 2 : 1);
       let best = null, bd = reach;
       for (const m of S.mobs) { if (m.rise < 1) continue; const d = Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size; if (d < bd) { bd = d; best = m; } }
+      // [road] begin
+      if (best && road && road.preferHive(best, reach)) best = null;   // lantern off on a Hunt: leave the sleeping dead, strike the hive
+      // [road] end
       if (!best) {
         // nothing to fight: strike a hive in reach
         const hv = map.regions.find(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - h.x, r.nest.y - h.y) < reach + 1.4);
@@ -1442,6 +1466,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const senseMult = m => (S.hero.noiseT > 0 ? 1.4 : 1) * (m.smoke > 0 ? 0.3 : 1) * (S.phase === 'night' ? 1.15 : 1) * (S.story.flags.quiet ? 0.85 : 1);
   function think(m, hd, dt) {
     const h = S.hero, rank = rankOf(m);
+    // [road] begin
+    if (road) hd = road.perceive(m, hd);
+    // [road] end
     if (m.smoke > 0) m.smoke -= dt;
     if (m.lure) { m.lure.t -= dt; if (m.lure.t <= 0 || hd < 1.5) m.lure = null; else return Math.hypot(m.lure.x - m.x, m.lure.y - m.y) < 1 ? { wait: true } : m.lure; }
     if (MOBS[m.kind].burst || m.kind === 'gravelord') return null;
@@ -1514,6 +1541,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       const ci = idx(Math.floor(m.x), Math.floor(m.y));
       const lull = story && Math.abs(m.x - c) < 7 && Math.abs(m.y - c) < 7 ? story.bonus.lullaby() : 1;
       const speed = (rule('winter') ? 0.9 : 1) * lull * m.speed * m.boost * W8().speed * (inTar ? 0.6 : 1) / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
+      // [road] begin
+      if (road && road.drive(m, dt, speed)) continue;
+      // [road] end
       if (m.roam) { stepRoamer(m, dt, speed); continue; }
       const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
       const goal = think(m, hd, dt);
@@ -1688,6 +1718,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.drops.length) stepDrops(dt);
     if (S.pickups.length) stepPickups();
     stepStream(dt);
+    // [road] begin
+    if (road) road.tick(dt);
+    // [road] end
     stepHeat(dt);
     if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); story.tick(); if (S.blackout) S.sawBlackout = true; }
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }
@@ -1839,5 +1872,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   };
   planner = createPlanner(api); api.planner = planner;
   if (restore) restoreSnap(restore);
+  // [road] begin
+  if (road) { road.attach(api); if (restore && restore.road) road.load(restore.road); }
+  // [road] end
   return api;
 }
