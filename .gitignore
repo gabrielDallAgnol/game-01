@@ -6,3 +6,4 @@ reports/*.txt
 concept/lib/
 concept/out/
 .claude/
+node_modules
