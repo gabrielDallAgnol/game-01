@@ -6,6 +6,7 @@ import { N, T, PASSABLE, idx, inside } from './mapgen.js';
 import { MOBS, BRAIN, TIDE } from '../content/mobs.js';
 import { STATIONS, ROAD, CONVOY, AMBUSH, STATION_SCENES } from '../content/road.js';
 import { createMissions } from './missions.js';
+import { spotOk } from './spots.js';
 
 const BIG = 1.6;
 const DIRS8 = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
@@ -44,7 +45,7 @@ export function placeStations(map) {
       let tx = p1[0] - p0[0], ty = p1[1] - p0[1]; const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
       for (const side of [1, -1]) {
         const nx = -ty * side, ny = tx * side, x = p[0] + nx * ROAD.side, y = p[1] + ny * ROAD.side;
-        if (!okCell(x, y) || nests.some(n => Math.hypot(n.x - x, n.y - y) < 9) || map.landmarks.some(l => Math.hypot(l.x - x, l.y - y) < l.size / 2 + ROAD.clear + 1.5)) continue;
+        if (!okCell(x, y) || !spotOk(map, null, x, y) || nests.some(n => Math.hypot(n.x - x, n.y - y) < 9) || map.landmarks.some(l => Math.hypot(l.x - x, l.y - y) < l.size / 2 + ROAD.clear + 1.5)) continue;
         let score = Math.abs(along(p) - def.at); for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (!okCell(x + dx, y + dy) && !(inside(Math.floor(x + dx), Math.floor(y + dy)) && map.road[idx(Math.floor(x + dx), Math.floor(y + dy))])) score += 1.5;
         if (!best || score < best.score) best = { score, x, y, nx, ny, tx, ty, rx: p[0], ry: p[1] };
       }
@@ -294,8 +295,8 @@ export function createRoad(ctx) {
     const near = nearestRoadPt(h.x, h.y); if (near.d > 8) return;
     // a spot on the road between you and the camp, out of sight
     const s0 = along(h.x, h.y), want = s0 - AMBUSH.ahead; let spot = null;
-    if (want > 42) { let bd = Infinity; for (const p of map.feature.road) { const e = Math.abs(along(p[0], p[1]) - want); if (e < bd && walk(p[0], p[1])) { bd = e; spot = { x: p[0], y: p[1] }; } } }
-    if (!spot) { const L = Math.hypot(h.x - c, h.y - c), k = AMBUSH.ahead / L; const x = h.x + (c - h.x) * k, y = h.y + (c - h.y) * k; if (walk(x, y)) spot = { x, y }; }
+    if (want > 42) { let bd = Infinity; for (const p of map.feature.road) { const e = Math.abs(along(p[0], p[1]) - want); if (e < bd && walk(p[0], p[1]) && spotOk(map, S.sealed, p[0], p[1])) { bd = e; spot = { x: p[0], y: p[1] }; } } }
+    if (!spot) { const L = Math.hypot(h.x - c, h.y - c), k = AMBUSH.ahead / L; const x = h.x + (c - h.x) * k, y = h.y + (c - h.y) * k; if (walk(x, y) && spotOk(map, S.sealed, x, y)) spot = { x, y }; }
     if (!spot || Math.hypot(spot.x - h.x, spot.y - h.y) < 13 || inLitRing(spot.x, spot.y, 2) || Math.hypot(spot.x - c, spot.y - c) < ROAD.out) { R.ambushCd = 8; return; }
     R.ambushCd = AMBUSH.every;
     const n = S.night, list = [n >= 3 ? 'brute' : 'runner', 'runner', ...(n >= 5 ? ['runner'] : []), ...(n >= 8 ? ['brute'] : [])];

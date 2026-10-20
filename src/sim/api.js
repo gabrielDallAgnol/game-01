@@ -63,6 +63,7 @@ export function createApi(G) {
     forecast, mastered, mastery, isBloodMoon, drainEvents: () => S.events.splice(0),
     // [acts] act 1 (the woods) / act 2 (the road and the city); a region held behind the fence by act 1
     act: () => G.actNow(), actGated: r => G.actGated(r), actGoal: () => G.actGoal(),
+    findSpot: () => G.findSpot(), spotOk: (x, y) => G.spotOk(x, y),   // where an objective may stand (sim/spots.js)
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
   };
   return api;

@@ -1,6 +1,7 @@
 // Things to pick up: finds in the streets (carried home), supply drops after big nights, chests' cousins.
 import { CUT, DROPS } from './state.js';
 import { N, PASSABLE, idx, inside } from './mapgen.js';
+import { spotOk } from './spots.js';
 
 export function createLoot(G) {
   const { S, c, compass, earn, ev, map, reveal, rng, syncPicks, toast } = G;
@@ -10,7 +11,7 @@ export function createLoot(G) {
   function scatterPickups(n) {
     for (let k = 0, tries = 0; k < n && tries < n * 30 && S.pickups.length < PICKUP.max; tries++) {
       const x = rng.int(N), y = rng.int(N), i = idx(x, y), r = map.region[i];
-      if (r < 0 || S.sealed[r] || !PASSABLE[map.terrain[i]] || !map.reach[i] || S.occ[i] >= 0 || G.inZone(i) || map.lm[i] >= 0) continue;
+      if (r < 0 || !spotOk(map, S.sealed, x + 0.5, y + 0.5) || S.occ[i] >= 0 || G.inZone(i)) continue;
       if (S.pickups.some(p => Math.abs(p.x - x) + Math.abs(p.y - y) < PICKUP.apart)) continue;
       S.pickups.push({ id: S.nextId++, x: x + 0.5, y: y + 0.5, kind: rng.next() < 0.55 ? 'scrap' : 'food' }); k++;
     }
@@ -39,7 +40,7 @@ export function createLoot(G) {
     for (let t = 0; t < 60 && !spot; t++) {
       const a = rng.range(0, Math.PI * 2), d = rng.range(22, 50), x = c + Math.cos(a) * d, y = c + Math.sin(a) * d, cx = Math.floor(x), cy = Math.floor(y);
       if (!inside(cx, cy)) continue; const i = idx(cx, cy);
-      if (!PASSABLE[map.terrain[i]] || !map.reach[i] || S.occ[i] >= 0 || G.inZone(i) || G.baseDist(x, y) < 7 || S.sealed[map.region[i]]) continue;
+      if (!spotOk(map, S.sealed, x, y) || S.occ[i] >= 0 || G.inZone(i) || G.baseDist(x, y) < 7) continue;
       if (map.regions.some(r => r.nest && S.nestAlive[r.id] && Math.hypot(r.nest.x - x, r.nest.y - y) < 5)) continue;
       spot = { x: cx + 0.5, y: cy + 0.5 };
     }
