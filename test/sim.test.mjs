@@ -728,7 +728,8 @@ test('contracts: stacked rules, a finale, and a won contract steps the difficult
   // a season that runs out: the finale is lost
   const h = createGame({ seed: 10 }); readyDay(h); const T = h.state; T.night = T.season.end; T.keep.hp = T.keep.maxHp = 1e6; nextDawn(h);
   const L = lastEv(T, 'finale'); assert.ok(L && L.won === false, 'no lost finale when the season ended');
-  assert.equal(T.season.n, 2); assert.ok(T.season.rules.includes('raiders'), 'the new season lost its rule');
+  assert.equal(T.season.n, 2); assert.deepEqual(T.season.rules, T.story.rules || [], 'a new season carries only the rules a contract signed (the season\'s own rule is offered, not imposed)');
+  assert.ok(T.story.encounters.some(e => e.kind === 'contract') || T.story.later.some(x => x.enc.kind === 'contract'), 'no contract offered for the new season');
 });
 
 test('engine calls for contracts.js and the UI: setDifficulty, endRun with a reason, contractWon(share), lightsout alias', () => {

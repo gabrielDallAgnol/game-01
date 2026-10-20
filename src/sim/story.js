@@ -104,7 +104,7 @@ export function createStory(ctx) {
       case 'fail': if (th) { if (f.after) { th.status = 'waiting'; th.failAt = S.night + f.after; } else { th.status = 'failed'; th.closed = S.night; } } break;
     }
   }
-  const hasRule = id => !!(S.season && (S.season.rule === id || (S.season.rules || []).includes(id)));
+  const hasRule = id => { const a = api(); return a && a.rule ? a.rule(id) : !!(S.season && (S.season.rules || []).includes(id)); };
   const nextMoon = n => { let k = n; while (k % 5) k++; return k; };
 
   // ---------- where a thread happens: reuse a site that is already open, else open one, else mark the place ----------
@@ -298,7 +298,7 @@ export function createStory(ctx) {
     const lost = contracts.settle();
     if (lost) { loseRun(lost); return; }
     chron(`Season ${n} began: ${def.name}.`, 4, ['season']);
-    S.season.rules = (ST.rules || []).slice(); if (ST.rules && ST.rules.length && !S.season.rule) S.season.rule = ST.rules[ST.rules.length - 1];
+    { const a = api(); if (a && a.setSeasonRules) a.setSeasonRules(ST.rules || []); }   // only the rules the player signed stack
     offerContract(n);
   }
   function offerContract(n) {
@@ -310,9 +310,7 @@ export function createStory(ctx) {
   function loseRun(k) {
     ST.lostContract = { name: k.name, finale: k.finale.name, night: k.finale.night };
     const a = api();
-    if (a && typeof a.endRun === 'function') { a.endRun(false, k.name); return; }
-    S.over = true; S.won = false; S.phase = 'over'; S.stats.nights = S.night - 1; S.stats.peakPop = Math.max(S.stats.peakPop || 0, ctx.pop ? ctx.pop() : 0);
-    ev('over', { won: false, night: S.night, contract: k.name });
+    a.endRun(false, k.name);
   }
   function victoryCard(k) {
     const C = { name: k.name, n: k.n };

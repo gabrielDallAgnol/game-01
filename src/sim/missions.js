@@ -123,10 +123,10 @@ export function createMissions(ctx, getRoad) {
         toast(`[Night hunt] The hive burned while its dead were out: **+${bonus} scrap** more.`, 'good');
         const story = ctx.story(); if (story) story.chron('Burned a hive by night while its dead were out.', 4, ['hunt']);
       }
-    } else if (e.t === 'escape' && M.id === 'hunt' && night() && S.escape && S.escape.horde) {
-      // most of its dead are out on the road tonight: fewer pour out after you
-      const H = S.escape.horde, cut = Math.floor(H.length * (1 - MISSION.hunt.horde));
-      for (const id of H.splice(H.length - cut, cut)) { const m = ctx.mobById.get(id); if (m) ctx.removeMob(m); }
+    } else if (e.t === 'horde' && M.id === 'hunt' && night() && Array.isArray(e.ids)) {
+      // most of its dead are out on the road tonight: fewer pour out after you (the runners and brute stay)
+      const H = e.ids.slice(), cut = Math.floor(H.length * (1 - MISSION.hunt.horde));
+      for (const id of H.slice(H.length - cut)) { const m = ctx.mobById.get(id); if (m) ctx.removeMob(m); }
     } else if (e.t === 'explode' && outside(e.x, e.y)) {
       const dmg = 10 * Math.sqrt(WAVES.hpScale(S.night)) * MISSION.chainK;
       for (const m of [...S.mobs]) if (!MOBS[m.kind].animal && m.hp > 0 && Math.hypot(m.x - e.x, m.y - e.y) < (e.r || 2.4)) ctx.hitMob(m, dmg, 'fire');

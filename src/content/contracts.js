@@ -16,7 +16,7 @@ export const CONTRACT = {
 };
 
 // the rules a contract can carry: ids the game reads with rule(id); the names and words are the System's
-export const CONTRACT_RULES = ['raiders', 'metro', 'winter', 'fog', 'hunger'].filter(id => RULES[id]);
+export const CONTRACT_RULES = ['raiders', 'metro', 'winter', 'fog', 'hunger', 'storm'].filter(id => RULES[id]);
 
 // authored finales first, then made from these
 export const FINALE_NAMES = ['The Gravelord', 'The Toll-King', 'The Station Mother', 'The Frost Choir'];

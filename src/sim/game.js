@@ -56,9 +56,9 @@ export const PRESENCE = { r: 6, rate: 1.3, range: 2, markT: 4, mark: 1.3 };
 export const TOOLS = { flare: { cost: 4, t: 20, cd: 20, r: 14, throw: 9 }, smoke: { cost: 3, t: 25, cd: 20, r: 10 } };
 // Season rules that used to be weather (rolled at dawn, now a contract's rule): what they do to a night
 export const RULE_FX = {
-  storm: { name: 'Storm season', desc: 'Thunder every night: a fifth more dead; the rain fills the cisterns (+40% food at dawn).', weather: 'storm' },
-  still: { name: 'The still', desc: 'Quiet nights: a quarter fewer dead come.', weather: 'still' },
-  lightsOut: { name: 'Lights out', desc: 'Level 2–3 towers and the tech buildings need power again. Generators return; a shortfall is a blackout.' },
+  storm: { name: RULES.storm.name, desc: RULES.storm.desc, weather: 'storm' },
+  still: { name: RULES.still.name, desc: RULES.still.desc, weather: 'still' },
+  lightsOut: { name: RULES.lightsOut.name, desc: RULES.lightsOut.desc },
 };
 // Difficulty: threat (how many dead), economy (what homes and farms give), heat (how fast attention builds).
 export const DIFFICULTY = {
@@ -2163,6 +2163,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     rule: id => rule(id), contractWon, setSeasonRules, setDifficulty, endRun, setFinale, season: () => S.season, effNight: (n = S.night) => effN(n),
     cut: CUT, raiseBlock: id => raiseBlock(S.byId.get(id)), perkOk,
     hitBuilding: (id, d) => { const b = S.byId.get(id); if (b) damageBuilding(b, d); return b ? b.hp : 0; }, hurtHero: n => hurtHero(n),   // scripted events and tests
+    spawnMob: (kind, x, y, o) => { const m = spawnMob(kind, x, y); if (m && o) Object.assign(m, o); return m; }, killMob: (m, src = 'hero') => killMob(m, src),
     keepNeeds, hasTech, crewing, manned, handsMax, handsFree, powerIn, powerOut, powered, heatFloor, addHeat, difficulty: () => DIFF, newCost, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,

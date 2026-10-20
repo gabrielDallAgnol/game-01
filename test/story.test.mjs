@@ -8,6 +8,7 @@ import { SLOT } from '../src/sim/story.js';
 import { TIDE } from '../src/content/mobs.js';
 import { chooseStory } from '../tools/bot.mjs';
 
+const lastFinale = S => S.events.filter(e => e.t === 'finale' && e.won).pop();
 const frontier = (seed, o = {}) => { const ch = mapChoices(seed)[0]; return createGame({ seed, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor', ...o }); };
 /** put a thread's first card on screen and answer it */
 function answer(g, tid, kit) {
@@ -145,7 +146,8 @@ test('a contract: offered by dawn 3, signed, its finale won, the reward paid and
   const C = S.story.contract; assert.equal(C.id, 'c1'); assert.equal(C.finale.kind, 'unique');
   assert.ok(S.unique && S.unique.contract && S.unique.name === C.finale.name && S.unique.night === C.finale.night);
   assert.equal(S.season.finale, C.finale.name);
-  S.unique.slain = true; st.tick();
+  const m = g.spawnMob('brute', S.hero.x + 3, S.hero.y, { unique: S.unique.name }); g.killMob(m); st.tick();
+  assert.ok(S.unique.slain && lastFinale(S), 'the engine saw no finale');
   assert.ok(C.won, 'the slain finale did not win the contract');
   const gold = S.gold, wins = S.contractWins || 0;
   S.night++; st.dawn(); st.flush();
@@ -173,6 +175,7 @@ test('a hive contract is won by burning that hive', () => {
   st.flush(); const k = S.story.encounters.find(e => e.kind === 'contract');
   const hv = k.offers.find(o => o.finale.kind === 'hive'); if (!hv) return;   // no hive in reach on this map
   S.story.encounters = [k]; g.choose(hv.id);
-  S.nestAlive[hv.finale.region] = false; st.tick();
+  for (let k = 0; k < 900 && S.nestAlive[hv.finale.region]; k++) g.hitHive(hv.finale.region, 5);
+  st.tick();
   assert.ok(S.story.contract.won);
 });

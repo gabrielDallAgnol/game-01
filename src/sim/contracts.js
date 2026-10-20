@@ -80,9 +80,9 @@ export function createContracts(ctx) {
     const name = (enc.ai && enc.ai.names && enc.ai.names[id]) || o.name;
     st.rules = st.rules || [];
     if (o.rule && !st.rules.includes(o.rule)) st.rules.push(o.rule);
-    S.season.rule = o.rule || (st.rules.length ? st.rules[st.rules.length - 1] : null);
-    S.season.rules = st.rules.slice();
-    S.season.finale = o.finale.name;
+    // the engine owns the effects: the stacked rules and the finale go through game.js
+    const a = ctx.api();
+    if (a && a.setSeasonRules) a.setSeasonRules(st.rules); else { S.season.rules = st.rules.slice(); S.season.rule = st.rules[st.rules.length - 1] || null; }
     st.contract = { n, id, name, rule: o.rule, finale: { ...o.finale }, reward: { ...o.reward }, won: false, lost: false, told: false, twist: (enc.ai && enc.ai.twists && enc.ai.twists[id]) || o.twist, day: S.night };
     armFinale();
     ctx.chron(`Signed the contract "${name}": ${o.finale.kind === 'unique' ? `${o.finale.name} by night ${o.finale.night}` : `burn ${o.finale.name} by night ${o.finale.night}`}.`, 5, ['contract']);
@@ -92,15 +92,21 @@ export function createContracts(ctx) {
   }
   /** the contract's monster takes the finale night's unique slot (a story monster due that night moves to the next moon) */
   function armFinale() {
-    const k = ST().contract; if (!k || k.won || k.lost || k.finale.kind !== 'unique') { if (k && k.finale.kind === 'hive' && S.unique && S.unique.season === k.n && !S.unique.contract) S.unique = null; return; }
+    const k = ST().contract; if (!k || k.won || k.lost) return;
+    const a = ctx.api(); if (!a || !a.setFinale || !S.season || S.season.n !== k.n) return;
+    if (k.finale.kind === 'hive') {
+      if (S.season.finaleHive !== k.finale.region) a.setFinale({ kind: 'hive', region: k.finale.region, name: k.finale.name });
+      if (S.unique && S.unique.season === k.n && !S.unique.contract && !S.unique.slain) S.unique = null;   // the season's default monster steps aside
+      return;
+    }
     const U = S.unique;
     if (U && U.contract && U.name === k.finale.name) return;
     if (U && !U.slain && !U.contract && !U.season && U.night !== k.finale.night) ST().uniqueLater = { ...U };
-    S.unique = { name: k.finale.name, mult: k.finale.mult, night: k.finale.night, season: k.n, contract: true };
+    a.setFinale({ kind: 'unique', name: k.finale.name, mult: k.finale.mult, night: k.finale.night });
+    if (S.unique) S.unique.contract = true;
   }
   const won = () => { const k = ST().contract; if (!k || k.lost) return false; if (k.won) return true;
-    if (k.finale.kind === 'unique') return !!(S.unique && S.unique.contract && S.unique.name === k.finale.name && S.unique.slain);
-    return !S.nestAlive[k.finale.region] || S.claimed.has(k.finale.region); };
+    return !!(S.season && S.season.n === k.n && S.season.won); };   // game.js decides the finale ('finale' event)
   /** checked a few times a second: the finale is won the moment it happens (the card waits for dawn) */
   function check() {
     const k = ST().contract; if (!k || k.won || k.lost) return null;
@@ -118,8 +124,7 @@ export function createContracts(ctx) {
     if (k.reward.blessing) { S.picks.push('nest'); ctx.syncPicks(); }
     st().wins = (st().wins || 0) + 1; st().fame = (st().fame || 0) + k.reward.fame;
     const api = ctx.api();
-    if (api && typeof api.contractWon === 'function') api.contractWon(CONTRACT.reset);
-    else S.contractWins = (S.contractWins || 0) + 1;
+    if (api && api.contractWon) api.contractWon(CONTRACT.reset);   // idempotent: the finale already stepped the curve back
     ctx.grant('contractor');
   }
   const st = ST;
