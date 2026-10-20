@@ -234,7 +234,7 @@ test('acts: the road and the city wait behind the fence until every forest hollo
     // burn them: the last one opens the road, once
     hol.forEach((r, k) => { for (let i = 0; i < 400 && S.nestAlive[r.id]; i++) g.hitHive(r.id, 50); assert.equal(g.act(), k === hol.length - 1 ? 2 : 1); });
     assert.equal(S.events.filter(e => e.t === 'actOpen').length, 1);
-    assert.ok(S.events.some(e => e.t === 'window' && /road is open/i.test(e.title)));
+    assert.ok(S.story.encounters.some(e => e.kind === 'window' && /road is open/i.test(e.title)), 'no System window');
     assert.equal(g.actGoal(), null);
     for (const r of g.map.regions) if (r.ring === 2 || (r.ring === 1)) assert.ok(!S.sealed[r.id], `region ${r.id} still sealed`);
     assert.ok(g.frontier().length > 0, 'the old core is the new frontier');

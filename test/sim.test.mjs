@@ -113,6 +113,8 @@ test('the dead never end up inside walls or water', () => {
 
 import { spaceStats } from '../tools/space.mjs';
 import { PERKS } from '../src/content/perks.js';
+// tests of the districts and the city: the fence down from day 1 (act 2 at once; CUT.earlyRoad off, see sim/acts.js)
+const withOpenRoad = fn => () => { CUT.earlyRoad = false; try { return fn(); } finally { CUT.earlyRoad = true; } };
 test('towns use their space: enough lots, little dead land, a street around every building', () => {
   for (const biome of Object.keys(BIOMES)) for (let s = 1; s <= 20; s++) {
     const m = generateMap(s, biome), st = spaceStats(m);
@@ -446,7 +448,7 @@ test('supply drops: guarded crates in the wild, opened by standing next to them'
   assert.equal(S.drops.length, 1, 'opened too fast');
   for (let k = 0; k < 60 * 2; k++) g.step();
   assert.equal(S.drops.length, 0, 'did not open after 3 seconds');
-  assert.ok(S.gold > before.gold || g.pop() > before.pop || S.pendingPicks > before.picks || JSON.stringify(S.stock) !== before.stock || (S.road && S.road.convoys.length > 0), 'no reward');   // [road] survivors found far out walk home as a convoy
+  assert.ok(S.gold > before.gold || g.pop() > before.pop || S.pendingPicks > before.picks || JSON.stringify(S.stock) !== before.stock || S.hero.carry.scrap > 0 || (S.road && S.road.convoys.length > 0), 'no reward');   // [road] survivors found far out walk home as a convoy
 });
 
 test('tech: Workshop and Market need a level 2 keep, take time to build, and unlock level 3', () => {
@@ -501,7 +503,7 @@ test('burning a hive: the horde comes at once (no pause), with runners and a bru
   S.hero.hp = S.hero.maxHp = 1e6; for (let k = 0; k < 60 * 21; k++) g.step(); S.gold = 10; assert.ok(g.escape('flare'));
 });
 
-test('districts: sealed at the start, opened by choice, identity decided when offered', () => {
+test('districts: sealed at the start, opened by choice, identity decided when offered', withOpenRoad(() => {
   const g = createGame({ seed: 11 }); const S = g.state; readyDay(g);
   const front = g.frontier(); assert.ok(front.length >= 2, 'no frontier');
   assert.ok(g.map.regions.every(r => (r.ring <= 2) === !S.sealed[r.id]), 'only the old core should be sealed');
@@ -517,7 +519,7 @@ test('districts: sealed at the start, opened by choice, identity decided when of
   assert.ok(g.openDistrict(r)); assert.equal(S.sealed[r], 0);
   if (site) assert.notEqual(site.kind, 'unknown', 'the site kept no identity');
   assert.ok(g.frontier().length >= front.length - 1);
-});
+}));
 
 // the path: decisions lean the hero; three tiers by level: the Calling (15), the advanced class (30), the legendary form (45)
 function passTrial(g, choiceId) {
@@ -568,7 +570,7 @@ test('decisions lean the path: rescuing is Heart, dealing is Wits', () => {
   assert.ok(S.path.heart >= 1 && S.path.scavver >= 2, JSON.stringify(S.path));
 });
 
-test('saving: a dawn snapshot restores the town, the story and the city', () => {
+test('saving: a dawn snapshot restores the town, the story and the city', withOpenRoad(() => {
   const g = createGame({ seed: 21, hero: 'survivor', difficulty: 'veteran' }); const S = g.state; readyDay(g); S.gold = 300;
   const t = g.map.town; let n = 0; for (let r = 4; r < 10 && n < 4; r++) for (let a = 0; a < 24 && n < 4; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) n++; }
   (prepKeep(g), g.upgradeKeep()); const f = g.frontier(); g.openDistrict(f[0]);
@@ -580,7 +582,7 @@ test('saving: a dawn snapshot restores the town, the story and the city', () => 
   assert.equal(R.difficulty, 'veteran');
   for (let k = 0; k < 60 * 5; k++) h.step();
   assert.ok(!R.over);
-});
+}));
 
 test('the Heart family: a Medic patches the town', async () => {
   const g = createGame({ seed: 12, hero: 'survivor' }); const S = g.state; readyDay(g);

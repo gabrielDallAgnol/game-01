@@ -30,7 +30,7 @@ export function createBrain(G) {
   }
   // the woods: a few herds of deer, and from the second night wolves (both are food)
   function spawnAnimals() {
-    const A = TIDE.roam.animals, wild = map.regions.filter(r => r.ring === 1);
+    const A = TIDE.roam.animals, wild = map.regions.filter(r => r.ring === 1 && !S.sealed[r.id]);   // [acts] herds graze inside the fence: the hero can reach them
     const have = k => S.mobs.filter(m => m.kind === k).length;
     const herd = (kind, size) => {
       for (let t = 0; t < 30; t++) {

@@ -40,8 +40,9 @@ export function createActs(G) {
     G.spawnRoamers();
     ev('actOpen', { act: 2 });
     toast('[The road is open] The hollows are ash. The fences come down.', 'sys');
-    ev('window', { eyebrow: '[Act 2]', title: 'The road is open', feat: 'road', pri: 8,
-      lines: ['The woods are **clear**. The quarantine fences are **down**.', 'The **old road** runs to the city: light its **fires** and hold them.', 'Beyond it, **the city**. Its hives are bigger.'] });
+    const win = { eyebrow: '[Act 2]', title: 'The road is open', feat: 'road', ok: 'Walk the road',
+      lines: ['The woods are **clear**. The quarantine fences are **down**.', 'The **old road** runs to the city: light its **fires** and hold them.', 'Beyond it, **the city**. Its hives are bigger.'] };
+    if (G.story && G.story.windowNow) G.story.windowNow(win); else ev('window', win);
     if (G.story) G.story.chron('Burned the last hollow. The road opened.', 4, ['act']);
     return true;
   }
@@ -49,7 +50,7 @@ export function createActs(G) {
   function actGoal() {
     if (actNow() >= 2) return null;
     const all = hollows(), rest = left(), near = rest.slice().sort((a, b) => Math.hypot(a.nest.x - c, a.nest.y - c) - Math.hypot(b.nest.x - c, b.nest.y - c))[0];
-    return { tag: '[Main]', have: all.length - rest.length, n: all.length, text: `Burn the hollows${near ? ` · ${G.compass(near.nest.x, near.nest.y)}` : ''}`, act: 1 };
+    return { tag: '[Main]', have: all.length - rest.length, n: all.length, text: 'Burn the hollows', extra: near ? `Nearest: ${G.compass(near.nest.x, near.nest.y)}` : '', act: 1 };   // (a contract's countdown takes the second line)
   }
   /** a region held back by act 1 (the UI hides it) */
   const actGated = r => actNow() < 2 && !!S.actGate && S.actGate.includes(r);

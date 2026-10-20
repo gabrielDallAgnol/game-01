@@ -729,6 +729,8 @@ export function createStory(ctx) {
   }
   return { activeQuests, shownQuests, questCap, roomForQuest, invent, fullContext, hooks, offerTrial, trialWon, seasonCard, pathText, start, dawn, tick, choose, can, bonus, context, chron, npc, grant,
     offerWin: w => offer({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: 'Got it', hint: '', fx: [] }] }, w.pri || 6, 30),
+    // [acts] a System window now (by day; at night it waits for the dawn like any card)
+    windowNow: w => push({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: w.ok || 'Got it', hint: '', fx: [] }] }),
     release, flush, dailyProgress, questLine, nightLine, contracts, skillOf, endThread,
     rarityColor: r => (RARITY[r] || RARITY.common).color };
 }

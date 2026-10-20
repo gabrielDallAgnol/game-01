@@ -11,7 +11,7 @@ export function createMap(ui) {
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const MAPCOL = { meadow: hex('#5f7a45'), wood: hex('#2f4a2a'), street: hex('#77736b'), block: hex('#45423e'), park: hex('#3f5634'), water: hex('#2f5a6e'), ford: hex('#8d887d'), dirt: hex('#8a6a48'), road: hex('#c2a46e'), cliff: hex('#8a8378'), site: hex('#e0b050'), voidc: [11, 13, 14] };
   // [acts] act 1: what lies behind the fence (the road past the woods, the city) is not on the map yet
-  const hidden = () => { const g = ui.game; if (!g || !g.act || g.act() >= 2) return null; const S = g.state, gate = new Set(S.actGate || []); return gate.size ? i => gate.has(g.map.region[i]) : null; };
+  const hidden = () => { const g = ui.game; if (!g || !g.act || g.act() >= 2) return null; const S = g.state, gate = new Set(S.actGate || []); const w = g.map.wild; return gate.size ? i => gate.has(g.map.region[i]) || (w && !w[i]) : null; };   // the far road and every street of the city
   function mapBox(m, hide) { let x0 = N, y0 = N, x1 = 0, y1 = 0; for (let i = 0; i < N * N; i++) if (m.terrain[i] !== T.VOID && !(hide && hide(i))) { const x = i % N, y = (i / N) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return { x0: Math.max(0, x0 - 3), y0: Math.max(0, y0 - 3), x1: Math.min(N - 1, x1 + 3), y1: Math.min(N - 1, y1 + 3) }; }
   function paintWorld(cv, m, seen, hide) {
     cv.width = cv.height = N; const ctx = cv.getContext('2d'), im = ctx.createImageData(N, N), d = im.data;
@@ -75,7 +75,7 @@ export function createMap(ui) {
     ui.showCard('map', `<button class="closex" id="mapX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Map] ${esc(ui.game.map.name)} · day ${S.night}</div><h1 class="sm">${act1 ? 'The woods' : 'The woods and the city'}</h1>
       <div class="mapwrap"><canvas id="bigMap" aria-label="${act1 ? 'Map of the woods' : 'Map of the woods and the city'}"></canvas></div>
       <div class="legend"><span><i style="background:#ffffff"></i>You</span>${S.story.contract && !S.story.contract.won && S.story.contract.finale.kind === 'hive' ? `<span><i style="background:none;border:2px solid #7fe3ff"></i>Contract: ${esc(S.story.contract.finale.name)}</span>` : ''}<span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span>${act1 ? '' : '<span><i style="background:#ff5a4a"></i>City hive</span>'}<span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#7fe3ff"></i>Beacon</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>
-      <p class="note">${act1 ? 'Dark ground is unexplored. The road past the fence opens when the hollows burn.' : 'Dark ground is unexplored. Tap a place to plan a trip.'}</p>
+      <p class="note">${act1 ? 'Burn the hollows: the fence opens and the road with it.' : 'Dark ground is unexplored. Tap a place to plan a trip.'}</p>
       <div class="cardrow foot"><button class="btn big" id="mapOk">Back</button></div>`, { sys: true, arm: false });
     const cv = $('#bigMap'); cv.width = w * s; cv.height = hh * s; const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
     ctx.drawImage(src, b.x0, b.y0, w, hh, 0, 0, w * s, hh * s);
