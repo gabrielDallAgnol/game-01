@@ -75,6 +75,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `brain.js` | the dead's minds: roamers, scent, hunting, ambushes |
 | `hives.js` | streams from hives, burning a hive, the horde |
 | `nests.js` | hives defend themselves: the guard pack, proximity rage, sites locked until their hive burns |
+| `steer.js` | the dead's feet round walls (a small cached A* when the straight line is blocked) and the spawn-ground test |
 | `loot.js` | street finds, supply drops |
 | `districts.js` | sites, sealed districts, kits |
 | `seasons.js`, `contracts.js` | season rules, weather, contracts (the engine side) |
