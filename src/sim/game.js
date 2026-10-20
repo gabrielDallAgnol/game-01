@@ -2041,8 +2041,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- the honest forecast: "Hall: safe · ~N buildings at risk · 2 brutes" ----------
   // Calibrated from the Oct 20 sweep logs (12 seeds × 16 nights, tools/sweep.mjs with SWEEP_OUT, 125 nights): the share of
   // standing buildings a night takes is ≈ (ratio − 0.25) × 1.6; last night's losses, grown by tonight's budget, set a
-  // floor (mean error 2.2 buildings, was 2.9 and 2.6 low). Hall: below 0.6 it held 118 of 119 nights; from 1.05 it fell 9 of 14.
-  const FORECAST = { r0: 0.25, slope: 1.6, last: 0.85, safe: 0.6, fall: 1.05 };
+  // floor (mean error 2.2 buildings, was 2.9 and 2.6 low).
+  // The Camp's three states, recalibrated on the Oct 20 polish logs (a 12×16 sweep + 12 scripted playtests, 363 nights;
+  // safe = the hall held ≥80%, at risk = it held but was hurt, may fall = it fell): safe below 0.7; "may fall" from 1.9,
+  // or from 0.8 when last night left the hall under 40%, or from 1.15 under 55%. Agreement 93% (sweep) / 88% (playtests),
+  // was 90% / 82%: every fallen hall was called; "may fall" was wrong twice (the hall held, hurt).
+  const FORECAST = { r0: 0.25, slope: 1.6, last: 0.85, safe: 0.7, fall: 1.9, hurt: [[0.8, 40], [1.15, 55]] };
   function forecastStrip(n = S.night) {
     const ratio = threatRatio(n), u = unlocked(n), wc = u.reduce((a, [, m]) => a + m.weight * m.cost, 0);
     const budget = nightBudget(n), every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / DIFF.threat;
@@ -2055,7 +2059,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const grow = last && last.night ? nightBudget(n) / Math.max(1, nightBudget(last.night)) : 1;
     const share = Math.max(0, Math.min(1, (ratio - FORECAST.r0) * FORECAST.slope));
     const atRisk = Math.min(standing, Math.round(Math.max(standing * share, lastLost * grow * FORECAST.last * (ratio > FORECAST.r0 ? 1 : 0.5))));
-    const hall = ratio < FORECAST.safe ? 'safe' : ratio < FORECAST.fall ? 'risk' : 'fall';
+    const lastHeld = last && last.held !== undefined && last.held !== null ? last.held : 100;
+    const hall = ratio < FORECAST.safe ? 'safe' : ratio >= FORECAST.fall || FORECAST.hurt.some(([r, h]) => ratio >= r && lastHeld < h) ? 'fall' : 'risk';
     // crew: towers without their full crew stay silent. Now, and after the homes this night is likely to take.
     const cr = crewing(), towersUp = S.buildings.filter(b => b.type === 'tower' && !b.ruined).length, silent = towersUp - cr.manned.size;
     const homes = S.buildings.filter(b => b.type === 'house' && !b.ruined), folk = homes.reduce((a, b) => a + (b.folk ?? houseCap(b)), 0);

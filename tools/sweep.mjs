@@ -10,4 +10,8 @@ await Promise.all(Array.from({ length: W }, (_, w) => new Promise(done => {
 rows.sort((a, b) => a.seed - b.seed);
 const reached = rows.map(r => r.reached), sorted = [...reached].sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
 console.log(`${args[0] || 'survivor'} · ${rows.length} runs on ${W} cores · fell ${rows.filter(r => r.fell).length} · reached ${reached.join(',')} · median ${med} · early deaths (<8) ${reached.filter(n => n < 8).length} · collapses (≥90% → fallen) ${rows.filter(r => r.collapse && r.fell).length} · contracts lost ${rows.filter(r => r.contractLost).length}`);
+// the forecast's three states against what each night did (safe: the hall held ≥80% · risk: it held, hurt · fall: it fell)
+{ let ok = 0, n = 0; const conf = {};
+  for (const r of rows) for (const f of r.fc || []) { if (f.held === null && !f.fell) continue; const act = f.fell ? 'fall' : f.held < 80 ? 'risk' : 'safe'; n++; if (f.hall === act) ok++; conf[`${f.hall}→${act}`] = (conf[`${f.hall}→${act}`] || 0) + 1; }
+  if (n) console.log(`forecast agreement ${Math.round(ok / n * 100)}% over ${n} nights · ${Object.entries(conf).sort().map(([k, v]) => `${k} ${v}`).join(' · ')}`); }
 if (process.env.SWEEP_OUT) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.SWEEP_OUT, rows.map(r => JSON.stringify(r)).join('\n') + '\n'); }
