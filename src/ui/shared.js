@@ -20,8 +20,8 @@ for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => aud
 // Cut or parked (decisions, Oct 20): everything stays behind a flag so it can come back.
 // the start screen's "What's new" (under More): short, for players
 export const WHATS_NEW = [
-  '**Night missions.** At dusk choose how to spend the night: **Hold the Camp**, **The Hunt** (lantern off, burn a hive while its dead are out) or **The Pied Piper** (sound the horn, lead the dead into a trap).',
-  '**The old road.** Four stations with fires. Light one and it becomes an outpost; walk the people you find home in a **convoy**, and spend a night out there if you dare.',
+  '**Two acts.** First the woods: burn the forest hollows round the Camp. Then the fences come down and **the road** opens.',
+  '**The old road** (act 2). Four stations with fires. Light one and it becomes an outpost; walk the people you find home in a **convoy**, and spend a night out there if you dare.',
   '**Seasons are contracts.** The System offers a rule and a finale. Win it and the city eases off; lose it and the run ends with its name.',
   '**One Noise meter.** The louder the Camp, the more dead come and the farther the hives hear you (the ring on the map).',
   '**Ruins stay ruins** until you rebuild them: tap one, or **Rebuild all** at dawn.',

@@ -150,7 +150,7 @@ export function createLandmarks(V) {
         v.frame.visible = open; v.icon.visible = open && !v.l.owned;
         if (open) { U.mat.color.copy(lc(col)).multiplyScalar(v.l.owned ? 1.2 : 1.6 + 0.4 * Math.sin(t * 3 + v.l.id)); U.fill.color.copy(lc(col)); U.fill.opacity = v.l.owned ? 0.06 : 0.12; } }
       const quest = shown.some(q => q.site === v.l.id);
-      v.g.visible = LANDMARKS[v.l.kind].signature || seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned;
+      v.g.visible = (LANDMARKS[v.l.kind].signature && S.act !== 1) || seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned;   // [acts] act 1: the city's landmark is not on the skyline yet
       v.mark.visible = !v.l.owned && !v.l.stripped && v.l.kind !== 'unknown' && S.phase === 'day' && !S.sealed[v.l.region];
       v.mark.material = quest ? questMat : diaWhite; v.mark.scale.setScalar(quest ? 1.4 + Math.sin(t * 4) * 0.12 : 1);
       if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3;

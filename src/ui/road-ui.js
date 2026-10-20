@@ -1,5 +1,5 @@
-// The road's HUD: the mission choice at dusk (a System window that never pauses the night), the mission's tool
-// (the horn, the lantern), the station and convoy chips, trip planning ("round trip 2:10 · dusk in 1:40 · Go"),
+// The road's HUD: the mission choice at dusk (a System window that never pauses the night; off while CUT.missions),
+// the mission's tool (the horn, the lantern), the station and convoy chips, trip planning ("round trip 2:10 · dusk in 1:40 · Go"),
 // edge arrows to stragglers and burning outposts, and the road on the map. Reads the sim; acts only through game.road.
 // Created by the `// [road]` hook blocks in app.js.
 import { MISSIONS, ROAD, MISSION } from '../content/road.js';
@@ -101,10 +101,10 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   // ---------- trip planning ----------
   function placeAt(p) {
     if (!p) return null;
-    const st = road.stations.find(s => Math.hypot(s.x - p.x, s.y - p.y) < 4);
+    const st = road.stations.find(s => !S.sealed[s.region] && Math.hypot(s.x - p.x, s.y - p.y) < 4);
     if (st) return { name: st.name, x: st.x + st.normal.x * -1.4, y: st.y + st.normal.y * -1.4, kind: 'station' };
     if (p.type === 'landmark') { const l = S.landmarks[p.id]; return { name: l.kind === 'unknown' ? 'Sealed building' : (game.map.name && l.kind) ? labelOf(l) : 'A site', x: l.x, y: l.y + l.size / 2 + 1, kind: 'site' }; }
-    if (p.type === 'region') { const reg = game.map.regions[p.id]; if (reg.nest && S.nestAlive[p.id]) return { name: reg.ring === 1 ? 'Forest hollow' : 'City hive', x: reg.nest.x, y: reg.nest.y + 2.4, kind: 'hive' }; if (reg.ring >= 2) return { name: 'The city', x: p.x, y: p.y, kind: 'city' }; }
+    if (p.type === 'region') { const reg = game.map.regions[p.id]; if (reg.nest && S.nestAlive[p.id]) return { name: reg.ring === 1 ? 'Forest hollow' : 'City hive', x: reg.nest.x, y: reg.nest.y + 2.4, kind: 'hive' }; if (reg.ring >= 2 && S.act !== 1) return { name: 'The city', x: p.x, y: p.y, kind: 'city' }; }
     return null;
   }
   const labelOf = l => (road.places().find(q => q.kind === 'site' && q.id === l.id) || { name: 'A site' }).name;
@@ -285,7 +285,8 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   // ---------- the map: stations, the convoy, an ambush; tap a place to plan a trip there ----------
   function marks(ctx, ox, oy, s, big) {
     const dot = (x, y, r, col, ring, lw = 2) => { ctx.beginPath(); ctx.arc((x - ox) * s, (y - oy) * s, r, 0, 7); if (ring) { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.stroke(); } else { ctx.fillStyle = col; ctx.fill(); } };
-    for (const st of road.stations) {
+    const shown = road.stations.filter(st => !S.sealed[st.region]);   // [acts] a station behind the fence is not on the map
+    for (const st of shown) {
       if (st.lit) { const g = ctx.createRadialGradient((st.x - ox) * s, (st.y - oy) * s, 0, (st.x - ox) * s, (st.y - oy) * s, (big ? 16 : 9)); g.addColorStop(0, 'rgba(255,190,100,.75)'); g.addColorStop(1, 'rgba(255,150,60,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc((st.x - ox) * s, (st.y - oy) * s, big ? 16 : 9, 0, 7); ctx.fill(); dot(st.x, st.y, big ? 5 : 3, '#ffcf80'); }
       else dot(st.x, st.y, big ? 5 : 3, st.fell ? '#8a7a6a' : '#ffcf80', true, big ? 2 : 1.5);
     }
@@ -295,7 +296,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     for (const a of R.ambushes) dot(a.x, a.y, big ? 5 : 3, '#ff5a3a');
     if (big) {
       ctx.font = 'bold 15px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.75)';
-      for (const st of road.stations) { const t = st.name.replace(/^The /, ''), x = (st.x - ox) * s + 9, y = (st.y - oy) * s + 5; ctx.strokeText(t, x, y); ctx.fillStyle = st.lit ? '#ffcf80' : '#e9dcc6'; ctx.fillText(t, x, y); }
+      for (const st of shown) { const t = st.name.replace(/^The /, ''), x = (st.x - ox) * s + 9, y = (st.y - oy) * s + 5; ctx.strokeText(t, x, y); ctx.fillStyle = st.lit ? '#ffcf80' : '#e9dcc6'; ctx.fillText(t, x, y); }
     }
   }
   function onMap(cv, ox, oy, s) {

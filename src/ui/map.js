@@ -10,15 +10,17 @@ export function createMap(ui) {
   // ---------- maps: one pixel per cell, cropped to the land ----------
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const MAPCOL = { meadow: hex('#5f7a45'), wood: hex('#2f4a2a'), street: hex('#77736b'), block: hex('#45423e'), park: hex('#3f5634'), water: hex('#2f5a6e'), ford: hex('#8d887d'), dirt: hex('#8a6a48'), road: hex('#c2a46e'), cliff: hex('#8a8378'), site: hex('#e0b050'), voidc: [11, 13, 14] };
-  function mapBox(m) { let x0 = N, y0 = N, x1 = 0, y1 = 0; for (let i = 0; i < N * N; i++) if (m.terrain[i] !== T.VOID) { const x = i % N, y = (i / N) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return { x0: Math.max(0, x0 - 3), y0: Math.max(0, y0 - 3), x1: Math.min(N - 1, x1 + 3), y1: Math.min(N - 1, y1 + 3) }; }
-  function paintWorld(cv, m, seen) {
+  // [acts] act 1: what lies behind the fence (the road past the woods, the city) is not on the map yet
+  const hidden = () => { const g = ui.game; if (!g || !g.act || g.act() >= 2) return null; const S = g.state, gate = new Set(S.actGate || []); return gate.size ? i => gate.has(g.map.region[i]) : null; };
+  function mapBox(m, hide) { let x0 = N, y0 = N, x1 = 0, y1 = 0; for (let i = 0; i < N * N; i++) if (m.terrain[i] !== T.VOID && !(hide && hide(i))) { const x = i % N, y = (i / N) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return { x0: Math.max(0, x0 - 3), y0: Math.max(0, y0 - 3), x1: Math.min(N - 1, x1 + 3), y1: Math.min(N - 1, y1 + 3) }; }
+  function paintWorld(cv, m, seen, hide) {
     cv.width = cv.height = N; const ctx = cv.getContext('2d'), im = ctx.createImageData(N, N), d = im.data;
     for (let i = 0; i < N * N; i++) {
       const t = m.terrain[i], wild = m.wild && m.wild[i];
-      let c = t === T.VOID ? MAPCOL.voidc : m.lm[i] >= 0 ? MAPCOL.site : m.road[i] && wild ? MAPCOL.road : t === T.WATER ? MAPCOL.water : t === T.FORD ? MAPCOL.ford : t === T.CLIFF ? MAPCOL.cliff : t === T.DIRT ? MAPCOL.dirt
+      let c = t === T.VOID || (hide && hide(i)) ? MAPCOL.voidc : m.lm[i] >= 0 ? MAPCOL.site : m.road[i] && wild ? MAPCOL.road : t === T.WATER ? MAPCOL.water : t === T.FORD ? MAPCOL.ford : t === T.CLIFF ? MAPCOL.cliff : t === T.DIRT ? MAPCOL.dirt
         : wild ? (t === T.FOREST ? MAPCOL.wood : MAPCOL.meadow) : t === T.ROCK ? MAPCOL.block : t === T.FOREST ? MAPCOL.park : MAPCOL.street;
       let k = 1;
-      if (seen && !seen[i] && t !== T.VOID) k = m.road[i] && wild ? 0.55 : wild ? 0.28 : 0.42;
+      if (seen && !seen[i] && t !== T.VOID && !(hide && hide(i))) k = m.road[i] && wild ? 0.55 : wild ? 0.28 : 0.42;
       d[i * 4] = c[0] * k; d[i * 4 + 1] = c[1] * k; d[i * 4 + 2] = c[2] * k; d[i * 4 + 3] = 255;
     }
     ctx.putImageData(im, 0, 0); return cv;
@@ -32,8 +34,9 @@ export function createMap(ui) {
   let worldCv = null, worldV = -1, worldB = null, miniT = 0;
   function worldNow() {
     const S = ui.game.state;
-    if (!worldCv) { worldCv = document.createElement('canvas'); worldB = mapBox(ui.game.map); worldV = -1; }
-    if (worldV !== S.seenVersion) { worldV = S.seenVersion; paintWorld(worldCv, ui.game.map, S.seen); }
+    const hide = hidden(), key = `${S.seenVersion}|${hide ? 1 : 2}`;
+    if (!worldCv) { worldCv = document.createElement('canvas'); worldV = -1; }
+    if (worldV !== key) { worldV = key; worldB = mapBox(ui.game.map, hide); paintWorld(worldCv, ui.game.map, S.seen, hide); }
     return worldCv;
   }
   function marks(ctx, ox, oy, s, big) {
@@ -64,21 +67,21 @@ export function createMap(ui) {
     const s = cv.width / (R * 2); ctx.imageSmoothingEnabled = false; ctx.fillStyle = '#0b0d0e'; ctx.fillRect(0, 0, cv.width, cv.width);
     ctx.drawImage(src, h.x - R, h.y - R, R * 2, R * 2, 0, 0, cv.width, cv.width);
     marks(ctx, h.x - R, h.y - R, s, false);
-    const c = ui.game.map.city; if (c) { const a = Math.atan2(c.y - h.y, c.x - h.x), dd = Math.hypot(c.x - h.x, c.y - h.y); if (dd > R + c.r * 0.3) { const r0 = cv.width / 2 - 9, x = cv.width / 2 + Math.cos(a) * r0, y = cv.width / 2 + Math.sin(a) * r0; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-6, -6); ctx.lineTo(-6, 6); ctx.fill(); ctx.restore(); } }
+    const c = !hidden() && ui.game.map.city; if (c) { const a = Math.atan2(c.y - h.y, c.x - h.x), dd = Math.hypot(c.x - h.x, c.y - h.y); if (dd > R + c.r * 0.3) { const r0 = cv.width / 2 - 9, x = cv.width / 2 + Math.cos(a) * r0, y = cv.width / 2 + Math.sin(a) * r0; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-6, -6); ctx.lineTo(-6, 6); ctx.fill(); ctx.restore(); } }
   }
   function showMap() {
-    const S = ui.game.state, src = worldNow(), b = worldB, w = b.x1 - b.x0 + 1, hh = b.y1 - b.y0 + 1, s = 2;
+    const S = ui.game.state, src = worldNow(), b = worldB, w = b.x1 - b.x0 + 1, hh = b.y1 - b.y0 + 1, s = 2, act1 = !!hidden();
     ui.paused = true; if (ui.placing) ui.stopPlacing(); ui.closePanel();
-    ui.showCard('map', `<button class="closex" id="mapX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Map] ${esc(ui.game.map.name)} · day ${S.night}</div><h1 class="sm">The woods and the city</h1>
-      <div class="mapwrap"><canvas id="bigMap" aria-label="Map of the woods and the city"></canvas></div>
-      <div class="legend"><span><i style="background:#ffffff"></i>You</span>${S.story.contract && !S.story.contract.won && S.story.contract.finale.kind === 'hive' ? `<span><i style="background:none;border:2px solid #7fe3ff"></i>Contract: ${esc(S.story.contract.finale.name)}</span>` : ''}<span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span><span><i style="background:#ff5a4a"></i>City hive</span><span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#7fe3ff"></i>Beacon</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>
-      <p class="note">Dark ground is unexplored. Tap a place to plan a trip.</p>
+    ui.showCard('map', `<button class="closex" id="mapX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Map] ${esc(ui.game.map.name)} · day ${S.night}</div><h1 class="sm">${act1 ? 'The woods' : 'The woods and the city'}</h1>
+      <div class="mapwrap"><canvas id="bigMap" aria-label="${act1 ? 'Map of the woods' : 'Map of the woods and the city'}"></canvas></div>
+      <div class="legend"><span><i style="background:#ffffff"></i>You</span>${S.story.contract && !S.story.contract.won && S.story.contract.finale.kind === 'hive' ? `<span><i style="background:none;border:2px solid #7fe3ff"></i>Contract: ${esc(S.story.contract.finale.name)}</span>` : ''}<span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span>${act1 ? '' : '<span><i style="background:#ff5a4a"></i>City hive</span>'}<span><i class="o" style="border-color:#ffe08a"></i>Place to claim</span><span><i style="background:#7fe3ff"></i>Beacon</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span></div>
+      <p class="note">${act1 ? 'Dark ground is unexplored. The road past the fence opens when the hollows burn.' : 'Dark ground is unexplored. Tap a place to plan a trip.'}</p>
       <div class="cardrow foot"><button class="btn big" id="mapOk">Back</button></div>`, { sys: true, arm: false });
     const cv = $('#bigMap'); cv.width = w * s; cv.height = hh * s; const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
     ctx.drawImage(src, b.x0, b.y0, w, hh, 0, 0, w * s, hh * s);
     marks(ctx, b.x0, b.y0, s, true);
     const lbl = (x, y, t) => { ctx.font = 'bold 22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(t, (x - b.x0) * s, (y - b.y0) * s); ctx.fillStyle = '#fff1d6'; ctx.fillText(t, (x - b.x0) * s, (y - b.y0) * s); };
-    lbl(ui.game.map.town.x, ui.game.map.town.y - 8, 'CAMP'); const c = ui.game.map.city; if (c) lbl(c.x, c.y + 4, 'THE CITY');
+    lbl(ui.game.map.town.x, ui.game.map.town.y - 8, 'CAMP'); const c = !act1 && ui.game.map.city; if (c) lbl(c.x, c.y + 4, 'THE CITY');
     // [road] begin
     if (ui.roadUI) ui.roadUI.onMap(cv, b.x0, b.y0, s);
     // [road] end
