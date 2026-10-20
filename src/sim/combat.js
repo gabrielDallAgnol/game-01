@@ -66,6 +66,7 @@ export function createCombat(G) {
       d = Math.min(d, Math.max(0, b.maxHp * TENSION.hallCap * (guarded ? TENSION.hallGuard : 1) - (b.winD || 0))); b.winD = (b.winD || 0) + d; if (d <= 0) return;
     }
     if (G.HC.ward && !S.hero.dead && Math.hypot(S.hero.x - b.x, S.hero.y - b.y) < 5) d *= G.HC.ward;
+    if (G.folkGuard) d *= G.folkGuard(b);   // [folk] sandbags and watch-posts the folk raised
     S.cur.taken[b.type] = (S.cur.taken[b.type] || 0) + Math.min(d, b.hp);
     b.hp -= d; ev('hitB', { id: b.id });
     if (b.type === 'wall' && by && mastery('fortress')) hitMob(by, d * 0.5, 'thorns');

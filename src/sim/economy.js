@@ -94,7 +94,7 @@ export function createEconomy(G) {
     for (const b of S.buildings) { if (!b.ruined) b.hp = b.maxHp; b.fell = false; }
     dropLive();
     if (S.hero.dead) G.heroBack();   // the dead hero is back at dawn at the latest
-    { const left = S.buildings.filter(b => b.ruined); S.ledger = { night: S.night, fell: fellB, rose: roseB, held, people: roseB.reduce((a, r) => a + r.people, 0), ruins: left.length, rebuildAll: left.reduce((a, b) => a + G.rebuildCost(b), 0), kills: Object.values(S.cur.kills || {}).reduce((a, b) => a + b, 0), heroDowns: S.cur.heroDeaths || 0, ...(G.road ? G.road.missions.report() : {}) };
+    { const left = S.buildings.filter(b => b.ruined); S.ledger = { night: S.night, fell: fellB, rose: roseB, held, people: roseB.reduce((a, r) => a + r.people, 0), ruins: left.length, rebuildAll: left.reduce((a, b) => a + G.rebuildCost(b), 0), kills: Object.values(S.cur.kills || {}).reduce((a, b) => a + b, 0), heroDowns: S.cur.heroDeaths || 0, ...(G.road ? G.road.missions.report() : {}), ...(G.folkLedger ? G.folkLedger() : {}) };   // [folk] what the folk kept and built
       ev('ledger', S.ledger); }
     keep.hp = Math.min(keep.maxHp, keep.hp + keep.maxHp * 0.25);
     S.hero.hp = S.hero.maxHp; S.hero.guardT = 0;
