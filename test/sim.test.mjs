@@ -491,7 +491,7 @@ test('districts: sealed at the start, opened by choice, identity decided when of
 
 // the path: decisions lean the hero; at level 5 a trial in the city earns the Calling, at 12 the final class
 function passTrial(g, choiceId) {
-  const S = g.state; S.story.encounters = S.story.encounters.filter(x => x.kind === 'evolve'); const e = S.story.encounters[0]; assert.ok(e && e.kind === 'evolve', 'no class quest offered');
+  const S = g.state; g.story().flush(); S.story.encounters = S.story.encounters.filter(x => x.kind === 'evolve'); const e = S.story.encounters[0]; assert.ok(e && e.kind === 'evolve', 'no class quest offered');
   assert.ok(e.choices.some(c => c.id === choiceId), `no ${choiceId} in ${e.choices.map(c => c.id)}`);
   g.choose(choiceId); const tr = S.story.trial; assert.ok(tr && !tr.done, 'no trial placed');
   S.hero.x = tr.x; S.hero.y = tr.y + 1.5; S.hero.hp = S.hero.maxHp = 999;
@@ -504,9 +504,9 @@ const levelTo = (g, lv) => { while (g.state.lvl < lv) g.gainXp(g.xpNext() - g.st
 test('evolution: decisions lead the way; a trial earns the Calling, then the final class', () => {
   const g = createGame({ seed: 8, hero: 'survivor' }); const S = g.state; readyDay(g);
   g.addPath('hero', 6); g.addPath('heart', 1);
-  levelTo(g, 4); assert.equal(S.story.encounters.length, 0, 'offered before level 5');
+  levelTo(g, 4); g.story().flush(); assert.equal(S.story.encounters.length, 0, 'offered before level 5');
   levelTo(g, 5); passTrial(g, 'trial-warrior'); assert.equal(S.heroClass, 'warrior');
-  g.addPath('ranger', 8); levelTo(g, 11); assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'final offered early');
+  g.addPath('ranger', 8); levelTo(g, 11); g.story().flush(); assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'final offered early');
   levelTo(g, 12); passTrial(g, 'trial-vanguard');
   assert.equal(S.heroClass, 'vanguard'); assert.equal(g.heroDef.name, 'Vanguard'); assert.ok(S.hero.maxHp >= 34);
 });
