@@ -208,3 +208,19 @@ test('save mid-run and reload: contract, rules, ruins, noise, road, story queues
   assert.ok(T.phase === 'day' || T.over);
   assert.equal(snap.v, SAVE_V, 'the save format changed: bump SAVE_V so old saves are ignored');
 });
+
+test('the strip stays short on a phone: the contract line and the trial line fit two narrow lines', () => {
+  let checked = 0;
+  for (const id of ['c1', 'c2', 'c3']) {
+    const g = frontier(4), S = g.state, st = g.story();
+    for (let n = 2; n <= 3; n++) { S.night = n; st.dawn(); }
+    st.flush(); const k = S.story.encounters.find(e => e.kind === 'contract'); if (!k || !k.offers.some(o => o.id === id)) continue;
+    signContract(g, id);
+    const L = st.contracts.stripLine(); assert.ok(L && L.extra.startsWith('Contract · '), 'no contract line');
+    assert.ok(L.extra.length <= 52, `contract line too long for 390 px: "${L.extra}"`);
+    assert.ok(!/\bthe the\b|comes to the Camp/.test(L.extra), L.extra);
+    S.story.trial = { cls: 'scavver', x: S.hero.x + 20, y: S.hero.y, day: S.night, started: false, done: false, tier: 1, boss: 'The Warden of the Old Road', name: 'Trial of the Scavenger' };
+    const q = st.questLine(); assert.equal(q.tag, '[Trial]'); assert.ok(!/^Win the /.test(q.text) && q.text.length <= 40, q.text); checked++;
+  }
+  assert.ok(checked >= 2, 'too few contracts checked');
+});

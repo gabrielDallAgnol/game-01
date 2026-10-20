@@ -83,7 +83,7 @@ export function createContracts(ctx) {
     const left = Math.max(0, k.finale.night - S.night), pl = placeOf(k.finale);
     const short = k.finale.name.replace(/^The /, '');
     return { tag: '[Contract]', text: fillT(CONTRACT_COPY.strip[k.finale.kind], { finale: k.finale.name, hive: k.finale.name, night: k.finale.night, dir: pl ? pl.dir : '' }),
-      extra: `Contract · ${left ? `${left} night${left === 1 ? '' : 's'}` : 'tonight'} · ${k.finale.kind === 'hive' ? `burn ${k.finale.name}` : `${k.finale.name.replace(/^The /, 'the ')} comes to the Camp`}`, place: pl, left, name: k.finale.name, kind: k.finale.kind };
+      extra: `Contract · ${left ? `${left} night${left === 1 ? '' : 's'}` : 'tonight'} · ${k.finale.kind === 'hive' ? `burn ${short}` : `${short} comes`}`, place: pl, left, name: k.finale.name, kind: k.finale.kind };
   }
   function encounter(n, hooks) {
     const opts = build(n);

@@ -33,7 +33,7 @@ export function openBeat(card) {
 
 // ---------- the strip ----------
 export function createStrip(el, { onTap } = {}) {
-  el.innerHTML = `<div class="sb-in"><span class="sb-hp">${icon('heart')}<b id="sbHp">24</b><i id="sbHpMax">/24</i></span><span class="sb-lv">Lv <b id="sbLv">1</b></span><span class="sb-main"><span class="sb-q" id="sbQ"></span><span class="sb-say" id="sbSay" hidden></span></span></div>`;
+  el.innerHTML = `<div class="sb-in"><span class="sb-st"><span class="sb-hp">${icon('heart')}<b id="sbHp">24</b><i id="sbHpMax">/24</i></span><span class="sb-lv">Lv <b id="sbLv">1</b></span></span><span class="sb-main"><span class="sb-q" id="sbQ"></span><span class="sb-say" id="sbSay" hidden></span></span></div>`;
   const q = [], $ = id => el.querySelector(id); let cur = null, timer = 0, lastQ = '';
   const say = $('#sbSay'), quest = $('#sbQ');
   function next() {
@@ -53,7 +53,7 @@ export function createStrip(el, { onTap } = {}) {
       $('#sbHp').textContent = Math.max(0, Math.ceil(hp)); $('#sbHpMax').textContent = `/${maxHp}`; $('#sbLv').textContent = lv;
       el.classList.toggle('low', hp < maxHp * 0.35);
       const count = qt && (qt.done ? '<b class="ok">Done</b> ' : qt.n ? `<b>${qt.have}/${qt.n}</b> ` : '');
-      const html = qt ? `<span class="br">${esc(qt.tag)}</span> ${count}${esc(qt.text)}${qt.extra ? `<span class="sb-k">${esc(qt.extra)}</span>` : ''}` : '<span class="br">[System]</span> Standing by.';
+      const html = qt ? `<span class="sb-t"><span class="br">${esc(qt.tag)}</span> ${count}${esc(qt.text)}</span>${qt.extra ? `<span class="sb-k">${esc(qt.extra)}</span>` : ''}` : '<span class="sb-t"><span class="br">[System]</span> Standing by.</span>';
       if (html !== lastQ) { lastQ = html; quest.innerHTML = html; el.classList.toggle('two', !!(qt && qt.extra)); }
     },
     busy: () => !!cur,
