@@ -134,6 +134,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const combo = (a, b) => has(a) && has(b);
   let mastSet = new Set();
   const mastery = id => mastSet.has(id);
+  const syncMastery = () => { mastSet = new Set(Object.values(S.P.mastery)); };
   const mastered = f => !!S.P.mastery[f];
   const isDef = t => t === 'tower' || t === 'wall';
   const earn = g => { S.gold += g; S.stats.goldEarned += Math.max(0, g); };
@@ -189,6 +190,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     const ids = Object.keys(WEATHER); return ids[weatherRng.weighted(ids.map(k => WEATHER[k].odds))];
   }
   let liveCache = null, liveTick = -1;
+  const dropLive = () => { liveTick = -1; };   // buildings changed: live() re-reads them
   const live = () => { if (liveTick !== S.time) { liveCache = S.buildings.filter(b => !b.ruined); liveTick = S.time; } return liveCache; };
   const heroMax = () => Math.round((HC.hp + S.P.heroHp + LEVEL.hp * ((S.lvl || 1) - 1) + (mastery('champion') ? 25 : 0)) * S.P.heroHpMult);
   let sc = null, story = null;
@@ -322,12 +324,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       hp: maxHpOf(type, level), maxHp: maxHpOf(type, level), cd: 0, ruined: false, fell: false, nearWater: nearWaterAt(x, y), shotN: 0, rainT: 0 };
     b.built = BUILDINGS[type].buildTime && id === undefined ? 0 : 1;
     if (type === 'house') b.folk = BUILDINGS.house.pop[level - 1];   // a new home comes with its family (raise() and restore adjust this)
-    S.buildings.push(b); S.byId.set(b.id, b); occupy(b); liveTick = -1;
+    S.buildings.push(b); S.byId.set(b.id, b); occupy(b); dropLive();
     reveal(x, y, type === 'tower' ? 8 : 5);
     ev('build', { id: b.id });
     return b;
   }
-  function removeBuilding(b) { vacate(b); S.buildings.splice(S.buildings.indexOf(b), 1); S.byId.delete(b.id); liveTick = -1; ev('remove', { id: b.id }); }
+  function removeBuilding(b) { vacate(b); S.buildings.splice(S.buildings.indexOf(b), 1); S.byId.delete(b.id); dropLive(); ev('remove', { id: b.id }); }
 
   // ---------- flow fields ----------
   const isWall = id => { const b = S.byId.get(id); return !!b && b.type === 'wall'; };
@@ -408,6 +410,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
   // ---------- noise: one meter (see NOISE). Loud choices set its floor; fighting spikes it; story choices hold for nights ----------
   let floorKey = '', floorCache = 0;
+  const dropFloor = () => { floorKey = ''; };   // rules or difficulty changed: re-read the floor
   function noiseFloor() {
     const key = `${S.occVersion || 0}|${S.landmarks.filter(l => l.owned).length}`;
     if (key === floorKey) return floorCache;
@@ -442,6 +445,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   // towers are manned by people from your homes, oldest tower first; a tower without its full crew stays silent
   let crewKey = -1, crewCache = null;
+  const dropCrew = () => { crewCache = null; };   // people or towers changed: re-man the towers
   function crewing() {
     const key = (S.occVersion || 0) * 1000 + (S.phase === 'night' ? 1 : 0);
     if (S.phase === 'night' && crewCache && crewCache.night === S.night) return crewCache;   // posts are fixed for the night
@@ -497,6 +501,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     return best < 0 ? r : -1 - best;
   }
   const nightLen = () => TIDE.nightLen; let todLast = 0.25;   // every night lasts its full length: the moon crosses the sky, cleared or not
+  // one continuous clock for the light: 0 sunrise … dayShare dusk falls … 1 the next sunrise (day from S.dayT, night from S.qT)
+  function timeOfDay() {
+    const D = TIDE.dayLen / (TIDE.dayLen + nightLen());
+    if (S.phase === 'over') return todLast;   // the run ended: the light holds where it was
+    return (todLast = S.phase === 'night' ? D + (1 - D) * Math.min(1, S.qT / nightLen()) : D * (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4));
+  }
   const N1_COUNT = 1 + TIDE.night1.packA.length + TIDE.night1.packB.length;
   function makeWave(n) {
     const nests = marchNests(n);
@@ -561,7 +571,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       for (const m of [...S.mobs]) if (Math.hypot(m.x - b.x, m.y - b.y) < 8) hitMob(m, 20, 'keep');
       ev('bell'); toast('The Bell of Last Light rings. The keep holds.', 'good'); return;
     }
-    b.ruined = true; b.fell = true; b.hp = 0; vacate(b, true); liveTick = -1; ev('ruin', { id: b.id });
+    b.ruined = true; b.fell = true; b.hp = 0; vacate(b, true); dropLive(); ev('ruin', { id: b.id });
     if (b.type === 'keep') { endRun(false); return; }
     S.cur.lost.push(b.type); S.stats.buildingsLost++; (S.cur.fellB || (S.cur.fellB = [])).push({ id: b.id, type: b.type, level: b.level });
     if (rule('raiders') && S.phase === 'night') S.gold = Math.max(0, S.gold - 2);
@@ -576,7 +586,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       S.cur.risen += n; S.stats.risen += n; S.stats.housesLost++; S.stats.peopleLost = (S.stats.peopleLost || 0) + people;
       (S.cur.rose || (S.cur.rose = [])).push({ id: b.id, n, people, fled });
       for (let k = 0; k < n; k++) { const m = spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1), { instant: false }); m.rise = 0.4; }
-      crewCache = null;
+      dropCrew();
       toast(n ? `A home fell. ${n === 1 ? 'One of its people rises' : `${n} of its people rise`} with the dead${fled ? `; ${fled} fled to the Camp` : ''}.` : `A home fell${fled ? `; ${fled} fled to the Camp` : ''}. Rebuild it to take them in.`, 'bad');
     } else toast(`${BUILDINGS[b.type].name} destroyed. Rebuild it by hand.`, 'bad');
   }
@@ -613,7 +623,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (src === 'hero' || src === 'volley' || src === 'merc') gainXp(MOBS[m.kind].size >= BIG ? 6 : 1);
     if (m.trial && story) story.trialWon(m.trial);
     if (src === 'hero' && combo('blood', 'bounty')) earn(1);
-    if (D.burst) { liveTick = -1; explode(m.x, m.y, D.burst); }
+    if (D.burst) { dropLive(); explode(m.x, m.y, D.burst); }
     if (D.dropsChest && rng.chance(D.dropsChest)) { const ch = { id: S.nextId++, x: m.x, y: m.y }; S.chests.push(ch); ev('chest', { id: ch.id }); toast('Something dropped a chest. Walk over it.', 'good'); }
     if (HC.collects && m.kind !== 'risen') {
       const big = PURSE.value[m.kind];
@@ -749,7 +759,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function demolish(id) {
     if (S.over) return false;
     const b = S.byId.get(id); if (!b || b.type === 'keep') return fail('Cannot demolish that.');
-    if (!b.ruined) earn(Math.floor(costOf(b.type) / 2)); if (b.type === 'house' && b.folk) { S.homeless = (S.homeless || 0) + b.folk; crewCache = null; } removeBuilding(b); return true;   // clearing a ruin pays nothing; a pulled-down home's family moves to the Camp
+    if (!b.ruined) earn(Math.floor(costOf(b.type) / 2)); if (b.type === 'house' && b.folk) { S.homeless = (S.homeless || 0) + b.folk; dropCrew(); } removeBuilding(b); return true;   // clearing a ruin pays nothing; a pulled-down home's family moves to the Camp
   }
   // ---------- ruins: a fallen building stays on its lot (no income, no defence) until you rebuild it by hand ----------
   function rebuild(id) {
@@ -760,7 +770,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (b.cells.some(i => S.occ[i] >= 0 && S.occ[i] !== b.id)) return fail('Something stands in the way.');
     if (!useHand()) return false;
     S.gold -= cost; S.cur.spent += cost; S.stats.goldSpent += cost; S.stats.rebuilt = (S.stats.rebuilt || 0) + 1; (S.cur.rebuilt || (S.cur.rebuilt = [])).push(b.type);
-    b.ruined = false; b.fell = false; b.hp = b.maxHp; occupy(b); liveTick = -1; crewCache = null; unstickHero();
+    b.ruined = false; b.fell = false; b.hp = b.maxHp; occupy(b); dropLive(); dropCrew(); unstickHero();
     if (b.type === 'house') { const k = Math.min(houseCap(b), S.homeless || 0); b.folk = (b.folk || 0) + k; S.homeless = (S.homeless || 0) - k; }   // the homeless move back in
     ev('rebuild', { id: b.id, cost }); return true;
   }
@@ -855,7 +865,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.phase !== 'day' || S.over || S.story.encounters.length) return false;   // no bell: dusk comes with the sun (tests and bots may still skip ahead)
     S.dayQueue = [];
     refreshFlow(); cacheNeighbours();
-    S.phase = 'night'; crewCache = null; crewing(); S.queue = makeWave(S.night); S.qT = 0; S.nightFlags = {}; S.ability.hires = 0; S.trade = null;
+    S.phase = 'night'; dropCrew(); crewing(); S.queue = makeWave(S.night); S.qT = 0; S.nightFlags = {}; S.ability.hires = 0; S.trade = null;
     for (const b of S.buildings) b.fell = false;
     const purgeReg = S.purge;
     Object.assign(S.cur, {
@@ -1164,6 +1174,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   }
   // CUT.titleStats: titles stay as flavour; their stat effects (applied by the story) are undone here
   let titlesSeen = 0;
+  const titlesRead = n => { titlesSeen = n; };   // (a restored run has read its titles already)
   function untitle() {
     const T = S.story && S.story.titles; if (!CUT.titleStats || !T || T.length === titlesSeen) return;
     let changed = false;
@@ -1211,7 +1222,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   /** contracts.js sets the rules it offered (and the player chose); they stack with the ones a won contract kept */
   function setSeasonRules(rules = []) {
     const list = [...new Set(rules.filter(Boolean))];
-    S.season.rules = list; S.season.rule = list[list.length - 1] || null; S.weather = rollWeather(S.night); floorKey = '';
+    S.season.rules = list; S.season.rule = list[list.length - 1] || null; S.weather = rollWeather(S.night); dropFloor();
     return list;
   }
   /** contracts.js names the finale: { kind: 'unique', name, mult } (the season's last blood moon) or { kind: 'hive', region } */
@@ -1262,7 +1273,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     closeLog({ goldIn, foodIn, foodNeed: need, fed: +fed.toFixed(2), claimedNow, held });
     // ruins stay ruins until you rebuild them by hand (api.rebuild): only standing buildings mend overnight
     for (const b of S.buildings) { if (!b.ruined) b.hp = b.maxHp; b.fell = false; }
-    liveTick = -1;
+    dropLive();
     if (S.hero.dead) heroBack();   // the dead hero is back at dawn at the latest
     { const left = S.buildings.filter(b => b.ruined); S.ledger = { night: S.night, fell: fellB, rose: roseB, held, people: roseB.reduce((a, r) => a + r.people, 0), ruins: left.length, rebuildAll: left.reduce((a, b) => a + rebuildCost(b), 0), kills: Object.values(S.cur.kills || {}).reduce((a, b) => a + b, 0), heroDowns: S.cur.heroDeaths || 0, ...(road ? road.missions.report() : {}) };
       ev('ledger', S.ledger); }
@@ -1317,7 +1328,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   /** retune the live run (never mutates the shared DIFFICULTY table) */
   function setDifficulty(key) {
     if (!DIFFICULTY[key]) return false;
-    DIFF = DIFFICULTY[key]; S.difficulty = key; floorKey = ''; return true;
+    DIFF = DIFFICULTY[key]; S.difficulty = key; dropFloor(); return true;
   }
 
   // ---------- abilities ----------
@@ -1488,7 +1499,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (!S.offer.includes(id)) return fail('That blessing is not on offer.');
     if (id.startsWith('m:')) {
       const mid = id.slice(2), fam = S.offerSource.split(':')[1];
-      S.P.mastery[fam] = mid; mastSet = new Set(Object.values(S.P.mastery)); S.cur.perks.push(id);
+      S.P.mastery[fam] = mid; syncMastery(); S.cur.perks.push(id);
       if (mid === 'champion') S.P.heroRate *= 1;
       toast(`${MASTERIES[fam].find(m => m.id === mid).name}!`, 'good');
     } else {
@@ -1618,6 +1629,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     }
     if (Math.hypot(h.x - home.x, h.y - home.y) > 2) api.heroTo(home.x, home.y);
   }
+  function setHeroInput(x, y) { S.hero.input.x = x; S.hero.input.y = y; if (x || y) handT = 2; }
   function unstickHero() {
     const h = S.hero; if (walkable(h.x, h.y)) return;
     for (let r = 1; r <= 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
@@ -2148,7 +2160,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       kits: R.kits, claimed: new Set(R.claimed), nestAlive: R.nestAlive, wake: R.wake.map(w => (w < 0 ? Infinity : w)), P: R.P, picks: R.picks, chestsHeld: R.chestsHeld, dawns: R.dawns,
       weather: R.weather, reroll: R.reroll, halfUpgrade: R.halfUpgrade, stats: R.stats, log: R.log || [], evo: R.evo, pickups: R.pickups || [], path: R.path || S.path, feat: R.feat || {}, season: R.season || S.season, buildersWas: R.buildersWas ?? undefined, lvl: R.lvl || 1, xp: R.xp || 0, unique: R.unique || undefined, eruption: R.eruption || null, heatCool: R.heatCool || 0, sawBlackout: !!R.sawBlackout, trade: R.trade || null, drained: R.drained, salvage: R.salvage, clearedIdx: R.cleared, handsUsed: R.handsUsed, dayT: R.dayT });
     S.sealed = Uint8Array.from(R.sealed); S.sealVersion++;
-    mastSet = new Set(Object.values(S.P.mastery));
+    syncMastery();
     R.landmarks.forEach(([o, k, st], i) => { const l = S.landmarks[i]; if (l) { l.owned = !!o; l.kind = k; l.stripped = !!st; } });
     S.seen = unb64(R.seen, N * N); S.seenVersion++;
     for (const k of Object.keys(S.story)) delete S.story[k]; Object.assign(S.story, R.story);
@@ -2165,12 +2177,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     Object.assign(S, { noiseChoice: R.noiseChoice || 0, mourned: R.mourned || 0, diffNight: R.diffNight || 0, tools: R.tools || { flare: 0, smoke: 0 }, ledger: R.ledger || null });
     if (R.carry) S.hero.carry = { scrap: R.carry.scrap || 0, food: R.carry.food || 0 };
     if (!S.season.rules) S.season.rules = S.season.rule ? [S.season.rule] : [];
-    titlesSeen = (S.story.titles || []).length;
+    titlesRead((S.story.titles || []).length);
     S.nextId = Math.max(R.nextId, S.nextId);
     keep.level = R.keep[0]; keep.r = 2.3 * (1 + 0.12 * (keep.level - 1)); refreshMax(); keep.hp = Math.min(keep.maxHp, R.keep[1]);
     refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, R.heroAt[0]); S.hero.x = R.heroAt[1]; S.hero.y = R.heroAt[2]; unstickHero();
     for (const m of S.mobs) mobById.delete(m.id); S.mobs.length = 0; S.projectiles.length = 0; S.drops = []; S.chests = []; S.purses = [];
-    S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; liveTick = -1; crewCache = null;
+    S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; dropLive(); dropCrew();
     for (const n of S.story.npcs) if (n.withHero && n.alive && n.joined) spawnCompanion(n);   // a travelling companion comes back with you
     spawnRoamers(); spawnAnimals(); syncPicks(); rollOffer(); newLog(); S.events.length = 0; S.restored = true;
   }
@@ -2179,7 +2191,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     setBuilders: f => { if ((S.foreman || S.autopilot) && FOCI.includes(f)) S.builders = f; },
     scavenge: { siteInfo: sc.siteInfo, send: sc.send, recall: sc.recall, treat: sc.treat, exile: sc.exile, hopsMap: sc.hopsMap },
     state: S, map, get heroDef() { return HC; }, evolve: cls => evolve(cls), step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, choosePerk, reroll, trade, planPurge, useAbility,
-    setHeroInput: (x, y) => { S.hero.input.x = x; S.hero.input.y = y; if (x || y) handT = 2; },
+    setHeroInput,
     setAutopilot: on => { S.autopilot = !!on; if (on && (!S.builders || S.builders === 'off')) { S.buildersWas = S.builders; S.builders = 'balanced'; } else if (!on) { S.builders = S.foreman ? (S.buildersWas ?? null) : null; S.buildersWas = undefined; } },
     heroTo: (x, y) => {
       const h = S.hero, t = h.target;
@@ -2191,10 +2203,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     hiveHealth, hitHive, escape, escapeCost: k => (TOOLS[k] || ESCAPE[k] || {}).cost || 0,
     useFlare, useSmoke, tools: toolsInfo,
     nightFrac: () => (S.phase === 'night' ? Math.min(1, S.qT / nightLen()) : 0), nightLen,
-    // one continuous clock for the light: 0 sunrise … dayShare dusk falls … 1 the next sunrise (day from S.dayT, night from S.qT)
-    timeOfDay: () => { const D = TIDE.dayLen / (TIDE.dayLen + nightLen());
-      if (S.phase === 'over') return todLast;   // the run ended: the light holds where it was
-      return (todLast = S.phase === 'night' ? D + (1 - D) * Math.min(1, S.qT / nightLen()) : D * (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4)); },
+    timeOfDay,
     dayShare: () => TIDE.dayLen / (TIDE.dayLen + nightLen()),
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), dayFrac: () => (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
     dropSupply,
