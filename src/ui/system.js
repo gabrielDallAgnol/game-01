@@ -2,7 +2,7 @@
 // the type-on used by every System window, inline callouts anchored to the HUD, and the Camp's own small toasts.
 import { icon } from './icons.js';
 
-export const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const reduced = () => (typeof window !== 'undefined' && !!window.__fastType) || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);   // __fastType: screenshots and tests
 const esc = t => String(t ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 /** **bold** → <b>; [System] brackets get their own colour */
 export const sysRich = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[([^\]]{1,60})\]/g, '<span class="br">[$1]</span>');

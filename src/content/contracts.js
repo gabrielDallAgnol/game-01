@@ -57,6 +57,3 @@ export const CONTRACT_COPY = {
     scene: 'Night {night} came and went. {finale} is still out there. The System **closes the window** on this run.',
   },
 };
-
-// words the AI may never write into a contract (effects stay engine-owned): numbers with units, signed numbers, stat words
-export const EFFECT_WORDS = /([+\-−]\s?\d)|(\d+\s?(%|x|×|scrap|food|fame|people|health|hp|damage|xp|noise|heat|nights?|days?))|\b(double|triple|half|free|bonus|reward|blessing|percent|stat|stats)\b/i;
