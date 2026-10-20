@@ -14,6 +14,9 @@ export function createHives(G) {
     if (S.season && S.season.finaleHive === r && S.night <= S.season.end) G.finale(true);
     for (const m of S.mobs) if (m.stream === r) m.stream = -1;
     ev('claim', { region: r }); toast(`Hive burned: +${loot} scrap and a rare blessing.`, 'good');
+    // [acts] begin
+    if (G.actCheck) G.actCheck();
+    // [acts] end
   }
   // ---------- the stream: the dead never stop coming from awake hives, day and night ----------
   const streamAcc = {}, hiveDmg = {}, rage = {};

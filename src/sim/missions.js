@@ -1,5 +1,7 @@
 // Night missions: at dusk the System offers three ways to spend the night (Hold the Camp, The Hunt, The Pied Piper).
 // Deterministic; created by the road (src/sim/road.js), it reaches the game only through `ctx`.
+// CUT.missions (Oct 20): no offer, no choice; every night is Hold. The rest (traps, embers, the captain) stays live.
+import { CUT } from './state.js';
 import { MOBS, WAVES, TIDE } from '../content/mobs.js';
 import { MISSIONS, MISSION } from '../content/road.js';
 import { N, T, idx } from './mapgen.js';
@@ -53,12 +55,14 @@ export function createMissions(ctx, getRoad) {
     M.id = 'hold'; M.choosing = true; M.t = MISSION.pick; M.offered++; M.lantern = true; M.hornCd = 0; M.callT = 0; M.blows = 0; M.led = 0; M.ledKilled = 0; M.ledBig = 0; M.pay = 0; M.burned = 0; piped.clear();
     M.forecast = forecast(); M.where = whereIs();
     if (S.night < MISSION.from || S.over) { M.choosing = false; M.t = 0; return; }   // night 1: no choice yet, you hold
+    if (CUT.missions) { M.choosing = false; M.t = 0; }   // cut: no window, no choice
     const cap = captainName();
     if (cap && !M.captainK) { M.captainK = MISSION.captain; S.P.towerDmg += M.captainK; M.captain = cap; }
-    ev('missionOffer', { night: S.night, forecast: M.forecast.word, where: M.where, captain: M.captain });
+    if (!CUT.missions) ev('missionOffer', { night: S.night, forecast: M.forecast.word, where: M.where, captain: M.captain });
   }
   function choose(id, how) {
     if (!MISSIONS[id] || S.over) return false;
+    if (CUT.missions && id !== 'hold') return false;
     if (!night()) return ctx.fail('Missions are chosen at dusk.');
     const was = M.id, auto = how === 'auto'; M.id = id; M.choosing = false; M.t = 0;
     if (id !== 'hunt' && !M.lantern) setLantern(true);

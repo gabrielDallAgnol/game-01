@@ -482,6 +482,7 @@ export function createStory(ctx) {
     const qs = activeQuests(), d = dailyProgress();
     const tr = qs.find(q => q.kind === 'trial');
     if (tr) return withContract({ tag: '[Trial]', text: `Win the ${ST.trial.name} · ${dirOf(tr.x, tr.y)}` });
+    const A = ctx.actGoal && ctx.actGoal(); if (A) return withContract(A);   // [acts] act 1's main goal: burn the hollows
     const th = qs.find(q => q.kind === 'thread');
     if (th) { const tid = th.site !== undefined ? (ST.quests.find(q => q.site === th.site) || {}).thread : (ST.spots.find(sp => sp.id === th.spot) || {}).thread; const T = tid && THREADS[tid]; return withContract({ tag: '[Quest]', text: `${T ? T.title : 'Story'}: go ${dirOf(th.x, th.y)}` }); }
     if (d && !d.done) return withContract({ tag: d.penalty ? '[Penalty]' : '[Daily]', have: d.have, n: d.n, text: d.goal });

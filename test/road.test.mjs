@@ -1,10 +1,12 @@
 // The road and the night missions: stations, outposts, convoys, ambushes, trip planning, missions. Fast and headless.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame } from '../src/sim/game.js';
+import { createGame, CUT } from '../src/sim/game.js';
 import { mapChoices, idx, PASSABLE } from '../src/sim/mapgen.js';
 import { STATIONS, ROAD, MISSION } from '../src/content/road.js';
 
+// the road tests walk the whole road: they run with the fence down (act 2 from day 1, CUT.earlyRoad off)
+const withOpenRoad = fn => () => { CUT.earlyRoad = false; try { return fn(); } finally { CUT.earlyRoad = true; } };
 function make(seed = 3) {
   const ch = mapChoices(seed)[0];
   const g = createGame({ seed, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor' });
@@ -94,7 +96,7 @@ test('the dead hunt the convoy, and a caught member rises with the dead', () => 
   assert.ok(S.mobs.length >= before - dead.length, 'mob bookkeeping');
 });
 
-test('trip planning: the road is quicker than the woods, and Go walks the planned path', () => {
+test('trip planning: the road is quicker than the woods, and Go walks the planned path', withOpenRoad(() => {
   const { S, road, run } = make(3);
   const st = road.stations[1];
   const t = road.tripInfo(st.x, st.y);
@@ -104,9 +106,9 @@ test('trip planning: the road is quicker than the woods, and Go walks the planne
   const t0 = S.time; run(t.secs * 1.5 + 5, () => Math.hypot(S.hero.x - st.x, S.hero.y - st.y) < 1.5);
   assert.ok(Math.hypot(S.hero.x - st.x, S.hero.y - st.y) < 2, 'did not arrive');
   assert.ok(S.time - t0 < t.secs * 1.35 + 2, `took ${S.time - t0} s for a ${t.secs} s plan`);
-});
+}));
 
-test('an ambush waits on the road home after 40 s out, with a warning, and springs when you come near', () => {
+test('an ambush waits on the road home after 40 s out, with a warning, and springs when you come near', withOpenRoad(() => {
   const { S, road, run, tp, g } = make(3);
   g.setAutopilot(true); S.builders = 'balanced'; run(400, () => S.night >= 3 && S.phase === 'day'); g.setAutopilot(false);
   const st = road.stations[3]; tp(st.x, st.y + 2);
@@ -118,9 +120,23 @@ test('an ambush waits on the road home after 40 s out, with a warning, and sprin
   const a = S.road.ambushes[0];
   assert.ok(Math.hypot(a.x - S.hero.x, a.y - S.hero.y) > 12, 'the ambush spawned on top of you');
   assert.ok(run(60, () => S.events.some(e => e.t === 'ambushSprung')), 'the ambush never sprang');
+}));
+
+// the night missions are cut (CUT.missions): the dormant code is still tested with the flag off
+const withMissions = fn => () => { CUT.missions = false; try { fn(); } finally { CUT.missions = true; } };
+test('CUT.missions: dusk offers no choice, every night is a plain hold, no mission copy', () => {
+  const { g, S, road, run } = make(3);
+  g.startNight(); run(0.1);
+  for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
+  run(1); g.startNight(); run(0.1);
+  assert.equal(road.mission.choosing, false); assert.equal(road.mission.id, 'hold');
+  assert.equal(road.setMission('hunt'), false); assert.equal(road.setMission('piper'), false); assert.equal(road.mission.id, 'hold');
+  run(MISSION.pick + 1);
+  assert.equal(S.events.filter(e => e.t === 'missionOffer' || e.t === 'mission').length, 0);
+  assert.equal(S.events.filter(e => e.t === 'toast' && /^\[(Mission|Horn|Night hunt|The Hunt)|Pied Piper/.test(e.msg)).length, 0);
 });
 
-test('missions: dusk offers a choice, Hold is chosen quietly after 6 s, Hunt halves hive health, the horn pulls the dead', () => {
+test('missions: dusk offers a choice, Hold is chosen quietly after 6 s, Hunt halves hive health, the horn pulls the dead', withMissions(() => {
   const { g, S, road, run } = make(3);
   g.startNight(); run(0.1);
   assert.equal(road.mission.choosing, false, 'night 1 is the arrival: no mission choice'); assert.equal(road.mission.id, 'hold');
@@ -143,7 +159,7 @@ test('missions: dusk offers a choice, Hold is chosen quietly after 6 s, Hunt hal
   const n = road.horn();
   assert.ok(n >= 3, `the horn pulled ${n}`);
   assert.ok(S.mobs.filter(m => m.piped).length === n);
-});
+}));
 
 test('a run with the road saves and restores its stations', () => {
   const { g, S, road, run, tp } = make(3);
@@ -156,7 +172,7 @@ test('a run with the road saves and restores its stations', () => {
   assert.equal(g2.road.stations[0].met, true);
 });
 
-test('Pied Piper traps: a lit outpost burns the dead at its ring by night, the horn echoes, kills outside pay at dawn in the ledger', () => {
+test('Pied Piper traps: a lit outpost burns the dead at its ring by night, the horn echoes, kills outside pay at dawn in the ledger', withMissions(() => {
   const { g, S, c, road, run, tp } = make(3);
   const st = road.stations[0]; S.gold = 80;
   tp(st.x + 1, st.y); run(ROAD.lightTime + 0.5); assert.ok(st.lit);
@@ -183,9 +199,9 @@ test('Pied Piper traps: a lit outpost burns the dead at its ring by night, the h
   for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
   assert.ok(S.ledger && S.ledger.piper && S.ledger.piper.killed >= ws.length - 1, JSON.stringify(S.ledger && S.ledger.piper));
   assert.ok(pay > 0 && S.gold >= gold, 'the dawn pay');
-});
+}));
 
-test('a burned hollow smoulders through the night; a pitch flare on a Piper night burns where it lands', () => {
+test('a burned hollow smoulders through the night; a pitch flare on a Piper night burns where it lands', withMissions(() => {
   const { g, S, road, run, tp } = make(3);
   const mi = road.missions;
   // embers from a claim by day last through the coming night
@@ -199,4 +215,49 @@ test('a burned hollow smoulders through the night; a pitch flare on a Piper nigh
   run(1); g.startNight(); run(0.1); road.setMission('piper'); S.gold = 20;
   assert.equal(g.useFlare(S.hero.x + 5, S.hero.y), true); run(0.1);
   assert.ok(mi.pyres.length === 1 && mi.traps().some(t => t.kind === 'pyre'));
+}));
+
+test('acts: the road and the city wait behind the fence until every forest hollow burns', () => {
+  for (const seed of [1, 3, 5, 8]) {
+    const { g, S, c, road } = make(seed);
+    const hol = g.map.regions.filter(r => r.ring === 1 && r.nest);
+    assert.equal(g.act(), 1, `seed ${seed}`);
+    assert.deepEqual(g.frontier(), [], 'no routes while the fence stands');
+    const goal = g.actGoal(); assert.equal(goal.have, 0); assert.equal(goal.n, hol.length); assert.match(goal.text, /^Burn the hollows/);
+    // the city and the far road are fenced: sealed, off the planner, off the map's places
+    for (const r of g.map.regions) if (r.ring >= 2) assert.ok(S.sealed[r.id] && (r.ring > 2 || g.actGated(r.id)), `city region ${r.id} open in act 1`);
+    assert.ok(road.stations.slice(1).every(st => S.sealed[st.region]), 'a far station stands open in act 1');
+    assert.ok(!road.places().some(p => p.kind === 'city'));
+    const far = road.stations[road.stations.length - 1], p = road.plan(far.x, far.y); assert.ok(!p.reached, 'the hero walked through the fence');
+    // every hollow can be walked to
+    for (const r of hol) { const q = road.plan(r.nest.x, r.nest.y + 2); assert.ok(q && q.reached, `seed ${seed}: hollow ${r.id} cut off`); }
+    // burn them: the last one opens the road, once
+    hol.forEach((r, k) => { for (let i = 0; i < 400 && S.nestAlive[r.id]; i++) g.hitHive(r.id, 50); assert.equal(g.act(), k === hol.length - 1 ? 2 : 1); });
+    assert.equal(S.events.filter(e => e.t === 'actOpen').length, 1);
+    assert.ok(S.events.some(e => e.t === 'window' && /road is open/i.test(e.title)));
+    assert.equal(g.actGoal(), null);
+    for (const r of g.map.regions) if (r.ring === 2 || (r.ring === 1)) assert.ok(!S.sealed[r.id], `region ${r.id} still sealed`);
+    assert.ok(g.frontier().length > 0, 'the old core is the new frontier');
+    assert.ok(road.places().some(p => p.kind === 'city'));
+    assert.ok(road.plan(far.x, far.y).reached, 'the road is still shut');
+  }
+});
+
+test('acts: routes wait for act 2; a save in act 1 restores the fence; the season-1 contract hive is a hollow', () => {
+  const { g, S, run } = make(3);
+  S.night = 7; g.step(); run(0.2);
+  assert.ok(!S.feat.routes, 'routes opened in act 1');
+  const snap = g.snapshot(); const ch = mapChoices(3)[0];
+  const g2 = createGame({ seed: 3, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor', restore: JSON.parse(JSON.stringify(snap)) });
+  assert.equal(g2.act(), 1); assert.ok(g2.state.actGate.length > 0 && g2.state.actGate.every(r => g2.state.sealed[r]));
+  // an old save (no act fields, the city open) is fenced again while hollows stand
+  const old = JSON.parse(JSON.stringify(snap)); old.sealed = old.sealed.map((v, r) => (g.map.regions[r].ring > 2 ? 1 : 0));
+  const g3 = createGame({ seed: 3, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor', restore: old });
+  assert.equal(g3.act(), 1); assert.ok(g3.state.actGate.every(r => g3.state.sealed[r]));
+  // a contract offered in act 1 never sends you behind the fence: its hive is a hollow you can walk to
+  const { g: h, S: T, road } = make(5);
+  for (const n of [1, 2]) for (const o of h.story().contracts.encounter(n).offers) if (o.finale.kind === 'hive') {
+    const r = h.map.regions[o.finale.region]; assert.ok(r.ring === 1 && !T.sealed[r.id], `season ${n}: contract hive ${r.id} behind the fence`);
+    assert.ok(road.plan(r.nest.x, r.nest.y + 2).reached);
+  }
 });
