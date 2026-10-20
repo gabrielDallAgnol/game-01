@@ -13,10 +13,10 @@ import { bake, vcMat } from './figures.js';
 
 // ground colours (sRGB): soft pastel-earthy by day; the grade and the night light do the rest
 const GROUND = {
-  open: '#6f6c64', paved: '#7b776d', meadow: '#7d9656', meadowOwn: '#8ea25e',
+  open: '#6f6c64', paved: '#7b776d', meadow: '#628a4a', meadowOwn: '#719552',
   plaza: '#a58f6b', rubble: '#68645b', rock: '#4a4741', ford: '#8d887d', cliff: '#77736a', voidc: '#3a3a36', bed: '#3d5a5c',
-  forestFloor: '#4f6a43', forestOwn: '#5d7646', trail: '#b49a72', trailOwn: '#c0a57a', bank: '#6b6a52',
-  lot: '#a8916c', street: '#b9a27a', road: '#58595a', roadOwn: '#5c5d5d', walk: '#8a857a', park: '#6c8650', deck: '#8e897d', deckOwn: '#99938a', ramp: '#8b867b',
+  forestFloor: '#4a6640', forestOwn: '#557245', trail: '#a88e68', trailOwn: '#b39770', bank: '#6b6a52',
+  lot: '#9a8462', street: '#ab9470', road: '#58595a', roadOwn: '#5c5d5d', walk: '#8a857a', park: '#6c8650', deck: '#8e897d', deckOwn: '#99938a', ramp: '#8b867b',
 };
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
 export const HIGH = 1.1;     // height of the plateaus (high ground)

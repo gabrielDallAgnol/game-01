@@ -12,9 +12,9 @@ import { K } from './kit.js';
 const L = K.lin;
 export const PRESETS = {
   day: {
-    bg: '#c9cdc0', hemiSky: '#c4d6e6', hemiGnd: '#7a6a52', hemi: 0.78, sun: '#fff1da', sunI: 2.75, sunDir: [-0.55, 1.0, 0.42],
-    exposure: 1.0, vignette: 0.26, grain: 0.012, outline: 0.42, haze: 0.18, hazeCol: '#d9dccd', tilt: 1.0,
-    tint: 0.55, tdark: 0.78,
+    bg: '#b9c2b6', hemiSky: '#b8cde0', hemiGnd: '#6a5a44', hemi: 0.62, sun: '#fff0d8', sunI: 2.35, sunDir: [-0.55, 1.0, 0.42],
+    exposure: 0.86, vignette: 0.26, grain: 0.012, outline: 0.42, haze: 0.14, hazeCol: '#cfd6cc', tilt: 1.0,
+    tint: 0.3, tdark: 0.85,
   },
   night: {
     bg: '#0a1222', hemiSky: '#38558a', hemiGnd: '#0a0c12', hemi: 0.42, sun: '#7f9fd6', sunI: 0.62, sunDir: [0.5, 1.0, -0.2],
@@ -36,7 +36,7 @@ const GRADES = [
   // dawn: lilac shadows, peach-gold light, soft
   { lift: [0.035, 0.02, 0.05], gamma: [1.0, 1.02, 1.0], gain: [1.04, 0.98, 0.93], sat: 0.95, pastel: 0.22, contrast: 0.96, shadowTint: [0.62, 0.55, 0.82], highTint: [1.0, 0.86, 0.72], split: 0.14 },
   // noon: high-key miniature — lifted shadows, gentle contrast, saturated but pastel (the strongest colours compress)
-  { lift: [0.03, 0.03, 0.035], gamma: [0.96, 0.96, 0.98], gain: [1.03, 1.02, 0.99], sat: 1.06, pastel: 0.3, contrast: 1.02, shadowTint: [0.55, 0.62, 0.72], highTint: [1.0, 0.96, 0.88], split: 0.08 },
+  { lift: [0.02, 0.022, 0.03], gamma: [1.0, 0.99, 1.0], gain: [1.03, 1.02, 0.99], sat: 1.12, pastel: 0.24, contrast: 1.08, shadowTint: [0.55, 0.62, 0.72], highTint: [1.0, 0.96, 0.88], split: 0.08 },
   // dusk: amber light, plum-blue shadows
   { lift: [0.02, 0.0, 0.04], gamma: [1.0, 1.04, 1.06], gain: [1.08, 0.95, 0.84], sat: 1.04, pastel: 0.18, contrast: 1.06, shadowTint: [0.5, 0.42, 0.75], highTint: [1.0, 0.78, 0.55], split: 0.2 },
   // night: navy world; warm hues (fire, windows, the lantern) keep their colour and lift, everything else goes cold and quiet
