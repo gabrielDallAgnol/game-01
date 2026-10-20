@@ -36,7 +36,7 @@ const GRADES = [
   // dawn: lilac shadows, peach-gold light, soft
   { lift: [0.035, 0.02, 0.05], gamma: [1.0, 1.02, 1.0], gain: [1.04, 0.98, 0.93], sat: 0.95, pastel: 0.22, contrast: 0.96, shadowTint: [0.62, 0.55, 0.82], highTint: [1.0, 0.86, 0.72], split: 0.14 },
   // noon: high-key miniature — lifted shadows, gentle contrast, saturated but pastel (the strongest colours compress)
-  { lift: [0.02, 0.022, 0.03], gamma: [1.0, 0.99, 1.0], gain: [1.03, 1.02, 0.99], sat: 1.12, pastel: 0.24, contrast: 1.08, shadowTint: [0.55, 0.62, 0.72], highTint: [1.0, 0.96, 0.88], split: 0.08 },
+  { lift: [0.02, 0.022, 0.03], gamma: [1.0, 0.99, 1.0], gain: [1.03, 1.01, 0.99], sat: 1.0, pastel: 0.3, contrast: 1.08, shadowTint: [0.55, 0.62, 0.72], highTint: [1.0, 0.96, 0.88], split: 0.08 },
   // dusk: amber light, plum-blue shadows
   { lift: [0.02, 0.0, 0.04], gamma: [1.0, 1.04, 1.06], gain: [1.08, 0.95, 0.84], sat: 1.04, pastel: 0.18, contrast: 1.06, shadowTint: [0.5, 0.42, 0.75], highTint: [1.0, 0.78, 0.55], split: 0.2 },
   // night: navy world; warm hues (fire, windows, the lantern) keep their colour and lift, everything else goes cold and quiet

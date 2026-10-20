@@ -1188,7 +1188,7 @@ ${o.fragColor || ''}`)
     const lvl = o.level || 1, g = new THREE.Group(), b = new B(), r = rng(91 + lvl);
     const fires = [];
     // packed earth yard
-    b.cbox('#8f7a5c', 19, 0.06, 15, 0, 0.03, -0.5, { r: 0.4 });
+    b.geo('#9c8664', new THREE.CylinderGeometry(9.5, 9.8, 0.06, 20), 0, 0.03, -0.5, 0, 0, 0, 1, 1, 0.8);
     if (lvl === 1) {
       busInto(b, 0.5, 2.8, 0);
       // tarps off the bus roof to poles in front: the camp's first shelter
