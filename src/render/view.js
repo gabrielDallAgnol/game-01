@@ -386,8 +386,17 @@ export function createView(canvas, game, opts = {}) {
     const links = type === 'wall' ? (b && b.links) || { e: true, w: true } : null;
     const key = `${type}|${level}|${v}|${links ? links.key || [links.e, links.w, links.s, links.n].map(Number).join('') : ''}`;
     const hit = modelCache.get(key); if (hit) return hit.clone();
-    const m = buildModel(type, level, v, links);
+    // the model, its pad and its cheer folded into one vertex-coloured mesh: one draw per building
+    const g0 = new THREE.Group(); g0.add(buildModel(type, level, v, links));
+    if (FOOT[type]) { g0.add(padFor(FOOT[type])); if (type !== 'wall') { const c = cheer(type, FOOT[type], 0, level); if (c) g0.add(c); } }
+    const m = K.flattenVC(g0);
     modelCache.set(key, m); return m.clone();
+  }
+  const ruinCache = new Map();
+  function ruinModel(type, level, b) {
+    const key = `${type}|${level}|${b.id % 3}`; let r = ruinCache.get(key);
+    if (!r) { r = K.ruinOf(model(type, level, b), b.id * 13 + 7, BSCALE[type] || 1); ruinCache.set(key, r); }
+    return r.clone();
   }
   function buildModel(type, level, v, links) {
     let m;
@@ -463,22 +472,11 @@ export function createView(canvas, game, opts = {}) {
   }
   const noCrewMat = new THREE.SpriteMaterial({ map: K.textTex('NO CREW', { w: 256, h: 64, size: 40, bg: '#2a1512', fg: '#f0a090', spacing: '2px' }), transparent: true, depthTest: false });
   // your buildings stand on a concrete pad with amber corner marks: nothing else in the city has them
-  const padGeo = {}, padMat = new THREE.MeshStandardMaterial({ color: lc('#9c968a'), roughness: 0.95 }), markMat = new THREE.MeshBasicMaterial({ color: lc('#e08a3c').multiplyScalar(1.25) });
   function padFor(n) {
-    if (!padGeo[n]) {
-      const s2 = n - 0.12, parts = [];
-      const slab = new THREE.BoxGeometry(s2, 0.06, s2); slab.translate(0, 0.03, 0); parts.push(slab);
-      padGeo[n] = { slab, marks: [] };
-      const L = Math.min(0.5, n * 0.22), t = 0.07;
-      for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) for (const along of ['x', 'z']) {
-        const gm = new THREE.BoxGeometry(along === 'x' ? L : t, 0.02, along === 'x' ? t : L);
-        gm.translate(sx * (s2 / 2 - (along === 'x' ? L / 2 : t / 2)), 0.07, sz * (s2 / 2 - (along === 'x' ? t / 2 : L / 2))); padGeo[n].marks.push(gm);
-      }
-      padGeo[n].mark = THREE.BufferGeometryUtils ? THREE.BufferGeometryUtils.mergeBufferGeometries(padGeo[n].marks) : null;
-    }
-    const g = new THREE.Group(), sl = new THREE.Mesh(padGeo[n].slab, padMat); sl.receiveShadow = true; g.add(sl);
-    if (padGeo[n].mark) g.add(new THREE.Mesh(padGeo[n].mark, markMat)); else for (const gm of padGeo[n].marks) g.add(new THREE.Mesh(gm, markMat));
-    return g;
+    const b = new K.B(), s2 = n - 0.12, L = Math.min(0.5, n * 0.22), t = 0.07;
+    b.cbox('#a49c8c', s2, 0.05, s2, 0, 0.025, 0, { r: 0.02 });
+    for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { b.cbox('#e08a3c', L, 0.02, t, sx * (s2 / 2 - L / 2), 0.06, sz * (s2 / 2 - t / 2), { r: 0.005 }); b.cbox('#e08a3c', t, 0.02, L, sx * (s2 / 2 - t / 2), 0.06, sz * (s2 / 2 - L / 2), { r: 0.005 }); }
+    return b.build({ ao: 0.05, aoMin: 0.9 });
   }
   // what you built should feel cared for: bunting in bright colours, planters, a warm lamp, a little flag
   const CHEER = ['#f0a040', '#3fb8a8', '#f4ead2', '#e8667a', '#ffd166'], cheerGeo = {};
@@ -504,8 +502,8 @@ export function createView(canvas, game, opts = {}) {
       }
       // the lamp: lights up at dusk with the windows
       b.cyl('#3a3a3a', 0.02, 0.025, 0.9, h, 0, h, { seg: 5 });
-      cheerGeo[key] = b.build({ vc: true });
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), K.WIN); bulb.position.set(h, 0.95, h); cheerGeo[key].add(bulb);
+      b.sph(K.WIN, 0.07, h, 0.95, h, { detail: 1 });
+      cheerGeo[key] = b.build({ ao: 0.3, aoMin: 0.75 });
     }
     return cheerGeo[key].clone();
   }
@@ -514,6 +512,7 @@ export function createView(canvas, game, opts = {}) {
   function floatLabel(x, y, text, col) { const p = W(x, y, 1.3); fx2.label(p.x, p.y, p.z, text, col); }
   const NICE = { house: '+1 Home', farm: '+1 Farm', tower: '+1 Tower', generator: '+1 Generator', workshop: 'Workshop', market: 'Market' };
   const noPowerMat = new THREE.SpriteMaterial({ map: K.textTex('NO POWER', { w: 256, h: 64, size: 40, bg: '#3a0d08', fg: '#ff6a50', spacing: '2px' }), transparent: true, depthTest: false });
+  // ruins persist until rebuilt: a fallen building is drawn as its own charred, collapsed shell
   function syncBuildings() {
     const seen = new Set();
     for (const b of S.buildings) {
@@ -521,25 +520,24 @@ export function createView(canvas, game, opts = {}) {
       let e = bMeshes.get(b.id);
       const links = b.type === 'wall' ? wallLinks(b) : null, lk = links ? links.key : '';
       if (!e || e.level !== b.level || e.lk !== lk) {
-        const relink = e && e.level === b.level;
+        const relink = e && e.level === b.level, upgrade = e && e.level < b.level;
         if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); }
         const g = new THREE.Group(), m = model(b.type, b.level, { id: b.id, links }); g.add(m);
-        if (FOOT[b.type]) { g.add(padFor(FOOT[b.type])); if (b.type !== 'wall') { const c = cheer(b.type, FOOT[b.type], b.id, b.level); if (c) g.add(c); } }
         g.position.copy(Wv(b.x, b.y)); if (b.type === 'house' || b.type === 'farm') g.rotation.y = faceKeep(b.x, b.y);
-        g.scale.set(1, relink ? 1 : 0.02, 1); world.add(g);
-        e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type, rise: relink ? 1 : 0 }; bMeshes.set(b.id, e);
-        if (!relink && b.type !== 'wall') { dust(b.x, b.y, FOOT[b.type] || 1); if (time > 1) celebrate(b.x, b.y, e.level > 1 ? `Level ${b.level}!` : NICE[b.type]); }
-        if (b.ruined) e.g.visible = false;
+        world.add(g);
+        e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type, pop: relink ? -1 : 0, sweep: upgrade ? 0 : -1, ruined: false }; bMeshes.set(b.id, e);
+        if (!relink) { g.scale.set(1, 0.001, 1); if (b.type !== 'wall') { dust(b.x, b.y, FOOT[b.type] || 1); if (time > 1) celebrate(b.x, b.y, e.level > 1 ? `Level ${b.level}!` : NICE[b.type]); } }
+        if (upgrade) g.traverse(o => { if (o.isMesh && o.material === K.VCM) o.material = K.SWEEP; });
       }
-      if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.g.scale.setScalar(1); burst(b.x, b.y, 1.2, '#d9843a'); }
+      if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.pop = 0; burst(b.x, b.y, 1.2, '#d9843a'); }
       if (b.type === 'tower') {
         if (!e.nc) { e.nc = new THREE.Sprite(noCrewMat); e.nc.scale.set(1.0, 0.25, 1); e.nc.renderOrder = 9; fx.add(e.nc); }
-        const unpowered = !b.ruined && !game.powered(b), uncrewed = !b.ruined && !game.manned(b);
+        const unpowered = !b.ruined && game.powered && !game.powered(b), uncrewed = !b.ruined && game.manned && !game.manned(b);
         e.nc.material = unpowered ? noPowerMat : noCrewMat;
         e.nc.visible = unpowered ? Math.sin(time * 8) > -0.3 : uncrewed; if (e.nc.visible) e.nc.position.copy(Wv(b.x, b.y, 2.1 + Math.sin(time * 3) * 0.05));
       }
-      if (b.ruined && !e.rubble) { e.g.visible = false; e.rubble = rubbleModel(b.id); e.rubble.position.copy(Wv(b.x, b.y)); e.rubble.scale.multiplyScalar(b.type === 'wall' ? 0.4 : 0.8); world.add(e.rubble); }
-      if (!b.ruined && e.rubble) { world.remove(e.rubble); e.rubble = null; e.g.visible = true; e.g.scale.setScalar(0.4); }
+      if (b.ruined && !e.ruined) { e.ruined = true; e.g.visible = false; e.rubble = ruinModel(b.type, b.level, b); e.rubble.position.copy(e.g.position); e.rubble.rotation.y = e.g.rotation.y; world.add(e.rubble); }
+      if (!b.ruined && e.ruined) { e.ruined = false; world.remove(e.rubble); e.rubble = null; e.g.visible = true; e.pop = 0; e.g.scale.set(1, 0.001, 1); dust(b.x, b.y, FOOT[b.type] || 1); }
     }
     for (const [id, e] of bMeshes) if (!seen.has(id)) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); bMeshes.delete(id); }
   }
@@ -928,10 +926,11 @@ export function createView(canvas, game, opts = {}) {
     // buildings
     for (const b of S.buildings) {
       const e = bMeshes.get(b.id); if (!e) continue;
-      // Red Alert style: the building unfolds out of the ground with a little overshoot
-      if (e.rise < 1 && !(b.built < 1)) { e.rise = Math.min(1, e.rise + dt * 2.4); const k = e.rise, c1 = 1.9, ob = 1 + (c1 + 1) * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); e.g.scale.set(1, Math.max(0.02, ob), 1); }
-      else { const sc = e.g.scale.x; if (sc < 1 && !(b.built < 1)) e.g.scale.setScalar(Math.min(1, sc + dt * 3.2)); }
+      // the pop: rises out of the ground 0 → 1.08 → 1 in 350 ms
+      if (e.pop >= 0 && !(b.built < 1)) { e.pop += dt / 0.35; const k = Math.min(1, e.pop), y = k < 0.65 ? 1.08 * Math.sin(k / 0.65 * Math.PI / 2) : 1.08 - 0.08 * Math.sin((k - 0.65) / 0.35 * Math.PI / 2); e.g.scale.set(1 + (1 - k) * 0.06, Math.max(0.001, y), 1 + (1 - k) * 0.06); if (k >= 1) { e.pop = -1; e.g.scale.set(1, 1, 1); } }
       if (b.built < 1) e.g.scale.set(1, 0.15 + 0.85 * b.built, 1);
+      // the upgrade sweep: the new colours climb from the ground
+      if (e.sweep >= 0) { e.sweep += dt / 0.9; K.SWEEP.userData.y.value = e.g.position.y - 0.3 + e.sweep * (b.type === 'tower' ? 3.6 : 3.2); if (e.sweep >= 1) { e.sweep = -1; K.SWEEP.userData.y.value = -99; e.g.traverse(o => { if (o.isMesh && o.material === K.SWEEP) o.material = K.VCM; }); } }
       if (!b.ruined) setBar(e.bar, b.x, b.type === 'tower' ? 2.9 + b.level * 0.25 : b.type === 'wall' ? 1.7 : 3.2, b.y, b.hp / b.maxHp); else e.bar.visible = false;
     }
     keepG.visible = !S.keep.ruined;
