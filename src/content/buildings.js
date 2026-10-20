@@ -34,7 +34,9 @@ export const BUILDINGS = {
   },
 };
 // (the generator is out of the build list while power is cut: CUT.power in sim/game.js; a Lights Out rule brings it back)
-export const BUILD_ORDER = ['house', 'farm', 'tower', 'wall'];
+// (barricades are out too: CUT.walls; BUILD_ORDER_WALLS is the list with them)
+export const BUILD_ORDER = ['house', 'farm', 'tower'];
+export const BUILD_ORDER_WALLS = ['house', 'farm', 'tower', 'wall'];
 export const BUILD_ORDER_POWER = ['house', 'farm', 'tower', 'wall', 'generator'];
 // power: what the keep makes on its own, and what each building draws (by level). Short on power = blackout:
 // every powered building switches off until supply is back (Red Alert style).

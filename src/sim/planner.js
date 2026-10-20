@@ -67,7 +67,7 @@ export function createPlanner(g) {
     farm: () => can('farm') && place('farm'),
     house: () => (g.foodPerDawn() - g.foodNeed() >= 2 ? can('house') && place('house') : ACT.farm()),   // feed them first
     tower: () => g.crewing().free >= 1 && can('tower') && place('tower'),
-    wall: () => S.night >= 3 && ((S.stock.wall || 0) >= 3 || S.gold >= 5 * g.buyCost('wall') + RESERVE + 4) && wallLine(),
+    wall: () => !(g.cut && g.cut.walls) && S.night >= 3 && ((S.stock.wall || 0) >= 3 || S.gold >= 5 * g.buyCost('wall') + RESERVE + 4) && wallLine(),
     upTower: () => upgradeOne('tower'),
     upHouse: () => upgradeOne('house'),
     keep: () => keepUp(),

@@ -29,7 +29,9 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 // hands: no daily hand limit · weather: never rolled at dawn, its effects live in season rules (storm, still)
 // titleStats: titles are flavour, their stat effects are undone · finalClass / secondCompanion: parked
 // trader: the Scavver meets no trader · crew: the scavenge crew generates no events or bonuses
-export const CUT = { power: true, hands: true, weather: true, titleStats: true, finalClass: true, secondCompanion: true, trader: true, crew: true };
+// walls: barricades are out of the build list. Measured (Oct 20, same camp on night 8, 4 seeds): 25 posts laid
+// across the routes soaked 50 damage in all; the dead walk round a line. They come back with a ring-building tool.
+export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: true, secondCompanion: true, trader: true, crew: true };
 // Heat (old name, same meter): see NOISE below. `stir`, `erupt`, `warn`, `cool`, `burst` still apply.
 export const HEAT = { floorPer: 1.4, floorMax: 70, combatMax: 77, decay: 0.1, rise: 2.5, shot: 0.03, kill: 0.15, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Noise: ONE meter (0–100). It rests on a floor set by loud CHOICES (level 3 towers, the market and workshop,
@@ -214,6 +216,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   /** Can `type` go here? x, y: wanted centre (snapped to cells); rot for palisades. */
   function canPlace(type, x, y, rot = 0, opts = {}) {
     if (!SIZE[type]) return { ok: false, reason: 'Unknown building.', cells: [] };
+    if (type === 'wall' && CUT.walls) return { ok: false, reason: 'Barricades are gone for now: the dead just walk round a line.', cells: [] };
     if (type === 'generator' && !powerLive()) return { ok: false, reason: 'No one needs a generator: the camp runs on fire and hand-cranks.', cells: [] };
     if (BUILDINGS[type].tech) { if (keep.level < BUILDINGS[type].keep) return { ok: false, reason: `Raise the keep to level ${BUILDINGS[type].keep} first.`, cells: [] }; if (S.buildings.some(b => b.type === type)) return { ok: false, reason: `You already have a ${BUILDINGS[type].name}.`, cells: [] }; }
     const { cells, lot, cx, cy } = shape(type, x, y, rot);
@@ -985,7 +988,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   function openDrop(d) {
     S.drops.splice(S.drops.indexOf(d), 1);
     let msg;
-    if (d.reward === 'blueprint') { S.stock.tower = (S.stock.tower || 0) + 1; S.stock.house = (S.stock.house || 0) + 1; S.stock.wall = (S.stock.wall || 0) + 6; msg = 'Plans and parts: a free tower, a free home and 6 barricade posts.'; }
+    if (d.reward === 'blueprint') { S.stock.tower = (S.stock.tower || 0) + 1; S.stock.house = (S.stock.house || 0) + 1; if (CUT.walls) { earn(8); msg = 'Plans and parts: a free tower, a free home and 8 scrap of fittings.'; } else { S.stock.wall = (S.stock.wall || 0) + 6; msg = 'Plans and parts: a free tower, a free home and 6 barricade posts.'; } }
     else if (d.reward === 'cache') { const g = 10 + 2 * S.night; S.hero.carry.scrap += g; msg = `A cash box: **${g} scrap** to carry home.`; }
     else if (d.reward === 'blessing') { S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) rollOffer(); msg = 'A sealed case: a rare blessing.'; }
     else { S.survivors += 3; msg = 'Three survivors hiding in the crate join your town (+3 people).'; }

@@ -45,7 +45,8 @@ test('the same seed and inputs replay the same run', () => {
   assert.equal(JSON.stringify(a.log), JSON.stringify(b.log));
 });
 
-test('palisades reroute the dead instead of being ignored', () => {
+test('palisades reroute the dead instead of being ignored (walls are cut for now: tested with the flag off)', () => {
+  CUT.walls = false; try {
   const g = createGame({ mode: 'classic', seed: 3, biome: 'highland' });
   const S = g.state;
   while (S.pendingPicks) g.choosePerk(S.offer[0]);
@@ -57,6 +58,7 @@ test('palisades reroute the dead instead of being ignored', () => {
   g.step();
   let changed = 0; for (let i = 0; i < N * N; i++) if (before[i] !== S.flow[i]) changed++;
   assert.ok(changed > 0, 'flow field did not change after walls were built');
+  } finally { CUT.walls = true; }
 });
 
 test('day actions respect gold, phase and claimed land', () => {
@@ -132,7 +134,9 @@ test('free placement: no overlaps, every building owns its lot with a path, pali
   assert.ok(touching.some(p => /lot/.test(p.reason)), 'the lot rule never triggered');
   // lots tile edge to edge: the next home three cells over fits, and a path stays free between them
   assert.ok([[3, 0], [-3, 0], [0, 3], [0, -3]].some(([dx, dy]) => g.canPlace('house', hx + dx, hy + dy).ok), 'lots do not tile');
-  // palisades are laid as lines of posts; a line chains into the next one
+  assert.equal(g.canPlace('wall', hx + 5, hy).ok, false, 'barricades are cut but still on offer');
+  // palisades are laid as lines of posts; a line chains into the next one (when walls return)
+  CUT.walls = false;
   const [wx, wy] = spots.find(([x, y]) => g.lineCells(x, y, x + 4, y + 2).every(([cx, cy]) => g.canPlace('wall', cx + 0.5, cy + 0.5).ok));
   const before = g.state.buildings.filter(b => b.type === 'wall').length;
   g.state.gold = 50;
@@ -141,6 +145,7 @@ test('free placement: no overlaps, every building owns its lot with a path, pali
   assert.equal(g.state.buildings.filter(b => b.type === 'wall').length, before + laid);
   const cells = g.lineCells(wx, wy, wx + 4, wy + 2);
   for (let k = 1; k < cells.length; k++) assert.equal(Math.abs(cells[k][0] - cells[k - 1][0]) + Math.abs(cells[k][1] - cells[k - 1][1]), 1, 'lines must be 4-connected');
+  CUT.walls = true;
   const outside = g.map.slots.find(sl => sl.region !== 0);
   assert.equal(g.canPlace('house', outside.x, outside.y).ok, false, 'built outside your land');
 });
@@ -662,7 +667,7 @@ test('the honest forecast strip and the dawn ledger', () => {
 });
 
 test('cuts: titles are flavour, no trader, one companion, no crew events, generators out of the build list', () => {
-  for (const k of ['power', 'hands', 'weather', 'titleStats', 'finalClass', 'secondCompanion', 'trader', 'crew']) assert.ok(CUT[k], `${k} is not cut`);
+  for (const k of ['walls', 'power', 'hands', 'weather', 'titleStats', 'finalClass', 'secondCompanion', 'trader', 'crew']) assert.ok(CUT[k], `${k} is not cut`);
   const g = createGame({ seed: 7, hero: 'merchant' }); readyDay(g); const S = g.state;
   const dmg = S.P.heroDmg, keepHp = S.P.keepHp; g.story().grant('gravedigger'); g.story().grant('firstLight'); g.step();
   assert.equal(S.P.heroDmg, dmg); assert.equal(S.P.keepHp, keepHp); assert.ok(S.story.titles.includes('gravedigger'), 'the title itself is gone');
@@ -683,7 +688,7 @@ test('the Merchant Guild upgrades by the same rules as you (hall level, Workshop
 test('no money printers: barricades never pay salvage, and a ruin always costs more to rebuild than it gave', () => {
   const g = createGame({ seed: 9 }); readyDay(g); const S = g.state; S.gold = 200;
   S.offer = ['salvage']; S.picks = ['dawn']; S.pendingPicks = 1; g.choosePerk('salvage');
-  const w = put(g, 'wall'), t = put(g, 'tower');
+  CUT.walls = false; const w = put(g, 'wall'); CUT.walls = true; const t = put(g, 'tower');
   let gold = S.gold; g.hitBuilding(w.id, 999); assert.ok(S.byId.get(w.id).ruined); assert.equal(S.gold, gold, 'a barricade paid salvage');
   gold = S.gold; g.hitBuilding(t.id, 999); const got = S.gold - gold; assert.ok(got >= 1, 'no salvage');
   assert.ok(g.rebuildCost(t.id) > got && g.rebuildCost(w.id) >= 1, 'rebuilding pays');
