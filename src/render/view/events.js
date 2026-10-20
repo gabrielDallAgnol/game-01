@@ -34,6 +34,9 @@ export function createEvents(V) {
       if (e.t === 'hitH') look.fx.hit = Math.min(1, look.fx.hit + 0.55);
       if (e.t === 'heroDie') { shake(0.6); look.fx.hit = 1; }
       if (e.t === 'claim') { shake(0.5); const n = map.regions[e.region].nest; if (n) { const p = Wv(n.x, n.y, 0.6); fx2.emit('ember', p.x, p.y, p.z, 40, { spread: 2.2, speed: 2 }); fx2.emit('smoke', p.x, p.y + 0.5, p.z, 16, { spread: 2 }); burst(n.x, n.y, 6, '#f0a040'); } }
+      // [nests] the guard claws out; each wave of rage throbs red and shakes the ground under you
+      if (e.t === 'nestGuard') { const p = Wv(e.x, e.y, 0.4); fx2.emit('rot', p.x, p.y, p.z, 14, { spread: 1.6, speed: 1.6 }); burst(e.x, e.y, 3, '#b8d94a'); }
+      if (e.t === 'nestRage') { const near = Math.hypot(e.x - S.hero.x, e.y - S.hero.y) < 14; if (near) shake(0.12 + 0.04 * Math.min(6, e.lv)); const p = Wv(e.x, e.y, 0.5); fx2.emit('rot', p.x, p.y, p.z, 10 + 4 * Math.min(6, e.lv), { spread: 1.8, speed: 2.2 }); burst(e.x, e.y, 2.5 + 0.5 * Math.min(6, e.lv), '#ff5a3a'); const h = hives.get(e.region); if (h) h.pulse = 1; }
       if (e.t === 'erupt') { shake(Math.hypot(e.x - S.hero.x, e.y - S.hero.y) < 25 ? 0.4 : 0.15); const p = Wv(e.x, e.y, 0.5); fx2.emit('rot', p.x, p.y, p.z, 30, { spread: 2, speed: 2.5 }); }
       // the flare carries its duration in .dur (the event type always wins over a payload .t)
       if (e.t === 'flare') { flares.push({ x: e.x, y: e.y, t0: time, t: e.dur || 8 }); const p = Wv(e.x, e.y, 0.5); fx2.emit('spark', p.x, p.y, p.z, 24, { speed: 1.4 }); fx2.emit('ember', p.x, p.y, p.z, 16, { spread: 0.4 }); }

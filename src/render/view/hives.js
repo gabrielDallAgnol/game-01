@@ -35,6 +35,7 @@ export function createHives(V) {
     return g;
   }
   const hives = new Map(); let nestKey = '', nearNests = new Set();
+  const rageCol = new THREE.Color(), greenCol = lc('#8fff3a').clone(), redCol = lc('#ff4a2a').clone();   // [nests]
   for (const r of map.regions) if (r.nest) {
     const kind = r.ring === 1 ? 'hollow' : HIVES[r.id % HIVES.length], g = new THREE.Group(); g.position.copy(Wv(r.nest.x, r.nest.y)); g.rotation.y = r.nest.back ? Math.atan2(-r.nest.back[0], -r.nest.back[1]) : Math.atan2(C - r.nest.x, C - r.nest.y);
     g.add(hiveModel(kind));
@@ -58,11 +59,15 @@ export function createHives(V) {
       const live = (active.has(r) || S.purge === r) && !hv.cleared;
       hv.g.visible = seenAt(map.regions[r].nest.x, map.regions[r].nest.y) || live;
       const swell = S.eruption && S.eruption.region === r;   // a hive about to burst swells and throbs red
-      const want = hv.cleared ? 0 : swell ? 1.6 + Math.sin(time * (10 - S.eruption.t / 5)) * 0.5 : live ? 1 : nearNests.has(r) ? 0.15 : 0;
+      // [nests] a hive you stand next to wakes and rages: it glows, reddens and throbs faster as the next wave nears
+      const rg = !hv.cleared && S.nestRage ? S.nestRage[r] : null, hot = rg ? Math.min(1, rg.lv / 6 + 0.25 * rg.rage + (rg.near ? 0.15 : 0)) : 0;
+      hv.pulse = Math.max(0, (hv.pulse || 0) - dt * 1.5);
+      const want = hv.cleared ? 0 : swell ? 1.6 + Math.sin(time * (10 - S.eruption.t / 5)) * 0.5 : rg ? 1 + hot * (0.6 + 0.4 * Math.sin(time * (3 + 9 * rg.rage))) + hv.pulse : live ? 1 : nearNests.has(r) ? 0.15 : 0;
       hv.glow += (want - hv.glow) * Math.min(1, dt * (swell ? 8 : 2));
       if (swell) hv.g.visible = true;
-      hv.g.scale.setScalar(swell ? 1 + 0.04 * Math.sin(time * 9) + 0.08 * (1 - S.eruption.t / 40) : 1);
-      const siege = S.purge === r, colr = swell ? lc('#ff5a3a') : siege ? lc('#e3a54a') : lc('#8fff3a');
+      hv.g.scale.setScalar(swell ? 1 + 0.04 * Math.sin(time * 9) + 0.08 * (1 - S.eruption.t / 40) : rg ? 1 + hot * 0.035 * Math.sin(time * (3 + 9 * rg.rage)) + 0.06 * hv.pulse : 1);
+      if (rg) hv.g.visible = true;
+      const siege = S.purge === r, colr = swell ? lc('#ff5a3a') : siege ? lc('#e3a54a') : rg ? rageCol.copy(greenCol).lerp(redCol, hot) : lc('#8fff3a');
       hv.decal.material.color.copy(colr); hv.decal.material.opacity = hv.glow * (0.35 + dark * 0.55);
       if (hv.burnt && hv.burnt.visible !== !!hv.cleared) { hv.burnt.visible = !!hv.cleared; for (const ch of hv.model.children) if (ch !== hv.burnt) ch.visible = !hv.cleared; }
       if (hv.eyes) {   // a hollow's eyes: always watching (dim by day), blinking pair by pair; gone once it burns
