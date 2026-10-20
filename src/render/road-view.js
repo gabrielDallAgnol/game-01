@@ -174,7 +174,7 @@ export function createRoadView({ world, fx, game, W, K, lc, makeBar, setBar, bur
   }
 
   // ---------- one-shot effects: the horn's call, embers of a burned hive, a fire catching ----------
-  const waves = [], embers = [];
+  const waves = [];
   function wave(x, y, r, color, life = 1.4, width = 0.06) {
     const m = new THREE.Mesh(ringGeo(1 - width, 1, 72), new THREE.MeshBasicMaterial({ color: lc(color).multiplyScalar(1.3), transparent: true, opacity: 0.85, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.renderOrder = 6;
     m.position.copy(W(x, y, 0.1)); fx.add(m); waves.push({ m, r, t: 0, life });
@@ -188,9 +188,46 @@ export function createRoadView({ world, fx, game, W, K, lc, makeBar, setBar, bur
       else if (e.t === 'convoyHome') { burst(e.x, e.y, 0.9, '#ffd27a'); floatLabel(e.x, e.y, e.cart ? '+cart' : '+1 person', '#ffd9a0'); }
       else if (e.t === 'roadAmbush') { /* the mark is drawn from state */ }
       else if (e.t === 'ambushSprung') { burst(e.x, e.y, 2.4, '#ff5a3a'); }
-      else if (e.t === 'embers') { const d = K.glowDecal('#ff6a2a', e.r, 1.4); d.position.copy(W(e.x, e.y, 0.05)); fx.add(d); const dur = e.dur || 30; embers.push({ d, t: dur, life: dur, x: e.x, y: e.y }); }
+      else if (e.t === 'embers') { burst(e.x, e.y, 2.2, '#ff6a2a'); }   // the smoulder itself is drawn from state (syncTraps)
+      else if (e.t === 'pyre') { burst(e.x, e.y, 1.6, '#ffb060'); wave(e.x, e.y, e.r, '#ff8a3a', 0.8, 0.12); }
       else if (e.t === 'fireHit') { const v = views.find(q => q.st.id === e.id); if (v) v.hitT = 0.25; }
     }
+  }
+
+  // ---------- traps: embers and flare fires drawn from the sim's state; on a Pied Piper night every trap is marked ----------
+  const fires = new Map(), marks = new Map();
+  const TRAP_LABEL = { outpost: 'TRAP · FIRE RING', embers: 'TRAP · EMBERS', ford: 'TRAP · FORD', pyre: 'TRAP · FLARE FIRE' };
+  const trapRingMat = () => new THREE.MeshBasicMaterial({ color: lc('#ffc070').multiplyScalar(1.35), transparent: true, opacity: 0, depthWrite: false });
+  function syncTraps(time, dark) {
+    const mi = road.missions, seenF = new Set();
+    // the fires: a burned hollow smoulders, a pitch flare burns where it landed
+    for (const [list, kind, col, r] of [[mi.embers, 'e', '#ff6a2a', 5], [mi.pyres || [], 'p', '#ff9440', 3.6]]) for (const f of list) {
+      const id = `${kind}${Math.round(f.x * 10)}_${Math.round(f.y * 10)}`; seenF.add(id);
+      let v = fires.get(id);
+      if (!v) { const d = K.glowDecal(col, r, kind === 'p' ? 1.8 : 1.4); d.position.copy(W(f.x, f.y, 0.05)); fx.add(d); v = { d, kind, base: d.material.opacity }; fires.set(id, v); }
+      const fade = kind === 'p' ? Math.min(1, Math.max(0, f.t) / 3) : 1;
+      v.d.material.opacity = (0.5 + 0.35 * dark) * fade * (0.75 + 0.25 * Math.sin(time * (kind === 'p' ? 11 : 6) + f.x));
+    }
+    for (const [id, v] of fires) if (!seenF.has(id)) { fx.remove(v.d); fires.delete(id); }
+    // the marks: only on a Piper night, once the mission is chosen
+    const M = road.mission, on = S.phase === 'night' && M && M.id === 'piper' && !M.choosing && !S.over;
+    const list = on ? mi.traps() : [], near = on ? mi.nearestTrap(S.hero.x, S.hero.y) : null, seenM = new Set();
+    for (const t of list) {
+      seenM.add(t.id);
+      let v = marks.get(t.id);
+      if (!v) {
+        const ring = new THREE.Mesh(ringGeo(0.93, 1, 64), trapRingMat()); ring.rotation.x = -Math.PI / 2; ring.renderOrder = 6; fx.add(ring);
+        const inner = new THREE.Mesh(ringGeo(0.6, 0.64, 48), trapRingMat()); inner.rotation.x = -Math.PI / 2; inner.renderOrder = 6; fx.add(inner);
+        const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(TRAP_LABEL[t.kind] || 'TRAP', { w: 512, h: 72, size: 32, bg: 'rgba(5,12,22,0.82)', fg: '#ffd9a0', spacing: '3px' }), transparent: true, depthTest: false, opacity: 0 }));
+        tag.scale.set(3.1, 0.44, 1); tag.renderOrder = 22; fx.add(tag);
+        v = { ring, inner, tag }; marks.set(t.id, v);
+      }
+      const best = near && near.id === t.id, k = 0.5 + 0.5 * Math.sin(time * (best ? 4 : 2.2));
+      v.ring.position.copy(W(t.x, t.y, 0.07)); v.ring.scale.setScalar(t.r); v.ring.material.opacity = (best ? 0.55 : 0.28) + (best ? 0.35 : 0.15) * k;
+      v.inner.position.copy(W(t.x, t.y, 0.07)); v.inner.scale.setScalar(t.r * (0.85 + 0.15 * k)); v.inner.material.opacity = best ? 0.25 + 0.2 * k : 0.1;
+      v.tag.position.copy(W(t.x, t.y, t.kind === 'outpost' ? 4.2 : 2.6)); v.tag.material.opacity = best ? 1 : 0.6; v.tag.visible = t.kind !== 'outpost' || best;
+    }
+    for (const [id, v] of marks) if (!seenM.has(id)) { fx.remove(v.ring, v.inner, v.tag); marks.delete(id); }
   }
 
   // ---------- the trip planner's path: dotted, warm, fading ----------
@@ -232,9 +269,8 @@ export function createRoadView({ world, fx, game, W, K, lc, makeBar, setBar, bur
       v.tag.material.opacity += ((tagOn ? (near < 16 ? 1 : 0.65) : 0) - v.tag.material.opacity) * Math.min(1, dt * 4); v.tag.visible = v.tag.material.opacity > 0.02;
       setBar(v.bar, st.x, 2.0, st.y, st.lit && st.hp < st.maxHp ? st.hp / st.maxHp : 1);
     }
-    syncConvoy(dt, time, dark); syncAmbush(time); syncPath(time);
+    syncConvoy(dt, time, dark); syncAmbush(time); syncPath(time); syncTraps(time, dark);
     for (const w of [...waves]) { w.t += dt; const k = w.t / w.life; w.m.scale.setScalar(Math.max(0.01, w.r * (1 - Math.pow(1 - k, 3)))); w.m.material.opacity = 0.85 * (1 - k); if (k >= 1) { fx.remove(w.m); w.m.geometry.dispose(); w.m.material.dispose(); waves.splice(waves.indexOf(w), 1); } }
-    for (const em of [...embers]) { em.t -= dt; em.d.material.opacity = Math.max(0, Math.min(1, em.t / 6)) * (0.6 + 0.3 * Math.sin(time * 6 + em.x)); if (em.t <= 0) { fx.remove(em.d); embers.splice(embers.indexOf(em), 1); } }
     // the lantern: dark on a Hunt, your light goes out
     const M = road.mission; if (M && M.lantern === false && heroLight) heroLight.intensity *= 0.08;
   }

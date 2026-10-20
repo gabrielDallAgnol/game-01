@@ -43,7 +43,7 @@ export const CONVOY = {
 // Road danger: if you stay out, the clever dead wait on your road home.
 export const AMBUSH = { after: 40, every: 55, ahead: 18, minNight: 2, warn: '[Movement on the road ahead]', wait: 90 };
 
-// Night missions: one choice at dusk.
+// Night missions: one choice at dusk. On a Pied Piper night a flare is a pitch flare: it burns where it lands (`traps.pyre*`).
 export const MISSIONS = {
   hold: { name: 'Hold the Camp', icon: 'shield', line: 'Stand with your towers. The classic night.' },
   hunt: { name: 'The Hunt', icon: 'flame', line: 'The hives empty as their dead march. Sneak out and burn one. Lantern off: unseen but slow.' },
@@ -53,8 +53,13 @@ export const MISSION = {
   pick: 6,            // seconds to choose before Hold is chosen for you
   from: 2,            // the first night with a choice (night 1 is the System's arrival: you hold)
   hunt: { hiveK: 0.4, sneak: 2, pay: 1.5, horde: 0.6, sense: 0.5, speed: 0.85 },   // hives at 40% while their dead are out (strikes ×2 more while nothing hunts you in the dark); pays ×1.5; lantern off: sense ×0.5, you ×0.85
-  horn: { r: 32, share: 0.6, cap: 30, cd: 28, t: 60, lose: 45, pay: 1 },  // the horn: a share of the wave within r turns on you, for t seconds
-  embers: { r: 5, t: 40, burn: 3, dps: 2 },   // a burned hive smoulders: the dead walking through it catch fire
+  // the horn: a share of the dead within r turn on you (for t seconds, or until you lose them past `lose`); for `call`
+  // seconds after a blow the dead walking up into earshot hear it too. Louder with Horn levels (a Piper night that killed
+  // `lvNeed` of what it led, `lvKills` at least) and with the camp's Noise. Each one that falls out of the camp pays at dawn.
+  horn: { r: 36, share: 0.7, shareMax: 0.95, noiseShare: 0.002, lvR: 4, lvShare: 0.05, lvCap: 6, lvMax: 3, lvNeed: 0.6, lvKills: 8,
+    cap: n => 6 + Math.round(1.5 * n), follow: 0.8, noise: 3, cd: 24, call: 14, t: 120, lose: 48, pay: 0.5, payBig: 2 },
+  embers: { r: 5, t: 40, burn: 3, dps: 3 },   // a burned hollow smoulders (through the next night): the dead walking through it catch fire
+  traps: { outpostPad: 1.6, outpostDps: 3, fordR: 3, fordDps: 3.2, slow: 0.4, burnT: 1.2, revealFord: 64, pyreR: 3.6, pyreDps: 2.6 },   // dps × the night's hp scale; `slow`: the led dead wade a ford or an ember field at this speed
   chainK: 0.8,        // out in the wilds a bloater's blast hurts the dead around it too
   captain: 0.15,      // towers +15% with a companion at home
 };

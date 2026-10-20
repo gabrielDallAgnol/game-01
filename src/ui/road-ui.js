@@ -27,7 +27,7 @@ const CSS = `
 .rd-chip.sys .btn.ghost{background:transparent;color:var(--cyan);border:1px solid var(--cyan-d)}
 .rd-chip.sys::before,.rd-chip.sys::after,.rd-win::before,.rd-win::after{content:"";position:absolute;width:8px;height:8px;border:2px solid var(--cyan);pointer-events:none}
 .rd-chip.sys::before,.rd-win::before{left:-1px;top:-1px;border-right:0;border-bottom:0}.rd-chip.sys::after,.rd-win::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
-.rd-chip.ledger{border-color:rgba(255,106,85,.45)}.rd-chip.ledger .t{flex-basis:100%}.rd-chip .t span.dl{display:block;margin-top:2px}.rd-chip .t span.dl em{color:var(--amber)}.rd-chip.ledger .t b .ic{color:var(--blood)}
+.rd-chip.ledger{border-color:rgba(255,106,85,.45)}.rd-chip .t span.dl.pp{color:#bfe6f5}.rd-chip .t span.dl.pp .ic{color:var(--cyan);font-size:13px;margin-right:4px;vertical-align:-2px}.rd-chip .t span.dl.pp em{color:#f2fbff}.rd-chip.ledger .t{flex-basis:100%}.rd-chip .t span.dl{display:block;margin-top:2px}.rd-chip .t span.dl em{color:var(--amber)}.rd-chip.ledger .t b .ic{color:var(--blood)}
 .rd-hp{display:inline-block;width:56px;height:5px;border-radius:3px;background:rgba(236,223,198,.14);overflow:hidden;vertical-align:middle;margin-left:2px}.rd-hp i{display:block;height:100%;background:var(--amber);transition:width .2s}
 .rd-hp.fire i{background:linear-gradient(90deg,var(--ember),#ffcf80)}
 .rd-prog{display:inline-block;width:46px;height:5px;border-radius:3px;background:rgba(255,207,128,.18);overflow:hidden;vertical-align:middle;margin-left:4px}.rd-prog i{display:block;height:100%;background:#ffcf80}
@@ -55,12 +55,15 @@ const CSS = `
 .rd-tag{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--dockH,72px) + 160px);font:500 10.5px/1 var(--mono);letter-spacing:.08em;color:var(--cyan);background:rgba(5,12,22,.88);border:1px solid var(--cyan-d);border-radius:2px;padding:4px 7px;pointer-events:none;text-transform:uppercase;z-index:4;white-space:nowrap}
 #edge .ar.rd-cv i{border-left-color:#ffd27a}#edge .ar.rd-cv span{color:#ffd27a;width:52px;left:-50px}
 #edge .ar.rd-fire i{border-left-color:#ff8a4a}#edge .ar.rd-fire span{color:#ffb07a;width:60px;left:-56px}
+#edge .ar.rd-trap i{border-left-color:#7fe3ff;border-left-width:20px;border-top-width:9px;border-bottom-width:9px;top:-9px}#edge .ar.rd-trap span{color:#bff0ff;font:600 11px/1 var(--mono);letter-spacing:.04em;width:84px;left:-80px}
 #edge .ar.rd-amb i{border-left-color:#ff5a3a;border-left-width:20px;border-top-width:9px;border-bottom-width:9px;top:-9px}#edge .ar.rd-amb span{color:#ff7a62}
 .rd-plan{margin:8px 0 0;display:flex;align-items:center;gap:8px;background:rgba(127,227,255,.06);border:1px solid var(--cyan-d);border-radius:2px;padding:8px 8px 8px 12px}
 .rd-plan .t{flex:1;min-width:0;font-size:13px}.rd-plan .t b{font:600 14px/1.2 var(--mono);display:block;color:#f2fbff}
 .rd-plan .t span{color:#a9c6d8}.rd-plan .t em{font-style:normal;font-weight:600;color:#f2fbff}.rd-plan .t em.late{color:var(--blood)}.rd-plan .t em.ok{color:var(--good)}.rd-plan .t em.risky{color:var(--amber)}
 .rd-plan .btn{background:var(--cyan);color:#04121d;border-radius:2px;font:600 13px/1 var(--mono);letter-spacing:.08em;min-height:40px}
 `;
+
+const TRAP_NAME = { outpost: 'fire ring', embers: 'embers', ford: 'ford', pyre: 'flare fire' };
 
 export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere = () => true }) {
   const road = game.road; if (!road) return null;
@@ -155,7 +158,8 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
       if (sig !== sigTool) { sigTool = sig; tool.innerHTML = `${icon('horn')}<b>Horn</b><span>${cd > 0 ? `${Math.ceil(cd)}s` : ear ? `${ear} hear` : '–'}</span>`; }
       tool.classList.toggle('cool', cd > 0 || !ear); tool.classList.remove('off'); tool.style.setProperty('--cd', cd > 0 ? cd / MISSION.horn.cd : 0);
       tool.onclick = () => { road.horn(); };
-      tag.textContent = `Pied Piper · led ${M.led} · down ${M.ledKilled}`;
+      const hi = road.missions.hornInfo(), pay = Math.round(M.pay);
+      tag.textContent = `Pied Piper · Horn Lv ${hi.lv} · led ${M.led} · fell ${M.ledKilled}${pay ? ` · +${pay} at dawn` : ''}`;
     } else {
       const sig = `l${M.lantern}`;
       if (sig !== sigTool) { sigTool = sig; tool.innerHTML = `${icon('lantern')}<b>Lantern</b><span>${M.lantern ? 'on' : 'off'}</span>`; }
@@ -166,7 +170,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   }
   // ---------- field tools: Flare and Smoke, any time, no pause (shown when the dead are on you or a hive just burned) ----------
   function flareSpot() {
-    const h = S.hero, near = S.mobs.filter(m => m.hunt && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < 14);
+    const h = S.hero, near = S.mobs.filter(m => (m.hunt || m.piped) && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < 14);
     if (!near.length) return [undefined, undefined];
     const cx = near.reduce((a, m) => a + m.x, 0) / near.length, cy = near.reduce((a, m) => a + m.y, 0) / near.length, d = Math.hypot(cx - h.x, cy - h.y) || 1;
     return [cx + (cx - h.x) / d * 6, cy + (cy - h.y) / d * 6];   // beyond the pack: they turn away from you to chase the light
@@ -175,7 +179,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   kit.querySelector('[data-k="smoke"]').onclick = () => { if (game.useSmoke()) { sigKit = ''; renderKit(); } };
   function renderKit() {
     const h = S.hero, T = game.tools ? game.tools() : null;
-    const hunted = S.mobs.some(m => m.hunt && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < 16);
+    const hunted = S.mobs.some(m => (m.hunt || m.piped) && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < 16);
     const cooling = T && (!T.flare.ready || !T.smoke.ready);
     const on = !!T && !S.over && !h.dead && systemHere() && !(S.phase === 'night' && road.mission.choosing) && (hunted || hordeT > 0 || cooling);
     kit.hidden = !on; dock.classList.toggle('lift', on); if (!on) { sigKit = ''; return; }
@@ -188,10 +192,11 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   }
   // ---------- the dawn ledger: what the night took, and one tap to rebuild it ----------
   function showLedger(L, line, dawn) {
-    if (!L || S.over || (!L.fell.length && !L.ruins)) return;
+    if (!L || S.over || (!L.fell.length && !L.ruins && !L.piper)) return;
     const ruins = game.ruins ? game.ruins() : [], all = L.rebuildAll || ruins.reduce((a, r) => a + r.cost, 0), cheap = ruins.length && S.gold >= all;
-    const lost = line || `${L.fell.length} ${L.fell.length === 1 ? 'building' : 'buildings'} fell.`;
-    ledEl.innerHTML = `<div class="t"><b>${icon('skull')}Night ${L.night}: the Camp held at ${L.held}%</b><span>${esc(lost)}${ruins.length ? ` · <em>${ruins.length} ${ruins.length === 1 ? 'ruin' : 'ruins'}</em>${cheap ? '' : ' · tap a ruin to rebuild it'}` : ''}</span>${dawn ? `<span class="dl">${esc(dawn).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>')}</span>` : ''}</div>
+    const lost = line || (L.fell.length ? `${L.fell.length} ${L.fell.length === 1 ? 'building' : 'buildings'} fell.` : 'Nothing fell.');
+    const pp = L.piper ? `<span class="dl pp">${icon('horn')}Pied Piper: led <em>${L.piper.led}</em> · <em>${L.piper.killed}</em> fell outside the walls${L.piper.pay ? ` · <em>+${L.piper.pay} scrap</em>` : ''}</span>` : '';
+    ledEl.innerHTML = `<div class="t"><b>${icon('skull')}Night ${L.night}: the Camp held at ${L.held}%</b><span>${esc(lost)}${ruins.length ? ` · <em>${ruins.length} ${ruins.length === 1 ? 'ruin' : 'ruins'}</em>${cheap ? '' : ' · tap a ruin to rebuild it'}` : ''}</span>${pp}${dawn ? `<span class="dl">${esc(dawn).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>')}</span>` : ''}</div>
       <div class="acts">${cheap ? `<button class="btn sm" data-rb>Rebuild all · ${all}</button>` : ''}<button class="x" data-x aria-label="Close">${icon('close')}</button></div>`;
     const rb = ledEl.querySelector('[data-rb]'); if (rb) rb.onclick = () => { const n = game.rebuildAll(); if (n) toast(`${n} ${n === 1 ? 'ruin' : 'ruins'} rebuilt.`, 'good'); closeLedger(); };
     ledEl.querySelector('[data-x]').onclick = closeLedger;
@@ -239,6 +244,8 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     for (const q of road.stragglers()) { const p = view.project(q.x, q.y, 1); if (off(p)) out.push({ p, cls: 'rd-cv', label: q.cart ? 'cart' : q.name }); }
     if (S.phase === 'night') for (const st of road.stations) if (st.lit && st.hp < st.maxHp) { const p = view.project(st.x, st.y, 1); if (off(p)) out.push({ p, cls: 'rd-fire', label: `${st.name.replace(/^The /, '')} ${Math.round(st.hp / st.maxHp * 100)}%` }); }
     for (const a of R.ambushes) { const p = view.project(a.x, a.y, 1); if (off(p)) out.push({ p, cls: 'rd-amb', label: '!' }); }
+    const M = road.mission;
+    if (S.phase === 'night' && M.id === 'piper' && !M.choosing && !S.hero.dead) { const t = road.missions.nearestTrap(S.hero.x, S.hero.y); if (t) { const p = view.project(t.x, t.y, 1); if (off(p)) out.unshift({ p, cls: 'rd-trap', label: `${TRAP_NAME[t.kind] || 'trap'} ${Math.round(Math.hypot(t.x - S.hero.x, t.y - S.hero.y))}` }); } }
     let i = 0;
     for (const o of out.slice(0, 6)) {
       let el = arrows[i]; if (!el) { el = document.createElement('div'); el.className = 'ar'; el.innerHTML = '<i></i><span></span>'; box.appendChild(el); arrows[i] = el; els.push(el); }
@@ -268,6 +275,8 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
       if (st.lit) { const g = ctx.createRadialGradient((st.x - ox) * s, (st.y - oy) * s, 0, (st.x - ox) * s, (st.y - oy) * s, (big ? 16 : 9)); g.addColorStop(0, 'rgba(255,190,100,.75)'); g.addColorStop(1, 'rgba(255,150,60,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc((st.x - ox) * s, (st.y - oy) * s, big ? 16 : 9, 0, 7); ctx.fill(); dot(st.x, st.y, big ? 5 : 3, '#ffcf80'); }
       else dot(st.x, st.y, big ? 5 : 3, st.fell ? '#8a7a6a' : '#ffcf80', true, big ? 2 : 1.5);
     }
+    const M = road.mission;
+    if (S.phase === 'night' && M.id === 'piper' && !M.choosing) for (const t of road.missions.traps()) { dot(t.x, t.y, Math.max(big ? 6 : 4, t.r * s), 'rgba(127,227,255,.9)', true, big ? 2 : 1.5); dot(t.x, t.y, big ? 2.5 : 1.6, '#7fe3ff'); }
     for (const q of road.members()) dot(q.x, q.y, big ? 3.5 : 2.2, '#ffd27a');
     for (const a of R.ambushes) dot(a.x, a.y, big ? 5 : 3, '#ff5a3a');
     if (big) {

@@ -57,7 +57,10 @@ test('the dead keep out of a lit ring, gnaw at the fire by night, and the fire c
   run(12);
   assert.ok(st.hp < before || !st.lit, 'nobody gnawed the fire');
   for (const m of S.mobs) if (m.siege && m.rise >= 1) assert.ok(Math.hypot(m.x - st.x, m.y - st.y) >= road.ringOf(st) - 0.6, 'a walker inside the lit ring');
-  st.hp = 0.5; run(3);
+  // (its fire burns the dead at its ring now: send fresh ones to finish it)
+  st.hp = 0.5;
+  for (const m of S.mobs.filter(q => q.roam && q.kind === 'walker').slice(0, 4)) { m.roam = null; m.hunt = false; m.x = st.x + road.ringOf(st) + 0.5; m.y = st.y; m.rise = 1; m.stream = -1; m.siege = st.id; }
+  run(3);
   assert.equal(st.lit, false); assert.equal(st.fell, true);
 });
 
@@ -151,4 +154,49 @@ test('a run with the road saves and restores its stations', () => {
   const g2 = createGame({ seed: 3, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor', restore: JSON.parse(JSON.stringify(snap)) });
   assert.equal(g2.road.stations[0].lit, true);
   assert.equal(g2.road.stations[0].met, true);
+});
+
+test('Pied Piper traps: a lit outpost burns the dead at its ring by night, the horn echoes, kills outside pay at dawn in the ledger', () => {
+  const { g, S, c, road, run, tp } = make(3);
+  const st = road.stations[0]; S.gold = 80;
+  tp(st.x + 1, st.y); run(ROAD.lightTime + 0.5); assert.ok(st.lit);
+  for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
+  g.startNight(); run(0.1); for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
+  run(1); tp(st.x, st.y); g.startNight(); run(0.1);
+  assert.equal(road.setMission('piper'), true);
+  // the traps are listed (the outpost at least), the nearest one out of the camp is the guide arrow's target
+  const traps = road.missions.traps(); assert.ok(traps.some(t => t.kind === 'outpost' && t.id === st.id), JSON.stringify(traps));
+  assert.ok(road.missions.nearestTrap(st.x, st.y));
+  // walkers at the ring's edge catch fire and die
+  const ws = S.mobs.filter(q => q.roam && !q.unique && ['walker', 'runner'].includes(q.kind)).slice(0, 5);
+  assert.ok(ws.length >= 3);
+  ws.forEach((m, k) => { m.roam = null; m.lost = false; const a = k * 1.3; m.x = st.x + Math.cos(a) * (road.ringOf(st) + 0.6); m.y = st.y + Math.sin(a) * (road.ringOf(st) + 0.6); m.rise = 1; });
+  const n = road.horn(); assert.ok(n >= 3, `the horn pulled ${n}`);
+  run(6);
+  const left = ws.filter(m => S.mobs.includes(m)).length;
+  assert.ok(left <= 1, `${left} of ${ws.length} walked through the fire ring`);
+  assert.ok(road.mission.ledKilled >= ws.length - 1, `kills outside ${road.mission.ledKilled}`);
+  // the echo: a dead walking up into earshot during the call turns too (most of the time)
+  assert.ok(road.mission.callT > 0 || road.missions.hornInfo().calling === false);
+  // dawn: the ledger carries the Piper line and the pay arrives
+  const pay = Math.round(road.mission.pay), gold = S.gold;
+  for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
+  assert.ok(S.ledger && S.ledger.piper && S.ledger.piper.killed >= ws.length - 1, JSON.stringify(S.ledger && S.ledger.piper));
+  assert.ok(pay > 0 && S.gold >= gold, 'the dawn pay');
+});
+
+test('a burned hollow smoulders through the night; a pitch flare on a Piper night burns where it lands', () => {
+  const { g, S, road, run, tp } = make(3);
+  const mi = road.missions;
+  // embers from a claim by day last through the coming night
+  const reg = g.map.regions.find(r => r.nest); S.events.push({ t: 'claim', region: reg.id }); run(0.1);
+  assert.equal(mi.embers.length, 1); assert.equal(mi.embers[0].until, S.night);
+  run(MISSION.embers.t + 2); assert.equal(mi.embers.length, 1, 'the embers went out before the night');
+  // a flare thrown on a Piper night lays a fire
+  for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
+  g.startNight(); run(0.1); for (let k = 0; k < 60 * 400 && S.phase === 'night'; k++) { g.step(); S.story.encounters.length = 0; }
+  assert.equal(mi.embers.length, 0, 'the embers outlived their night');
+  run(1); g.startNight(); run(0.1); road.setMission('piper'); S.gold = 20;
+  assert.equal(g.useFlare(S.hero.x + 5, S.hero.y), true); run(0.1);
+  assert.ok(mi.pyres.length === 1 && mi.traps().some(t => t.kind === 'pyre'));
 });
