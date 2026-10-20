@@ -1,5 +1,6 @@
 // The HUD: the System strip and Camp toasts (two voices), dawn and dusk banners, the night's losses line, the top
-// bar (scrap, food, people, noise, forecast, sun dial), the ability button, the contract trip, edge arrows to the dead,
+// bar (scrap, food, people, noise, forecast, sun dial), the ability button, the contract trip, edge arrows (the dead;
+// MAIN objectives big and gold with their distance, OPTIONAL ones small and only when close),
 // and the auto quality watch.
 import { $, DIR8, NUMW, ONE, PLURAL, campCopy, esc, mmss, store } from './shared.js';
 import { HEAT } from '../sim/game.js';
@@ -165,7 +166,7 @@ export function createHud(ui) {
   }
   document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('.ar.kontract'); if (a && ui.game && !ui.card) contractTrip(); });
   // ---------- edge arrows ----------
-  const edge = { top: 60, bot: 100, pool: [], tags: [] };
+  const edge = { top: 60, bot: 100, pool: [], tags: [] }, EDGE_NEAR = 28;   // optional places get an arrow within this many metres
   function edgeMarks() {
     const S = ui.game.state, Wd = innerWidth, Hh = innerHeight, m = 22, t = edge.top, bt = Hh - edge.bot, cx = Wd / 2, cy = (t + bt) / 2, buckets = new Map();
     for (const z of S.mobs) {
@@ -187,20 +188,36 @@ export function createHud(ui) {
         const b = buckets.get(key) || { ang, n: 0, big: false, day: true }; b.n += r.count; if (r.siege || r.boss) b.big = true; buckets.set(key, b);
       }
     }
-    for (const d of S.drops) { const p = ui.view.project(d.x, d.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(3000 + d.id, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: false, drop: true }); }
-    // quests: only what the gate shows (one at a time early on), never the whole list
-    for (const q of ui.game.story().shownQuests()) { const p = ui.view.project(q.x, q.y, 1.5); if (p.x > m && p.x < Wd - m && p.y > t && p.y < bt) continue; buckets.set(q.key === 'trial' ? 6999 : q.spot ? 7000 + q.spot : 5000 + q.site, { ang: Math.atan2(p.y - cy, p.x - cx), n: 0, big: q.kind === 'trial', quest: true, label: q.label }); }
-    { const K = ui.game.story().contracts.stripLine(); if (K && K.place) { const p = ui.view.project(K.place.x, K.place.y, 2); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8100, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, quest: true, contract: true, label: 'Contract' }); } }
+    // objectives: MAIN (the System requires it) always gets a big gold arrow with its distance; OPTIONAL (beacons,
+    // sites, drops) only a small quiet one, and only when it is close or selected
+    { const sel = ui.selected, on = (p) => !p.behind && p.x > m && p.x < Wd - m && p.y > t && p.y < bt;
+      for (const o of ui.game.story().objectives()) {
+        if (o.x === undefined) continue;
+        const main = o.priority === 'main';
+        if (!main && o.dist > EDGE_NEAR && !(sel && sel.type === 'landmark' && o.site === sel.id)) continue;
+        const p = ui.view.project(o.x, o.y, main ? 2 : 1.5); if (on(p)) continue;
+        buckets.set(`o:${o.key}`, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, main, opt: !main, contract: o.kind === 'contract', label: o.label, dist: o.dist });
+      } }
     { const c = ui.game.map.city, h = S.hero; if (c && Math.hypot(c.x - h.x, c.y - h.y) > c.r + 6) { const p = ui.view.project(c.x, c.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8000, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'City' }); } }
     { const tw = ui.game.map.town, h = S.hero; if (Math.hypot(tw.x - h.x, tw.y - h.y) > 24) { const p = ui.view.project(tw.x, tw.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8001, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'Camp' }); } }
     for (let k = tagN; k < edge.tags.length; k++) edge.tags[k].hidden = true;
     let i = 0;
+    const hx = Wd / 2 - m, hy = Math.max(10, (bt - t) / 2 - m * 0.5);
+    for (const b of buckets.values()) { const c = Math.cos(b.ang), s = Math.sin(b.ang), k = Math.min(Math.abs(hx / (c || 1e-6)), Math.abs(hy / (s || 1e-6))); b.px = cx + c * k; b.py = cy + s * k; }
+    // MAIN chips never stack on each other: slide a crowded one along the screen edge
+    { const mains = [...buckets.values()].filter(b => b.main), side = b => (Math.abs(b.px - cx) > hx - 1 ? 'v' : 'h');
+      for (let a = 1; a < mains.length; a++) for (let tries = 0; tries < 6; tries++) {
+        const b = mains[a], hit = mains.slice(0, a).find(o => Math.hypot(o.px - b.px, o.py - b.py) < 50); if (!hit) break;
+        if (side(b) === 'v') b.py = Math.min(bt - m, Math.max(t + m, b.py + (b.py >= hit.py ? 50 : -50) - (b.py - hit.py)));
+        else b.px = Math.min(Wd - m, Math.max(m, b.px + (b.px >= hit.px ? 96 : -96) - (b.px - hit.px)));
+      } }
     for (const b of buckets.values()) {
       let el = edge.pool[i]; if (!el) { el = document.createElement('div'); el.className = 'ar'; el.innerHTML = '<i></i><span></span>'; $('#edge').appendChild(el); edge.pool[i] = el; }
-      const c = Math.cos(b.ang), s = Math.sin(b.ang), hx = Wd / 2 - m, hy = Math.max(10, (bt - t) / 2 - m * 0.5), k = Math.min(Math.abs(hx / (c || 1e-6)), Math.abs(hy / (s || 1e-6)));
-      el.style.transform = `translate(${cx + c * k}px, ${cy + s * k}px) rotate(${b.ang}rad)`;
-      const sp = el.lastChild; sp.textContent = b.label ? b.label : b.quest ? 'Quest' : b.drop ? 'Drop' : b.day ? `~${b.n}` : b.n > 1 ? b.n : ''; sp.style.transform = `rotate(${-b.ang}rad)`;
-      el.classList.toggle('big', b.big); el.classList.toggle('drop', !!b.drop); el.classList.toggle('quest', !!b.quest); el.classList.toggle('ploc', !!b.place); el.classList.toggle('kontract', !!b.contract); el.hidden = false; i++;
+      el.style.transform = `translate(${b.px}px, ${b.py}px) rotate(${b.ang}rad)`;
+      const sp = el.lastChild, txt = b.main ? `<b>Main</b><em>${esc(b.label)} ${b.dist}m</em>` : esc(b.label ? b.label : b.day ? `~${b.n}` : b.n > 1 ? b.n : '');
+      if (sp.dataset.h !== txt) { sp.dataset.h = txt; sp.innerHTML = txt; } sp.style.transform = `rotate(${-b.ang}rad)`;
+      el.classList.toggle('big', b.big); el.classList.toggle('main', !!b.main); el.classList.toggle('opt', !!b.opt); el.classList.toggle('ploc', !!b.place); el.classList.toggle('kontract', !!b.contract);
+      el.setAttribute('aria-label', b.main ? `Main objective: ${b.label}, ${b.dist} metres` : ''); el.hidden = false; i++;
     }
     for (; i < edge.pool.length; i++) edge.pool[i].hidden = true;
     if (S.over) for (const el of [...edge.pool, ...edge.tags]) el.hidden = true;

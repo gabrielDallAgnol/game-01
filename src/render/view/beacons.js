@@ -1,5 +1,5 @@
 // Beacons: supply drops (a crate under a canopy with red smoke and an opening ring) and street encounters
-// (a blue beacon; the trial's red one).
+// (a small, quiet beacon: they are optional; the trial and story quests wear the gold MAIN marker in markers.js).
 /* global THREE */
 import { K } from '../kit.js';
 import { lc, ringGeo } from './shared.js';
@@ -20,36 +20,25 @@ export function createBeacons(V) {
     const ring = new THREE.Mesh(ringGeo(1.55, 1.75), new THREE.MeshBasicMaterial({ color: lc('#f0c050').multiplyScalar(1.4), transparent: true, opacity: 0.9, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; g.add(ring);
     return { g, smoke, ring };
   }
-  // street encounters: a blue beacon you can see from far away
-  const spotViews = new Map(), beamTex = glowTex;
-  const bangMat = new THREE.SpriteMaterial({ map: K.textTex('!', { w: 64, h: 64, size: 54, bg: '#0e2230', fg: '#7fd4ff' }), transparent: true, depthTest: false });
+  // street encounters (OPTIONAL): a small, quiet blue-grey beacon. Story-quest spots and the trial are MAIN
+  // objectives and get the gold marker (markers.js), so they are skipped here.
+  const spotViews = new Map();
+  const QUIET = '#a9c6d6';
+  const bangMat = new THREE.SpriteMaterial({ map: K.textTex('!', { w: 64, h: 64, size: 50, bg: '#1a2228', fg: QUIET }), transparent: true, depthTest: false });
   function syncSpots(t) {
     const list = (S.story && S.story.spots) || [], seenIds = new Set();
     for (const sp of list) {
+      if (sp.thread) continue;
       seenIds.add(sp.id); let v = spotViews.get(sp.id);
       if (!v) {
         const g = new THREE.Group(); g.position.copy(Wv(sp.x, sp.y));
-        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.5, 7, 12, 1, true), new THREE.MeshBasicMaterial({ color: lc('#7fd4ff').multiplyScalar(0.8), transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-        col.position.y = 3.5; g.add(col);
-        const bang = new THREE.Sprite(bangMat); bang.scale.set(0.8, 0.8, 1); bang.renderOrder = 9; g.add(bang);
-        const ring = new THREE.Mesh(ringGeo(0.9, 1.05), new THREE.MeshBasicMaterial({ color: lc('#7fd4ff').multiplyScalar(1.4), transparent: true, opacity: 0.8, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; g.add(ring);
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.3, 3.2, 10, 1, true), new THREE.MeshBasicMaterial({ color: lc(QUIET).multiplyScalar(0.7), transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        col.position.y = 1.6; g.add(col);
+        const bang = new THREE.Sprite(bangMat); bang.scale.set(0.55, 0.55, 1); bang.renderOrder = 9; g.add(bang);
+        const ring = new THREE.Mesh(ringGeo(0.6, 0.7), new THREE.MeshBasicMaterial({ color: lc(QUIET).multiplyScalar(1.1), transparent: true, opacity: 0.5, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; g.add(ring);
         world.add(g); v = { g, bang, ring, col }; spotViews.set(sp.id, v);
       }
-      v.g.visible = S.phase === 'day'; v.bang.position.y = 2.2 + Math.sin(t * 3 + sp.id) * 0.15; v.ring.scale.setScalar(1 + (t * 0.8 % 1) * 0.6); v.ring.material.opacity = 0.8 * (1 - (t * 0.8 % 1));
-    }
-    // the trial: a red beacon
-    const tr = S.story && S.story.trial;
-    if (tr && !tr.done) {
-      seenIds.add('trial'); let v = spotViews.get('trial');
-      if (!v) {
-        const g = new THREE.Group(); g.position.copy(Wv(tr.x, tr.y));
-        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.7, 10, 12, 1, true), new THREE.MeshBasicMaterial({ color: lc('#ff5a3c').multiplyScalar(0.9), transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-        col.position.y = 5; g.add(col);
-        const bang = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex('⚔', { w: 64, h: 64, size: 46, bg: '#2a0e0a', fg: '#ff7a62' }), transparent: true, depthTest: false })); bang.scale.set(1, 1, 1); bang.renderOrder = 9; g.add(bang);
-        const ring = new THREE.Mesh(ringGeo(1.6, 1.8), new THREE.MeshBasicMaterial({ color: lc('#ff5a3c').multiplyScalar(1.5), transparent: true, opacity: 0.8, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.08; g.add(ring);
-        world.add(g); v = { g, bang, ring, col }; spotViews.set('trial', v);
-      }
-      v.bang.position.y = 2.6 + Math.sin(t * 3) * 0.15; v.ring.scale.setScalar(1 + (t * 0.6 % 1) * 0.4); v.ring.material.opacity = 0.8 * (1 - (t * 0.6 % 1));
+      v.g.visible = S.phase === 'day'; v.bang.position.y = 1.7 + Math.sin(t * 2 + sp.id) * 0.08; v.ring.scale.setScalar(1 + (t * 0.5 % 1) * 0.3); v.ring.material.opacity = 0.5 * (1 - (t * 0.5 % 1));
     }
     for (const [id, v] of spotViews) if (!seenIds.has(id)) { world.remove(v.g); spotViews.delete(id); }
   }

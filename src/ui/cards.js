@@ -201,7 +201,7 @@ export function createCards(ui) {
       <p class="jpath">Your path: <b>${esc(enc.path)}</b></p>
       <p class="jscene">${rich(enc.scene)}</p>
       <div class="jobs n${J.length}">${J.map(jcard).join('')}</div>
-      <p class="jboss">${icon('skull')}<span>Trial: beat <b>${esc(enc.boss)}</b> at the red marker, by day.</span></p>
+      <p class="jboss">${icon('skull')}<span>Trial: beat <b>${esc(enc.boss)}</b> at the gold MAIN marker, by day.</span></p>
       <div class="cardrow foot spread"><button class="btn ghost sm" id="jWait">Not yet</button><button class="btn big" id="jGo" ${pick ? '' : 'disabled'}>${pick ? `Take the trial: ${esc(pick.name)}` : J.length > 1 ? 'Pick a class' : `Take the trial: ${esc(J[0].name)}`}</button></div></div>`, { sys: true, cls: `jobw jt${t}`, arm: !again, anim: !again });
     if (J.length === 1 && !sel) { st.sel = J[0].cls; $('#jGo').disabled = false; }
     const eb = $('#jEb'); if (again || st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; audio.play('jobOpen', t); typeOn(eb, enc.eyebrow, t >= 3 ? 26 : 40); }

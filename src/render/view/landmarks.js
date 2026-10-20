@@ -1,5 +1,5 @@
 // Landmarks and district sites: intact buildings to claim (the city's signature one rises above the shroud), their
-// lot frames and icons, quest marks; and the (retired) scavenge-site caches.
+// lot frames and icons, quiet quest marks (MAIN ones get markers.js's gold marker); and the (retired) scavenge-site caches.
 /* global THREE */
 import { LANDMARKS } from '../../sim/mapgen.js';
 import { K, CFG } from '../kit.js';
@@ -141,18 +141,19 @@ export function createLandmarks(V) {
     const icon = new THREE.Sprite(iconMat(l.kind)); icon.scale.set(1.1, 1.1, 1); icon.position.y = mark.position.y + 1.1; icon.renderOrder = 9; g.add(icon);
     world.add(g); return { l, g, pole, flag, mark, m, kind: l.kind, frame, icon };
   });
-  const questMat = new THREE.MeshBasicMaterial({ color: lc('#7fd4ff').multiplyScalar(1.8) });
+  // quest marks: a story quest at a site is MAIN (the gold marker in markers.js stands over it, so the diamond steps
+  // aside); a site you opened yourself is OPTIONAL (the same small diamond as any place to claim, a touch brighter)
   function updateLandmarks(t) {
-    const shown = (S.story && game.story && game.story() && game.story().shownQuests) ? game.story().shownQuests() : [];
+    const objs = (S.story && game.story && game.story() && game.story().objectives) ? game.story().objectives() : [];
     for (const v of lmViews) {
       if (v.kind !== v.l.kind) { v.g.remove(v.m); v.m = siteModel(v.l.kind, v.l.size, v.l.id * 7); v.g.add(v.m); v.kind = v.l.kind; v.icon.material = iconMat(v.l.kind); }
       { const open = !S.sealed[v.l.region] && !v.l.stripped && v.l.kind !== 'unknown', col = v.l.owned ? '#d9843a' : (SITE_LOOK[v.l.kind] || SITE_LOOK.unknown)[0], U = v.frame.userData;
         v.frame.visible = open; v.icon.visible = open && !v.l.owned;
         if (open) { U.mat.color.copy(lc(col)).multiplyScalar(v.l.owned ? 1.2 : 1.6 + 0.4 * Math.sin(t * 3 + v.l.id)); U.fill.color.copy(lc(col)); U.fill.opacity = v.l.owned ? 0.06 : 0.12; } }
-      const quest = shown.some(q => q.site === v.l.id);
+      const main = objs.some(q => q.site === v.l.id && q.priority === 'main'), opt = !main && objs.some(q => q.site === v.l.id);
       v.g.visible = LANDMARKS[v.l.kind].signature || seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned;
-      v.mark.visible = !v.l.owned && !v.l.stripped && v.l.kind !== 'unknown' && S.phase === 'day' && !S.sealed[v.l.region];
-      v.mark.material = quest ? questMat : diaWhite; v.mark.scale.setScalar(quest ? 1.4 + Math.sin(t * 4) * 0.12 : 1);
+      v.mark.visible = !main && !v.l.owned && !v.l.stripped && v.l.kind !== 'unknown' && S.phase === 'day' && !S.sealed[v.l.region];
+      v.mark.scale.setScalar(opt ? 0.9 + Math.sin(t * 3) * 0.06 : 0.75);
       if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3;
       if (v.l.stripped && !v.gutted) { v.gutted = true; v.m.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.45); } }); }
     }
