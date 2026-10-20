@@ -28,6 +28,19 @@ const CSS = `
 .rd-chip.sys::before,.rd-chip.sys::after,.rd-win::before,.rd-win::after{content:"";position:absolute;width:8px;height:8px;border:2px solid var(--cyan);pointer-events:none}
 .rd-chip.sys::before,.rd-win::before{left:-1px;top:-1px;border-right:0;border-bottom:0}.rd-chip.sys::after,.rd-win::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
 .rd-chip.ledger{border-color:rgba(255,106,85,.45)}.rd-chip .t span.dl.pp{color:#bfe6f5}.rd-chip .t span.dl.pp .ic{color:var(--cyan);font-size:13px;margin-right:4px;vertical-align:-2px}.rd-chip .t span.dl.pp em{color:#f2fbff}.rd-chip.ledger .t{flex-basis:100%}.rd-chip .t span.dl{display:block;margin-top:2px}.rd-chip .t span.dl em{color:var(--amber)}.rd-chip.ledger .t b .ic{color:var(--blood)}
+.rd-chip.mini{flex-wrap:nowrap;gap:6px;height:46px;padding:5px 5px 5px 8px;border-radius:2px;background:linear-gradient(180deg,rgba(8,20,34,.95),rgba(5,12,22,.96));border:1px solid var(--cyan-d);position:relative;overflow:visible}
+.rd-chip.mini::before{content:"";position:absolute;left:-1px;top:-1px;width:7px;height:7px;border:2px solid var(--cyan);border-right:0;border-bottom:0;pointer-events:none}
+.rd-chip.mini.warm{border-color:rgba(240,166,73,.55)}.rd-chip.mini.warm::before{border-color:var(--amber)}
+.rd-chip.mini .i0{flex:none;display:grid;place-items:center;width:16px;font-size:16px;color:var(--cyan)}.rd-chip.mini.warm .i0{color:var(--amber)}
+.rd-chip.mini .lb{flex:1 1 auto;min-width:0;display:grid;gap:3px}
+.rd-chip.mini .lb b{font:600 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#cfeefa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-chip.mini .lb span{font:500 11.5px/1 var(--mono);color:#a9c6d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+.rd-chip.mini .lb span em{font-style:normal;color:#f2fbff;font-weight:600}.rd-chip.mini .lb span em.late{color:var(--blood)}.rd-chip.mini .lb span em.risky{color:var(--amber)}.rd-chip.mini .lb span em.ok{color:var(--good)}
+.rd-chip.mini .rd-hp,.rd-chip.mini .rd-prog{width:28px;margin:0;flex:none}.rd-chip.mini .lb span .ic{font-size:12px;flex:none}
+.rd-chip.mini .ab{flex:none;display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 8px;border:0;border-radius:2px;background:var(--cyan);color:#04121d;font:600 12px/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;position:relative}
+.rd-chip.mini .ab::after{content:"";position:absolute;inset:-5px}
+.rd-chip.mini .ab .ic{font-size:15px}.rd-chip.mini .ab.ghost{background:transparent;color:var(--cyan);border:1px solid var(--cyan-d)}.rd-chip.mini .ab:disabled{opacity:.45}
+.rd-chip.mini.warm .ab:not(.ghost){background:var(--amber);color:#1f1407}
 .rd-hp{display:inline-block;width:56px;height:5px;border-radius:3px;background:rgba(236,223,198,.14);overflow:hidden;vertical-align:middle;margin-left:2px}.rd-hp i{display:block;height:100%;background:var(--amber);transition:width .2s}
 .rd-hp.fire i{background:linear-gradient(90deg,var(--ember),#ffcf80)}
 .rd-prog{display:inline-block;width:46px;height:5px;border-radius:3px;background:rgba(255,207,128,.18);overflow:hidden;vertical-align:middle;margin-left:4px}.rd-prog i{display:block;height:100%;background:#ffcf80}
@@ -75,8 +88,8 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   const dock = mk('div', 'rd-dock');
   const tripEl = mk('div', 'rd-chip sys', dock); tripEl.hidden = true;
   const ledEl = mk('div', 'rd-chip ledger', dock); ledEl.hidden = true;
-  const stEl = mk('div', 'rd-chip fire', dock); stEl.hidden = true;
-  const cvEl = mk('div', 'rd-chip cv', dock); cvEl.hidden = true;
+  const stEl = mk('div', 'rd-chip mini warm', dock); stEl.hidden = true;
+  const cvEl = mk('div', 'rd-chip mini', dock); cvEl.hidden = true;
   const win = mk('div', 'rd-win'); win.hidden = true;
   const tool = mk('button', 'rd-tool'); tool.hidden = true;
   const tag = mk('div', 'rd-tag'); tag.hidden = true;
@@ -211,13 +224,13 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     const towers = st.towers.filter(id => S.byId.get(id)).length, cost = game.buyCost('tower'), cvNear = road.members().some(m => Math.hypot(m.x - st.x, m.y - st.y) < road.ringOf(st) + 1);
     const sig = `${st.id}|${st.lit}|${Math.round(st.prog * 10)}|${Math.round(st.hp)}|${towers}|${S.gold >= cost}|${cvNear}|${R.convoys.some(cv => cv.hold)}`;
     if (sig === sigSt) return; sigSt = sig;
+    const nm = esc(st.short || st.name.replace(/^The /, ''));
     if (!st.lit) {
-      stEl.innerHTML = `<div class="t"><b>${icon('flame')}${esc(st.name)}</b><span>${st.prog > 0 ? `Lighting the fire <span class="rd-prog"><i style="width:${Math.min(100, st.prog / ROAD.lightTime * 100)}%"></i></span>` : `Stand still by the fire to light it · <em>${road.lightCost()} scrap</em>`}${st.fell ? ' · it went out' : ''}</span></div>`;
+      stEl.innerHTML = `<span class="i0">${icon('flame')}</span><span class="lb"><b>${nm}${st.fell ? ' · out' : ''}</b><span>${st.prog > 0 ? `lighting <span class="rd-prog"><i style="width:${Math.min(100, st.prog / ROAD.lightTime * 100)}%"></i></span>` : `stand still to light · <em>${road.lightCost()}</em>${icon('scrap')}`}</span></span>`;
     } else {
-      const holding = R.convoys.some(cv => cv.hold);
-      stEl.innerHTML = `<div class="t"><b>${icon('flame')}${esc(st.name)} · outpost</b><span>fire <span class="rd-hp fire"><i style="width:${Math.max(0, st.hp / st.maxHp * 100)}%"></i></span> · towers ${towers}/${ROAD.towers}${h.hp < h.maxHp && Math.hypot(st.x - h.x, st.y - h.y) < road.ringOf(st) ? ' · <em>resting</em>' : ''}</span></div>
-        <div class="acts">${towers < ROAD.towers ? `<button class="btn sm" data-tw ${S.gold < cost && !(S.stock.tower > 0) ? 'disabled' : ''}>Tower · ${S.stock.tower > 0 ? 'free' : cost}</button>` : ''}
-        ${cvNear ? `<button class="btn ghost sm" data-hold>${holding ? 'Follow' : 'Shelter'}</button>` : ''}</div>`;
+      const holding = R.convoys.some(cv => cv.hold), resting = h.hp < h.maxHp && Math.hypot(st.x - h.x, st.y - h.y) < road.ringOf(st);
+      const btn = towers < ROAD.towers ? `<button class="ab" data-tw ${S.gold < cost && !(S.stock.tower > 0) ? 'disabled' : ''} aria-label="Build a forward tower">${icon('tower')}${S.stock.tower > 0 ? 'free' : cost}</button>` : cvNear ? `<button class="ab ghost" data-hold>${holding ? 'Follow' : 'Shelter'}</button>` : '';
+      stEl.innerHTML = `<span class="i0">${icon('flame')}</span><span class="lb"><b>${nm}</b><span><span class="rd-hp fire"><i style="width:${Math.max(0, st.hp / st.maxHp * 100)}%"></i></span>${icon('tower')}<em>${towers}/${ROAD.towers}</em>${resting ? '· <em class="ok">rest</em>' : ''}</span></span>${btn}`;
       const tw = stEl.querySelector('[data-tw]'); if (tw) tw.onclick = () => { road.buildTower(st.id); sigSt = ''; };
       const hb = stEl.querySelector('[data-hold]'); if (hb) hb.onclick = () => { road.hold(!holding); sigSt = ''; };
     }
@@ -231,8 +244,9 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     const sig = `${people}|${cart}|${Math.round(hp * 20)}|${hunted}|${strag}|${waiting}|${Math.round(d / 5)}`;
     if (sig === sigCv) return; sigCv = sig;
     const eta = mem.length ? Math.round(d / 1.5) : 0;
-    cvEl.innerHTML = `<div class="t"><b>${icon('people')}Convoy · ${people} ${people === 1 ? 'person' : 'people'}${cart ? ' + cart' : ''}</b><span><span class="rd-hp"><i style="width:${hp * 100}%"></i></span> · ${hunted ? `<em class="late">${hunted} dead on them</em>` : waiting ? 'waiting' : `home in ~${fmtTime(eta)}`}${strag ? ` · <em class="risky">${strag} straggling</em>` : ''}</span></div>
-      <button class="btn sm" data-home>Lead home</button>`;
+    const state = hunted ? `${icon('skull')}<em class="late">${hunted}</em>` : strag ? `${icon('run')}<em class="risky">${strag}</em>` : waiting ? 'wait' : `~<em>${fmtTime(eta)}</em>`;
+    cvEl.innerHTML = `<span class="i0">${icon('people')}</span><span class="lb"><b>${people}${cart ? ' + cart' : ` ${people === 1 ? 'person' : 'people'}`}</b><span><span class="rd-hp"><i style="width:${hp * 100}%"></i></span>${state}</span></span>
+      <button class="ab" data-home aria-label="Lead them home">${icon('route')}Home</button>`;
     cvEl.querySelector('[data-home]').onclick = () => { if (R.convoys.some(cv => cv.hold)) road.hold(false); road.go(c, c + 3.5); };
     cvEl.hidden = false;
   }
