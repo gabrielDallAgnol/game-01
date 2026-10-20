@@ -134,7 +134,7 @@ function strideFrame(root, k = 1) {
 // the dead: a near-black violet edge (darker than the night ground, far darker than the meadow); people: dark umber
 export const CROWD_OUTLINE = { dead: '#07060b', folk: '#1c120a' };
 const KIND_RIG = {
-  walker: 'walker', runner: 'runner', crawler: 'crawler', brute: 'brute', spitter: 'spitter', bloater: 'bloater', screamer: 'screamer', gravelord: 'gravelord', guardian: 'gravelord', deer: 'deer', wolf: 'wolf',
+  walker: 'walker', runner: 'runner', crawler: 'crawler', brute: 'brute', spitter: 'spitter', bloater: 'bloater', screamer: 'screamer', gravelord: 'gravelord', guardian: 'gravelord', deer: 'deer', wolf: 'wolf', boar: 'boar',
 };
 /** the dead (and the townsfolk), drawn in batches: two instanced frames per kind plus their glowing eyes.
  *  Each instance carries aFlash (0..1): the hit flash and squash. */
@@ -154,7 +154,7 @@ export function createCrowd(world) {
     };
     const A = make(false), B = make(true); strideFrame(B);
     const frames = [bake(A, { ao: 0.45 }), bake(B, { ao: 0.45 })];
-    const cap = kind === 'gravelord' || kind === 'guardian' ? 12 : kind === 'deer' || kind === 'wolf' ? 60 : fm ? 40 : 400;
+    const cap = kind === 'gravelord' || kind === 'guardian' ? 12 : kind === 'deer' || kind === 'wolf' || kind === 'boar' ? 60 : fm ? 40 : 400;
     const meshes = frames.map(f => {
       const fl = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1); fl.setUsage(THREE.DynamicDrawUsage);
       f.geo.setAttribute('aFlash', fl);

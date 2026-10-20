@@ -16,13 +16,14 @@ export const MOBS = {
   // the woods: game for the pot, and the wolves that hunt it
   deer:      { name: 'Deer',      hp: 3,  speed: 2.6,  dmg: 0,  cost: 0, from: 99, weight: 0, size: 0.95, fixedHp: true, animal: true, food: 2 },
   wolf:      { name: 'Wolf',      hp: 5,  speed: 3.1,  dmg: 2,  cost: 0, from: 99, weight: 0, size: 0.85, fixedHp: true, animal: true, food: 1 },
+  boar:      { name: 'Boar',      hp: 8,  speed: 2.3,  dmg: 3,  cost: 0, from: 99, weight: 0, size: 0.9,  fixedHp: true, animal: true, food: 3, sight: 2.5 },   // roots and grunts; charges only when you come close or strike it
 };
 
 // The brain: every dead goes for the loudest thing it senses. You, if you are close and out in the open; the town otherwise.
 // Rank is brains: higher ranks sense you further, keep your trail longer, remember where they last saw you,
 // and (rank 3+) wait for you on the road home.
 export const BRAIN = {
-  rank: { walker: 1, risen: 1, crawler: 1, runner: 2, spitter: 2, bloater: 2, brute: 3, screamer: 3, guardian: 4, gravelord: 4, wolf: 2, deer: 0 },
+  rank: { walker: 1, risen: 1, crawler: 1, runner: 2, spitter: 2, bloater: 2, brute: 3, screamer: 3, guardian: 4, gravelord: 4, wolf: 2, deer: 0, boar: 1 },
   sense: [0, 5, 8, 11, 14],        // cells: how far they notice you (more when you are fighting, less in smoke)
   forget: [0, 1.6, 2.2, 2.6, 3],   // they lose you past sense × this
   remember: [0, 0, 6, 10, 14],     // seconds they search where they last saw you
@@ -64,6 +65,6 @@ export const TIDE = {
   // night 1 (hand-authored): the first dead alone, then its pack from the same hive, then a second pack out of the
   // woods on the far side while the hero is still busy. A fight the hero wins alone with Shove.
   night1: { first: 3, packA: [13, 15, 17], packB: [29, 31, 33, 35] },
-  roam: { perRing: [0, 3, 12], hiveGap: 7, radius: 4.5, sight: 6, leash: 10, lose: 16, cap: 150, animals: { deer: 4, wolves: 2 }, chase: { walker: 1.35, runner: 1.1, brute: 1.25, crawler: 1.2 } },   // a hunting roamer moves this much faster than it wanders
+  roam: { perRing: [0, 3, 12], hiveGap: 7, radius: 4.5, sight: 6, leash: 10, lose: 16, cap: 150, animals: { deer: { cap: 20, start: 14, herd: [2, 4], regrow: 1 }, boar: { cap: 6, start: 2, herd: [2, 2], regrow: 1 }, wolf: { cap: 6, start: 0, herd: [2, 3], regrow: 1, from: 2 } }, chase: { walker: 1.35, runner: 1.1, brute: 1.25, crawler: 1.2 } },   // a hunting roamer moves this much faster than it wanders
 };
 

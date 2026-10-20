@@ -28,21 +28,28 @@ export function createBrain(G) {
       }
     }
   }
-  // the woods: a few herds of deer, and from the second night wolves (both are food)
+  // the woods: herds of deer, a few boar, and from the second night wolves (all are food). Each kind is spread over the
+  // open woods (the emptiest region first) and grows back slowly: a full stock at the start, a few groups each dawn.
   function spawnAnimals() {
     const A = TIDE.roam.animals, wild = map.regions.filter(r => r.ring === 1 && !S.sealed[r.id]);   // [acts] herds graze inside the fence: the hero can reach them
-    const have = k => S.mobs.filter(m => m.kind === k).length;
+    if (!wild.length) return;
+    const have = k => S.mobs.filter(m => m.kind === k).length, first = !S.animalsInit; S.animalsInit = true;
     const herd = (kind, size) => {
+      const n = new Map(); for (const m of S.mobs) if (MOBS[m.kind].animal && m.roam) n.set(m.roam.region, (n.get(m.roam.region) || 0) + 1);
+      const order = wild.map(r => [r, (n.get(r.id) || 0) + rng.next()]).sort((p, q) => p[1] - q[1]).map(p => p[0]);
       for (let t = 0; t < 30; t++) {
-        const reg = wild[rng.int(wild.length)], x = reg.x + rng.range(-8, 8), y = reg.y + rng.range(-8, 8), cx = Math.floor(x), cy = Math.floor(y);
+        const reg = order[t % Math.min(3, order.length)], x = reg.x + rng.range(-9, 9), y = reg.y + rng.range(-9, 9), cx = Math.floor(x), cy = Math.floor(y);
         if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || !map.reach[idx(cx, cy)] || map.region[idx(cx, cy)] !== reg.id || Math.hypot(x - c, y - c) < 16 || S.occ[idx(cx, cy)] >= 0) continue;   // away from the camp (claimed sites don't count)
         for (let k = 0; k < size; k++) { const m = G.spawnMob(kind, x + rng.range(-1, 1), y + rng.range(-1, 1), { instant: true }); m.roam = { x, y, region: reg.id }; }
         return true;
       }
       return false;
     };
-    for (let t = 0; t < 12 && have('deer') < A.deer * 2.5; t++) if (!herd('deer', 2 + rng.int(2))) break;
-    if (S.night >= 2) for (let t = 0; t < 8 && have('wolf') < A.wolves * 2; t++) if (!herd('wolf', 2)) break;
+    for (const kind of ['deer', 'boar', 'wolf']) {
+      const a = A[kind]; if (S.night < (a.from || 0)) continue;
+      const want = first ? Math.max(a.start, a.regrow ? 1 : 0) : a.cap;
+      for (let g = 0; g < (first ? 12 : a.regrow) && have(kind) < want; g++) if (!herd(kind, a.herd[0] + rng.int(a.herd[1] - a.herd[0] + 1))) break;
+    }
   }
   function clearRoamers(region) {
     for (const m of S.mobs.filter(q => q.roam && q.roam.region === region && !MOBS[q.kind].animal)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: 'cleared', dmg: 0 }); }
@@ -67,7 +74,7 @@ export function createBrain(G) {
     // [road] begin
     if (G.road && !m.hunt && hd < sight && G.road.unseen(hd, sight)) return;   // lantern off: it stops and sniffs the air
     // [road] end
-    if (m.kind !== 'deer' && !m.hunt && !h.dead && !(m.giveUp > S.time) && hd < sight - (S.story.flags.quiet ? 1.5 : 0) && !heroHome && (m.warden || huntN < huntCap()) && (!m.warden || Math.hypot(h.x - home.x, h.y - home.y) < R.leash)) aggro(m);
+    if (m.kind !== 'deer' && !m.hunt && !h.dead && !(m.giveUp > S.time) && hd < (MOBS[m.kind].sight ? (m.markT > 0 ? 14 : MOBS[m.kind].sight) : sight) - (S.story.flags.quiet ? 1.5 : 0) && !heroHome && (m.warden || huntN < huntCap()) && (!m.warden || Math.hypot(h.x - home.x, h.y - home.y) < R.leash)) aggro(m);
     if (m.hunt && (h.dead || hd > lose || Math.hypot(m.x - home.x, m.y - home.y) > (m.warden ? R.leash + 4 : 30))) { m.hunt = false; m.giveUp = S.time + 8; m.wp = { x: home.x, y: home.y }; }   // nobody follows you more than 30 cells from its ground (and it walks home before it tries again)
     if (m.hunt && !m.warden && heroHome && G.baseDist(m.x, m.y) < 4) { if (S.night < 4 || MOBS[m.kind].animal || rng.next() < 0.7) { m.hunt = false; m.wp = { x: home.x, y: home.y }; } else { m.roam = null; m.hunt = false; ev('drift', { id: m.id }); return; } }
     if (m.hunt || (m.tauntT > 0 && !h.dead)) {

@@ -290,15 +290,17 @@ export function createRoad(ctx) {
   function stepAmbush(dt) {
     const h = hero(), out = !h.dead && Math.hypot(h.x - c, h.y - c) > ROAD.out;
     R.outT = out ? R.outT + dt : 0; R.ambushCd -= dt;
+    if (!out) R.tripAmbush = 0;   // home again: the next trip may meet one
     for (const a of [...R.ambushes]) { a.t -= dt; if (a.t <= 0 || !S.mobs.some(m => m.roadAmbush && m.roadAmbush.id === a.id)) R.ambushes.splice(R.ambushes.indexOf(a), 1); }
     if (!out || R.outT < AMBUSH.after || R.ambushCd > 0 || S.night < AMBUSH.minNight || S.over || R.ambushes.length || !h.moving || inLitRing(h.x, h.y, 3)) return;
+    if ((R.tripAmbush || 0) >= AMBUSH.perTrip || along(h.x, h.y) < AMBUSH.quiet + AMBUSH.ahead * 0.5) return;   // one a trip; the near stretch stays quiet
     const near = nearestRoadPt(h.x, h.y); if (near.d > 8) return;
     // a spot on the road between you and the camp, out of sight
     const s0 = along(h.x, h.y), want = s0 - AMBUSH.ahead; let spot = null;
-    if (want > 42) { let bd = Infinity; for (const p of map.feature.road) { const e = Math.abs(along(p[0], p[1]) - want); if (e < bd && walk(p[0], p[1]) && spotOk(map, S.sealed, p[0], p[1])) { bd = e; spot = { x: p[0], y: p[1] }; } } }
+    if (want > AMBUSH.quiet) { let bd = Infinity; for (const p of map.feature.road) { const e = Math.abs(along(p[0], p[1]) - want); if (e < bd && walk(p[0], p[1]) && spotOk(map, S.sealed, p[0], p[1])) { bd = e; spot = { x: p[0], y: p[1] }; } } }
     if (!spot) { const L = Math.hypot(h.x - c, h.y - c), k = AMBUSH.ahead / L; const x = h.x + (c - h.x) * k, y = h.y + (c - h.y) * k; if (walk(x, y) && spotOk(map, S.sealed, x, y)) spot = { x, y }; }
-    if (!spot || Math.hypot(spot.x - h.x, spot.y - h.y) < 13 || inLitRing(spot.x, spot.y, 2) || Math.hypot(spot.x - c, spot.y - c) < ROAD.out) { R.ambushCd = 8; return; }
-    R.ambushCd = AMBUSH.every;
+    if (!spot || Math.hypot(spot.x - h.x, spot.y - h.y) < 13 || inLitRing(spot.x, spot.y, 2) || Math.hypot(spot.x - c, spot.y - c) < ROAD.out || along(spot.x, spot.y) < AMBUSH.quiet) { R.ambushCd = 8; return; }
+    R.ambushCd = AMBUSH.every; R.tripAmbush = (R.tripAmbush || 0) + 1;
     const n = S.night, list = [n >= 3 ? 'brute' : 'runner', 'runner', ...(n >= 5 ? ['runner'] : []), ...(n >= 8 ? ['brute'] : [])];
     const a = { id: R.nextId++, x: spot.x, y: spot.y, t: AMBUSH.wait, n: list.length };
     for (const kind of list) {

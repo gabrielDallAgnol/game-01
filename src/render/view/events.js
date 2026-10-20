@@ -12,6 +12,7 @@ export function createEvents(V) {
     const { burst, floatLabel, dust, hitStopFor, shake, mobOf } = V.feel, flares = V.flares;
     for (const e of events) {
       if (e.t === 'claim') { city.setTerritory(); V.repaint = true; const h = hives.get(e.region); if (h) { const n = map.regions[e.region].nest && V.hiveAt(e.region); burst(n.x, n.y, 4, '#d9843a'); h.cleared = true; } }
+      if (e.t === 'trail') { city.clear(e.cells, true); for (const i of e.cells) { const p = Wv((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.3); fx2.emit('dust', p.x, p.y, p.z, 6, { spread: 0.45, size: 0.9 }); } }   // [woods] the trees on a worn trail are gone
       if (e.t === 'clear') { city.clear(e.cells); for (const i of e.cells) burst((i % N) + 0.5, ((i / N) | 0) + 0.5, 0.5, '#b8ae9c'); }
       if (e.t === 'firstDead' && !V.cinema.active()) V.focus = { id: e.id, t: 5 };
       if (e.t === 'hitHive') { const n = map.regions[e.region].nest && V.hiveAt(e.region); burst(n.x, n.y, 1.4, '#9dff4a'); }

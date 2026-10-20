@@ -75,6 +75,7 @@ function beast(o, c) {
 }
 dead.deer = o => beast(o, { coat: '#8a5a34', belly: '#c9a77e', legc: '#6b4528', nose: '#2a2420', tail: '#e8dcc8', leg: 0.62, body: 0.36, len: 0.95, neck: 0.42, head: 0.3, ear: 1.2, tl: 0.12, tailUp: -0.6, antlers: true });
 dead.wolf = o => beast(o, { coat: '#6d6a66', belly: '#a8a49c', legc: '#4c4946', nose: '#1d1c1b', tail: '#5e5b57', leg: 0.42, body: 0.34, len: 0.95, neck: 0.22, head: 0.36, ear: 1.4, tl: 0.42, tailUp: 0.5 });
+dead.boar = o => beast(o, { coat: '#4a3a2e', belly: '#6b5646', legc: '#2f2620', nose: '#c9b8a0', tail: '#3a2e25', leg: 0.3, body: 0.46, len: 0.9, neck: 0.14, head: 0.34, ear: 0.9, tl: 0.1, tailUp: 0.2 });   // low and heavy, pale tusks for a snout
 const figure = rig;
 
 export { heroes, folk, dead, figure };
