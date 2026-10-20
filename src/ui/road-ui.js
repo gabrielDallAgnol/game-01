@@ -10,7 +10,7 @@ import { icon } from './icons.js';
 const CSS = `
 .rd-dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dockH,72px) + 10px);display:grid;gap:6px;justify-items:center;pointer-events:none;width:min(440px,calc(100vw - 32px));z-index:5}
 @media (max-width:640px){.rd-dock{left:max(94px,calc(env(safe-area-inset-left,0px) + 94px));right:max(94px,calc(env(safe-area-inset-right,0px) + 94px));width:auto;transform:none;justify-items:stretch}}
-.rd-dock.wide{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--dockH,72px) + 90px)}
+.rd-dock.lift{bottom:calc(var(--dockH,72px) + 80px)}
 .rd-chip{pointer-events:auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;background:var(--camp-solid);border:1px solid var(--line);border-radius:14px;padding:7px 7px 7px 12px;font:500 13px/1.25 var(--body);max-width:100%;box-shadow:0 6px 18px rgba(0,0,0,.4);animation:tin .2s var(--ease-o)}
 .rd-chip .t{flex:1 1 140px;min-width:0}.rd-chip .acts{display:flex;gap:6px;flex:none;margin-left:auto}
 .rd-chip .t b{font:700 15px/1.15 var(--display);letter-spacing:.03em;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--bone)}
@@ -177,7 +177,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     const hunted = S.mobs.some(m => m.hunt && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < 16);
     const cooling = T && (!T.flare.ready || !T.smoke.ready);
     const on = !!T && !S.over && !h.dead && systemHere() && !(S.phase === 'night' && road.mission.choosing) && (hunted || hordeT > 0 || cooling);
-    kit.hidden = !on; if (!on) { sigKit = ''; return; }
+    kit.hidden = !on; dock.classList.toggle('lift', on); if (!on) { sigKit = ''; return; }
     for (const k of ['flare', 'smoke']) {
       const t = T[k], b = kit.querySelector(`[data-k="${k}"]`);
       b.classList.toggle('cool', !t.ready); b.classList.toggle('poor', t.ready && !t.afford);
