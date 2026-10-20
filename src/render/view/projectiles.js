@@ -7,13 +7,16 @@ export function createProjectiles(V) {
   const pMeshes = new Map(), effects = [];
   const arrowGeo = new THREE.BoxGeometry(0.04, 0.04, 0.6), spitGeo = new THREE.IcosahedronGeometry(0.13, 0);
   const arrowMat = new THREE.MeshBasicMaterial({ color: lc('#f0e2c4').multiplyScalar(1.5) }), spitMat = new THREE.MeshBasicMaterial({ color: lc('#b4ff4e').multiplyScalar(2) });
+  const shellGeo = new THREE.IcosahedronGeometry(0.2, 1), shellMat = new THREE.MeshBasicMaterial({ color: lc('#ffb060').multiplyScalar(1.6) });   // [towers] a mortar shell: a glowing ball on a high arc
   function syncProjectiles() {
     const seen = new Set();
     for (const p of S.projectiles) {
       seen.add(p.id);
       let m = pMeshes.get(p.id);
-      if (!m) { m = new THREE.Mesh(p.enemy ? spitGeo : arrowGeo, p.enemy ? spitMat : arrowMat); world.add(m); pMeshes.set(p.id, m); }
-      const d = Math.hypot(p.tx - p.x, p.ty - p.y), h = p.z * Math.min(1, d / 6) * 0.7 + 0.6;
+      if (!m) { m = new THREE.Mesh(p.enemy ? spitGeo : p.shell ? shellGeo : arrowGeo, p.enemy ? spitMat : p.shell ? shellMat : arrowMat); m.userData.d0 = Math.max(1, Math.hypot(p.tx - p.x, p.ty - p.y)); world.add(m); pMeshes.set(p.id, m); }
+      const d = Math.hypot(p.tx - p.x, p.ty - p.y);
+      if (p.shell) { const k = 1 - Math.min(1, d / m.userData.d0); m.position.copy(Wv(p.x, p.y, 3 * (1 - k) + 0.4 + Math.sin(k * Math.PI) * m.userData.d0 * 0.45)); continue; }
+      const h = p.z * Math.min(1, d / 6) * 0.7 + 0.6;
       m.position.copy(Wv(p.x, p.y, h)); m.lookAt(W(p.tx, p.ty, 0.7));
     }
     for (const [id, m] of pMeshes) if (!seen.has(id)) { world.remove(m); pMeshes.delete(id); }

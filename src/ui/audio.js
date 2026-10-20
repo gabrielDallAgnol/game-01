@@ -44,6 +44,7 @@ export function createAudio(store) {
     bell() { // a cracked church bell: inharmonic partials, long tail, struck twice
       for (const at of [0, 1.6]) for (const [m, p, d] of [[0.5, 0.16, 4], [1, 0.12, 3], [1.19, 0.07, 2.2], [1.56, 0.05, 1.6], [2.0, 0.05, 1.2], [2.74, 0.03, 0.8]]) tone('sine', 196 * m, p, d, { at, a: 0.006 });
     },
+    toll(v) { if (!ok('toll', 0.8)) return; for (const [m, p, d] of [[1, 0.06, 1.6], [2.4, 0.03, 1.0], [3.1, 0.02, 0.6]]) tone('sine', 330 * m, p * v, d, { a: 0.004 }); },   // [towers] the watch bell
     dawn() { tone('triangle', 660, 0.05, 0.5, { a: 0.02 }); tone('triangle', 990, 0.04, 0.7, { a: 0.02, at: 0.18 }); tone('triangle', 1320, 0.03, 0.9, { a: 0.02, at: 0.36 }); },
     shot(v) { if (!ok('shot', 0.05)) return; hiss('bandpass', 1900, 1.2, 0.14 * v, 0.07); tone('square', 140, 0.05 * v, 0.06, { to: 60, lp: 900 }); },
     bolt(v) { if (!ok('bolt', 0.1)) return; hiss('lowpass', 2400, 0.5, 0.25 * v, 0.22, { to: 300 }); tone('sawtooth', 90, 0.12 * v, 0.25, { to: 40, lp: 600 }); },
@@ -104,6 +105,10 @@ export function createAudio(store) {
         case 'build': S.build(); break;
         case 'ruin': S.crash(0.8); break;
         case 'explode': S.explode(vol(e.x, e.y)); break;
+        // [towers] the specialised towers: a mortar's thump, the brazier's whoosh, the watch bell's toll
+        case 'shell': if (vol(e.x, e.y) > 0.05 && Math.random() < 0.6) S.explode(vol(e.x, e.y) * 0.55); break;
+        case 'flame': if (vol(e.x, e.y) > 0.1) S.spit(vol(e.x, e.y) * 0.8); break;
+        case 'toll': if (vol(e.x, e.y) > 0.1) S.toll(vol(e.x, e.y)); break;
         case 'purseTaken': case 'chestOpen': case 'bountyGold': S.coin(); break;
         case 'bounty': S.claim(); break;
         case 'warcry': case 'volley': S.warcry(); break;

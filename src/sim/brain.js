@@ -171,7 +171,7 @@ export function createBrain(G) {
       m.cd -= dt; m.attacking = false; m.tauntT = Math.max(0, m.tauntT - dt);
       const ci = idx(Math.floor(m.x), Math.floor(m.y));
       const lull = G.story && Math.abs(m.x - c) < 7 && Math.abs(m.y - c) < 7 ? G.story.bonus.lullaby() : 1;
-      const speed = (rule('winter') ? 0.9 : 1) * lull * m.speed * m.boost * G.W8().speed * (inTar ? 0.6 : 1) / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
+      const speed = (rule('winter') ? 0.9 : 1) * lull * m.speed * m.boost * G.W8().speed * (inTar ? 0.6 : 1) * (m.slowUntil > S.time ? m.slowK : 1) / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
       // [road] begin
       if (G.road && G.road.drive(m, dt, speed)) continue;
       // [road] end

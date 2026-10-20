@@ -85,10 +85,18 @@ export function createHud(ui) {
   function dockH() { const db = $('#dock').getBoundingClientRect(); document.body.style.setProperty('--dockH', `${Math.max(64, innerHeight - db.top)}px`); }
   let lastKeep = 0, keepHitT = 0;
   function noiseNow() { const S = ui.game.state; return typeof ui.game.noise === 'function' && S.noise !== undefined ? +ui.game.noise() || S.noise : (S.noise ?? S.heat ?? 0); }
+  // [towers] towers without their full crew do not shoot: say how many, and how many more people would man them all
+  function silentLine() {
+    const S = ui.game.state, cw = ui.game.crewing(), up = S.buildings.filter(b => b.type === 'tower' && !b.ruined).length, silent = up - cw.manned.size;
+    if (silent <= 0) return '';
+    const more = Math.max(1, cw.need - cw.people);
+    return `<span class="st fall">${icon('people')} ${silent} ${silent === 1 ? 'tower' : 'towers'} silent: need ${more} more ${more === 1 ? 'person' : 'people'}</span>`;
+  }
   function forecastText() {
     const S = ui.game.state;
     if (S.phase === 'night') {
-      return `<span class="ic-w">${icon('moon')}</span><span>${esc(nightLine || `Night ${S.night}`)}</span>`;
+      const sl = silentLine();   // [towers] silent towers stay on the strip all night
+      return `<span class="ic-w">${icon('moon')}</span><span>${esc(nightLine || `Night ${S.night}`)}</span>${sl ? `<span class="sep">·</span>${sl}` : ''}`;
     }
     let f = null;
     if (typeof ui.game.forecastStrip === 'function') { try { f = ui.game.forecastStrip(); } catch { f = null; } }
@@ -98,8 +106,8 @@ export function createHud(ui) {
       if (f.from && f.from.length) bits.push(`<span class="from">From ${f.from.length === 1 ? f.from[0] : `${f.from.slice(0, -1).join(', ')} and ${f.from[f.from.length - 1]}`}</span>`);
       if (f.atRisk) bits.push(`<span>~${f.atRisk} ${f.atRisk === 1 ? 'building' : 'buildings'} at risk</span>`);
       if (f.brutes) bits.push(`<span>${f.brutes} ${f.brutes === 1 ? 'brute' : 'brutes'}</span>`);
-      if (f.crew && f.crew.silent) bits.push(`<span class="st fall">${f.crew.silent} ${f.crew.silent === 1 ? 'tower' : 'towers'} unmanned</span>`);
-      else if (f.crew && f.crew.short) bits.push(`<span class="st risk">crew thin</span>`);
+      if (f.crew && f.crew.silent) bits.push(silentLine());   // [towers] "4 towers silent: need 6 more people"
+      else if (f.crew && f.crew.short) bits.push(`<span class="st risk">crew thin: homes may fall tonight</span>`);
       return bits.join('<span class="sep">·</span>');
     }
     // without the honest forecast from the game: the threat rating and tonight's count

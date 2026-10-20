@@ -4,6 +4,7 @@
 // Pure sim: deterministic, uses only the public game API.
 import { N, T, idx } from './mapgen.js';
 import { UNLOCKS as UNL, BUILDINGS } from '../content/buildings.js';
+import { SPEC_ORDER } from '../content/towers.js';
 
 export const FOCI = ['defence', 'balanced', 'growth', 'off'];
 const EVERY = 3;        // seconds between builder steps
@@ -95,11 +96,24 @@ export function createPlanner(g) {
   ACT.defend = () => {
     const towers = S.buildings.filter(b => b.type === 'tower' && !b.ruined), n = towers.length, want = wantTowers();
     if (n < Math.min(want, 3)) return ACT.tower() || ACT.upTower();
-    if (n >= want) return ACT.upTower() || ACT.tower();
+    if (g.crewing().free < 1 && ACT.spec()) return true;   // [towers] short of people: make the manned towers better
+    if (n >= want) return ACT.spec() || ACT.upTower() || ACT.tower();   // [towers] enough towers: a role before another level
     const up = towers.filter(b => !(g.raiseBlock && g.raiseBlock(b.id))).sort((a, c) => a.level - c.level || a.id - c.id)[0];
     const newV = TD(1) / g.buyCost('tower'), upV = up ? (TD(up.level + 1) - TD(up.level)) / g.upCostOf(up) : 0;
     return upV >= newV ? ACT.upTower() || ACT.tower() : ACT.tower() || ACT.upTower();
   };
+  // [towers] begin: a level 3 tower takes a role (no extra crew: the way to grow when the people run short).
+  // The mix the builders aim for: mostly mortars for the crowds, then braziers, ballistas for brutes, a bell or two.
+  const SPEC_MIX = { mortar: 0.4, brazier: 0.25, ballista: 0.2, bell: 0.15 };
+  ACT.spec = () => {
+    if (!g.specialise || S.gold < g.specCost() + RESERVE) return false;
+    const towers = S.buildings.filter(b => b.type === 'tower' && !b.ruined), b = towers.filter(x => x.level >= 3 && !x.spec).sort((p, q) => p.id - q.id)[0];
+    if (!b) return false;
+    const n = towers.filter(x => x.spec).length + 1, have = r => towers.filter(x => x.spec === r).length;
+    const role = SPEC_ORDER.reduce((a, r) => (SPEC_MIX[r] * n - have(r) > SPEC_MIX[a] * n - have(a) ? r : a), SPEC_ORDER[0]);
+    return g.specialise(b.id, role);
+  };
+  // [towers] end
   const PLAN = {
     defence: ['keepEarly', 'keepPush', 'defend', 'workshop', 'wall', 'house', 'upHouse'],
     growth: ['keepEarly', 'keepPush', 'house', 'upHouse', 'market', 'defend', 'wall'],

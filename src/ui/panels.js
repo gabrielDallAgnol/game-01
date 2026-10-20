@@ -1,5 +1,6 @@
 // The selection panel: a building, the Camp, a site, rubble, a ruin or a region (hive), and its buttons.
-import { $, $$, FLAGS, RINGS, SHORT, audio, campCopy } from './shared.js';
+import { $, $$, FLAGS, RINGS, SHORT, audio, campCopy, rich } from './shared.js';
+import { SPECS, SPEC_ORDER, SPEC_COST } from '../content/towers.js';
 import { BUILDINGS, KEEP, MAX_LEVEL, UNLOCKS } from '../content/buildings.js';
 import { CREW_NEED } from '../sim/game.js';
 import { KITS } from '../content/districts.js';
@@ -16,7 +17,7 @@ export function createPanels(ui) {
   function selB() { const S = ui.game.state; return ui.selected && ui.selected.type === 'building' ? S.byId.get(ui.selected.id) : ui.selected && ui.selected.type === 'keep' ? S.keep : null; }
   function panelSig() {
     const S = ui.game.state, b = selB();
-    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? `${ui.game.landmarkReach(ui.selected.id)}${ui.game.siteLock(ui.selected.id)}` : ui.selected && ui.selected.type === 'region' ? `${(ui.game.nestRage(ui.selected.id) || {}).lv || 0}:${ui.game.nestGuards(ui.selected.id)}` : '', b ? `${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : ''].join('|');
+    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? `${ui.game.landmarkReach(ui.selected.id)}${ui.game.siteLock(ui.selected.id)}` : ui.selected && ui.selected.type === 'region' ? `${(ui.game.nestRage(ui.selected.id) || {}).lv || 0}:${ui.game.nestGuards(ui.selected.id)}` : '', b ? `${b.spec || ''}${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : ''].join('|');
   }
   /** re-render the open panel only when what it shows changed */
   function refreshPanel() { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } }
@@ -82,7 +83,7 @@ export function createPanels(ui) {
     const b = selB(); if (!b) { closePanel(); return; }
     const B = BUILDINGS[b.type];
     $('#pEyebrow').textContent = ui.names[ui.game.map.region[idx(Math.floor(b.x), Math.floor(b.y))]] || '';
-    $('#pTitle').textContent = `${B.name} · level ${b.level}${b.ruined ? ' · ruined' : ''}`;
+    $('#pTitle').textContent = `${b.spec ? SPECS[b.spec].name : B.name} · level ${b.level}${b.ruined ? ' · ruined' : ''}`;   // [towers] a specialised tower goes by its role
     if (b.ruined) {   // a ruin stays until you rebuild it by hand: no income, no defence
       const rc = ui.game.rebuildCost(b.id);
       body.innerHTML = `<div class="stat"><span><b class="bad">Ruined</b> · no ${b.type === 'tower' ? 'fire' : b.type === 'farm' ? 'food' : b.type === 'house' ? 'scrap, nobody lives here' : 'use'} until rebuilt</span><span>Rebuilding costs half the price, and it stands at full health.</span></div><div class="opts two">`
@@ -90,7 +91,7 @@ export function createPanels(ui) {
         + opt('opt-demo', 'data-demo="1"', 'Clear the ruin', null, '<b class="bad">No scrap back</b> · the lot is free again.', !day) + '</div>';
       ui.selected.range = null; return;
     }
-    let html = `<div class="stat"><span>Health <b>${Math.ceil(b.hp)} / ${b.maxHp}</b></span><span>${B.desc[b.level - 1]}</span></div><div class="opts two">`;
+    let html = `<div class="stat"><span>Health <b>${Math.ceil(b.hp)} / ${b.maxHp}</b></span><span>${b.spec ? rich(SPECS[b.spec].line) : B.desc[b.level - 1]}</span></div><div class="opts two">`;
     if (b.type === 'wall') {
       const run = ui.game.wallRun(b.id), total = run.reduce((a, w) => a + ui.game.upCostOf(w), 0);
       if (b.level < MAX_LEVEL) { const capped = b.level >= ui.game.keepLevel(); html += opt('opt-upw', 'data-upw="1"', capped ? 'Raise the Camp first' : `Upgrade this barricade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, capped ? null : total, capped ? `Nothing grows past the Camp (level ${ui.game.keepLevel()}).` : `${B.desc[b.level]} each.`, capped || S.gold < ui.game.upCostOf(b) || !day); }
@@ -99,11 +100,18 @@ export function createPanels(ui) {
     }
     const capped = b.level >= ui.game.keepLevel(), maxL = B.maxLevel || MAX_LEVEL, needTech = b.level + 1 === 3 && UNLOCKS[b.type] && !ui.game.hasTech(UNLOCKS[b.type]);
     if (B.tech) { body.innerHTML = `<div class="stat"><span>${b.built < 1 ? `Under construction <b>${Math.floor(b.built * 100)}%</b>` : 'Working'}</span><span>${B.desc[0]}</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Pull down', null, `<b class="good">+${Math.floor(ui.game.costOf(b.type) / 2)} scrap back</b> · <b class="bad">its bonus is gone</b>.`, !day)}</div>`; ui.selected.range = null; return; }
-    if (b.type === 'tower') { const on = ui.game.manned(b), need = CREW_NEED[b.level - 1]; html = html.replace('</div><div class="opts two">', `<span>${on ? `Crew <b>${need}</b> on watch` : `<b class="bad">No crew</b>: needs ${need} people. Build or upgrade homes.`}</span></div><div class="opts two">`); }
-    if (b.level < maxL) { const c = ui.game.upCostOf(b); html += opt('opt-up', 'data-up="1"', capped ? 'Raise the Camp first' : needTech ? `Needs a ${SHORT[UNLOCKS[b.type]]}` : `Upgrade to level ${b.level + 1}`, capped || needTech ? null : c, capped ? `Nothing grows past the Camp (level ${ui.game.keepLevel()}).` : needTech ? `Build a ${SHORT[UNLOCKS[b.type]]} to unlock level 3.` : `${B.desc[b.level]} · ${ui.game.maxHpOf(b.type, b.level + 1)} hp${b.type === 'tower' ? ` · needs ${CREW_NEED[b.level]} crew` : ''}`, capped || needTech || S.gold < c || !day); }
+    if (b.type === 'tower') { const on = ui.game.manned(b), need = CREW_NEED[b.level - 1], cw = ui.game.crewing(); html = html.replace('</div><div class="opts two">', `<span>${on ? `Crew <b>${need}</b> on watch` : `<b class="bad">Silent: no crew</b>. It needs ${need} people; ${cw.free} free. Build or upgrade homes.`}</span></div><div class="opts two">`); }
+    // [towers] begin: a level 3 tower takes one role for good
+    if (b.type === 'tower' && b.level >= 3 && !b.spec) {
+      html += SPEC_ORDER.map(r => opt(`opt-spec-${r}`, `data-spec="${r}"`, `${SPECS[r].name} <small>${SPECS[r].short}</small>`, SPEC_COST, rich(SPECS[r].line), S.gold < SPEC_COST || !day)).join('');
+      html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `<b class="good">+${Math.floor(ui.game.costOf(b.type) / 2)} scrap back</b> · <b class="bad">level ${b.level} lost</b>.`, !day);
+      body.innerHTML = html + '</div><p class="note">Level 3: pick a role for good. Same crew, same upkeep.</p>'; ui.selected.range = ui.game.towerStats(b).range; return;
+    }
+    // [towers] end
+    if (b.level < maxL) { const c = ui.game.upCostOf(b); html += opt('opt-up', 'data-up="1"', capped ? 'Raise the Camp first' : needTech ? `Needs a ${SHORT[UNLOCKS[b.type]]}` : `Upgrade to level ${b.level + 1}`, capped || needTech ? null : c, capped ? `Nothing grows past the Camp (level ${ui.game.keepLevel()}).` : needTech ? `Build a ${SHORT[UNLOCKS[b.type]]} to unlock level 3.` : `${B.desc[b.level]} · ${ui.game.maxHpOf(b.type, b.level + 1)} hp${b.type === 'tower' ? ` · needs ${CREW_NEED[b.level]} crew${ui.game.manned(b) && ui.game.crewing().free < CREW_NEED[b.level] - CREW_NEED[b.level - 1] ? ' · <b class="bad">nobody free: it falls silent</b>' : ''}` : ''}`, capped || needTech || S.gold < c || !day); }
     html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `<b class="good">+${Math.floor(ui.game.costOf(b.type) / 2)} scrap back</b> · <b class="bad">level ${b.level} lost</b>.`, !day);
     body.innerHTML = html + '</div>' + (b.level >= MAX_LEVEL ? '<p class="note">Fully upgraded.</p>' : '');
-    ui.selected.range = b.type === 'tower' ? ui.game.towerStats(b).range : null;
+    ui.selected.range = b.type === 'tower' ? (b.spec ? ui.game.specRange(b) : ui.game.towerStats(b).range) : null;
   }
   $('#pBody').addEventListener('click', e => {
     const btn = e.target.closest('button'); if (!btn || btn.disabled || !ui.selected) return;
@@ -114,6 +122,7 @@ export function createPanels(ui) {
     if (btn.dataset.keep && ui.game.upgradeKeep()) ui.toast('The Camp rises higher.');
     if (btn.dataset.trader && FLAGS.trader) { closePanel(); ui.paused = true; showTrader(); return; }
     if (btn.dataset.up && ui.game.upgrade(ui.selected.id)) ui.toast('Upgraded.');
+    if (btn.dataset.spec && ui.game.specialise(ui.selected.id, btn.dataset.spec)) { audio.play('build'); ui.toast(`[Tower specialised: ${SPECS[btn.dataset.spec].name}] ${SPECS[btn.dataset.spec].line}`, 'good'); }   // [towers]
     if (btn.dataset.upw) { const n = ui.game.upgradeWall(ui.selected.id); if (n) ui.toast(`${n} ${n === 1 ? 'post' : 'posts'} upgraded.`); }
     if (btn.dataset.demo) {
       if (btn.dataset.sure) { if (ui.game.demolish(ui.selected.id)) { ui.toast('Pulled down.'); closePanel(); ui.updateHud(); return; } }

@@ -14,10 +14,11 @@ export function createBuildings(V) {
   function model(type, level, b) {
     const id = b ? b.id : 0, pal = HOUSE_COLORS[level], v = type === 'house' && pal ? id % pal.length : type === 'farm' ? id % 2 : type === 'wall' ? id % 3 : 0;
     const links = type === 'wall' ? (b && b.links) || { e: true, w: true } : null;
-    const key = `${type}|${level}|${v}|${links ? links.key || [links.e, links.w, links.s, links.n].map(Number).join('') : ''}`;
+    const spec = b && b.spec || '';   // [towers] a specialised tower has its own model
+    const key = `${type}|${level}|${v}|${links ? links.key || [links.e, links.w, links.s, links.n].map(Number).join('') : ''}|${spec}`;
     const hit = modelCache.get(key); if (hit) return hit.clone();
     // the model, its pad and its cheer folded into one vertex-coloured mesh: one draw per building
-    const g0 = new THREE.Group(); g0.add(buildModel(type, level, v, links));
+    const g0 = new THREE.Group(); g0.add(buildModel(type, level, v, links, spec));
     if (FOOT[type]) { g0.add(padFor(FOOT[type])); if (type !== 'wall') { const c = cheer(type, FOOT[type], 0, level); if (c) g0.add(c); } }
     const m = K.flattenVC(g0);
     modelCache.set(key, m); return m.clone();
@@ -28,11 +29,11 @@ export function createBuildings(V) {
     if (!r) { r = K.ruinOf(model(type, level, b), b.id * 13 + 7, BSCALE[type] || 1); ruinCache.set(key, r); }
     return r.clone();
   }
-  function buildModel(type, level, v, links) {
+  function buildModel(type, level, v, links, spec) {
     let m;
     if (type === 'house') m = K.home({ level, seed: v });
     else if (type === 'farm') m = K.farm({ level, seed: v + 1, own: true, game: true, color: ['#8e9a88', '#8b95a0'][v], roof: ['#2f8f88', '#3d6b9a'][v] });
-    else if (type === 'tower') m = K.tower({ level, game: true });
+    else if (type === 'tower') m = K.tower({ level, game: true, spec: spec || undefined });
     else if (type === 'wall') m = K.post(level, links, v);
     else if (type === 'workshop') {   // a corrugated shed with a sawtooth roof, a roller door and a chimney
       const B = new K.B();
@@ -71,7 +72,19 @@ export function createBuildings(V) {
     const l = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) return false; const o = S.byId.get(S.occ[idx(xx, yy)]); return !!(o && (o.type === 'wall' || o.type === 'tower') && !o.ruined); });
     return { e: l[0], w: l[1], s: l[2], n: l[3], key: l.map(v => (v ? 1 : 0)).join('') };
   }
-  const noCrewMat = new THREE.SpriteMaterial({ map: K.textTex('NO CREW', { w: 256, h: 64, size: 40, bg: '#2a1512', fg: '#f0a090', spacing: '2px' }), transparent: true, depthTest: false });
+  // [towers] a silent tower (no crew) wears a red badge over its head: a figure struck through and SILENT under it
+  function silentTex() {
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 160; const x = cv.getContext('2d');
+    x.fillStyle = '#2a1512'; x.strokeStyle = '#ff6a50'; x.lineWidth = 7;
+    x.beginPath(); x.roundRect ? x.roundRect(8, 6, 240, 148, 26) : x.rect(8, 6, 240, 148); x.fill(); x.stroke();
+    x.fillStyle = '#f0c0b0'; x.beginPath(); x.arc(128, 42, 16, 0, Math.PI * 2); x.fill();
+    x.beginPath(); x.moveTo(98, 98); x.quadraticCurveTo(128, 50, 158, 98); x.closePath(); x.fill();
+    x.strokeStyle = '#ff5a40'; x.lineWidth = 9; x.beginPath(); x.moveTo(92, 22); x.lineTo(164, 100); x.stroke();
+    x.fillStyle = '#ffb8a8'; x.font = 'bold 38px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('SILENT', 128, 128);
+    const t = new THREE.CanvasTexture(cv); t.anisotropy = 2; return t;
+  }
+  const noCrewMat = new THREE.SpriteMaterial({ map: silentTex(), transparent: true, depthTest: false });
+  const SPEC_NAME = { mortar: 'Mortar', brazier: 'Brazier', ballista: 'Ballista', bell: 'Watch Bell' };
   // your buildings stand on a concrete pad with amber corner marks: nothing else in the city has them
   function padFor(n) {
     const b = new K.B(), s2 = n - 0.12, L = Math.min(0.5, n * 0.22), t = 0.07;
@@ -118,22 +131,23 @@ export function createBuildings(V) {
       seen.add(b.id);
       let e = bMeshes.get(b.id);
       const links = b.type === 'wall' ? wallLinks(b) : null, lk = links ? links.key : '';
-      if (!e || e.level !== b.level || e.lk !== lk) {
-        const relink = e && e.level === b.level, upgrade = e && e.level < b.level;
+      if (!e || e.level !== b.level || e.lk !== lk || e.spec !== (b.spec || '')) {
+        const respec = e && e.spec !== (b.spec || ''), relink = e && e.level === b.level && !respec, upgrade = e && (e.level < b.level || respec);   // [towers] respec: the sweep, like an upgrade
         if (e) { world.remove(e.g); fx.remove(e.bar); if (e.rubble) world.remove(e.rubble); if (e.nc) fx.remove(e.nc); }
-        const g = new THREE.Group(), m = model(b.type, b.level, { id: b.id, links }); g.add(m);
+        const g = new THREE.Group(), m = model(b.type, b.level, { id: b.id, links, spec: b.spec }); g.add(m);
         g.position.copy(Wv(b.x, b.y)); if (b.type === 'house' || b.type === 'farm') g.rotation.y = faceKeep(b.x, b.y);
         world.add(g);
-        e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, rubble: null, type: b.type, pop: relink ? -1 : 0, sweep: upgrade ? 0 : -1, ruined: false }; bMeshes.set(b.id, e);
-        if (!relink) { g.scale.set(1, 0.001, 1); if (b.type !== 'wall') { dust(b.x, b.y, FOOT[b.type] || 1); if (time > 1) celebrate(b.x, b.y, e.level > 1 ? `Level ${b.level}!` : NICE[b.type]); } }
+        e = { g, bar: makeBar('b', b.type === 'wall' ? 0.6 : 1.1), level: b.level, lk, spec: b.spec || '', rubble: null, type: b.type, pop: relink ? -1 : 0, sweep: upgrade ? 0 : -1, ruined: false }; bMeshes.set(b.id, e);
+        if (!relink) { g.scale.set(1, 0.001, 1); if (b.type !== 'wall') { dust(b.x, b.y, FOOT[b.type] || 1); if (time > 1) celebrate(b.x, b.y, respec ? `${SPEC_NAME[b.spec]}!` : e.level > 1 ? `Level ${b.level}!` : NICE[b.type]); } }
         if (upgrade) g.traverse(o => { if (o.isMesh && o.material === K.VCM) o.material = K.SWEEP; });
       }
       if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.pop = 0; burst(b.x, b.y, 1.2, '#d9843a'); }
       if (b.type === 'tower') {
-        if (!e.nc) { e.nc = new THREE.Sprite(noCrewMat); e.nc.scale.set(1.0, 0.25, 1); e.nc.renderOrder = 9; fx.add(e.nc); }
+        if (!e.nc) { e.nc = new THREE.Sprite(noCrewMat); e.nc.renderOrder = 9; fx.add(e.nc); }
         const unpowered = !b.ruined && game.powered && !game.powered(b), uncrewed = !b.ruined && game.manned && !game.manned(b);
         e.nc.material = unpowered ? noPowerMat : noCrewMat;
-        e.nc.visible = unpowered ? Math.sin(time * 8) > -0.3 : uncrewed; if (e.nc.visible) e.nc.position.copy(Wv(b.x, b.y, 2.1 + Math.sin(time * 3) * 0.05));
+        if (unpowered) e.nc.scale.set(1.0, 0.25, 1); else { const k = 1 + 0.08 * Math.sin(time * 5); e.nc.scale.set(1.7 * k, 1.06 * k, 1); }   // [towers] the silent badge breathes
+        e.nc.visible = unpowered ? Math.sin(time * 8) > -0.3 : uncrewed; if (e.nc.visible) e.nc.position.copy(Wv(b.x, b.y, unpowered ? 2.1 : 3.9 + b.level * 0.25 + Math.sin(time * 3) * 0.06));
       }
       if (b.ruined && !e.ruined) { e.ruined = true; e.g.visible = false; e.rubble = ruinModel(b.type, b.level, b); e.rubble.position.copy(e.g.position); e.rubble.rotation.y = e.g.rotation.y; world.add(e.rubble); }
       if (!b.ruined && e.ruined) { e.ruined = false; world.remove(e.rubble); e.rubble = null; e.g.visible = true; e.pop = 0; e.g.scale.set(1, 0.001, 1); dust(b.x, b.y, FOOT[b.type] || 1); }

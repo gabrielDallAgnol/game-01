@@ -56,6 +56,9 @@ In every root, creation order and per-frame call order are load-bearing:
 `buildings` · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
 `season` (pacing, rules) · `folk` (the folk's projects) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
 (numbers and words for the road and missions) · `weather` · `legacy` · `woods` (worn trails)
+`buildings` · `towers` (the level 3 roles) · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
+`season` (pacing, rules) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
+(numbers and words for the road and missions) · `weather` · `legacy`
 
 ### `src/sim/`: the rules
 
@@ -77,6 +80,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `nests.js` | hives defend themselves: the guard pack, proximity rage, sites locked until their hive burns |
 | `pacify.js` | `[pacify]` quiet land: the Camp, claimed regions and `PACIFY.r` beyond the base (minus an awake hive's reach); a hive asleep there is smothered (never wakes, on the map, still burnable); every waking hive is revealed with a System line; the home threat `homeK` (a ≤ 1 ratio on `nightBudget` after night 10: the curve read at a "home night" = slow plateau + a load per awake, unpacified hive); Return to Camp (by day, from a lit fire or a held site, 2.5 s channel, 45 s cooldown) and the dusk warning |
 | `steer.js` | the dead's feet round walls (a small cached A* when the straight line is blocked) and the spawn-ground test |
+| `towers.js` | tower specialisations at level 3 (Mortar, Brazier, Ballista, Watch Bell): choosing one, how each fires, the shell burst, their share of the threat estimate (`[towers]` hooks in combat.js and brain.js) |
 | `loot.js` | street finds, supply drops |
 | `districts.js` | sites, sealed districts, kits |
 | `seasons.js`, `contracts.js` | season rules, weather, contracts (the engine side) |
