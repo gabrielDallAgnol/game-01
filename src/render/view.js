@@ -10,6 +10,9 @@ import { createLook } from './look.js';
 import { buildCity } from './city.js';
 import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE, xrayMat } from './figures.js';
 import { KITS, RARITY } from '../content/districts.js';
+// [road] begin
+import { createRoadView } from './road-view.js';
+// [road] end
 
 const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
 const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
@@ -671,6 +674,9 @@ export function createView(canvas, game, opts = {}) {
 
   const villagerMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
   const villagers = createVillagers({ THREE, world, game, W, map, figure: () => { const seed = Math.floor(Math.random() * 1e6); return bakedWalker(() => K.folk(seed), villagerMat); } });
+  // [road] begin: stations, fires, the convoy, ambush marks (src/render/road-view.js)
+  const roadView = createRoadView({ world, fx, game, W, K, lc, makeBar, setBar, burst, floatLabel, heroLight, bakedWalker, camera });
+  // [road] end
   // ---------- scavengers: crews walk out to their site at nightfall and home at dawn ----------
   const crewWalkers = [];
   const scavRig = () => { const seed = Math.floor(Math.random() * 1e6); return bakedWalker(() => K.folk(seed, { crew: true }), villagerMat); };
@@ -769,6 +775,9 @@ export function createView(canvas, game, opts = {}) {
       if (b.type === 'tower' && b.level >= 2) out.push({ x: b.x, y: b.y, h: 2.2, i: 1.4, d: 7 });
       else if (b.type === 'house' && b.level >= 2) out.push({ x: b.x, y: b.y + 0.2, h: 1.0, i: 1.1, d: 5 });
     }
+    // [road] begin
+    if (roadView) out.push(...roadView.lights());
+    // [road] end
     return out;
   }
   function placeLights() {
@@ -936,6 +945,9 @@ export function createView(canvas, game, opts = {}) {
     }
     if (moveMark.material.opacity > 0) { moveMark.material.opacity = Math.max(0, moveMark.material.opacity - dt * 1.5); moveMark.scale.multiplyScalar(1 + dt * 0.8); }
     setGhost(ui.ghost || null); setZone(ui.zone || null);
+    // [road] begin
+    if (roadView) roadView.frame(dt, time, dark, ui.events);
+    // [road] end
     look.render(time);
   }
 

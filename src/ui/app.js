@@ -16,6 +16,9 @@ import { TITLES, ROLES, BARKS, QUEST_TEMPLATES } from '../content/story.js';
 import { RARITY, KITS } from '../content/districts.js';
 import { LEGACY, fameOf } from '../content/legacy.js';
 import { RULES } from '../content/season.js';
+// [road] begin
+import { createRoadUI } from './road-ui.js';
+// [road] end
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -37,6 +40,9 @@ const PLURAL = { house: 'Homes', farm: 'Farms', tower: 'Towers', wall: 'barricad
 
 export function startApp() {
   let game = null, view = null, names = [], selected = null, placing = null, paused = true, acc = 0, last = performance.now(), hudT = 0;
+  // [road] begin
+  let roadUI = null;
+  // [road] end
   let card = null;             // which card is open: 'start' | 'perk' | 'pack' | 'trade' | 'log' | 'end'
   let dawnT = 0, traderSeen = false, endT = -1;
   const keys = {};
@@ -84,6 +90,9 @@ export function startApp() {
     for (const sp of S.story.spots) if (big) dot(sp.x, sp.y, 4, '#6fc3ff');
     const tr = S.story.trial; if (tr && !tr.done) dot(tr.x, tr.y, big ? 6 : 4, '#ff4a4a', true);
     dot(m.town.x, m.town.y, big ? 7 : 4, '#d9843a');
+    // [road] begin
+    if (roadUI) roadUI.marks(ctx, ox, oy, s, big);
+    // [road] end
     const h = S.hero; dot(h.x, h.y, big ? 6 : 4, '#ffffff'); dot(h.x, h.y, big ? 9 : 6, 'rgba(255,255,255,.5)', true);
   }
   function drawMini() {
@@ -109,6 +118,9 @@ export function startApp() {
     marks(ctx, b.x0, b.y0, s, true);
     const lbl = (x, y, t) => { ctx.font = 'bold 22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(t, (x - b.x0) * s, (y - b.y0) * s); ctx.fillStyle = '#fff1d6'; ctx.fillText(t, (x - b.x0) * s, (y - b.y0) * s); };
     lbl(game.map.town.x, game.map.town.y - 8, 'CAMP'); const c = game.map.city; if (c) lbl(c.x, c.y + 4, 'THE CITY');
+    // [road] begin
+    if (roadUI) roadUI.onMap(cv, b.x0, b.y0, s);
+    // [road] end
     $('#mapOk').onclick = () => { hideCard(); paused = false; };
   }
   function showStart() {
@@ -174,6 +186,11 @@ export function startApp() {
     const qp = new URLSearchParams(location.search).get('q');
     if (!view) { view = createView($('#view'), game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); showQuality(); }
     window.__game = game; window.__view = view; window.__openSel = sel => openSel(sel);
+    // [road] begin
+    if (roadUI) roadUI.dispose();
+    roadUI = createRoadUI({ game, view, toast: (m, k) => toast(m, k), hideCard: () => { hideCard(); paused = false; }, isBusy: () => paused || !!card || !!placing });
+    window.__roadUI = roadUI;
+    // [road] end
     $('#hud').hidden = false; hideCard(); paused = false; selected = null; placing = null; closePanel();
     $('#ability').hidden = !game.heroDef.ability;
     if (snap) { previouslyOn(); $('#autoBtn').setAttribute('aria-pressed', !!game.state.autopilot); $('#autoTag').hidden = !game.state.autopilot; }
@@ -1080,6 +1097,9 @@ export function startApp() {
     if (placing && placing.zone.ver !== S.occVersion) { refreshZone(); updateGhost(); }
     view.frame(dt, { events, selected, ghost: placing && placing.ghost, zone: placing && placing.zoneMask });
     edgeMarks(); watchFrames(raw);
+    // [road] begin
+    if (roadUI) roadUI.tick(dt);
+    // [road] end
     if ((miniT -= dt) <= 0) { miniT = 0.4; drawMini(); }
     hudT -= dt; if (hudT <= 0) { updateHud(); hudT = 0.2; if (selected && !paused) { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } } }
   }
