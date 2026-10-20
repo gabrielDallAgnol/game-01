@@ -1,5 +1,5 @@
-// The road: four stations with fires you can light (outposts), convoys of rescued people who walk home behind
-// you while the dead hunt them, ambushes on a long trip, and trip planning ("round trip 2:10 · dusk in 1:40").
+// The road: four stations with fires you can light (outposts), convoys of rescued people who walk home on their own
+// (or wait where they stand, at your order) while the dead hunt them, ambushes on a long trip, and trip planning ("round trip 2:10 · dusk in 1:40").
 // Deterministic: no Math.random, its own RNG. Created inside createGame (see the `// [road]` hook blocks in game.js),
 // it reaches the game's internals only through `ctx`.
 import { N, T, PASSABLE, idx, inside } from './mapgen.js';
@@ -74,7 +74,7 @@ export function createRoad(ctx) {
   const { S, map, ev, toast, rng } = ctx, c = map.town.x;
   const stations = placeStations(map);
   for (const st of stations) Object.assign(st, { lit: false, fell: false, met: false, hp: 0, maxHp: ROAD.hp(1), prog: 0, towers: [], litN: 0 });
-  const R = S.road = { stations, convoys: [], outT: 0, ambushCd: AMBUSH.every * 0.5, ambushes: [], trail: [], nextId: 1, lastSurv: S.survivors, lastDawns: S.dawns, evAt: 0, phase: S.phase, lit: 0, rescued: 0, lost: 0, home: 0 };
+  const R = S.road = { stations, convoys: [], outT: 0, ambushCd: AMBUSH.every * 0.5, ambushes: [], nextId: 1, lastSurv: S.survivors, lastDawns: S.dawns, evAt: 0, phase: S.phase, lit: 0, rescued: 0, lost: 0, home: 0 };
   let api = null;
   const missions = createMissions(ctx, () => road);
   const hero = () => S.hero;
@@ -162,18 +162,16 @@ export function createRoad(ctx) {
   // ---------- convoys ----------
   function makeConvoy(n, why) {
     const h = hero(), cart = R.cart; R.cart = null;
-    const cv = { id: R.nextId++, members: [], why: why || '', size: n, lost: 0, turnedToast: false, cart: !!cart };
+    const cv = { id: R.nextId++, members: [], why: why || '', size: n, lost: 0, turnedToast: false, cart: !!cart, order: 'go', path: null, left: 0 };
     for (let k = 0; k < n + (cart ? 1 : 0); k++) {
       const isCart = cart && k === n;
       let x = h.x, y = h.y;
       for (let t = 0; t < 12; t++) { const a = rng.range(0, Math.PI * 2), r = rng.range(0.6, 1.8), xx = h.x + Math.cos(a) * r, yy = h.y + Math.sin(a) * r; if (walk(xx, yy)) { x = xx; y = yy; break; } }
-      cv.members.push({ id: R.nextId++, cv: cv.id, name: isCart ? 'the cart' : CONVOY.names[rng.int(CONVOY.names.length)], cart: isCart ? { scrap: cart.scrap || 0, food: cart.food || 0 } : null, x, y, face: 0, hp: isCart ? CONVOY.cartHp : CONVOY.hp, maxHp: isCart ? CONVOY.cartHp : CONVOY.hp, ti: R.trail.length - 1, state: 'follow', moving: false, hurtT: 0 });
+      cv.members.push({ id: R.nextId++, cv: cv.id, name: isCart ? 'the cart' : CONVOY.names[rng.int(CONVOY.names.length)], cart: isCart ? { scrap: cart.scrap || 0, food: cart.food || 0 } : null, x, y, face: 0, hp: isCart ? CONVOY.cartHp : CONVOY.hp, maxHp: isCart ? CONVOY.cartHp : CONVOY.hp, pi: 0, state: 'go', moving: false, hurtT: 0 });
     }
-    if (!R.trail.length) R.trail.push({ x: h.x, y: h.y });
-    for (const m of cv.members) m.ti = R.trail.length - 1;
-    R.convoys.push(cv); R.rescued += n;
+    R.convoys.push(cv); R.rescued += n; routeHome(cv);
     ev('convoy', { id: cv.id, n, x: h.x, y: h.y });
-    toast(`[Convoy: ${n} ${n === 1 ? 'person' : 'people'}${cart ? ' and a cart' : ''}] They walk home behind you, **slower than the dead**. Keep them alive: they count once they reach the camp.`, 'sys');
+    toast(`[Convoy: ${n} ${n === 1 ? 'person' : 'people'}${cart ? ' and a cart' : ''}] They set off for the Camp on their own. **The dead will hunt them**: escort them, or tell them to wait. They count once they reach the camp.`, 'sys');
     return cv;
   }
   /** people the story or a site gave you while you are far from the camp walk home with you instead of appearing there */
@@ -185,50 +183,64 @@ export function createRoad(ctx) {
     else if (delta > 0 && R.cart) { const cart = R.cart; R.cart = null; if (cart.scrap) ctx.earn(cart.scrap); if (cart.food) S.food += cart.food; }
     R.lastSurv = S.survivors;
   }
-  function stepTrail() {
-    const h = hero(), tr = R.trail;
-    if (!R.convoys.length) { if (tr.length) tr.length = 0; return; }
-    if (h.dead) return;
-    const last = tr[tr.length - 1];
-    if (!last || Math.hypot(h.x - last.x, h.y - last.y) > 0.35) { tr.push({ x: h.x, y: h.y }); if (tr.length > 700) { const cut = tr.length - 700; tr.splice(0, cut); for (const m of members()) m.ti = Math.max(0, m.ti - cut); } }
+  // each group has one order, given by the player: 'go' walks home along the fastest way (the old road), at its own
+  // pace, never tied to where the hero is; 'wait' holds where they stand, huddled. Zombies hunt them either way.
+  const cvSpeed = cv => (cv.members.some(m => m.cart) ? CONVOY.cartSpeed : CONVOY.speed);
+  function routeHome(cv) {
+    const lead = cv.members[0]; cv.path = null; cv.suf = null; if (!lead) return;
+    const p = plan(c, c + 3.5, { x: lead.x, y: lead.y });
+    const pts = p && p.path.length ? p.path : [{ x: c, y: c + 3.5 }], suf = new Array(pts.length).fill(0);
+    for (let k = pts.length - 2; k >= 0; k--) suf[k] = suf[k + 1] + Math.hypot(pts[k + 1].x - pts[k].x, pts[k + 1].y - pts[k].y);
+    cv.path = pts; cv.suf = suf;
+    // each joins the way at its nearest point ahead (never walks back past the head of the column)
+    for (const m of cv.members) { let bi = 0, bd = Infinity; for (let k = 0; k < Math.min(pts.length, 12); k++) { const d = Math.hypot(pts[k].x - m.x, pts[k].y - m.y); if (d < bd) { bd = d; bi = k; } } m.pi = bi; }
+    cv.left = Math.hypot(pts[0].x - lead.x, pts[0].y - lead.y) + suf[0];
   }
-  /** Go with a convoy is an escort: the hero's auto-walk waits for the rear of the column (the stick always takes over) */
-  function stepEscort() {
-    const h = hero();
-    if (h.input.x || h.input.y || h.dead || !R.convoys.length) { h.held = null; h.defend = null; return; }
-    const mem = members().filter(m => m.state === 'follow'); if (!mem.length) return;
-    // escorting: turn on whatever is biting your people, then pick the walk up again
-    if (h.tripTo && (h.target || h.held)) {
-      let foe = null, fd = 11;
-      for (const z of S.mobs) if (z.cv && z.rise >= 1) { const d = Math.hypot(z.x - h.x, z.y - h.y); if (d < fd) { fd = d; foe = z; } }
-      if (foe) { if (!h.held) h.held = { target: h.target, path: h.path }; h.defend = foe.id; h.target = { x: foe.x, y: foe.y }; h.path = null; return; }
-      if (h.defend) { h.defend = null; h.target = null; h.path = null; }
-    }
-    const rear = Math.max(...mem.map(m => Math.hypot(m.x - h.x, m.y - h.y))), col = CONVOY.gap * Math.min(mem.length, 8);
-    if (h.target && h.tripTo && rear > col + 5) { h.held = { target: h.target, path: h.path }; h.target = null; h.path = null; ev('escortWait', {}); }
-    else if (h.held && !h.target && rear < col + 2) { h.target = h.held.target; h.path = h.held.path; h.held = null; }
+  function setOrder(cv, order) {
+    if (order !== 'go' && order !== 'wait') return false;
+    if (cv.order === order && (order === 'wait' || cv.path)) return true;
+    cv.order = order;
+    if (order === 'wait') {
+      const ms = cv.members.filter(m => !m.cart).length ? cv.members.filter(m => !m.cart) : cv.members;
+      const ax = ms.reduce((a, m) => a + m.x, 0) / ms.length, ay = ms.reduce((a, m) => a + m.y, 0) / ms.length;
+      cv.at = walk(ax, ay) ? { x: ax, y: ay } : { x: cv.members[0].x, y: cv.members[0].y };
+    } else routeHome(cv);
+    for (const m of cv.members) m.state = order;
+    ev('convoyOrder', { id: cv.id, order });
+    return true;
+  }
+  function stepTo(m, tx, ty, sp) {
+    const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy); if (d < 1e-3) return true;
+    const s = Math.min(sp, d), nx = m.x + dx / d * s, ny = m.y + dy / d * s;
+    if (walk(nx, ny)) { m.x = nx; m.y = ny; } else if (walk(nx, m.y)) m.x = nx; else if (walk(m.x, ny)) m.y = ny; else return false;
+    m.face = Math.atan2(dx, dy); m.moving = true; return true;
   }
   function stepConvoys(dt) {
-    const h = hero(), tr = R.trail;
     for (const cv of [...R.convoys]) {
+      if (cv.order !== 'go' && cv.order !== 'wait') cv.order = 'wait';
+      if (cv.order === 'go' && !cv.path) routeHome(cv);
+      if (cv.order === 'wait' && !cv.at) cv.at = { x: cv.members[0].x, y: cv.members[0].y };
+      const n = cv.members.length, base = cvSpeed(cv), lead = cv.members[0];
+      // the column holds together: the head waits when the tail falls far behind
+      let rear = 0; if (cv.order === 'go') for (const m of cv.members) rear = Math.max(rear, Math.hypot(m.x - lead.x, m.y - lead.y));
+      const stretched = rear > CONVOY.gap * n + 4;
       cv.members.forEach((m, k) => {
-        m.hurtT = Math.max(0, m.hurtT - dt); m.moving = false;
-        const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
-        const ring = inLitRing(m.x, m.y);
-        // they hold where they are when you fall, and shelter at a lit outpost when you go on without them
-        if (m.state === 'follow' && (h.dead || cv.hold || (ring && night() && hd > 11))) { m.state = 'wait'; ev('convoyWait', { id: m.id }); }
-        if (m.state === 'wait') { if (!h.dead && !cv.hold && hd < 6) { m.state = 'follow'; m.ti = Math.max(0, tr.length - 1); } else return; }
-        // walk the hero's own trail, keeping a place in the column
-        const slot = Math.max(0, tr.length - 1 - Math.round((CONVOY.gap * (k + 1) + 0.6) / 0.35));
-        if (m.ti > slot && hd < CONVOY.gap * (k + 1) + 0.8) return;
-        const w = tr[Math.min(m.ti, tr.length - 1)]; if (!w) return;
-        const sp = (m.cart ? CONVOY.cartSpeed : CONVOY.speed) * (onRoad(m.x, m.y) ? CONVOY.road : 1) * (map.terrain[idx(Math.floor(m.x), Math.floor(m.y))] === T.FOREST ? 0.85 : 1) * dt;
-        const dx = w.x - m.x, dy = w.y - m.y, d = Math.hypot(dx, dy);
-        if (d < 0.3) { if (m.ti < tr.length - 1 && m.ti < slot) m.ti++; return; }
-        const nx = m.x + dx / d * Math.min(sp, d), ny = m.y + dy / d * Math.min(sp, d);
-        if (walk(nx, ny)) { m.x = nx; m.y = ny; } else if (walk(nx, m.y)) m.x = nx; else if (walk(m.x, ny)) m.y = ny; else m.ti = Math.min(tr.length - 1, m.ti + 1);
-        m.face = Math.atan2(dx, dy); m.moving = true;
+        m.hurtT = Math.max(0, m.hurtT - dt); m.moving = false; m.state = cv.order;
+        const sp = base * (onRoad(m.x, m.y) ? CONVOY.road : 1) * (map.terrain[idx(Math.floor(m.x), Math.floor(m.y))] === T.FOREST ? 0.85 : 1) * dt;
+        if (cv.order === 'wait') {
+          // huddle round the spot where they were told to wait
+          const a = k * 2.4, r = k ? 0.75 + (k > 5 ? 0.45 : 0) : 0, tx = cv.at.x + Math.cos(a) * r, ty = cv.at.y + Math.sin(a) * r;
+          if (Math.hypot(tx - m.x, ty - m.y) > 0.15) stepTo(m, tx, ty, sp * 0.7); else m.face = Math.atan2(m.x - cv.at.x, m.y - cv.at.y);
+          return;
+        }
+        if (k === 0 && stretched) return;
+        const ahead = k ? cv.members[k - 1] : null;
+        if (ahead && Math.hypot(ahead.x - m.x, ahead.y - m.y) < CONVOY.gap && m.pi <= ahead.pi) return;
+        const P = cv.path, last = P.length - 1; let w = P[Math.min(m.pi, last)];
+        if (Math.hypot(w.x - m.x, w.y - m.y) < 0.35) { if (m.pi < last) { m.pi++; w = P[m.pi]; } else w = { x: c, y: c }; }
+        if (!stepTo(m, w.x, w.y, sp) && m.pi < last) m.pi++;
       });
+      if (cv.order === 'go' && lead && cv.path) { const i = Math.min(lead.pi, cv.path.length - 1); cv.left = Math.hypot(cv.path[i].x - lead.x, cv.path[i].y - lead.y) + cv.suf[i]; }
       // home: inside the camp
       for (const m of [...cv.members]) if (Math.hypot(m.x - c, m.y - c) < CONVOY.home) arrive(cv, m);
       if (!cv.members.length) finish(cv);
@@ -454,7 +466,7 @@ export function createRoad(ctx) {
     if (S.over) return;
     if (R.phase !== S.phase || (S.phase === 'night' && R.nightN !== S.night)) { const was = R.phase; R.phase = S.phase; if (S.phase === 'night') { R.nightN = S.night; missions.nightfall(); for (const st of stations) if (st.lit) { st.maxHp = ROAD.hp(S.night); st.hp = Math.max(st.hp, st.maxHp); } } else if (was === 'night') syncPeople(); }
     cvHunters = 0; for (const m of S.mobs) if (m.cv) cvHunters++;
-    syncPeople(); stepTrail(); stepEscort(); stepConvoys(dt); stepStations(dt); stepAmbush(dt);
+    syncPeople(); stepConvoys(dt); stepStations(dt); stepAmbush(dt);
     missions.tick(dt); scanEvents();
   }
   function dawn() {
@@ -474,23 +486,27 @@ export function createRoad(ctx) {
   }
   function save() {
     return { v: 1, stations: stations.map(s => ({ id: s.id, lit: s.lit, fell: s.fell, met: s.met, hp: s.hp, maxHp: s.maxHp, towers: s.towers, litN: s.litN })),
-      convoys: R.convoys.map(cv => ({ ...cv, members: cv.members.map(m => ({ ...m, state: 'wait' })) })), nextId: R.nextId, lit: R.lit, rescued: R.rescued, lost: R.lost, home: R.home, mission: missions.save() };
+      convoys: R.convoys.map(cv => ({ ...cv, path: null, suf: null, members: cv.members.map(m => ({ ...m })) })), nextId: R.nextId, lit: R.lit, rescued: R.rescued, lost: R.lost, home: R.home, mission: missions.save() };
   }
   function load(o) {
     if (!o || o.v !== 1) return;
     for (const d of o.stations || []) { const st = stations.find(s => s.id === d.id); if (st) Object.assign(st, d, { prog: 0 }); }
-    R.convoys = (o.convoys || []).map(cv => ({ ...cv, members: cv.members.map(m => ({ ...m })) }));
-    Object.assign(R, { nextId: o.nextId || R.nextId, lit: stations.filter(s => s.lit).length, rescued: o.rescued || 0, lost: o.lost || 0, home: o.home || 0, lastSurv: S.survivors, lastDawns: S.dawns, trail: [], evAt: S.events.length, phase: S.phase });
+    // an old save (followers) loads as a group waiting where it stood; the way home is planned again on the next step
+    R.convoys = (o.convoys || []).map(cv => ({ ...cv, order: cv.order === 'go' ? 'go' : 'wait', path: null, members: cv.members.map(m => ({ ...m, pi: 0, state: cv.order === 'go' ? 'go' : 'wait' })) }));
+    Object.assign(R, { nextId: o.nextId || R.nextId, lit: stations.filter(s => s.lit).length, rescued: o.rescued || 0, lost: o.lost || 0, home: o.home || 0, lastSurv: S.survivors, lastDawns: S.dawns, evAt: S.events.length, phase: S.phase });
     missions.load(o.mission);
   }
   const road = {
     state: R, stations, missions, drive, perceive, unseen, preferHive, tick, dawn, hiveMult, attach, save, load,
     light: id => { const st = stations.find(s => s.id === id); return st && !st.lit ? light(st) : false; },
     buildTower, placeRule, plan, tripInfo, go, places, ringOf, members, inLitRing, lightCost,
-    /** tell a convoy to wait where it stands (best by a lit fire), or to follow again */
-    hold: on => { for (const cv of R.convoys) cv.hold = !!on; ev('convoyHold', { on: !!on }); return true; },
+    /** every convoy: wait where it stands (on), or go on to the camp (off) */
+    hold: on => { for (const cv of R.convoys) setOrder(cv, on ? 'wait' : 'go'); return true; },
+    /** one convoy's order: 'go' (to the camp, on their own) or 'wait' (hold here, huddled) */
+    order: (id, order) => { const cv = R.convoys.find(q => q.id === id); return cv ? setOrder(cv, order) : false; },
     convoys: () => R.convoys, makeConvoy: (n, cart) => { if (cart) R.cart = cart; return makeConvoy(n); },
-    stragglers: () => { const h = hero(); return members().filter(m => Math.hypot(m.x - h.x, m.y - h.y) > CONVOY.straggle); },
+    /** the head of each convoy that is far from the hero (the edge arrow points the way to them) */
+    stragglers: () => { const h = hero(); return R.convoys.filter(cv => cv.members.length && Math.hypot(cv.members[0].x - h.x, cv.members[0].y - h.y) > CONVOY.straggle).map(cv => cv.members[0]); },
     setMission: id => missions.choose(id), horn: () => missions.horn(), setLantern: on => missions.setLantern(on), forecast: () => missions.forecast(),
     get mission() { return missions.state; },
   };

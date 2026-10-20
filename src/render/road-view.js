@@ -1,5 +1,5 @@
 // The road, drawn: the four stations (a stalled bus, a fire lookout, a toll gate, a substation), their fires and lit rings,
-// the convoy walking home, an ambush mark on the road ahead, the horn's call, embers of a burned hive.
+// the convoy walking home (and its order over its head), an ambush mark on the road ahead, the horn's call, embers of a burned hive.
 // Renderer-only: reads game.state.road and game.road, never changes the sim. Created by one `// [road]` line in view.js.
 /* global THREE */
 import { N } from '../sim/mapgen.js';
@@ -150,7 +150,19 @@ export function createRoadView({ world, fx, game, W, K, lc, makeBar, setBar, bur
       setBar(v.bar, m.x, 1.35, m.y, m.hp / m.maxHp);
     }
     for (const [id, v] of mViews) if (!seen.has(id)) { group.remove(v.g); fx.remove(v.ring); fx.remove(v.bar); mViews.delete(id); }
+    // the group's order, floating over its head: GOING TO CAMP (amber) or WAITING (cyan)
+    const seenT = new Set();
+    for (const cv of R.convoys) {
+      const L = cv.members[0]; if (!L) continue; seenT.add(cv.id);
+      let t = cvTags.get(cv.id); if (!t) { t = new THREE.Sprite(new THREE.SpriteMaterial({ map: tagTex.go, transparent: true, depthTest: false })); t.scale.set(3.6, 0.56, 1); t.renderOrder = 22; fx.add(t); cvTags.set(cv.id, t); }
+      const wait = cv.order === 'wait'; t.material.map = wait ? tagTex.wait : tagTex.go;
+      let ax = 0, ay = 0; for (const m of cv.members) { ax += m.x; ay += m.y; } ax /= cv.members.length; ay /= cv.members.length;
+      t.position.copy(W(ax, ay, 2.6 + (wait ? Math.sin(time * 3) * 0.06 : 0))); t.material.opacity = 0.92;
+    }
+    for (const [id, t] of cvTags) if (!seenT.has(id)) { fx.remove(t); cvTags.delete(id); }
   }
+  const cvTags = new Map();
+  const tagTex = { go: K.textTex('GOING TO CAMP', { w: 512, h: 80, size: 36, bg: 'rgba(31,20,7,0.82)', fg: '#ffd27a', spacing: '3px' }), wait: K.textTex('WAITING', { w: 512, h: 80, size: 36, bg: 'rgba(5,12,22,0.85)', fg: '#7fe3ff', spacing: '3px' }) };
   const hurtHalo = new THREE.MeshBasicMaterial({ color: lc('#ff5a3a').multiplyScalar(1.4), transparent: true, opacity: 0.9, depthWrite: false });
   const waitHalo = new THREE.MeshBasicMaterial({ color: lc('#9fd6ff'), transparent: true, opacity: 0.8, depthWrite: false });
 

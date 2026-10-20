@@ -46,7 +46,8 @@ test('standing by the fire for 3 s lights an outpost: it costs scrap, rests the 
 test('the dead keep out of a lit ring, gnaw at the fire by night, and the fire can go out', () => {
   const { g, S, road, run, tp } = make(3);
   const st = road.stations[1]; S.gold = 60;
-  tp(st.x + 1, st.y); run(ROAD.lightTime + 0.5); assert.ok(st.lit);
+  // (the ranger stays at her tower: no convoy on the road to draw the pack off the fire)
+  tp(st.x + 1, st.y); run(ROAD.lightTime + 0.5, null, e => (e.road ? 'watch' : null)); assert.ok(st.lit); assert.equal(road.convoys().length, 0);
   tp(g.map.town.x, g.map.town.y + 3.5);
   g.startNight(); run(0.1);
   const before = st.hp;
@@ -64,23 +65,52 @@ test('the dead keep out of a lit ring, gnaw at the fire by night, and the fire c
   assert.equal(st.lit, false); assert.equal(st.fell, true);
 });
 
-test('people found far from the camp walk home as a convoy and count only when they arrive', () => {
+test('people found far from the camp walk home as a convoy on their own and count only when they arrive', () => {
   const { S, c, road, run, tp } = make(3);
   const st = road.stations[0];
   const before = S.survivors;
   tp(st.x + 1, st.y); run(0.5, null, e => (e.road ? 'home' : null));
   assert.equal(road.convoys().length, 1); assert.equal(road.members().length, 4);
+  assert.equal(road.convoys()[0].order, 'go', 'a rescue starts on Go to Camp');
   assert.equal(S.survivors, before, 'they counted before they got home');
-  road.go(c, c + 3.5);
+  // the hero stays out by the bus: they still go home, at a pace quicker than a walker
+  const d0 = road.convoys()[0].left, t0 = S.time;
   assert.ok(run(120, () => !road.convoys().length), 'the convoy never got home');
+  assert.ok(S.time - t0 < d0 / 1.6, `took ${S.time - t0} s for ${d0} cells`);
+  assert.ok(Math.hypot(S.hero.x - st.x, S.hero.y - st.y) < 3, 'the hero had to walk them home');
   assert.equal(S.survivors, before + 4);
   assert.equal(S.road.home, 4);
+});
+
+test('a convoy never turns round because the hero moved; Wait here holds them huddled, Go to Camp sends them on', () => {
+  const { S, c, road, run, tp } = make(3);
+  const st = road.stations[1];
+  tp(st.x, st.y + 1); const cv = road.makeConvoy(3);
+  // the hero runs back out past them, away from the camp: the head of the column only gets nearer home
+  const L0 = cv.left; let last = L0;
+  for (let k = 0; k < 8; k++) {
+    tp(st.x + (k % 2 ? 6 : -6), st.y + 3); run(0.75);
+    assert.ok(cv.left <= last + 0.05, `they walked back: ${last} -> ${cv.left}`); last = cv.left;
+    assert.ok(cv.members.every(m => m.state === 'go'));
+  }
+  assert.ok(last < L0 - 8, `they barely moved: ${L0} -> ${last}`);
+  // Wait here: they stop and huddle round one spot, wherever the hero goes
+  assert.equal(road.order(cv.id, 'wait'), true);
+  run(2); const at = cv.members.map(m => [m.x, m.y]);
+  tp(c, c + 3.5); run(4);
+  cv.members.forEach((m, k) => assert.ok(Math.hypot(m.x - at[k][0], m.y - at[k][1]) < 0.6, 'a waiting member wandered off'));
+  assert.ok(cv.members.every(m => m.state === 'wait' && Math.hypot(m.x - cv.at.x, m.y - cv.at.y) < 1.6), 'not huddled');
+  // Go to Camp: home without the hero
+  assert.equal(road.order(cv.id, 'go'), true);
+  tp(st.x + 20, st.y + 20);
+  assert.ok(run(150, () => !road.convoys().length), 'they never got home after Go');
+  assert.equal(S.road.home, 3);
 });
 
 test('the dead hunt the convoy, and a caught member rises with the dead', () => {
   const { g, S, road, run, tp } = make(3);
   const st = road.stations[2];
-  tp(st.x, st.y + 6); road.makeConvoy(3);
+  tp(st.x, st.y + 6); const cv = road.makeConvoy(3); road.order(cv.id, 'wait');
   const spawnAt = road.members()[2];
   const before = S.mobs.length;
   S.hero.dead = true; S.hero.respawn = 60;

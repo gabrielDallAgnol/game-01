@@ -1,10 +1,9 @@
 // The road's HUD: the mission choice at dusk (a System window that never pauses the night), the mission's tool
-// (the horn, the lantern), the station and convoy chips, trip planning ("round trip 2:10 · dusk in 1:40 · Go"),
+// (the horn, the lantern), the station chip, a card per convoy (Go to Camp / Wait here), trip planning ("round trip 2:10 · dusk in 1:40 · Go"),
 // edge arrows to stragglers and burning outposts, and the road on the map. Reads the sim; acts only through game.road.
 // Created by the `// [road]` hook blocks in app.js.
 import { MISSIONS, ROAD, MISSION } from '../content/road.js';
 const MISSION_PICK = MISSION.pick;
-import { fmtTime } from '../sim/road.js';
 import { icon } from './icons.js';
 
 const CSS = `
@@ -70,6 +69,22 @@ const CSS = `
 #edge .ar.rd-fire i{border-left-color:#ff8a4a}#edge .ar.rd-fire span{color:#ffb07a;width:60px;left:-56px}
 #edge .ar.rd-trap i{border-left-color:#7fe3ff;border-left-width:20px;border-top-width:9px;border-bottom-width:9px;top:-9px}#edge .ar.rd-trap span{color:#bff0ff;font:600 11px/1 var(--mono);letter-spacing:.04em;width:84px;left:-80px}
 #edge .ar.rd-amb i{border-left-color:#ff5a3a;border-left-width:20px;border-top-width:9px;border-bottom-width:9px;top:-9px}#edge .ar.rd-amb span{color:#ff7a62}
+.rd-cvs{display:grid;gap:6px;pointer-events:none}
+.rd-cv{pointer-events:auto;position:relative;display:grid;gap:6px;padding:8px 8px 8px 10px;border-radius:2px;background:linear-gradient(180deg,rgba(8,20,34,.95),rgba(5,12,22,.96));border:1px solid rgba(240,166,73,.55);box-shadow:0 6px 18px rgba(0,0,0,.4);animation:tin .2s var(--ease-o)}
+.rd-cv::before{content:"";position:absolute;left:-1px;top:-1px;width:7px;height:7px;border:2px solid var(--amber);border-right:0;border-bottom:0;pointer-events:none}
+.rd-cv.wait{border-color:var(--cyan-d)}.rd-cv.wait::before{border-color:var(--cyan)}.rd-cv.hunted{border-color:rgba(255,106,85,.7)}
+.rd-cv .hd{display:flex;align-items:center;gap:7px;min-width:0}
+.rd-cv .hd .ic{flex:none;font-size:17px;color:var(--amber)}.rd-cv.wait .hd .ic{color:var(--cyan)}
+.rd-cv .hd b{flex:1 1 auto;min-width:0;font:700 14px/1.1 var(--body);letter-spacing:0;color:#f2fbff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-cv .hd .rd-hp{width:34px;flex:none}
+.rd-cv .st{font:500 12.5px/1.2 var(--mono);color:#cfe3ee;display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.rd-cv .st em{font-style:normal;font-weight:700;color:var(--amber)}.rd-cv.wait .st em{color:var(--cyan)}.rd-cv .st em.late{color:var(--blood)}.rd-cv .st .ic{font-size:13px}
+.rd-cv .bt{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.rd-cv .bt button{min-height:46px;padding:4px 4px;border-radius:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:700 12.5px/1.05 var(--body);letter-spacing:.01em;text-align:center;background:transparent;color:#e6f4ff;border:1px solid rgba(127,227,255,.45);position:relative}
+.rd-cv .bt button .ic{font-size:17px}
+.rd-cv .bt button::after{content:"";position:absolute;inset:-3px}
+.rd-cv .bt button[data-o="go"].on{background:var(--amber);border-color:var(--amber);color:#1f1407}
+.rd-cv .bt button[data-o="wait"].on{background:var(--cyan);border-color:var(--cyan);color:#04121d}
 .rd-plan{margin:8px 0 0;display:flex;align-items:center;gap:8px;background:rgba(127,227,255,.06);border:1px solid var(--cyan-d);border-radius:2px;padding:8px 8px 8px 12px}
 .rd-plan .t{flex:1;min-width:0;font-size:13px}.rd-plan .t b{font:600 14px/1.2 var(--mono);display:block;color:#f2fbff}
 .rd-plan .t span{color:#a9c6d8}.rd-plan .t em{font-style:normal;font-weight:600;color:#f2fbff}.rd-plan .t em.late{color:var(--blood)}.rd-plan .t em.ok{color:var(--good)}.rd-plan .t em.risky{color:var(--amber)}
@@ -89,14 +104,14 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   const tripEl = mk('div', 'rd-chip sys', dock); tripEl.hidden = true;
   const ledEl = mk('div', 'rd-chip ledger', dock); ledEl.hidden = true;
   const stEl = mk('div', 'rd-chip mini warm', dock); stEl.hidden = true;
-  const cvEl = mk('div', 'rd-chip mini', dock); cvEl.hidden = true;
+  const cvBox = mk('div', 'rd-cvs', dock); const cvCards = new Map();
   const win = mk('div', 'rd-win'); win.hidden = true;
   const tool = mk('button', 'rd-tool'); tool.hidden = true;
   const tag = mk('div', 'rd-tag'); tag.hidden = true;
   const kit = mk('div', 'rd-kit'); kit.innerHTML = `<button data-k="flare" aria-label="Throw a flare">${icon('flame')}<b>Flare</b><span></span></button><button data-k="smoke" aria-label="Light smoke">${icon('smoke')}<b>Smoke</b><span></span></button>`; kit.hidden = true;
   let hordeT = 0, ledT = 0, sigKit = '';
   const arrows = [];
-  let trip = null, tripT = 0, sigSt = '', sigCv = '', sigWin = '', sigTool = '', hudT = 0;
+  let trip = null, tripT = 0, sigSt = '', sigWin = '', sigTool = '', hudT = 0;
 
   // ---------- trip planning ----------
   function placeAt(p) {
@@ -221,41 +236,54 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   function renderStation() {
     const h = S.hero, st = road.stations.find(s => Math.hypot(s.x - h.x, s.y - h.y) < 7);
     if (!st || h.dead || trip) { stEl.hidden = true; sigSt = ''; return; }
-    const towers = st.towers.filter(id => S.byId.get(id)).length, cost = game.buyCost('tower'), cvNear = road.members().some(m => Math.hypot(m.x - st.x, m.y - st.y) < road.ringOf(st) + 1);
-    const sig = `${st.id}|${st.lit}|${Math.round(st.prog * 10)}|${Math.round(st.hp)}|${towers}|${S.gold >= cost}|${cvNear}|${R.convoys.some(cv => cv.hold)}`;
+    const towers = st.towers.filter(id => S.byId.get(id)).length, cost = game.buyCost('tower'), resting = h.hp < h.maxHp && Math.hypot(st.x - h.x, st.y - h.y) < road.ringOf(st);
+    const sig = `${st.id}|${st.lit}|${Math.round(st.prog * 10)}|${Math.round(st.hp)}|${towers}|${S.gold >= cost}|${resting}`;
     if (sig === sigSt) return; sigSt = sig;
     const nm = esc(st.short || st.name.replace(/^The /, ''));
     if (!st.lit) {
       stEl.innerHTML = `<span class="i0">${icon('flame')}</span><span class="lb"><b>${nm}${st.fell ? ' · out' : ''}</b><span>${st.prog > 0 ? `lighting <span class="rd-prog"><i style="width:${Math.min(100, st.prog / ROAD.lightTime * 100)}%"></i></span>` : `stand still to light · <em>${road.lightCost()}</em>${icon('scrap')}`}</span></span>`;
     } else {
-      const holding = R.convoys.some(cv => cv.hold), resting = h.hp < h.maxHp && Math.hypot(st.x - h.x, st.y - h.y) < road.ringOf(st);
-      const btn = towers < ROAD.towers ? `<button class="ab" data-tw ${S.gold < cost && !(S.stock.tower > 0) ? 'disabled' : ''} aria-label="Build a forward tower">${icon('tower')}${S.stock.tower > 0 ? 'free' : cost}</button>` : cvNear ? `<button class="ab ghost" data-hold>${holding ? 'Follow' : 'Shelter'}</button>` : '';
+      const btn = towers < ROAD.towers ? `<button class="ab" data-tw ${S.gold < cost && !(S.stock.tower > 0) ? 'disabled' : ''} aria-label="Build a forward tower">${icon('tower')}${S.stock.tower > 0 ? 'free' : cost}</button>` : '';
       stEl.innerHTML = `<span class="i0">${icon('flame')}</span><span class="lb"><b>${nm}</b><span><span class="rd-hp fire"><i style="width:${Math.max(0, st.hp / st.maxHp * 100)}%"></i></span>${icon('tower')}<em>${towers}/${ROAD.towers}</em>${resting ? '· <em class="ok">rest</em>' : ''}</span></span>${btn}`;
       const tw = stEl.querySelector('[data-tw]'); if (tw) tw.onclick = () => { road.buildTower(st.id); sigSt = ''; };
-      const hb = stEl.querySelector('[data-hold]'); if (hb) hb.onclick = () => { road.hold(!holding); sigSt = ''; };
     }
     stEl.hidden = false;
   }
+  /** one card per convoy: who they are, what they are doing, and the two orders (Go to Camp, Wait here) */
   function renderConvoy() {
-    const mem = road.members();
-    if (!mem.length || S.over) { cvEl.hidden = true; sigCv = ''; return; }
-    const people = mem.filter(m => !m.cart).length, cart = mem.some(m => m.cart), hp = mem.reduce((a, m) => a + Math.max(0, m.hp), 0) / mem.reduce((a, m) => a + m.maxHp, 0);
-    const hunted = S.mobs.filter(m => m.cv).length, strag = road.stragglers().length, waiting = mem.some(m => m.state === 'wait'), d = Math.round(Math.hypot(mem[0].x - c, mem[0].y - c));
-    const sig = `${people}|${cart}|${Math.round(hp * 20)}|${hunted}|${strag}|${waiting}|${Math.round(d / 5)}`;
-    if (sig === sigCv) return; sigCv = sig;
-    const eta = mem.length ? Math.round(d / 1.5) : 0;
-    const state = hunted ? `${icon('skull')}<em class="late">${hunted}</em>` : strag ? `${icon('run')}<em class="risky">${strag}</em>` : waiting ? 'wait' : `~<em>${fmtTime(eta)}</em>`;
-    cvEl.innerHTML = `<span class="i0">${icon('people')}</span><span class="lb"><b>${people}${cart ? ' + cart' : ` ${people === 1 ? 'person' : 'people'}`}</b><span><span class="rd-hp"><i style="width:${hp * 100}%"></i></span>${state}</span></span>
-      <button class="ab" data-home aria-label="Lead them home">${icon('route')}Home</button>`;
-    cvEl.querySelector('[data-home]').onclick = () => { if (R.convoys.some(cv => cv.hold)) road.hold(false); road.go(c, c + 3.5); };
-    cvEl.hidden = false;
+    const list = S.over ? [] : R.convoys.filter(cv => cv.members.length).slice(0, 2), seen = new Set();
+    for (const cv of list) {
+      seen.add(cv.id);
+      let el = cvCards.get(cv.id);
+      if (!el) {
+        el = document.createElement('div'); el.className = 'rd-cv'; cvBox.appendChild(el); cvCards.set(cv.id, el);
+        el.innerHTML = `<div class="hd">${icon('people')}<b></b><span class="rd-hp"><i></i></span></div><div class="st"></div>
+          <div class="bt"><button data-o="go" aria-label="Go to Camp">${icon('camp')}Go to Camp</button><button data-o="wait" aria-label="Wait here">${icon('pin')}Wait here</button></div>`;
+        el.querySelectorAll('[data-o]').forEach(b => { b.onclick = () => { road.order(cv.id, b.dataset.o); el.dataset.sig = ''; renderConvoy(); }; });
+      }
+      const mem = cv.members, people = mem.filter(m => !m.cart).length, cart = mem.some(m => m.cart), go = cv.order === 'go';
+      const hp = mem.reduce((a, m) => a + Math.max(0, m.hp), 0) / mem.reduce((a, m) => a + m.maxHp, 0);
+      const hurt = mem.filter(m => !m.cart && m.hp < m.maxHp - 0.5).length, ids = new Set(mem.map(m => m.id)), hunted = S.mobs.filter(z => z.cv && ids.has(z.cv)).length;
+      const left = go ? Math.round(cv.left || 0) : Math.round(Math.hypot(mem[0].x - c, mem[0].y - c));
+      const sig = `${people}|${cart}|${Math.round(hp * 20)}|${hurt}|${hunted}|${cv.order}|${Math.round(left / 5)}`;
+      if (el.dataset.sig === sig) continue; el.dataset.sig = sig;
+      el.className = `rd-cv${go ? '' : ' wait'}${hunted ? ' hunted' : ''}`;
+      el.querySelector('.hd b').textContent = `${people} ${people === 1 ? 'person' : 'people'}${cart ? ' + cart' : ''}`;
+      el.querySelector('.rd-hp i').style.width = `${hp * 100}%`;
+      const bits = [go ? `Walking home · <em>${left} m</em>` : `Waiting${hurt ? ` · <em>${hurt} hurt</em>` : ` · <em>${left} m</em> out`}`];
+      if (go && hurt) bits.push(`<em>${hurt} hurt</em>`);
+      if (hunted) bits.push(`${icon('skull')}<em class="late">${hunted} on them</em>`);
+      el.querySelector('.st').innerHTML = bits.join(' · ');
+      el.querySelectorAll('[data-o]').forEach(b => { const on = b.dataset.o === cv.order; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    }
+    for (const [id, el] of cvCards) if (!seen.has(id)) { el.remove(); cvCards.delete(id); }
   }
   // ---------- edge arrows: stragglers, outposts under attack, an ambush ahead ----------
   function edgeArrows() {
     const box = $('#edge'); if (!box) return;
     const Wd = innerWidth, Hh = innerHeight, m = 22, top = 70, bt = Hh - 150, cx = Wd / 2, cy = (top + bt) / 2, out = [];
     const off = p => !(p.x > m && p.x < Wd - m && p.y > top && p.y < bt) || p.behind;
-    for (const q of road.stragglers()) { const p = view.project(q.x, q.y, 1); if (off(p)) out.push({ p, cls: 'rd-cv', label: q.cart ? 'cart' : q.name }); }
+    for (const q of road.stragglers()) { const p = view.project(q.x, q.y, 1), cv = R.convoys.find(v => v.id === q.cv); if (off(p)) out.push({ p, cls: 'rd-cv', label: cv && cv.order === 'wait' ? 'waiting' : 'convoy' }); }
     if (S.phase === 'night') for (const st of road.stations) if (st.lit && st.hp < st.maxHp) { const p = view.project(st.x, st.y, 1); if (off(p)) out.push({ p, cls: 'rd-fire', label: `${st.name.replace(/^The /, '')} ${Math.round(st.hp / st.maxHp * 100)}%` }); }
     for (const a of R.ambushes) { const p = view.project(a.x, a.y, 1); if (off(p)) out.push({ p, cls: 'rd-amb', label: '!' }); }
     const M = road.mission;
@@ -292,10 +320,17 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     const M = road.mission;
     if (S.phase === 'night' && M.id === 'piper' && !M.choosing) for (const t of road.missions.traps()) { dot(t.x, t.y, Math.max(big ? 6 : 4, t.r * s), 'rgba(127,227,255,.9)', true, big ? 2 : 1.5); dot(t.x, t.y, big ? 2.5 : 1.6, '#7fe3ff'); }
     for (const q of road.members()) dot(q.x, q.y, big ? 3.5 : 2.2, '#ffd27a');
+    // each convoy: a ring round its head, amber while it walks home, cyan while it waits (named on the big map)
+    for (const cv of R.convoys) { const L = cv.members[0]; if (!L) continue; const col = cv.order === 'wait' ? '#7fe3ff' : '#ffd27a'; dot(L.x, L.y, big ? 9 : 5, col, true, big ? 2.5 : 1.5);
+ }
     for (const a of R.ambushes) dot(a.x, a.y, big ? 5 : 3, '#ff5a3a');
     if (big) {
       ctx.font = 'bold 15px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.75)';
       for (const st of road.stations) { const t = st.name.replace(/^The /, ''), x = (st.x - ox) * s + 9, y = (st.y - oy) * s + 5; ctx.strokeText(t, x, y); ctx.fillStyle = st.lit ? '#ffcf80' : '#e9dcc6'; ctx.fillText(t, x, y); }
+      // the convoy's order, under its ring (drawn last so a station's name never hides it)
+      ctx.font = 'bold 14px system-ui, sans-serif'; ctx.textAlign = 'right';
+      for (const cv of R.convoys) { const L = cv.members[0]; if (!L) continue; const t = cv.order === 'wait' ? 'Waiting' : `Walking home · ${Math.round(cv.left || 0)} m`, x = (L.x - ox) * s - 12, y = (L.y - oy) * s + 5; ctx.strokeText(t, x, y); ctx.fillStyle = cv.order === 'wait' ? '#7fe3ff' : '#ffd27a'; ctx.fillText(t, x, y); }
+      ctx.textAlign = 'left';
     }
   }
   function onMap(cv, ox, oy, s) {

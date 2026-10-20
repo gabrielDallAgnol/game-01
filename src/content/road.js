@@ -28,14 +28,14 @@ export const ROAD = {
   out: 26,            // past this distance from the camp, you are "out"
 };
 
-// Convoys: rescued people walking home behind the hero. The dead hunt them.
+// Convoys: rescued people who walk home on their own (Go to Camp) or hold where they stand (Wait here). The dead hunt them.
 export const CONVOY = {
-  speed: 1.5, cartSpeed: 1.3, road: 1.15,   // cells a second; the old road is a little quicker for them too
+  speed: 2.3, cartSpeed: 2.1, road: 1.15,   // cells a second (a walker does 1.5, a runner 3); the old road is a little quicker for them too
   hp: 12, cartHp: 26,
   gap: 1.05,          // spacing in the column
   sense: 1.4,         // the dead notice a convoy this much further away than they notice you
   cap: n => 10 + Math.floor(n / 2),         // dead hunting the convoy at once
-  straggle: 13,       // a member this far behind the hero is a straggler (edge arrow)
+  straggle: 13,       // a convoy this far from the hero gets an edge arrow
   home: 9,            // within this distance of the keep they are home
   min: 2,             // fewer people than this just come straight in
   names: ['Mara', 'Tomas', 'Ines', 'Old Pell', 'Rui', 'Hanne', 'Dov', 'Lise', 'Bo', 'Nadia', 'Kofi', 'Jun', 'Sabe', 'Oren', 'Tilde', 'Yusuf', 'Wren', 'Ada', 'Piet', 'Lucia'],
