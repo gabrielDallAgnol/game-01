@@ -61,6 +61,7 @@ export function createApi(G) {
     goldPerDawn: () => Math.round((START.baseIncome * G.DIFF.eco + S.P.tax + S.buildings.reduce((a, b) => a + (b.type === 'house' && !b.ruined ? houseGold(b) : 0), 0)) * prosper()) - upkeep() + S.landmarks.reduce((a, l) => a + (l.owned ? LANDMARKS[l.kind].gold || 0 : 0), 0) + (owns('tvtower') ? 3 : 0) + (G.HC.quarter ? 4 : 0),
     upkeep, foodNeed, rerollCost: () => (S.reroll.free > 0 ? 0 : S.reroll.cost),
     forecast, mastered, mastery, isBloodMoon, drainEvents: () => S.events.splice(0),
+    findSpot: () => G.findSpot(), spotOk: (x, y) => G.spotOk(x, y),   // where an objective may stand (sim/spots.js)
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
   };
   return api;

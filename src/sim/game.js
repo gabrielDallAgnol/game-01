@@ -39,12 +39,13 @@ import { createHero } from './hero.js';
 import { createBlessings } from './blessings.js';
 import { createSave } from './save.js';
 import { createApi } from './api.js';
+import { createSpots } from './spots.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave];
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createSpots];
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';
@@ -106,7 +107,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     spawnTrial: tr => { const m = spawnMob('brute', tr.x, tr.y, { instant: true }); m.hp = m.maxHp = Math.round((10 + 4 * S.lvl) * Math.min(1.3, G.DIFF.threat)); m.dmgK = tr.second ? 0.8 : 0.5; m.trial = { cls: tr.cls, from: tr.from, second: tr.second }; m.roam = { x: tr.x, y: tr.y, region: -1 }; m.warden = true;
       for (let k = 0; k < 3; k++) { const a = rng.range(0, 6.28), w = spawnMob(k === 2 && S.night >= 4 ? 'runner' : 'walker', tr.x + Math.cos(a) * 2, tr.y + Math.sin(a) * 2, { instant: true }); w.roam = { x: tr.x, y: tr.y, region: -1 }; w.hunt = true; }
       ev('trial', { id: m.id }); },
-    findSpot: () => { for (let t = 0; t < 80; t++) { const reg = map.regions[rng.int(map.regions.length)]; if (reg.ring < 1 || S.sealed[reg.id]) continue; const x = reg.x + rng.range(-7, 7), y = reg.y + rng.range(-7, 7), cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) continue; const i = idx(cx, cy); if (map.region[i] !== reg.id || !PASSABLE[map.terrain[i]] || !map.reach[i] || S.occ[i] >= 0 || inZone(i) || baseDist(x, y) < 6 || Math.hypot(x - c, y - c) > (t < 60 ? 120 : 200)) continue; return { x: cx + 0.5, y: cy + 0.5 }; } return null; },   // beacons and trials stay within a day's reach
+    findSpot: () => G.findSpot(),   // beacons, trials and story places (sim/spots.js)
     guard: (x, y, n) => { for (let k = 0, tries = 0; k < n && tries < 40; tries++) { const a = rng.range(0, Math.PI * 2), gx = x + Math.cos(a) * rng.range(1, 2.8), gy = y + Math.sin(a) * rng.range(1, 2.8), cx = Math.floor(gx), cy = Math.floor(gy); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue; k++; const m = spawnMob(rng.pick(S.night >= 4 ? ['walker', 'runner'] : ['walker']), gx, gy, { instant: true }); m.roam = { x, y, region: -1 }; } },
     landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) takeSite(l); }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
     risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the dead.', 'bad'); } });
@@ -117,7 +118,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   G.step = step;
   G.api = createApi(G);
   planner = createPlanner(G.api); G.api.planner = planner;
-  if (restore) restoreSnap(restore);
+  if (restore) { restoreSnap(restore); G.mendSpots(); }   // old saves: objectives off the map move onto good ground
   // [road] begin
   if (G.road) { G.road.attach(G.api); if (restore && restore.road) G.road.load(restore.road); }
   // [road] end

@@ -12,6 +12,7 @@ import { EPISODES, seasonEnd } from '../content/season.js';
 import { TIDE } from '../content/mobs.js';
 import { PERKS, MASTERIES } from '../content/perks.js';
 import { createContracts } from './contracts.js';
+import { siteOk } from './spots.js';
 import { CLASS_TIERS, CLASS_INFO, CALLINGS } from '../content/heroes.js';
 
 export const DAY_ONE = 40;   // seconds: day 1 is short (TIDE.dayLen stays the rule for every other day: the story gives day 1 a head start)
@@ -114,7 +115,7 @@ export function createStory(ctx) {
   function placeFor(kit, tid) {
     const lm = (KITS[kit] && KITS[kit].lm) || kit, c = map.town.x;
     const taken = id => Object.entries(ST.threads).some(([t, x]) => t !== tid && x.status === 'open' && x.site === id);
-    const open = S.landmarks.filter(l => l.kind === lm && !l.owned && !l.stripped && !S.sealed[l.region] && !taken(l.id))
+    const open = S.landmarks.filter(l => l.kind === lm && !l.owned && !l.stripped && !S.sealed[l.region] && !taken(l.id) && siteOk(map, S.sealed, l))
       .sort((a, b) => Math.hypot(a.x - c, a.y - c) - Math.hypot(b.x - c, b.y - c));
     if (open.length) return { site: open[0].id };
     const r = districtFor(kit, lm);
@@ -124,7 +125,7 @@ export function createStory(ctx) {
   }
   function districtFor(kit, lm) {
     const front = ctx.frontier();
-    const ok = r => { const l = ctx.siteOf(r); return l && !l.owned && !l.stripped; };   // a quest needs a building to walk into
+    const ok = r => { const l = ctx.siteOf(r); return l && !l.owned && !l.stripped && siteOk(map, false, l); };   // a quest needs a building to walk into (good ground once the fence is down)
     const have = Object.keys(S.kits).map(Number).find(r => S.kits[r] === kit && S.sealed[r] && front.includes(r) && ok(r));
     if (have !== undefined) return have;
     if (S.landmarks.some(l => l.kind === lm)) return null;   // one of its kind exists already: never make a second
@@ -144,7 +145,7 @@ export function createStory(ctx) {
     const sp = { id: ST.nextId++, kind: `thread:${tid}`, thread: tid, x: p.spot.x, y: p.spot.y, day: S.night };
     ST.spots.push(sp); th.spot = sp.id; ctx.guard(sp.x, sp.y, Math.min(4, 2 + Math.floor(S.night / 5)));
   }
-  function addQuest(l, thread) { if (!ST.quests.some(q => q.site === l.id)) ST.quests.push({ site: l.id, thread, x: l.x, y: l.y }); }
+  function addQuest(l, thread) { if (siteOk(map, S.sealed, l) && !ST.quests.some(q => q.site === l.id)) ST.quests.push({ site: l.id, thread, x: l.x, y: l.y }); }
   /** a thread that ends badly closes with a card, never in silence */
   function endThread(tid, why) {
     const th = ST.threads[tid], T = THREADS[tid]; if (!th || th.status === 'failed' || th.status === 'done') return;

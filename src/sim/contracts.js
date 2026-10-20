@@ -7,6 +7,7 @@
 import { CONTRACT, CONTRACT_RULES, CONTRACT_COPY, FINALE_NAMES, FINALE_ADJ, FINALE_NOUN } from '../content/contracts.js';
 import { RULES, SEASONS, seasonEnd } from '../content/season.js';
 import { hiveName } from '../content/names.js';
+import { reachableSpot } from './spots.js';
 
 const fillT = (s, v) => String(s).replace(/\{(\w+)\}/g, (_, k) => (v[k] !== undefined ? v[k] : ''));
 
@@ -17,7 +18,7 @@ export function createContracts(ctx) {
   // a hive the hero could plausibly burn this season: alive, open (not behind the old fence), ring by season
   function hiveFor(n, avoid = []) {
     const c = map.town.x, maxRing = n <= 1 ? 1 : 2;
-    const cands = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !S.sealed[r.id] && r.ring >= 1 && r.ring <= maxRing && !avoid.includes(r.id));
+    const cands = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !S.sealed[r.id] && r.ring >= 1 && r.ring <= maxRing && !avoid.includes(r.id) && reachableSpot(map, S.sealed, r.nest.x, r.nest.y, null, 2));   // a hive you can walk up to (sim/spots.js)
     if (!cands.length) return null;
     cands.sort((a, b) => Math.hypot(a.nest.x - c, a.nest.y - c) - Math.hypot(b.nest.x - c, b.nest.y - c));
     return cands[Math.min(cands.length - 1, n <= 1 ? 1 : 0)] || cands[0];
