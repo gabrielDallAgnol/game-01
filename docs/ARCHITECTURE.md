@@ -75,6 +75,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `brain.js` | the dead's minds: roamers, scent, hunting, ambushes |
 | `hives.js` | streams from hives, burning a hive, the horde |
 | `nests.js` | hives defend themselves: the guard pack, proximity rage, sites locked until their hive burns |
+| `pacify.js` | `[pacify]` quiet land: the Camp, claimed regions and `PACIFY.r` beyond the base (minus an awake hive's reach); a hive asleep there is smothered (never wakes, on the map, still burnable); every waking hive is revealed with a System line; the home threat `homeK` (a ≤ 1 ratio on `nightBudget` after night 10: the curve read at a "home night" = slow plateau + a load per awake, unpacified hive); Return to Camp (by day, from a lit fire or a held site, 2.5 s channel, 45 s cooldown) and the dusk warning |
 | `loot.js` | street finds, supply drops |
 | `districts.js` | sites, sealed districts, kits |
 | `seasons.js`, `contracts.js` | season rules, weather, contracts (the engine side) |
@@ -142,6 +143,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `system.js`, `icons.js`, `audio.js`, `saves.js` | the System's voice, icon set, synthesised sound, cloud saves |
 | `story-ai.js` | the Chronicler: Claude rewrites words only; every answer is validated |
 | `road-ui.js` | road and mission HUD (`[road]` feature) |
+| `homeward.js` | `[pacify]` the walk home on the Camp pill and the Return to Camp button |
 
 ## The story split: the engine owns the numbers, the story AI owns the words
 
