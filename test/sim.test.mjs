@@ -741,3 +741,13 @@ test('engine calls for contracts.js and the UI: setDifficulty, endRun with a rea
   assert.ok(g.endRun(false, 'The Toll-King')); assert.ok(S.over); assert.equal(S.log[S.log.length - 1].reason, 'The Toll-King');
   assert.equal(lastEv(S, 'over').reason, 'The Toll-King'); assert.equal(g.endRun(false), false, 'ended twice');
 });
+
+test('events: the type is never overwritten by a payload; hits and deaths carry src and dmg', () => {
+  const g = createGame({ seed: 16, hero: 'warrior' }); readyDay(g); const S = g.state;
+  const reg = g.map.regions.find(r => r.nest && r.ring === 1); for (let k = 0; k < 900 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
+  S.gold = 10; S.events.length = 0; assert.ok(g.useFlare()); const f = lastEv(S, 'flare'); assert.ok(f && f.dur === TOOLS.flare.t, 'the flare event lost its type');
+  S.night = 3; g.startNight(); S.events.length = 0;
+  for (let k = 0; k < 60 * 60 && !S.events.some(e => e.t === 'die' && e.src === 'hero'); k++) { const m = S.mobs.find(q => !q.roam); if (m) g.heroTo(m.x, m.y); g.step(); }
+  const hit = S.events.find(e => e.t === 'hitM'); assert.ok(hit && hit.src && hit.dmg > 0, JSON.stringify(hit));
+  const die = S.events.find(e => e.t === 'die' && e.src); assert.ok(die && 'dmg' in die, JSON.stringify(die));
+});

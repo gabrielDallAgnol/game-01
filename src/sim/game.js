@@ -121,7 +121,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   cityNests.forEach((id, k) => { S.wake[id] = 6 + 2 * k; });
 
   // ---------- helpers ----------
-  const ev = (t, o = {}) => S.events.push({ t, ...o });
+  const ev = (t, o = {}) => S.events.push({ ...o, t });   // the type always wins over a payload field
   const toast = (msg, kind) => ev('toast', { msg, kind });
   const has = id => (S.P.taken[id] || 0) > 0;
   const combo = (a, b) => has(a) && has(b);
@@ -560,13 +560,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (src === 'hero') m.markT = PRESENCE.markT * (S.P.mark ? 2 : 1);
     if (src === 'tower' && m.markT > 0) d *= S.P.mark ? 1.6 : PRESENCE.mark;
     S.cur.dmg[src] = (S.cur.dmg[src] || 0) + Math.min(d, m.hp);
-    m.hp -= d; ev('hitM', { id: m.id });
+    m.hp -= d; m.lastHit = d; ev('hitM', { id: m.id, src, dmg: +d.toFixed(2) });
     if (m.hp <= 0) { S.cur.kills[src] = (S.cur.kills[src] || 0) + 1; S.stats.killsBy[src] = (S.stats.killsBy[src] || 0) + 1; killMob(m, src); }
   }
   function killMob(m, src) {
     const i = S.mobs.indexOf(m); if (i < 0) return;
-    if (MOBS[m.kind].animal) { S.mobs.splice(i, 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); S.food += MOBS[m.kind].food; S.stats.hunted = (S.stats.hunted || 0) + 1; ev('pickup', { id: m.id, kind: 'food', x: m.x, y: m.y, n: MOBS[m.kind].food }); if (src === 'hero') gainXp(1); return; }
-    S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); addSpike(HEAT.kill); S.salvage = (S.salvage || 0) + START.salvage * (MOBS[m.kind].size >= BIG ? 4 : 1);
+    if (MOBS[m.kind].animal) { S.mobs.splice(i, 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: src || null, dmg: +(m.lastHit || 0).toFixed(2) }); S.food += MOBS[m.kind].food; S.stats.hunted = (S.stats.hunted || 0) + 1; ev('pickup', { id: m.id, kind: 'food', x: m.x, y: m.y, n: MOBS[m.kind].food }); if (src === 'hero') gainXp(1); return; }
+    S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: src || null, dmg: +(m.lastHit || 0).toFixed(2) }); addSpike(HEAT.kill); S.salvage = (S.salvage || 0) + START.salvage * (MOBS[m.kind].size >= BIG ? 4 : 1);
     if (S.bountyT > 0 && HC.ability && HC.ability.id === 'bounty' && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) <= HC.ability.radius + S.P.bountyRadius) {
       const big = MOBS[m.kind].size >= BIG, pay = (big ? HC.ability.bigGold * (mastery('warband') ? 3 : 1) : HC.ability.gold) + S.P.bountyGold;
       earn(pay); S.stats.bountyGold = (S.stats.bountyGold || 0) + pay; ev('bountyGold', { x: m.x, y: m.y, gold: pay });
@@ -891,7 +891,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.night >= 2) for (let t = 0; t < 8 && have('wolf') < A.wolves * 2; t++) if (!herd('wolf', 2)) break;
   }
   function clearRoamers(region) {
-    for (const m of S.mobs.filter(q => q.roam && q.roam.region === region && !MOBS[q.kind].animal)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); }
+    for (const m of S.mobs.filter(q => q.roam && q.roam.region === region && !MOBS[q.kind].animal)) { S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: 'cleared', dmg: 0 }); }
   }
   /** a roamer wanders near home, chases the hero who comes close, and never walks on the town */
   function stepRoamer(m, dt, speed) {
@@ -1313,7 +1313,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       ev('warcry', { x: h.x, y: h.y, r: rad });
     } else if (A.id === 'bounty') {
       S.bountyT = A.duration + S.P.bountyTime + (mastery('warband') ? 10 : 0);
-      ev('bounty', { t: S.bountyT }); toast('Bounty is on: every kill near you pays scrap.', 'good');
+      ev('bounty', { dur: S.bountyT }); toast('Bounty is on: every kill near you pays scrap.', 'good');
     } else if (A.id === 'hire') {
       const cost = abilityCost();
       const count = A.count + S.P.hireExtra + (mastery('warband') ? 2 : 0), max = A.max + (mastery('warband') ? 6 : 0) + S.P.hireExtra * 3;
@@ -1729,7 +1729,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       m.lure = { x: x + rng.range(-1, 1), y: y + rng.range(-1, 1), t: F.t }; m.hunt = false; m.last = null; n++;
     }
     S.stats.flares = (S.stats.flares || 0) + 1;
-    ev('flare', { x, y, t: F.t, n }); toast(`[Flare] **${n} dead** turn toward the light for **${F.t} seconds**.`, 'good');
+    ev('flare', { x, y, dur: F.t, n }); toast(`[Flare] **${n} dead** turn toward the light for **${F.t} seconds**.`, 'good');
     return true;
   }
   /** light smoke: the dead near you lose your scent (they find it again only if they bump into you) */
@@ -1963,7 +1963,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
         if (m.roam || m.stream !== undefined || m.hunt) continue;
         if (Math.hypot(m.x - c, m.y - c) > 22) { m.roam = { x: m.x, y: m.y, region: -1 }; m.lost = true; continue; }   // out in the woods: they wander
         if (m.unique && S.unique) S.unique.escaped = true;   // at your walls: the sunrise burns the night's dead (the hives' stream keeps coming)
-        S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y }); burnt++;
+        S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: 'sun', dmg: 0 }); burnt++;
       }
       if (burnt) toast(`The sun rises: **${burnt}** of the night's dead burn at your walls. The rest of the dead keep coming.`);
       dawn();
