@@ -176,6 +176,53 @@ const FinalShader = q => ({
     }`,
 });
 
+// ---------- the day: one continuous cycle ----------
+// tod runs 0 → 1 over a whole day and night: 0 is sunrise, D (the day's share) is when dusk falls and the dead come,
+// 1 is the next sunrise. Keys are placed in day time (d: 0 sunrise … 1 nightfall) or night time (n: 0 … 1 dawn), so the
+// arc keeps its shape whatever the lengths are. Between keys every value eases (smoothstep): no snaps.
+//   dark   0 day … 1 night: drives the presets, windows, light pools, bloom, fireflies
+//   grade  the colour grade along dawn(0) → noon(1) → dusk(2) → night(3) → dawn(4)
+//   keyI   the key light's strength (the sun, then the moon in the night; they hand over when both are faint)
+//   tw     twilight: how much dawn peach / dusk mauve is in the air; warm: how orange the low sun is
+export const SKY = [
+  // at     dark  grade keyI  tw    warm
+  ['d0.00', 0.24, 0.00, 0.80, 0.70, 0.8],    // sunrise: a low, peach sun through the mist
+  ['d0.10', 0.06, 0.55, 1.70, 0.40, 0.6],    // morning
+  ['d0.24', 0.00, 1.00, 2.35, 0.00, 0.1],    // the bright miniature day
+  ['d0.60', 0.00, 1.00, 2.35, 0.00, 0.1],
+  ['d0.78', 0.00, 1.22, 2.20, 0.12, 0.35],    // golden hour
+  ['d0.90', 0.14, 1.62, 1.45, 0.55, 0.75],    // sunset
+  ['d1.00', 0.46, 2.00, 0.55, 0.85, 1.0],    // dusk falls: the dead come
+  ['n0.10', 0.82, 2.60, 0.12, 0.55, 1.0],    // blue hour: the sun hands the sky to the moon
+  ['n0.24', 1.00, 3.00, 0.62, 0.00, 0.0],    // night: the moon climbs
+  ['n0.84', 1.00, 3.00, 0.62, 0.00, 0.0],
+  ['n0.93', 0.76, 3.40, 0.16, 0.50, 0.8],    // pre-dawn glow: the moon sets, the east goes lilac
+  ['n1.00', 0.24, 4.00, 0.80, 0.70, 0.8],    // = sunrise
+];
+const SWAP = [0.10, 0.93];   // night time at which the key light becomes the moon, and the sun again
+export const TWILIGHT = {
+  dawn: { bg: '#c4b6cc', hemiSky: '#d8c4d6', hazeCol: '#d6c8d6' },
+  dusk: { bg: '#a48496', hemiSky: '#c99a9c', hazeCol: '#b894a4' },
+};
+const smooth = x => x * x * (3 - 2 * x);
+/** the sky at tod (0…1) for a day share D; pure, so tests and tools can read it */
+export function skyAt(tod, D, out = {}) {
+  tod = ((tod % 1) + 1) % 1; D = Math.min(0.95, Math.max(0.05, D));
+  const at = key => (key[0] === 'd' ? D * +key.slice(1) : D + (1 - D) * +key.slice(1));
+  let j = 0; while (j < SKY.length - 2 && at(SKY[j + 1][0]) <= tod) j++;
+  const a = SKY[j], b = SKY[j + 1], ta = at(a[0]), tb = at(b[0]), f = smooth(tb > ta ? Math.min(1, Math.max(0, (tod - ta) / (tb - ta))) : 0);
+  const v = k => a[k] + (b[k] - a[k]) * f;
+  out.dark = v(1); out.grade = v(2) % 4; out.keyI = v(3); out.tw = v(4); out.warm = v(5);
+  const day = tod < D, s = day ? tod / D : 0, q = day ? 0 : (tod - D) / (1 - D);
+  out.day = day; out.s = s; out.q = q; out.side = (day ? s < 0.5 : q > 0.5) ? 'dawn' : 'dusk';
+  // where the key light stands: the sun crosses east → west by day and sinks on after dusk; the moon crosses in the night
+  out.moon = !day && q >= SWAP[0] && q < SWAP[1];
+  if (out.moon) { const m = (q - 0.04) / 0.92; out.dx = -0.9 + 1.8 * m; out.dy = 0.42 + 0.62 * Math.sin(Math.PI * m); out.dz = -0.25; }
+  else { const p = day ? s : q < SWAP[0] ? 1 + q * 0.6 : (q - 1) * 0.6;   // the sun's crossing, a little past either horizon
+    const arc = Math.sin(Math.PI * Math.min(1, Math.max(0, p))); out.dx = -0.95 + 1.9 * Math.min(1.1, Math.max(-0.1, p)); out.dy = 0.32 + 0.9 * arc; out.dz = 0.42; out.sunT = p; }
+  return out;
+}
+
 export function createLook({ renderer, scene, camera, canvas }) {
   renderer.outputEncoding = THREE.LinearEncoding; renderer.toneMapping = THREE.NoToneMapping;
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -224,35 +271,43 @@ export function createLook({ renderer, scene, camera, canvas }) {
   }
 
   // ---------- time of day ----------
-  const c1 = new THREE.Color(), c2 = new THREE.Color(), v = new THREE.Vector3();
+  const c1 = new THREE.Color(), c2 = new THREE.Color(), c3 = new THREE.Color(), v = new THREE.Vector3();
   const lc = (a, b, k) => c1.copy(L(a)).lerp(c2.copy(L(b)), k);
   const ln = (a, b, k) => a + (b - a) * k;
-  const warm = new THREE.Color(), dayDir = new THREE.Vector3(), hz = new THREE.Color();
   const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  /** blend the light: k 0 day … 1 night (or blood moon); t is the sun's crossing (0 morning … 1 dusk) */
-  function blend(k, blood, target, span, t = 0.4) {
-    const D = PRESETS.day, Nn = blood ? PRESETS.blood : PRESETS.night, arc = Math.sin(Math.PI * Math.min(1, Math.max(0, t))), edge = 1 - arc;
-    dayDir.set(-0.95 + 1.9 * t, 0.5 + 0.75 * arc, 0.42);
-    scene.background.copy(lc(D.bg, Nn.bg, k)); scene.fog.color.copy(scene.background);
-    hemi.color.copy(lc(D.hemiSky, Nn.hemiSky, k)); hemi.groundColor.copy(lc(D.hemiGnd, Nn.hemiGnd, k)); hemi.intensity = ln(D.hemi, Nn.hemi, k);
-    warm.copy(L(D.sun)).lerp(c2.copy(L(t > 0.5 ? '#ffb078' : '#ffdcc0')), Math.pow(edge, 2.2));
-    sun.color.copy(warm).lerp(c2.copy(L(Nn.sun)), k); sun.intensity = ln(D.sunI * (0.7 + 0.3 * arc), Nn.sunI, k);
-    v.set(ln(dayDir.x, Nn.sunDir[0], k), ln(dayDir.y, Nn.sunDir[1], k), ln(dayDir.z, Nn.sunDir[2], k)).normalize();
-    sun.position.copy(target).addScaledVector(v, 70); sun.target.position.copy(target);
+  /** the whole look at one point of the cycle: tod 0 sunrise … D dusk falls … 1 the next sunrise (see SKY);
+   *  bloodK 0…1 swaps the night for the blood moon. Everything is a smooth function of tod: no phase can snap it. */
+  const sky = {};
+  function cycle(tod, D, bloodK, target, span) {
+    skyAt(tod, D, sky);
+    const k = sky.dark, Dp = PRESETS.day, Nt = PRESETS.night, Bl = PRESETS.blood, side = sky.side;
+    const nc = (key, out) => out.copy(L(Nt[key])).lerp(c2.copy(L(Bl[key])), bloodK);   // the night's colour, or the blood moon's
+    const nn = key => ln(Nt[key], Bl[key], bloodK);
+    const twc = (key, out) => out.lerp(c2.copy(L(TWILIGHT[side][key])), sky.tw);           // dawn peach / dusk mauve on the day colour
+    const mix3 = (key, out) => { out.copy(L(Dp[key])); twc(key, out); return out.lerp(nc(key, c3), k); };
+    mix3('bg', scene.background); scene.fog.color.copy(scene.background);
+    mix3('hemiSky', hemi.color); hemi.groundColor.copy(L(Dp.hemiGnd)).lerp(nc('hemiGnd', c3), k);
+    hemi.intensity = ln(Dp.hemi, nn('hemi'), k) * (1 - 0.12 * sky.tw);
+    // the key light: the sun by day, the moon by night; they hand over in the blue hour and before dawn, when both are faint
+    if (sky.moon) { nc('sun', sun.color); v.set(sky.dx, sky.dy, sky.dz); }
+    else { sun.color.copy(L(Dp.sun)).lerp(c2.copy(L(side === 'dawn' ? '#ffd9bf' : '#ffa86e')), sky.warm); v.set(sky.dx, sky.dy, sky.dz); }
+    sun.intensity = sky.keyI * (sky.moon ? nn('sunI') / Nt.sunI : 1);
+    v.normalize(); sun.position.copy(target).addScaledVector(v, 70); sun.target.position.copy(target);
     sc.left = -span; sc.right = span; sc.top = span; sc.bottom = -span; sc.updateProjectionMatrix();
     const u = final.uniforms;
-    u.exposure.value = ln(D.exposure, Nn.exposure, k); u.vignette.value = ln(D.vignette, Nn.vignette, k); u.grain.value = ln(D.grain, Nn.grain, k);
-    u.outline.value = ln(D.outline, Nn.outline, k); u.haze.value = ln(D.haze, Nn.haze, k); u.tilt.value = ln(D.tilt, Nn.tilt, k);
-    u.hazeCol.value.copy(hz.copy(L(D.hazeCol)).lerp(c2.copy(L(Nn.hazeCol)), k));
-    // LUTs: dawn → noon → dusk across the day, then toward night / blood moon with the dark
-    const dawnK = 1 - sm(0.0, 0.2, t), duskK = sm(0.62, 0.95, t);
-    let a = LUT.noon, b = LUT.noon, m = 0;
-    if (dawnK > 0) { a = LUT.dawn; b = LUT.noon; m = 1 - dawnK; } else if (duskK > 0) { a = LUT.noon; b = LUT.dusk; m = duskK; }
-    if (k > 0.002) { a = m > 0.5 ? b : a; b = blood ? LUT.blood : LUT.night; m = k; }
-    u.lutA.value = a; u.lutB.value = b; u.lutMix.value = m;
+    u.exposure.value = ln(Dp.exposure, nn('exposure'), k); u.vignette.value = ln(Dp.vignette, nn('vignette'), k); u.grain.value = ln(Dp.grain, nn('grain'), k);
+    u.outline.value = ln(Dp.outline, nn('outline'), k); u.haze.value = ln(Dp.haze, nn('haze'), k) + 0.06 * sky.tw; u.tilt.value = ln(Dp.tilt, nn('tilt'), k);
+    mix3('hazeCol', u.hazeCol.value);
+    // the grade walks one chain round the clock: dawn → noon → dusk → night (or blood) → dawn
+    const g = sky.grade, i = Math.floor(g) % 4, f = g - Math.floor(g), row = j => (j === 3 ? (bloodK > 0.5 ? LUT.blood : LUT.night) : [LUT.dawn, LUT.noon, LUT.dusk][j]);
+    if (f < 1e-3 && i === 3 && bloodK > 0.001 && bloodK < 0.999) { u.lutA.value = LUT.night; u.lutB.value = LUT.blood; u.lutMix.value = bloodK; }
+    else { u.lutA.value = row(i); u.lutB.value = row((i + 1) % 4); u.lutMix.value = f; }
     fx.bloomK = sm(0.25, 0.85, k);
-    K.T.amount.value = ln(D.tint, Nn.tint, k); K.T.dark.value = ln(D.tdark, Nn.tdark, k);
+    K.T.amount.value = ln(Dp.tint, nn('tint'), k); K.T.dark.value = ln(Dp.tdark, nn('tdark'), k);
+    return sky;
   }
+  /** the old two-state entry point (k 0 day … 1 night, t the sun's crossing): maps onto the cycle */
+  function blend(k, blood, target, span, t = 0.4) { const D = 0.58; return cycle(k >= 0.999 ? D + (1 - D) * 0.5 : D * Math.min(1, Math.max(0, t)), D, blood ? 1 : 0, target, span); }
   function blit(mat, target) { quad.material = mat; renderer.setRenderTarget(target); renderer.render(qScene, qCam); }
   function render(time) {
     const u = final.uniforms;
@@ -265,5 +320,5 @@ export function createLook({ renderer, scene, camera, canvas }) {
     blit(final, null);
   }
   function setQuality(q) { if (q === quality && built) return; quality = q; build(); }
-  return { hemi, sun, blend, render, resize, setQuality, fx, quality: () => quality, init(nw, nh, q) { w = nw; h = nh; quality = q; build(); } };
+  return { hemi, sun, blend, cycle, sky: () => sky, render, resize, setQuality, fx, quality: () => quality, init(nw, nh, q) { w = nw; h = nh; quality = q; build(); } };
 }

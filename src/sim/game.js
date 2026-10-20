@@ -487,6 +487,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const ratingOf = ratio => RATING.find(([lim]) => ratio < lim)[1];
 
   // ---------- waves ----------
+  const nightLen = () => TIDE.nightLen; let todLast = 0.25;   // every night lasts its full length: the moon crosses the sky, cleared or not
   function makeWave(n) {
     const nests = marchNests(n);
     if (!nests.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id)).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) nests.push(any[0].id); }
@@ -1997,7 +1998,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); story.tick(); if (S.blackout) S.sawBlackout = true; }
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }
     // sunrise comes on time: the night's dead do not vanish. Far from the town they lose interest and roam where they stand.
-    if (S.phase === 'night' && !S.over && !S.queue.length && (S.qT > WAVES.duration(S.night) + NIGHT_TAIL || !S.mobs.some(m => !m.roam && m.stream === undefined))) {
+    if (S.phase === 'night' && !S.over && !S.queue.length && (S.qT > nightLen() || !S.mobs.some(m => !m.roam && m.stream === undefined))) {
       let burnt = 0;
       for (const m of [...S.mobs]) {
         if (m.roam || m.stream !== undefined || m.hunt) continue;
@@ -2171,7 +2172,12 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     weather: () => ({ id: S.weather, ...W8() }),
     hiveHealth, hitHive, escape, escapeCost: k => (TOOLS[k] || ESCAPE[k] || {}).cost || 0,
     useFlare, useSmoke, tools: toolsInfo,
-    nightFrac: () => (S.phase === 'night' ? Math.min(1, S.qT / (WAVES.duration(S.night) + NIGHT_TAIL)) : 0),
+    nightFrac: () => (S.phase === 'night' ? Math.min(1, S.qT / nightLen()) : 0), nightLen,
+    // one continuous clock for the light: 0 sunrise … dayShare dusk falls … 1 the next sunrise (day from S.dayT, night from S.qT)
+    timeOfDay: () => { const D = TIDE.dayLen / (TIDE.dayLen + nightLen());
+      if (S.phase === 'over') return todLast;   // the run ended: the light holds where it was
+      return (todLast = S.phase === 'night' ? D + (1 - D) * Math.min(1, S.qT / nightLen()) : D * (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4)); },
+    dayShare: () => TIDE.dayLen / (TIDE.dayLen + nightLen()),
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), dayFrac: () => (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
     dropSupply,
     xpNext: () => LEVEL.xp(S.lvl), gainXp: n => gainXp(n), addPath: (f, n) => addPath(f, n), checkEvolution: () => checkEvolution(), partySize: () => partySize(), companionFollow, snapshot, frontier, districtOffer, openDistrict, kitFor, siteOf, story: () => story, choose: id => story.choose(id),

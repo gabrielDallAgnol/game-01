@@ -6,7 +6,7 @@ import { MOBS } from '../content/mobs.js';
 import { mat, chestMesh, purseMesh, flameMesh } from './meshes.js';
 import { createVillagers } from './villagers.js';
 import { K, CFG } from './kit.js';
-import { createLook } from './look.js';
+import { createLook, skyAt } from './look.js';
 import { buildCity } from './city.js';
 import { createCrowd, bakedWalker, liveRig, vcMat, PEOPLE, xrayMat } from './figures.js';
 import { createFx } from './fx.js';
@@ -772,7 +772,7 @@ export function createView(canvas, game, opts = {}) {
     rain.count = n; rain.instanceMatrix.needsUpdate = true;
   }
   let focus = null, seenV = -1, zoneV = -1, shroudT = 0;
-  let dark = 0, sunT = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
+  let dark = 0, todV = -1, bloodK = 0, time = 0, lightT = 0, wxFog = 0, flash = 0, flashN = 0, nextFlash = 4; const fogCol = K.lin('#5d6670');
 
   // ---------- the night's light pools: every warm (and rot-green) source near the camera paints the light texture ----------
   const AMBER = lc('#ffa64d'), WARM = lc('#ffc070'), ROT = lc('#9dff4a'), REDL = lc('#ff5a3a'), FLARE = lc('#ff7a3a'), SIEGE = lc('#e3a54a'), LANT = lc('#ffc890');
@@ -818,10 +818,14 @@ export function createView(canvas, game, opts = {}) {
     if ((S.seenVersion !== seenV || S.zoneVersion !== zoneV) && (shroudT -= dt) <= 0) { shroudT = 0.3; if (S.zoneVersion !== zoneV) repaint = true; seenV = S.seenVersion; zoneV = S.zoneVersion; city.setTerritory(); }
     if (repaint) { repaint = false; city.paint(); }
     const night = S.phase === 'night' || S.phase === 'over';
-    // the sun: its place in the sky is the time of day; the last stretch of the day slides into dusk
-    const dayT = S.phase === 'day' ? game.dayFrac() : 1, duskK = S.phase === 'day' ? Math.max(0, (dayT - 0.8) / 0.2) * 0.45 : 0;
-    dark += ((night ? 1 : duskK) - dark) * Math.min(1, dt * (night ? 0.9 : 1.4));
-    if (snapT > 0) { snapT--; dark = night ? 1 : duskK; sunT = S.phase === 'day' ? dayT : sunT; dolly = S.phase === 'day' ? Math.max(0, Math.min(1, (dayT - 0.84) / 0.12)) : 0; }
+    // the time of day: ONE continuous clock (game.timeOfDay: 0 sunrise … dayShare dusk … 1 sunrise) drives every light.
+    // The shown clock eases toward the sim's (always forward, round the wrap), so a phase flip can never snap the light.
+    const dayT = S.phase === 'day' ? game.dayFrac() : 1;
+    { const goal = game.timeOfDay(); if (todV < 0) todV = goal; let d = goal - todV; if (d > 0.5) d -= 1; else if (d < -0.5) d += 1;
+      todV = (todV + (Math.abs(d) > 0.25 ? d : d * Math.min(1, dt * 2.5)) + 1) % 1; }
+    const blood = game.isBloodMoon(S.night) ? 1 : 0; bloodK += (blood - bloodK) * Math.min(1, dt * 0.6);
+    if (snapT > 0) { snapT--; todV = game.timeOfDay(); bloodK = blood; dolly = S.phase === 'day' ? Math.max(0, Math.min(1, (dayT - 0.84) / 0.12)) : 0; }
+    const skyNow = skyAt(todV, game.dayShare()); dark = skyNow.dark;
 
     // camera follows the hero
     zoomCur += (zoom - zoomCur) * Math.min(1, dt * 8);
@@ -853,8 +857,7 @@ export function createView(canvas, game, opts = {}) {
     if (trauma > 0.001) { const t2 = trauma * trauma, q = time * 31; camera.position.x += (Math.sin(q) + Math.sin(q * 2.3 + 1)) * 0.5 * t2 * 0.55; camera.position.y += (Math.sin(q * 1.7 + 2) + Math.sin(q * 3.1)) * 0.5 * t2 * 0.4; camera.rotateZ((Math.sin(q * 1.3 + 4)) * t2 * 0.035); }
     camera.updateMatrixWorld();
     city.stream(camTarget.x, camTarget.z, R * Math.max(1.7, camera.aspect * 1.4) + 4, R * 4.2 + 5, R * 2.3 + 4);
-    sunT += ((S.phase === 'day' ? dayT : sunT) - sunT) * Math.min(1, dt * 2); if (S.phase === 'day' && dayT < 0.02) sunT = dayT;
-    look.blend(dark, S.phase === 'night' && game.isBloodMoon(S.night), camTarget, Math.max(22, R * 1.7), sunT);
+    look.cycle(todV, game.dayShare(), bloodK, camTarget, Math.max(22, R * 1.7));
     // weather: fog thickens the night air; a storm throws lightning
     if (wxFog > 0.01) { scene.fog.color.lerp(fogCol, wxFog * 0.35); scene.background.copy(scene.fog.color); }
     if (S.weather === 'storm' && S.phase === 'night') { nextFlash -= dt; if (nextFlash <= 0) { flash = 1; flashN = 1; nextFlash = 3 + vis() * 8; if (opts.onFlash) opts.onFlash(); } }
@@ -871,8 +874,7 @@ export function createView(canvas, game, opts = {}) {
     paintLights(dark, lit);
     // rim on figures: warm by day, moon-blue by night; mist at dawn and dusk (and a little all night)
     _rc.copy(RIM_DAY).lerp(RIM_NIGHT, dark); K.T.rim.value.set(_rc.r, _rc.g, _rc.b, 0.15 + 0.45 * dark);
-    { const dawnM = S.phase === 'day' ? Math.max(0, 1 - sunT / 0.1) : 0, duskM = S.phase === 'day' ? Math.max(0, Math.min(1, (sunT - 0.78) / 0.15)) : 0, nightM = night ? 0.5 : 0;
-      _rc.copy(dawnM > duskM ? MIST_DAWN : MIST_DUSK).lerp(MIST_NIGHT, dark); K.T.mist.value.set(_rc.r, _rc.g, _rc.b, 0.24 * Math.max(dawnM, duskM, nightM)); }
+    _rc.copy(skyNow.side === 'dawn' ? MIST_DAWN : MIST_DUSK).lerp(MIST_NIGHT, dark); K.T.mist.value.set(_rc.r, _rc.g, _rc.b, 0.24 * Math.max(skyNow.tw, 0.5 * dark));
     K.T.night.value = dark;
 
     villagers.update(dt, time, dark);
