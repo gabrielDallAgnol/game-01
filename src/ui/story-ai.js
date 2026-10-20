@@ -64,6 +64,68 @@ Reply with ONLY this JSON: {"beats":["3 beats, each ≤16 words, second person, 
 }
 export const parseRecap = p => { const b = p && Array.isArray(p.beats) ? p.beats.map(x => clip(x, 200)).filter(x => x.length >= 8).slice(0, 4) : []; return b.length ? b : null; };
 
+// ---------- seasons as contracts: Claude names, frames and twists the engine's offer ----------
+// Every number, rule and reward is the engine's. A twist must hang on a HOOK (a real person, place or thread of this
+// run, quoted exactly); anything that reads like an effect (numbers, rewards, stats) is dropped for the script.
+export const EFFECT_TEXT = /\d|[+−]|\b(double|triple|half|free|bonus|reward|blessing|percent|stats?|damage|health|scrap|food|fame|xp)\b/i;
+export function contractPrompt(ctx, enc) {
+  const offers = enc.offers.map(o => ({ id: o.id, finale: o.finale.kind === 'unique' ? `a monster named ${o.finale.name}, on the season's last blood moon` : `a hive called ${o.finale.name}, to burn before the season ends`, rule: o.terms.rule.name, highStakes: !!o.big }));
+  return `You are the Chronicler of "Hold Hollowmere", a zombie survival game. ${TONE}
+At the start of season ${enc.season} the System offers the hero a CONTRACT. The game already decided every rule, finale and reward. You write ONLY words for each offer: a name, one line of framing, and an anime-style PLOT TWIST that hangs on someone or something from THIS run, the way a good season premiere recasts what came before ("the teacher you saved was the one who opened the gates", "the Lantern-Eater remembers your face").
+Rules: each twist must name exactly one HOOK, written exactly as it appears in HOOKS. Use a different hook for each offer when you can. Never write numbers, rewards, rules, stats or effects. No brackets.
+RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, season: ctx.season, hero: ctx.hero, titles: ctx.titles, people: ctx.people })}
+COMPANIONS: ${JSON.stringify(ctx.companions || [])}
+THREADS: ${JSON.stringify(ctx.threads || [])}
+LOSSES: ${JSON.stringify(ctx.losses || [])}
+CHOICES: ${JSON.stringify(ctx.choices || [])}
+CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle || [])}
+HOOKS: ${JSON.stringify(ctx.hooks || [])}
+OFFERS: ${JSON.stringify(offers)}
+${SHORT}
+Reply with ONLY this JSON: {"options":[{"id":"<offer id>","name":"≤5 words, a contract title","frame":"≤16 words, what this season will feel like","twist":"≤20 words, the plot twist, naming one HOOK","hook":"<the HOOK used, exactly>"}]}`;
+}
+export function parseContract(p, enc, hooks) {
+  if (!p || typeof p !== 'object' || !Array.isArray(p.options)) return null;
+  const ids = new Set(enc.offers.map(o => o.id)), H = (hooks || []).filter(Boolean), out = { names: {}, frames: {}, twists: {}, hooks: {} };
+  const ok = (t, n) => { const c = clip(t, n).replace(/\*\*/g, ''); return c.length >= 3 && !EFFECT_TEXT.test(c) && !/[[\]{}]/.test(c) ? c : null; };
+  for (const o of p.options) {
+    if (!o || !ids.has(o.id)) continue;
+    const name = ok(o.name, 44), frame = ok(o.frame, 140), twist = ok(o.twist, 170);
+    if (name) out.names[o.id] = name;
+    if (frame) out.frames[o.id] = frame;
+    const hook = H.find(h => twist && twist.toLowerCase().includes(String(h).toLowerCase()));
+    if (twist && hook) { out.twists[o.id] = twist; out.hooks[o.id] = hook; }
+  }
+  return Object.keys(out.names).length || Object.keys(out.twists).length ? out : null;
+}
+// ---------- the season's recap (victory) and the run's obituary (the end) ----------
+export function seasonRecapPrompt(ctx, k) {
+  return `You are the Chronicler of "Hold Hollowmere". ${TONE}
+The hero just won season ${k.n}'s contract, "${k.name}". Write the end-of-season recap, like the last minute of an anime cour, then a one-line "Next time on Hollowmere" teaser. Use only the CHRONICLE and COMPANIONS. Never write numbers or game effects.
+RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, hero: ctx.hero, finale: k.finale, contract: k.name })}
+COMPANIONS: ${JSON.stringify((ctx.companions || []).map(c => c.name))}
+CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle || [])}
+${SHORT}
+Reply with ONLY this JSON: {"beats":["3 beats, each ≤16 words, past tense"],"next":"≤16 words, the teaser, present or future tense"}`;
+}
+export function parseSeasonRecap(p) {
+  const beats = p && Array.isArray(p.beats) ? p.beats.map(x => clip(x, 200)).filter(x => x.length >= 8 && !/[[\]]/.test(x)).slice(0, 3) : [];
+  if (!beats.length) return null;
+  const next = p.next ? clip(p.next, 140) : '';
+  return { beats, next: next.length >= 8 && !/\d/.test(next) ? next : null };
+}
+export function obituaryPrompt(ctx, how) {
+  return `You are the Chronicler of "Hold Hollowmere". ${TONE}
+The run is over: ${how}. Write the hero's obituary as the last page of the chronicle: three short beats, past tense, specific to THIS run (who they saved, what they lost, what they were becoming). Use only the CHRONICLE, COMPANIONS and LOSSES. No numbers, no game terms.
+RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, hero: ctx.hero, titles: ctx.titles })}
+COMPANIONS: ${JSON.stringify((ctx.companions || []).map(c => c.name))}
+LOSSES: ${JSON.stringify(ctx.losses || [])}
+CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle || [])}
+${SHORT}
+Reply with ONLY this JSON: {"beats":["3 beats, each ≤16 words"]}`;
+}
+export const parseObituary = p => { const b = p && Array.isArray(p.beats) ? p.beats.map(x => clip(x, 200)).filter(x => x.length >= 8 && !/[[\]]/.test(x)).slice(0, 3) : []; return b.length >= 2 ? b : null; };
+
 export function createChronicler(store) {
   let sample = null, enabled = store.get('ai', true), state = 'off';   // off | ready | denied
   const ready = (async () => {
@@ -82,6 +144,12 @@ export function createChronicler(store) {
   const invent = (ctx, templates) => ask(inventPrompt(ctx, templates), p => parseInvent(p, templates));
   /** "previously on": a few beats, or null */
   const recap = ctx => ask(recapPrompt(ctx), parseRecap);
+  /** a season's contract offer: names, framing and twists (validated against the run's hooks), or null */
+  const contract = (ctx, enc) => ask(contractPrompt(ctx, enc), p => parseContract(p, enc, ctx.hooks));
+  /** the season's recap after a won contract */
+  const seasonRecap = (ctx, k) => ask(seasonRecapPrompt(ctx, k), parseSeasonRecap);
+  /** the end: three beats */
+  const obituary = (ctx, how) => ask(obituaryPrompt(ctx, how), parseObituary);
 
   /** one chat turn with a companion; history = [{role, content}] kept by the page (≤ 8 turns) */
   async function chat(n, history, ctx) {
@@ -105,7 +173,7 @@ Reply with ONLY JSON: {"say":"≤45 words, what you say, in character","mood":"w
   }
 
   return {
-    rewrite, invent, recap, chat, ready,
+    rewrite, invent, recap, chat, ready, contract, seasonRecap, obituary,
     available: () => on(),
     status: () => (!enabled ? 'off' : state === 'denied' ? 'denied' : sample ? 'on' : 'absent'),
     setEnabled: v => { enabled = v; store.set('ai', v); },
