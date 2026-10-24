@@ -55,3 +55,13 @@ test('the day is long, day 1 shorter but not rushed', () => {
   assert.equal(TIDE.nightLen, 72, 'the night changed');
   const g = createGame({ seed: 2 }); assert.ok(Math.abs(g.duskIn() - TIDE.dayOne) < 1);
 });
+
+test('the builders bank for what the list puts first (a tower, the hall) instead of spending every trickle on homes', () => {
+  const g = createGame({ seed: 101, mapSeed: 301, biome: 'riverbend', hero: 'survivor' }), S = g.state;
+  S.builders = 'balanced'; S.keep.hp = S.keep.maxHp = 1e6;
+  for (let k = 0; k < 60 * 60 * 20 && S.night < 4 && !S.over; k++) { S.mobs.length = 0; S.hero.hp = S.hero.maxHp; clearStory(g); while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]); g.step(); }
+  assert.equal(S.night, 4);
+  const towers = S.buildings.filter(b => b.type === 'tower').length, homes = S.buildings.filter(b => b.type === 'house').length;
+  assert.ok(towers >= 3, `only ${towers} towers by day 4 (${homes} homes): the trickle went on homes`);
+  assert.ok(g.keepLevel() >= 2, `the hall is still level ${g.keepLevel()} on day 4`);
+});

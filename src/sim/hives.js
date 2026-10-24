@@ -1,6 +1,6 @@
 // Hives: the endless stream of dead from awake hives, the hero hitting and burning one, the horde that follows,
 // bursting when the camp is too loud, and the field tools (flare, smoke).
-import { ESCAPE, MOBS, WAVES } from '../content/mobs.js';
+import { ESCAPE, MOBS, WAVES, TIDE } from '../content/mobs.js';
 import { CUT, HEAT, NIGHT_TAIL, STREAM, TOOLS } from './state.js';
 import { N } from './mapgen.js';
 
@@ -25,7 +25,7 @@ export function createHives(G) {
   function stepStream(dt) {
     if (!S.clock || S.night < 2 && !(S.phase === 'night' && S.qT > 15)) return;
     if (S.phase === 'night' && S.qT > WAVES.duration(S.night) + NIGHT_TAIL && !Object.values(rage).some(v => v > 0)) return;   // the hour before dawn is quiet: the hives rest (nights are longer than the old surge + tail)
-    const n = S.night, every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / G.DIFF.threat, mult = S.phase === 'night' ? STREAM.nightMult : 1;
+    const n = S.night, every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / G.DIFF.threat, mult = S.phase === 'night' ? STREAM.nightMult : TIDE.dayRef / TIDE.dayLen;   // [pacing] a longer day, the same dead by day
     const nests = new Set(G.activeNests(n)); for (const r in rage) if (rage[r] > 0) { nests.add(+r); rage[r] -= dt; }
     const u = G.unlocked(Math.max(1, n - 1));
     for (const r of nests) {

@@ -56,6 +56,7 @@ export const WAVES = {
 export const TIDE = {
   dayLen: 170,                 // seconds of day before dusk falls on its own (at 1× speed). Oct 20: 100 → 170, "days are a rush"
   dayOne: 60,                  // day 1 is shorter (the story starts its clock this close to dusk) but not rushed: 40 → 60
+  dayRef: 100,                 // the day length the day's pressure was tuned for: the stream and roamer drift by day run at dayRef/dayLen, so a longer day is not more dead
   nightIncome: 0.5,            // scrap and food trickle in all day; at night at this share of the day's rate (sim/income.js)
   bellGold: 10,                // ringing early pays 1 gold per this many seconds left
   dayShare: n => 0,                    // replaced by the continuous stream (see STREAM in game.js)    // share of tonight's budget that trickles in by day (day 1 is the calm before)
