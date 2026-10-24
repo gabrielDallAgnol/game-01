@@ -38,6 +38,9 @@ import { createPicking } from './view/picking.js';
 import { createCinema } from './view/cinema.js';
 // [folk] the village the folk raise by themselves
 import { createVillage } from './view/village.js';
+// [rig3] the Haven Rig in motion, an act's look
+import { createHaven } from './view/haven.js';
+import { createLegs } from './view/legs.js';
 // [road] begin
 import { createRoadView } from './road-view.js';
 // [road] end
@@ -91,6 +94,8 @@ export function createView(canvas, game, opts = {}) {
   const rest = createRest(V);   // [nests] the "+ resting" tag at the Camp
   const village = V.village = createVillage(V);   // [folk] the folk's props and scaffold
   const birds = V.birds = createBirds(V);   // [woods] birds flushed from the trees
+  const haven = V.haven = createHaven(V);   // [rig3] the Rig folds, drives and unfolds
+  const legs = V.legs = createLegs(V);   // [rig3] the act's ground colours and props
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -120,6 +125,7 @@ export function createView(canvas, game, opts = {}) {
     loot.bobChests(dt);
     buildings.update(dt);
     keep.update();
+    haven.update(dt);   // [rig3]
     markers.updateMain();
     hives.update(dt);
     rest.update(dt);
@@ -144,6 +150,9 @@ export function createView(canvas, game, opts = {}) {
     scene, camera, info: () => new Promise(res => { const I = renderer.info; I.autoReset = false; requestAnimationFrame(() => { I.reset(); requestAnimationFrame(() => { const o = { calls: I.render.calls, tris: I.render.triangles, geos: I.memory.geometries }; I.autoReset = true; res(o); }); }); }),   // one whole frame (all passes)
     setZoom: cam.setZoom, getZoom: cam.getZoom,
     lookAt: (x, y, o) => { V.focus = null; cinema.look(x, y, o); }, skipLook: cinema.skip, looking: cinema.active,   // [cinema]
+    rig: { phase: () => haven.phase(), done: () => haven.done(), busy: () => haven.busy(), skip: () => haven.skip() },   // [rig3]
+    // [rig3] let this view go (the act change makes a new one on the same canvas): free what it put on the GPU
+    dispose: () => { scene.traverse(o => { if (o.geometry) o.geometry.dispose(); }); world.clear(); fx.clear(); scene.clear(); renderer.renderLists.dispose(); renderer.dispose(); },
     setQuality: q => { look.setQuality(q); resize(); }, quality: () => look.quality(),
   };
 }

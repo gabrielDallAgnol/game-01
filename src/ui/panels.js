@@ -17,7 +17,7 @@ export function createPanels(ui) {
   function selB() { const S = ui.game.state; return ui.selected && ui.selected.type === 'building' ? S.byId.get(ui.selected.id) : ui.selected && ui.selected.type === 'keep' ? S.keep : null; }
   function panelSig() {
     const S = ui.game.state, b = selB();
-    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? `${ui.game.landmarkReach(ui.selected.id)}${ui.game.siteLock(ui.selected.id)}` : ui.selected && ui.selected.type === 'region' ? `${(ui.game.nestRage(ui.selected.id) || {}).lv || 0}:${ui.game.nestGuards(ui.selected.id)}` : '', b ? `${b.spec || ''}${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : ''].join('|');
+    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? `${ui.game.landmarkReach(ui.selected.id)}${ui.game.siteLock(ui.selected.id)}` : ui.selected && ui.selected.type === 'region' ? `${(ui.game.nestRage(ui.selected.id) || {}).lv || 0}:${ui.game.nestGuards(ui.selected.id)}` : '', b ? `${b.spec || ''}${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : '', ui.selected && ui.selected.type === 'keep' && ui.rigPanelSig ? ui.rigPanelSig() : ''].join('|');   // [rig3] the Rig's line
   }
   /** re-render the open panel only when what it shows changed */
   function refreshPanel() { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } }
@@ -30,12 +30,12 @@ export function createPanels(ui) {
     const S = ui.game.state, body = $('#pBody'), day = !S.over;
     if (ui.selected.type === 'keep') {
       const k = S.keep, l = k.level;
-      $('#pEyebrow').textContent = 'Your home'; $('#pTitle').textContent = `The Camp · level ${l}`;
+      $('#pEyebrow').textContent = 'Your home'; $('#pTitle').textContent = ui.rigPanelHtml && ui.rigPanelHtml() ? `The Haven Rig · level ${l}` : `The Camp · level ${l}`;   // [rig3]
       let html = `<div class="stat"><span>Health <b>${Math.ceil(k.hp)} / ${k.maxHp}</b></span><span>${campCopy(KEEP.desc[l - 1])}</span></div><div class="opts two">`;
       const miss = l < 3 ? ui.game.keepNeeds() : [];
       html += l < 3 ? opt('opt-keep', 'data-keep="1"', 'Raise the Camp', KEEP.cost[l], miss.length ? `Still needed: ${miss.join(' · ')}` : `${campCopy(KEEP.desc[l])} · buildings up to level ${l + 1}`, miss.length > 0 || S.gold < KEEP.cost[l] || !day) : '';
       if (FLAGS.trader && S.trade && !S.trade.done && day) html += opt('opt-trader', 'data-trader="1"', 'Visit the trader', null, 'One deal before nightfall.', false);
-      body.innerHTML = html + '</div>' + (l >= 3 ? '<p class="note">The Camp stands at its full height.</p>' : '');
+      body.innerHTML = html + '</div>' + (l >= 3 ? '<p class="note">The Camp stands at its full height.</p>' : '') + (ui.rigPanelHtml ? ui.rigPanelHtml() : '');   // [rig3] the Rig's systems and Pack up & roll
       ui.selected.range = KEEP.range[l - 1] + S.P.towerRange;
       return;
     }
@@ -119,6 +119,7 @@ export function createPanels(ui) {
     if (btn.dataset.hive) { openSel({ type: 'region', id: +btn.dataset.hive }); return; }   // [nests] point at the hive that locks the site
     if (btn.dataset.clear) { const n = ui.game.clearRubble(ui.selected.x, ui.selected.y); if (n) { ui.toast(`${n} ${n === 1 ? 'cell' : 'cells'} cleared.`); closePanel(); ui.updateHud(); return; } }
     if (btn.dataset.rebuild) { if (ui.game.rebuild(ui.selected.id)) { audio.play('build'); ui.toast(`${BUILDINGS[ui.game.state.byId.get(ui.selected.id).type].name} rebuilt.`, 'good'); renderPanel(); ui.updateHud(); } return; }
+    if (btn.dataset.roll && ui.rigAsk) { ui.rigAsk(); return; }   // [rig3]
     if (btn.dataset.keep && ui.game.upgradeKeep()) ui.toast('The Camp rises higher.');
     if (btn.dataset.trader && FLAGS.trader) { closePanel(); ui.paused = true; showTrader(); return; }
     if (btn.dataset.up && ui.game.upgrade(ui.selected.id)) ui.toast('Upgraded.');

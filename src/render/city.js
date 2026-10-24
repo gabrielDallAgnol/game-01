@@ -18,6 +18,7 @@ const GROUND = {
   forestFloor: '#4a6640', forestOwn: '#557245', trail: '#a88e68', trailOwn: '#b39770', bank: '#6b6a52',
   lot: '#9a8462', street: '#ab9470', road: '#58595a', roadOwn: '#5c5d5d', walk: '#8a857a', park: '#6c8650', deck: '#8e897d', deckOwn: '#99938a', ramp: '#8b867b',
 };
+export const GROUND_TINT = GROUND;   // [rig3] an act tints the ground (view/legs.js); paint() reads it at call time
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
 export const HIGH = 1.1;     // height of the plateaus (high ground)
 const GCH = 64;              // ground chunk size (cells)

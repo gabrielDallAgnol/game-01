@@ -27,10 +27,12 @@ import { createHomeward } from './homeward.js';
 // [pacify] end
 // [folk] the folk's own projects: the chip, the build-menu row, the dawn line
 import { createFolkUi } from './folk-ui.js';
+// [rig3] the Haven Rig: its panel section, Pack up & roll, the act change
+import { createRigUi } from './rig-ui.js';
 
 export { FLAGS };
 // the UI modules, in creation order (each registers its own DOM handlers when created)
-const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createHomeward, createFolkUi];   // [pacify] [folk] appended
+const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createHomeward, createFolkUi, createRigUi];   // [rig3] appended   // [pacify] [folk] appended
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
@@ -117,6 +119,7 @@ export function startApp() {
     // [road] end
     tickMini(dt);
     ui.folkTick(dt, events);   // [folk]
+    ui.rigTick(dt, events);   // [rig3] the Rig rolls, the next act is swapped in
     hudT -= dt; if (hudT <= 0) { updateHud(); ui.tickHome();   /* [pacify] the way home */ hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
   }
   requestAnimationFrame(frame);
