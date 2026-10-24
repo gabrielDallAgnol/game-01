@@ -56,6 +56,7 @@ import { createIncome } from './income.js';
 // [gemini3] begin: ported from Gemini's fork (logging)
 import { createLogging } from './logging.js';
 import { createStronghold } from './stronghold.js';
+import { createPressure } from './pressure.js';
 // [gemini3] end
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
@@ -63,7 +64,7 @@ export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
 const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome];   // [pacify] appended
-MODULES.push(createLogging, createStronghold);   // [gemini3] appended
+MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';

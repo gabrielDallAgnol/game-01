@@ -66,7 +66,7 @@ export function createBrain(G) {
     }
     if (m.lost && Math.hypot(m.x - c, m.y - c) < 26 && !(rng.next() < 0.995)) { m.roam = null; m.lost = false; return; }   // a straggler from the night that wanders near the town again
     // now and then a roamer next to your land drifts in and walks on the town
-    if (!MOBS[m.kind].animal && S.clock && S.night >= 2 && home.region >= 0 && G.baseDist(home.x, home.y) < (S.heat >= HEAT.stir ? 20 : 12) && rng.next() < TIDE.drift * (S.phase === 'day' ? TIDE.dayRef / TIDE.dayLen : 1) * Math.min(1, S.night / 6) * (S.heat >= HEAT.stir ? 2.5 : 1) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
+    if (!MOBS[m.kind].animal && S.clock && (S.night >= 2 || (G.dayDeadOk && G.dayDeadOk())) /* [gemini3] day 1 too */ && home.region >= 0 && G.baseDist(home.x, home.y) < (S.heat >= HEAT.stir ? 20 : 12) && rng.next() < TIDE.drift * (S.phase === 'day' ? TIDE.dayRef / TIDE.dayLen : 1) * Math.min(1, S.night / 6) * (S.heat >= HEAT.stir ? 2.5 : 1) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
     const fromHome = Math.hypot(m.x - home.x, m.y - home.y);
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), heroHome = G.inZone(idx(Math.floor(h.x), Math.floor(h.y)));
     // once a roamer has your scent it hunts you: it follows you home and joins the attack on the town
@@ -74,8 +74,8 @@ export function createBrain(G) {
     // [road] begin
     if (G.road && !m.hunt && hd < sight && G.road.unseen(hd, sight)) return;   // lantern off: it stops and sniffs the air
     // [road] end
-    if (m.kind !== 'deer' && !m.hunt && !h.dead && !(m.giveUp > S.time) && hd < (MOBS[m.kind].sight ? (m.markT > 0 ? 14 : MOBS[m.kind].sight) : sight) - (S.story.flags.quiet ? 1.5 : 0) && !heroHome && (m.warden || huntN < huntCap()) && (!m.warden || Math.hypot(h.x - home.x, h.y - home.y) < R.leash)) aggro(m);
-    if (m.hunt && (h.dead || hd > lose || Math.hypot(m.x - home.x, m.y - home.y) > (m.warden ? R.leash + 4 : 30))) { m.hunt = false; m.giveUp = S.time + 8; m.wp = { x: home.x, y: home.y }; }   // nobody follows you more than 30 cells from its ground (and it walks home before it tries again)
+    if (m.kind !== 'deer' && !m.hunt && !h.dead && !(m.giveUp > S.time) && hd < (MOBS[m.kind].sight ? (m.markT > 0 ? 14 : MOBS[m.kind].sight) : sight) - (S.story.flags.quiet ? 1.5 : 0) && !heroHome && (m.warden || huntN < huntCap()) && (!m.warden || Math.hypot(h.x - home.x, h.y - home.y) < R.leash)) { aggro(m); if (G.huntCommit) G.huntCommit(m); }   // [gemini3] it commits
+    if (m.hunt && (h.dead || (hd > lose && !(G.committed && G.committed(m))) || Math.hypot(m.x - home.x, m.y - home.y) > (m.warden ? R.leash + 4 : 30))) { m.hunt = false; m.giveUp = S.time + (G.giveUpT ? G.giveUpT() : 8);   /* [gemini3] no leash line to dance on */ m.wp = { x: home.x, y: home.y }; }   // nobody follows you more than 30 cells from its ground (and it walks home before it tries again)
     if (m.hunt && !m.warden && heroHome && G.baseDist(m.x, m.y) < 4) { if (S.night < 4 || MOBS[m.kind].animal || rng.next() < 0.7) { m.hunt = false; m.wp = { x: home.x, y: home.y }; } else { m.roam = null; m.hunt = false; ev('drift', { id: m.id }); return; } }
     if (m.hunt || (m.tauntT > 0 && !h.dead)) {
       m.face = Math.atan2(h.x - m.x, h.y - m.y);

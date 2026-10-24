@@ -106,6 +106,7 @@ export function createCombat(G) {
     if (src === 'hero' && has('execute') && (m.hp - d) / m.maxHp < 0.25) d = m.hp;
     // Marked: whatever the hero hits takes more from the towers for a few seconds (the Marked blessing makes it longer and deeper)
     if (src === 'hero') m.markT = PRESENCE.markT * (S.P.mark ? 2 : 1);
+    if (src === 'hero' && G.hitCommit) G.hitCommit(m);   // [gemini3] a roamer you hit turns on you and stays on you
     if (src === 'tower' && m.markT > 0) d *= S.P.mark ? 1.6 : PRESENCE.mark;
     S.cur.dmg[src] = (S.cur.dmg[src] || 0) + Math.min(d, m.hp);
     m.hp -= d; m.lastHit = d; ev('hitM', { id: m.id, src, dmg: +d.toFixed(2) });

@@ -23,13 +23,13 @@ export function createHives(G) {
   const streamAcc = {}, hiveDmg = {}, rage = {};
   const hiveMax = r => Math.round(STREAM.hiveHp * (map.regions[r].ring <= 1 ? 1.8 : 1 + 0.6 * (map.regions[r].ring - 1)) * G.hpS(S.night));
   function stepStream(dt) {
-    if (!S.clock || S.night < 2 && !(S.phase === 'night' && S.qT > 15)) return;
+    if (!S.clock || S.night < 2 && !(S.phase === 'night' && S.qT > 15) && !(G.dayDeadOk && G.dayDeadOk())) return;   // [gemini3] the dead by day from day 1
     if (S.phase === 'night' && S.qT > WAVES.duration(S.night) + NIGHT_TAIL && !Object.values(rage).some(v => v > 0)) return;   // the hour before dawn is quiet: the hives rest (nights are longer than the old surge + tail)
-    const n = S.night, every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / G.DIFF.threat, mult = S.phase === 'night' ? STREAM.nightMult : TIDE.dayRef / TIDE.dayLen;   // [pacing] a longer day, the same dead by day
+    const n = S.night, every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / G.DIFF.threat, mult = (S.phase === 'night' ? STREAM.nightMult : TIDE.dayRef / TIDE.dayLen) * (G.dayDeadK ? G.dayDeadK() : 1);   // [pacing] a longer day, the same dead by day · [gemini3] the early days at a share
     const nests = new Set(G.activeNests(n)); for (const r in rage) if (rage[r] > 0) { nests.add(+r); rage[r] -= dt; }
     const u = G.unlocked(Math.max(1, n - 1));
     for (const r of nests) {
-      if (!S.nestAlive[r] || ((S.sealed[r] || S.night < 5) && !(rage[r] > 0))) continue;   // the near hives only send their dead by night until the first blood moon (unless you anger one)
+      if (!S.nestAlive[r] || ((S.sealed[r] || (S.night < 5 && !(G.dayDeadOk && G.dayDeadOk()))) && !(rage[r] > 0))) continue;   // [gemini3] by day the near hollows send theirs before night 5 too   // the near hives only send their dead by night until the first blood moon (unless you anger one)
       streamAcc[r] = (streamAcc[r] || rng.range(0, every)) + dt * mult * (rage[r] > 0 ? STREAM.rage : 1);
       while (streamAcc[r] >= every) {
         streamAcc[r] -= every;
