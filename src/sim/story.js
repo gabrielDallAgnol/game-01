@@ -14,7 +14,6 @@ import { PERKS, MASTERIES } from '../content/perks.js';
 import { createContracts } from './contracts.js';
 import { siteOk } from './spots.js';
 import { CLASS_TIERS, CLASS_INFO, CALLINGS, finalDelta, LEGENDS } from '../content/heroes.js';
-import { CLASS_TIERS, CLASS_INFO, CALLINGS } from '../content/heroes.js';
 import { createDaily } from './daily.js';
 import { ROAD, CONVOY, STATION_SCENES } from '../content/road.js';
 
