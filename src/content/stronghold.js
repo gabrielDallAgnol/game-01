@@ -10,8 +10,8 @@
 export const MATURITY = {
   on: true,
   need: [null,
-    { minDay: 3, buildings: 3, people: 6, foodNet: 1 },
-    { minDay: 7, buildings: 4, lv2: 2, people: 12, foodNet: 3, won: 1 }],
+    { minDay: 3, buildings: 3, people: 5, foodNet: 1 },
+    { minDay: 7, buildings: 4, lv2: 2, people: 10, foodNet: 2, won: 1 }],
 };
 export const COMPACT = { on: true, max: 6, towerDmg: 1.2, taken: 0.85, farmFood: 1, homeGold: 1 };   // homeGold: level 2+ homes
 export const GARRISON = [0, 2, 4];   // tower crew the Camp itself provides, by Camp level
