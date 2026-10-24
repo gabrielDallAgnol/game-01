@@ -83,7 +83,7 @@ test('trees are a job: by hand slow, the Logger\'s Hut quick, and it pays timber
 test('the dead by day from day 1, and hollows you have to find (Gemini cases 1, 6)', () => {
   const g = createGame({ seed: 29 }); const S = g.state; clear(g);
   const A = g.actGoal();
-  assert.ok(A && A.act === 1 && A.x === undefined && /Find/.test(A.text), JSON.stringify(A));
+  assert.ok(A && A.act === 1 && A.x === undefined && /^Tracks/.test(A.extra), JSON.stringify(A));
   // seen once: the System names it
   const h = S.map.regions.filter(r => r.ring === 1 && r.nest)[0], b = h.nest.body || h.nest;
   S.seen[Math.floor(b.y) * N + Math.floor(b.x)] = 1;

@@ -9,6 +9,8 @@ import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../src/content/season.js';
 import { BUILDINGS } from '../src/content/buildings.js';
 import { TIDE } from '../src/content/mobs.js';
 import { playRun } from '../tools/bot.mjs';
+import { MATURITY } from '../src/content/stronghold.js';
+MATURITY.on = false;   // [gemini3] these rules predate the Camp's maturity gates (day, standing buildings): test/gemini3.test.mjs covers them
 
 test('the frontier map generates valid worlds across 20 seeds', () => {
   for (const biome of ['riverbend']) for (let s = 1; s <= 20; s++) {

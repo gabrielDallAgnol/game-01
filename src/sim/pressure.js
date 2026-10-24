@@ -33,7 +33,7 @@ export function createPressure(G) {
     const found = byDist.find(r => { const b = r.nest.body || r.nest; return seenAt(b.x, b.y) || seenAt(r.nest.x, r.nest.y); });
     if (found) return { ...A, x: found.nest.x, y: found.nest.y, extra: `Found: ${G.compass(found.nest.x, found.nest.y)}` };
     const near = byDist[0];
-    return { ...A, x: undefined, y: undefined, text: 'Find the hollows', extra: near ? `Tracks lead ${G.compass(near.nest.x, near.nest.y)}` : '' };
+    return { ...A, x: undefined, y: undefined, extra: near ? `Tracks lead ${G.compass(near.nest.x, near.nest.y)}` : '' };
   }
   if (baseGoal) G.actGoal = actGoal;
   return { dayDeadOk, dayDeadK, huntCommit, committed, giveUpT, hitCommit, actGoal: G.actGoal };
