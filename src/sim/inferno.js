@@ -15,7 +15,7 @@ export const INF = {
   ],
   kinds: ['petrol', 'substation', 'boiler'], names: { petrol: 'Gas station', substation: 'Substation', boiler: 'Boiler house', tanker: 'Burning tanker' },
   surge: { hero: 3, heroPhase: 2, heroNight: 0.35, town: 0.45, cap: 16, hp: 0.08, grow: 4 },   // dead at the hero = hero + heroPhase × phase + heroNight × night; the town gets `town` of that; each `grow` nights left alone the nest burns hotter
-  body: 2,   // half-width (cells) of a city nest's building
+  body: 2,   // half-width (cells) of the heat-source model on a city nest's ruin
 };
 
 export function createInferno(G) {
@@ -27,7 +27,7 @@ export function createInferno(G) {
   for (const reg of map.regions) {
     const n = reg.nest; if (!n) continue;
     n.heat = reg.ring === 1 ? (n.body ? 'boiler' : 'tanker') : INF.kinds[reg.id % INF.kinds.length];
-    if (!n.body && n.back && reg.ring >= 2) { const h = INF.body; n.body = { x: n.x + n.back[0] * (0.5 + h), y: n.y + n.back[1] * (0.5 + h), half: h }; }   // the ruin behind its door, as a square
+    if (!n.body && n.back && reg.ring >= 2) { const h = INF.body; n.vis = { x: n.x + n.back[0] * (0.5 + h), y: n.y + n.back[1] * (0.5 + h), half: h }; }   // a city nest is struck at the open face of its ruin (its door); the model stands on the ruin behind it
   }
   const heatOf = r => (map.regions[r].nest || {}).heat || 'boiler';
   const nameOf = r => INF.names[heatOf(r)] + ' nest';
@@ -48,6 +48,7 @@ export function createInferno(G) {
   /** a strike's damage can break one segment at most: the surplus is lost, so every segment fires its surge */
   function clamp(r, cur, d) {
     const s = st(r); if (!s) return d;
+    if (d >= s.max - cur) return d;   // a scripted kill (tests, tools: a hit that is the whole hive) skips the siege; play never swings that hard
     let cum = 0; for (let i = 0; i <= s.ph && i < 2; i++) cum += s.max * INF.phases[i].frac;
     return s.ph >= 2 ? d : Math.min(d, Math.max(0.0001, cum - cur));
   }

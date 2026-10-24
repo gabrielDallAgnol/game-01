@@ -57,6 +57,7 @@ export function createInferno(V) {
     hv.inf = true;
     const root = new THREE.Group(); root.scale.setScalar(kind === 'tanker' ? 1.3 : 1.55); hv.g.add(root);   // big: a landmark among the ruins
     const bld = building(kind, half); root.add(bld);
+    if (n.vis && !n.body) { const th = hv.g.rotation.y, wx = n.vis.x - n.x, wz = n.vis.y - n.y; root.position.set(wx * Math.cos(th) - wz * Math.sin(th), 0, wx * Math.sin(th) + wz * Math.cos(th)); }   // the model stands on the ruin behind the door
     const scorchMat = new THREE.MeshBasicMaterial({ map: scorchTex, transparent: true, opacity: 0.95, depthWrite: false }), scorch = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), scorchMat);
     scorch.rotation.x = -Math.PI / 2; scorch.position.y = 0.04; scorch.renderOrder = 2; root.add(scorch);
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: haloTex, color: lc('#ff7a1c'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -114,7 +115,7 @@ export function createInferno(V) {
       // embers and smoke only while near the camera and on screen
       if (hv.g.visible && (q.emitT -= dt) <= 0 && camD(reg.nest.x, reg.nest.y) < 48) {
         q.emitT = 0.12 / Math.max(0.4, L);
-        const b = reg.nest.body || reg.nest, p = wpos(b.x, b.y, 0);
+        const b = reg.nest.body || reg.nest.vis || reg.nest, p = wpos(b.x, b.y, 0);
         if (alive) {
           fx2.emit('ember', p.x + (Math.random() - 0.5) * q.half * 2, p.y + 2 + Math.random() * 2, p.z + (Math.random() - 0.5) * q.half * 2, 3, { size: 1.3, spread: 0.6 });
           if (Math.random() < 0.5) fx2.emit('smoke', p.x, p.y + (q.kind === 'boiler' ? 7.4 : 3.2), p.z, 1, { color: '#26211f', size: 2.2 });
