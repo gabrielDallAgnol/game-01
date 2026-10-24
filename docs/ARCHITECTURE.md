@@ -93,6 +93,8 @@ In every root, creation order and per-frame call order are load-bearing:
 | `road.js`, `missions.js` | the road, stations, convoys, night missions (`[road]` feature) |
 | `folk-build.js` | the folk build by themselves: needs, the village fund (a share of income), one project a day, props, beauty (`[folk]` hooks) |
 | `woods.js` | worn trails: woods the hero keeps walking through turn to dirt (`[woods]` hooks in game.js, save.js) |
+| `stats.js` | `[hero3]` the Thermal Pioneer's stats STR/AGI/INT/GOV: points (3 at the awakening, 3 a level, `G.addStatPoints(n, why)` for stat tomes), the per-point hooks (`attr*` in combat.js, hero.js), unlocks, titles, the bots' spread, the `hero3` save block (wraps snapshot/restoreSnap); `STATS_FLAG.on` (content/stats.js) switches the class picks off |
+| `powers.js` | `[hero3]` the abilities stats unlock (content/abilities.js): actives (Heavy Cleave, Blink Strike, Aether Burst, Rally Cry, Wild Shape, Raise the Fallen), passives and hybrids, the autopilot's use |
 | `mapgen.js`, `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | map generation, flow fields, town builders, scavenging, seeded RNG |
 
 ### `src/render/`: the three.js view
@@ -156,6 +158,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `road-ui.js` | road and mission HUD (`[road]` feature) |
 | `homeward.js` | `[pacify]` the walk home on the Camp pill and the Return to Camp button |
 | `folk-ui.js` | the folk's project chip (veto), "Let them build" in the build menu, their ledger line |
+| `hero3.js` | `[hero3]` the System Status window (stats, + buttons, abilities by threshold, hybrids), the title chip, the [+3 Stat Points] moment, the ability bar |
 
 ## The story split: the engine owns the numbers, the story AI owns the words
 
