@@ -66,7 +66,7 @@ export function createCards(ui) {
     const noiseOn = S.noise !== undefined || S.feat.heat;
     if (c.cost && c.cost.gold) add('neg', 'scrap', `−${c.cost.gold}`);
     if (c.cost && c.cost.food) add('neg', 'food', `−${c.cost.food}`);
-    const PERK = { heroDmg: ['sword', 'hero'], heroDmgMult: ['sword', 'hero'], keepHp: ['camp', 'Camp'], heroHp: ['heart', 'hero'], towerDmg: ['tower', 'towers'], heroSpeed: ['boots', 'speed'] };
+    const PERK = { heroDmg: ['sword', 'hero'], heroDmgMult: ['sword', 'hero'], keepHp: ['camp', 'Haven'], heroHp: ['heart', 'hero'], towerDmg: ['tower', 'towers'], heroSpeed: ['boots', 'speed'] };
     for (const f of c.fx || []) {
       if (f.op === 'gold') add(f.n > 0 ? 'pos' : 'neg', 'scrap', sg(f.n));
       else if (f.op === 'food') add(f.n > 0 ? 'pos' : 'neg', 'food', sg(f.n));

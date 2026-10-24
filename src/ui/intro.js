@@ -5,6 +5,7 @@ import { INTRO_CARDS, INTRO_UI } from '../content/solar.js';
 import { sysRich, typeOn, reduced } from './system.js';
 
 export const INTRO_KEY = 'introSeen';
+export const markIntroSeen = store => store.set(INTRO_KEY, true);
 /** headless drivers (Playwright, tests) skip the opening unless ?intro=1; ?intro=0 always skips */
 export function introWanted(store, search = '') {
   const q = new URLSearchParams(search).get('intro');
@@ -64,7 +65,7 @@ const CSS = `#intro{position:fixed;inset:0;z-index:60;background:#07090c;display
 export function playIntro({ store, onDone, root = document.body }) {
   const cards = INTRO_CARDS; let i = 0, busy = false, closed = false;
   if (!document.getElementById('introCss')) { const st = document.createElement('style'); st.id = 'introCss'; st.textContent = CSS; document.head.appendChild(st); }
-  store.set(INTRO_KEY, true);
+  markIntroSeen(store);
   const el = document.createElement('div'); el.id = 'intro'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'The Solar Flare: opening'); root.appendChild(el);
   function finish() { if (closed) return; closed = true; window.removeEventListener('keydown', key, true); el.classList.remove('on'); setTimeout(() => { el.remove(); onDone && onDone(); }, reduced() ? 0 : 300); }
   function show() {

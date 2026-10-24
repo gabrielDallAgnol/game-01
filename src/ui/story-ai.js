@@ -8,7 +8,7 @@
 import { CANON, TONE_WORLD } from '../content/solar.js';
 export const TONE = `${TONE_WORLD}\n${CANON}`;
 // off-canon words from the model are swapped for the world's own (the prompt forbids them; this is the net)
-const CANONIZE = t => t.replace(/\bzombies?\b/gi, 'Ash-Born').replace(/\bundead\b/gi, 'Ash-Born').replace(/\bmiasma\b/gi, 'heat haze').replace(/\bwalkers?\b/gi, 'Cinder');
+const CANONIZE = t => t.replace(/\b(a) (zombie|undead)\b/gi, (m, a) => (a === 'A' ? 'An' : 'an') + ' Ash-Born').replace(/\bzombies?\b/gi, 'Ash-Born').replace(/\bundead\b/gi, 'Ash-Born').replace(/\bmiasma\b/gi, 'heat haze').replace(/\bwalkers?\b/gi, 'Cinder');
 export const clip = (s, n) => CANONIZE(String(s ?? '')).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
 const SHORT = 'Write like a modern mobile game, not a novel. The player reads on a phone mid-fight and must get it in ONE read. The FIRST beat says plainly WHAT happens or WHAT the player must decide (who, where, what). At most 2 beats; at most 12 words each; present tense; concrete nouns, no metaphors, no riddles, no lore dumps. Mark the 1–2 key words (who, what is at stake) with **double asterisks**. Cause and consequence must be obvious at a glance. If a sentence could be cut without losing a fact, cut it. Never say how or when rescued people reach the Haven (now, on their own by dawn, or a convoy to escort): the game adds that line under each choice.';
 
