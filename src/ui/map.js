@@ -55,7 +55,7 @@ export function createMap(ui) {
   function marks(ctx, ox, oy, s, big) {
     const S = ui.game.state, m = ui.game.map, dot = (x, y, r, col, ring) => { ctx.beginPath(); ctx.arc((x - ox) * s, (y - oy) * s, r, 0, 7); if (ring) { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); } else { ctx.fillStyle = col; ctx.fill(); } };
     const seenAt = (x, y) => S.seen[idx(Math.floor(x), Math.floor(y))] === 1;
-    for (const r of m.regions) if (r.nest && seenAt(r.nest.x, r.nest.y)) dot(r.nest.x, r.nest.y, big ? 5 : 3, S.nestAlive[r.id] ? (r.ring === 1 ? '#b4ff4e' : '#ff5a4a') : '#6b6b6b');
+    for (const r of m.regions) if (r.nest && (seenAt(r.nest.x, r.nest.y) || (S.nestAlive[r.id] && !S.sealed[r.id]))) dot(r.nest.x, r.nest.y, big ? 6 : 4, S.nestAlive[r.id] ? '#ff7a1c' : '#6b6b6b');   // [nest3] an Inferno Nest is a fire you can see: always on the map
     if (ui.game.smothered) for (const r of m.regions) if (r.nest && ui.game.smothered(r.id)) dot(r.nest.x, r.nest.y, big ? 8 : 5, '#ffc478', true);   // [pacify] asleep on your ground: it will not wake
     // places to claim: small and quiet (optional); owned ones a plain amber dot
     if (big) for (const l of S.landmarks) if (seenAt(l.x, l.y)) dot(l.x, l.y, l.owned ? 4 : 3.5, l.owned ? '#d9a35a' : 'rgba(214,222,226,.7)', !l.owned);
@@ -109,7 +109,7 @@ export function createMap(ui) {
     const objs = ui.game.story().objectives(), main = objs.filter(o => o.priority === 'main' && o.x !== undefined);
     const mainRow = main.length ? `<div class="lg-main"><b>Main</b>${main.map(o => `<span><i class="o" style="border-color:#ffd36a;box-shadow:0 0 6px rgba(255,211,106,.6)"></i>${esc(o.label)}: ${esc(o.title)}</span>`).join('')}</div>` : '';
     return `${mainRow}<div class="legend"><span class="lg-h">Optional</span><span><i class="o" style="border-color:rgba(214,222,226,.7)"></i>Place to claim</span><span><i style="background:#a9c6d6"></i>Beacon</span><span><i style="background:#e0886a"></i>Supply drop</span></div>
-      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#b4ff4e"></i>Forest hollow</span>${hidden() ? '' : '<span><i style="background:#ff5a4a"></i>City hive</span>'}<span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span><span><i style="background:rgba(255,196,120,.45);box-shadow:inset 0 0 0 1px #ffc478"></i>Pacified: no hive wakes</span></div>`;
+      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Camp</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#ff7a1c"></i>Inferno nest</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the hives hear you</span><span><i style="background:rgba(255,196,120,.45);box-shadow:inset 0 0 0 1px #ffc478"></i>Pacified: no hive wakes</span></div>`;
   }
   function showMap() {
     const S = ui.game.state, src = worldNow(), b = worldB, w = b.x1 - b.x0 + 1, hh = b.y1 - b.y0 + 1, s = 2, act1 = !!hidden();

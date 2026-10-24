@@ -40,7 +40,8 @@ import { createBlessings } from './blessings.js';
 import { createSave } from './save.js';
 import { createApi } from './api.js';
 import { createActs } from './acts.js';
-import { createInferno } from './inferno.js';   // [nest3]
+// [nest3]
+import { createInferno } from './inferno.js';
 import { createSpots } from './spots.js';
 import { createNests } from './nests.js';
 // [pacify] begin
