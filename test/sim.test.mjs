@@ -270,7 +270,7 @@ const firstSite = (g, hops) => g.state.scav.sites.map(s => g.scavenge.siteInfo(s
 test('weather is a season rule now: never rolled at dawn; a storm or still rule sets every night', () => {
   for (let seed = 1; seed <= 3; seed++) {
     const g = createGame({ seed, hero: 'archer' }), S = g.state;
-    for (let n = 0; n < 6 && !S.over; n++) { readyDay(g); assert.equal(S.weather, 'clear', `weather rolled on night ${S.night}`); S.keep.hp = S.keep.maxHp = 1e6; nextDawn(g); }
+    for (let n = 0; n < 6 && !S.over; n++) { readyDay(g); if (!g.rule('storm') && !g.rule('still')) assert.equal(S.weather, 'clear', `weather rolled on night ${S.night}`); /* a signed storm/still contract rule sets it: the rule, not a roll */ S.keep.hp = S.keep.maxHp = 1e6; nextDawn(g); }
   }
   const g = createGame({ seed: 2 }), S = g.state;
   S.night = 6; const base = g.forecast().reduce((a, r) => a + r.count, 0);

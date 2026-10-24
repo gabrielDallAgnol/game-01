@@ -34,7 +34,7 @@ export function createCards(ui) {
   // ---------- story: encounters, the status window, companions ----------
   const encState = new Map();   // per encounter: { page, touched, shownAt }
   const aiBusy = new Set();
-  const aiSkips = new Set(['gift', 'evolve', 'season', 'chapter', 'district', 'arrival', 'skill', 'window', 'difficulty', 'victory']);
+  const aiSkips = new Set(['daily', 'gift', 'evolve', 'season', 'chapter', 'district', 'arrival', 'skill', 'window', 'difficulty', 'victory']);
   function aiFetch(enc) {
     if (!enc || enc.ai != null || !chronicler.available()) return;
     if (enc.kind === 'contract') {
@@ -74,7 +74,7 @@ export function createCards(ui) {
       else if (f.op === 'heat' && noiseOn) add(f.n > 0 ? 'neg' : 'pos', 'noise', sg(f.n));
       else if (f.op === 'perk' && PERK[f.key]) add(f.mul && f.mul < 1 ? 'neg' : 'pos', PERK[f.key][0], `${PERK[f.key][1]} up`);
       else if (f.op === 'flag' && f.key === 'beacon') add('pos', 'people', '+1 later');
-      else if (f.op === 'flag' && f.key === 'garden') add('pos', 'food', '+1 a dawn');
+      else if (f.op === 'flag' && f.key === 'garden') add('pos', 'food', '+1 a day');
       else if (f.op === 'flag' && f.key === 'scout') add('info', 'route', 'better route');
       else if (f.op === 'flag' && f.key === 'quiet') add('pos', 'quiet', 'quieter');
       else if (f.op === 'title') add('info', 'title', 'title');
@@ -89,11 +89,14 @@ export function createCards(ui) {
       else if (f.op === 'unique') add('risk', 'eye', 'boss fight');
       else if (f.op === 'fail' && !f.quiet) add('risk', f.after ? 'hourglass' : 'end', f.after ? 'they may not wait' : 'the story ends');
       else if (f.op === 'trial') add('info', 'sword', 'trial');
+      else if (f.op === 'dailyAccept') { for (const r of f.reward || []) { if (r.op === 'xp') add('pos', 'level', `+${r.n} xp`); else if (r.op === 'gold') add('pos', 'scrap', `+${r.n}`); else if (r.op === 'food') add('pos', 'food', `+${r.n}`); } add('risk', 'hourglass', `fail: −${f.fail} scrap`); }
       else if (f.op === 'claimSite') add('pos', 'flag', 'yours for good');
       else if (f.op === 'stripSite') add('pos', 'scrap', `+${f.n}`);
     }
     return out.length ? `<span class="chips">${out.join('')}</span>` : '';
   }
+  // [arrive] how the people a choice adds get here, said the same way on every card (the engine's line, never the AI's)
+  const arriveLine = (enc, c) => { const A = ui.game.story().arrivalOf && ui.game.story().arrivalOf(enc, c); return A ? `<span class="arrive ${A.mode}">${icon(A.icon)}<b>${esc(A.tag)}</b><span>${esc(A.text)}</span></span>` : ''; };
   const richHint = t => rich(t).replace(/(^|[\s(])([+\-−]\s?\d+%?\s(?:more\s)?(?:scrap|food|people|person|noise|heat|bond|health|damage|hero damage|xp))/gi, '$1<b>$2</b>');
   const badge = (enc, P) => (chronicler.available() && !aiSkips.has(enc.kind) ? `<span class="chr${enc.ai === 'pending' ? ' busy' : ''}" title="The Chronicler (Claude) writes this run's story">${icon('quill')}${P ? 'Chronicler' : enc.ai === 'pending' ? 'writing' : ''}</span>` : '');
 
@@ -118,7 +121,7 @@ export function createCards(ui) {
     const pg = Math.min(st.page, pages.length - 1), last = pg >= pages.length - 1;
     const dots = pages.length > 1 ? `<div class="pgdots">${pages.map((_, k) => `<i class="${k === pg ? 'on' : k < pg ? 'past' : ''}"></i>`).join('')}</div>` : '';
     const opts = last ? `<div class="opts one encopts">${enc.choices.map(c => { const ok = !c.cost || ui.game.story().can(c); const rar = c.rarity ? RARITY[c.rarity] : null;
-        return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span>${esc(P && P.labels && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}</span>${chipsOf(c)}${c.hint ? `<span class="ds">${richHint(c.hint)}</span>` : ''}</button>`; }).join('')}</div>`
+        return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span>${esc(P && P.labels && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}</span>${chipsOf(c)}${c.hint ? `<span class="ds">${richHint(c.hint)}</span>` : ''}${arriveLine(enc, c)}</button>`; }).join('')}</div>`
       : `<div class="cardrow foot spread"><button class="btn ghost sm" id="encSkip">Skip</button><button class="btn big" id="encNext">Continue ${icon('next')}</button></div>`;
     showCard('enc', `<div class="enc ${enc.kind}"><div class="eyebrow"><span id="encEb"></span>${badge(enc, P)}</div>
       <h1 class="sm">${esc(title)}</h1>

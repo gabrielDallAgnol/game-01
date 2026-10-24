@@ -36,7 +36,7 @@ Object.assign(HEROES, {
   warlord: { ...HEROES.warrior, name: 'Warlord', base: 'warrior', blurb: 'War Cry pays: every dead that falls near you while it lasts pays 1 scrap. Tougher than anyone.', hp: 42, cryPays: 1 },
   warden: { ...HEROES.warrior, name: 'Warden', base: 'warrior', blurb: 'Brawler with a medic\'s heart: buildings within 5 of you take 30% less damage.', hp: 40, ward: 0.7 },
   marshal: { ...HEROES.archer, name: 'Marshal', base: 'archer', blurb: 'Ranger who leads: towers within 6 of you shoot 25% faster.', hp: 26, marshal: 1.25 },
-  quartermaster: { ...HEROES.medic, name: 'Quartermaster', base: 'medic', blurb: 'Keeps everyone fed and patched: +4 scrap and +2 food every dawn, and Patch Up mends the whole town.', hp: 26, quarter: true },
+  quartermaster: { ...HEROES.medic, name: 'Quartermaster', base: 'medic', blurb: 'Keeps everyone fed and patched: +4 scrap and +2 food a day, and Patch Up mends the whole town.', hp: 26, quarter: true },
   deadeye: { ...HEROES.archer, name: 'Deadeye', base: 'archer', blurb: 'Ranger who sells the shot: reach 8, shots pierce 2 dead, brutes take double, and every dead your Volley kills pays 2 scrap.', hp: 26, attack: { kind: 'ranged', dmg: 3.6, reach: 8, rate: 0.7 }, volleyPays: 2, pierce: 2, bruteCrit: 2 },
 });
 // no Calling deals less than the Survivor (2.2 / 0.6 s ≈ 3.7 a second): a job change is never a downgrade
@@ -74,7 +74,7 @@ export const CLASS_INFO = {
   warden: { tier: 2, icon: 'shield', who: 'A Brawler who shields the Camp.', perks: ['Buildings near you take 30% less damage', '40 health'], look: { cape: '#2e4f7a', mantle: '#d8d4cc', helmet: '#9aa0a6' } },
   marshal: { tier: 2, icon: 'tower', who: 'A Ranger who leads the towers.', perks: ['Towers near you shoot 25% faster', 'Crossbow and Volley stay'], look: { hood: '#2e4f7a', coat: '#2e4f7a', mantle: '#c99a3a' } },
   deadeye: { tier: 2, icon: 'eye', who: 'A Ranger who sells the shot.', perks: ['Shots pierce 2 dead; double damage to brutes', 'Reach 8: hits from further', 'Ability kills pay 2 scrap'], look: { hood: '#1f2a24', coat: '#1f2a24', scarf: '#c23b2e' } },
-  quartermaster: { tier: 2, icon: 'food', who: 'Keeps everyone fed and patched.', perks: ['+4 scrap and +2 food every dawn', 'Patch Up mends the whole Camp'], look: { top: '#e8e4dc', scarf: '#c99a3a', pack: '#3a5a7a', cap: '#3a5a7a' } },
+  quartermaster: { tier: 2, icon: 'food', who: 'Keeps everyone fed and patched.', perks: ['+4 scrap and +2 food a day', 'Patch Up mends the whole Camp'], look: { top: '#e8e4dc', scarf: '#c99a3a', pack: '#3a5a7a', cap: '#3a5a7a' } },
 };
 // the legendary form of each Calling: its ability becomes a signature, its look transforms (stats on top of the
 // advanced class you have); data only — the engine reads ability ids, so a signature is the same move, much bigger

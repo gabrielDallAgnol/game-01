@@ -54,7 +54,7 @@ export const RULES = {
   fog: { catch: 'Towers see less at night. More dead drift in.', name: 'The fog', desc: 'Towers see two cells less at night. The dead drift in more often.' },
   hunger: { catch: 'Everyone eats more. Found food counts double.', name: 'Hunger', desc: 'Everyone eats more. Food finds in the city are worth double.' },
   // what used to be weather (sim/game.js RULE_FX sets the night for these)
-  storm: { catch: 'A fifth more dead each night. A little more food.', name: 'Storm season', desc: 'Thunder every night: a fifth more dead come. The rain fills the cisterns: more food at dawn.' },
+  storm: { catch: 'A fifth more dead each night. A little more food.', name: 'Storm season', desc: 'Thunder every night: a fifth more dead come. The rain fills the cisterns: more food.' },
   still: { catch: 'A quarter fewer dead each night.', name: 'The still', desc: 'Quiet nights: a quarter fewer dead come.' },
   lightsOut: { catch: 'Big towers need power again.', name: 'Lights out', desc: 'Level 2–3 towers need power again. Generators return; build too few and the lights go out.' },
 };

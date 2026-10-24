@@ -6,7 +6,7 @@
 //
 // The dawn budget: at most ONE story card and ONE System window a dawn. Everything else waits in `later` for a
 // later dawn (cards that only make sense today expire). Nothing opens at night unless it is about the night.
-import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET, STREET_GEN, QUEST_TEMPLATES, DAILY, DAILY_TEXT, NUMBER, NIGHT_TEXT } from '../content/story.js';
+import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET, STREET_GEN, QUEST_TEMPLATES, NUMBER, NIGHT_TEXT, ARRIVE } from '../content/story.js';
 import { RARITY, KITS } from '../content/districts.js';
 import { EPISODES, seasonEnd } from '../content/season.js';
 import { TIDE } from '../content/mobs.js';
@@ -14,10 +14,13 @@ import { PERKS, MASTERIES } from '../content/perks.js';
 import { createContracts } from './contracts.js';
 import { siteOk } from './spots.js';
 import { CLASS_TIERS, CLASS_INFO, CALLINGS, finalDelta, LEGENDS } from '../content/heroes.js';
+import { CLASS_TIERS, CLASS_INFO, CALLINGS } from '../content/heroes.js';
+import { createDaily } from './daily.js';
+import { ROAD, CONVOY, STATION_SCENES } from '../content/road.js';
 
-export const DAY_ONE = 40;   // seconds: day 1 is short (TIDE.dayLen stays the rule for every other day: the story gives day 1 a head start)
+export const DAY_ONE = TIDE.dayOne;   // seconds: day 1 is short (TIDE.dayLen stays the rule for every other day: the story gives day 1 a head start)
 // which slot each kind of card takes in the dawn budget
-export const SLOT = { thread: 'story', ambient: 'story', district: 'story', street: 'story', site: 'story', chapter: 'sys', season: 'sys', contract: 'sys', evolve: 'sys', skill: 'sys', window: 'sys', difficulty: 'sys', victory: 'sys', gift: 'sys', arrival: 'sys' };
+export const SLOT = { thread: 'story', ambient: 'story', district: 'story', street: 'story', site: 'story', chapter: 'sys', season: 'sys', contract: 'sys', evolve: 'sys', skill: 'sys', window: 'sys', daily: 'sys', difficulty: 'sys', victory: 'sys', gift: 'sys', arrival: 'sys' };
 // what may open at night: only what is about the night
 const NIGHT_OK = new Set(['arrival']);
 const DIFF_OFFER = [
@@ -33,6 +36,8 @@ export function createStory(ctx) {
   const LM = ctx.LANDMARKS;
   const api = () => (ctx.api ? ctx.api() : null);
   const noiseOn = () => S.noise !== undefined || !!S.feat.heat;
+  // the daily quest: offered when calm, Accept / Not now, settled at dawn (sim/daily.js)
+  const daily = createDaily({ S, map, rng, toast, ev, apply: (f, e) => apply(f, e), chron: (...a) => chron(...a), grant: id => grant(id), push: e => push(e), roomForQuest: () => roomForQuest() });
 
   // ---------- chronicle: everything that matters, in one line each (feeds the AI and the end screen) ----------
   function chron(text, imp = 2, tags = []) { ST.chronicle.push({ day: S.night, text, imp, tags }); if (ST.chronicle.length > 80) ST.chronicle.splice(0, ST.chronicle.length - 80); }
@@ -103,6 +108,8 @@ export function createStory(ctx) {
       case 'evolveLater': ST.evoLater = { from: f.from, enc: { ...enc, id: undefined, ai: null } }; break;
       case 'advance': if (th) { if (enc && enc.noRegion) endThread(enc.thread, 'no way through'); else { th.stage++; th.since = S.night; } } break;
       case 'resolve': if (th) { th.status = 'done'; } break;
+      case 'dailyAccept': daily.accept(); break;
+      case 'dailyDecline': daily.decline(); break;
       case 'fail': if (th) { if (f.after) { th.status = 'waiting'; th.failAt = S.night + f.after; } else { th.status = 'failed'; th.closed = S.night; } } break;
     }
   }
@@ -192,7 +199,7 @@ export function createStory(ctx) {
     for (const q of ST.quests) if (q.thread && threadAtSite(q.thread)) out.push({ kind: 'thread', x: q.x, y: q.y, site: q.site, label: 'Quest', key: `q${q.site}`, priority: 'main' });
     for (const sp of ST.spots) out.push({ kind: sp.thread ? 'thread' : 'beacon', x: sp.x, y: sp.y, spot: sp.id, label: sp.thread ? 'Quest' : 'Beacon', key: `s${sp.id}`, priority: sp.thread ? 'main' : 'optional' });
     if (queued(pointsOut)) out.push({ kind: 'pending', key: 'pending', priority: 'main' });
-    const d = ST.daily; if (d && d.day === S.night && !d.done) out.push({ kind: 'daily', key: 'daily', priority: 'main' });
+    if (daily.active()) out.push({ kind: 'daily', key: 'daily', priority: 'main' });   // only an accepted quest counts
     return out;
   }
   const roomForQuest = () => activeQuests().length < questCap();
@@ -215,7 +222,7 @@ export function createStory(ctx) {
     const tr = ST.trial; if (tr && !tr.done) out.push({ key: 'trial', kind: 'trial', priority: 'main', label: 'Trial', x: tr.x, y: tr.y, title: tr.name, sub: `Beat ${tr.boss} · ${dirOf(tr.x, tr.y)}, by day` });
     for (const q of ST.quests) if (q.thread && threadAtSite(q.thread)) { const T = THREADS[q.thread]; out.push({ key: `q${q.site}`, kind: 'thread', priority: 'main', label: 'Quest', site: q.site, x: q.x, y: q.y, title: T ? T.title : 'Story', sub: `Go to the ${LM[S.landmarks[q.site].kind].name} · ${dirOf(q.x, q.y)}` }); }
     for (const sp of ST.spots) if (sp.thread) { const T = THREADS[sp.thread]; out.push({ key: `s${sp.id}`, kind: 'thread', priority: 'main', label: 'Quest', spot: sp.id, x: sp.x, y: sp.y, title: T ? T.title : 'Story', sub: `Go ${dirOf(sp.x, sp.y)}` }); }
-    const d = dailyProgress(); if (d) out.push({ key: 'daily', kind: 'daily', priority: 'main', label: d.penalty ? 'Penalty' : 'Daily', title: d.title, sub: d.done ? `${d.goal} · done` : `${d.goal} · ${d.have}/${d.n}`, done: d.done });
+    const d = dailyProgress(); if (d) out.push({ key: 'daily', kind: 'daily', priority: d.done ? 'optional' : 'main', label: 'Daily', title: d.title, sub: d.done ? `${d.goal} · done` : `${d.goal} · ${d.have}/${d.n} · ${d.ends}`, have: d.have, n: d.n, ends: d.ends, done: d.done });
     for (const sp of ST.spots) if (!sp.thread) { const g = (ST.gen && ST.gen[sp.kind]) || STREET.find(e => e.id === sp.kind); out.push({ key: `s${sp.id}`, kind: 'beacon', priority: 'optional', label: g && g.made ? 'Side quest' : 'Beacon', spot: sp.id, x: sp.x, y: sp.y, title: g && g.made ? g.title : 'Blue beacon', sub: `Someone needs help · ${dirOf(sp.x, sp.y)}` }); }
     for (const q of ST.quests) if (!q.thread) out.push({ key: `q${q.site}`, kind: 'site', priority: 'optional', label: 'Site', site: q.site, x: q.x, y: q.y, title: LM[S.landmarks[q.site].kind].name, sub: `A place to claim · ${dirOf(q.x, q.y)}` });
     for (const dr of S.drops) out.push({ key: `d${dr.id}`, kind: 'drop', priority: 'optional', label: 'Drop', drop: dr.id, x: dr.x, y: dr.y, title: 'Supply drop', sub: `Stand by it to open · ${dirOf(dr.x, dr.y)}` });
@@ -278,7 +285,7 @@ export function createStory(ctx) {
       if (f.op === 'stripSite') { const l = S.landmarks[f.site]; ctx.earn(f.n); l.stripped = true; ST.quests = ST.quests.filter(q => q.site !== l.id); chron(`Stripped the ${LM[l.kind].name} for parts.`, 2); continue; }
       apply(f, enc);
     }
-    const sysKind = ['district', 'chapter', 'season', 'evolve', 'system', 'contract', 'skill', 'window', 'difficulty', 'victory', 'arrival', 'gift'].includes(enc.kind);
+    const sysKind = ['daily', 'district', 'chapter', 'season', 'evolve', 'system', 'contract', 'skill', 'window', 'difficulty', 'victory', 'arrival', 'gift'].includes(enc.kind);
     const ln = sysKind && !(enc.kind === 'district' && choiceId === 'later') ? null : leanOf(c);
     if (ln && ctx.addPath) ctx.addPath(ln, enc.kind === 'thread' ? 1.5 : 1);
     if (enc.kind === 'district' && choiceId !== 'later' && ctx.addPath) ctx.addPath('ranger', 0.4);
@@ -309,6 +316,24 @@ export function createStory(ctx) {
     if (c.cost && c.cost.food) sc.heart += 0.5;
     const best = Object.keys(sc).sort((a, b) => sc[b] - sc[a])[0];
     return sc[best] >= 1 ? best : null;
+  }
+
+  // ---------- how people arrive: at the Camp now, a convoy you escort, or on their own by dawn ----------
+  // The same test the road uses when the choice lands (road.syncPeople): far from the Camp, a group walks home as a
+  // convoy the dead hunt. Read by the card (ui/cards.js) for every choice; the Chronicler cannot drop it.
+  function arrivalOf(enc, c) {
+    if (!c || !Array.isArray(c.fx)) return null;
+    const n = c.fx.reduce((a, f) => a + (f.op === 'survivors' && +f.n > 0 ? +f.n : 0), 0);
+    const later = c.fx.filter(f => f.op === 'flag' && f.key === 'beacon').length;
+    const joins = c.fx.some(f => f.op === 'recruit' || f.op === 'recruitNew');
+    if (!n && !later && !joins) return null;
+    const h = S.hero, t = map.town, d = Math.hypot(h.x - t.x, h.y - t.y), far = !h.dead && !S.autopilot && d > ROAD.out;
+    const sc = enc && enc.road && STATION_SCENES[enc.road], rc = sc && (sc.choices.find(x => x.id === c.id) || {}).road, cart = !!(rc && rc.cart);
+    const more = n && later ? ARRIVE.more.replace('{n}', later) : '';
+    if (n && far && n >= CONVOY.min - (cart ? 1 : 0)) { const A = ARRIVE.convoy; return { mode: 'convoy', icon: A.icon, tag: A.tag, text: A.text.replace('{dir}', dirOf(h.x, h.y)).replace('{d}', Math.round(d)) + more }; }
+    if (n) return { mode: 'now', icon: ARRIVE.now.icon, tag: ARRIVE.now.tag, text: ARRIVE.now.text + more };
+    if (later) return { mode: 'dawn', icon: ARRIVE.dawn.icon, tag: ARRIVE.dawn.tag, text: ARRIVE.dawn.text };
+    return { mode: 'now', icon: ARRIVE.join.icon, tag: ARRIVE.join.tag, text: ARRIVE.join.text.replace('{who}', (c.npcName || 'They').replace(/ joins$/, '')) };
   }
 
   // ---------- the trial: a class is earned out in the woods, not picked from a menu ----------
@@ -413,8 +438,7 @@ export function createStory(ctx) {
     if (S.night >= 2 && !ST.gifted) { const fresh = !ST.n1.arrived; ST.gifted = true; ST.n1.arrived = true; offer({ kind: 'gift', eyebrow: GIFT.eyebrow, title: GIFT.title, scene: fresh ? `${SYSTEM.intro} ${GIFT.scene}` : GIFT.scene, choices: GIFT.choices.map(c => ({ ...c })) }, 12, 9); if (fresh) chron('The status window opened.', 4); }
     for (const n of ST.npcs) n.chatToday = 0;
     if (ST.threads.hummer && ST.threads.hummer.status === 'open' && ST.threads.hummer.stage === 1) S.food = Math.max(0, S.food - 1);   // the caged one eats
-    S.food += (ST.garden || 0) + (ST.flags.garden ? 1 : 0) + bonus.food();
-    { const g = bonus.gold(); if (g) ctx.earn(g); }
+    // [income] the garden's food and companions' scrap and food trickle in all day now (sim/income.js)
     if (ST.uniqueLater && (!S.unique || S.unique.slain || S.unique.escaped)) { S.unique = { ...ST.uniqueLater, night: nextMoon(S.night + 1) }; ST.uniqueLater = null; }
     // threads that waited too long close, with a card
     for (const [tid, th] of Object.entries(ST.threads)) if (th.status === 'waiting' && S.night >= th.failAt) endThread(tid, 'too late');
@@ -457,7 +481,7 @@ export function createStory(ctx) {
     const front = ctx.frontier();
     if (front.length && S.feat.routes && S.night - (ST.lastRoute || 0) >= 2 && !queued(e => e.kind === 'district')) { const e = districtEncounter(); if (e) { offer(e, 4, 1); ST.lastRoute = S.night; } }
     offerSkill();
-    issueDaily();
+    daily.settle();   // an accepted quest left undone costs what its card said; a declined one costs nothing
     release();
     episode();
   }
@@ -470,37 +494,8 @@ export function createStory(ctx) {
     ev('episode', { season: sn, n: k, title });
   }
 
-  // ---------- the daily quest ----------
-  function openSites() { return S.landmarks.filter(l => !l.owned && !l.stripped && l.kind !== 'unknown' && !S.sealed[l.region]).length; }
-  function issueDaily(midday = false) {
-    if (S.night < 2) return;
-    const prev = ST.daily;
-    if (!midday && prev && !prev.done && prev.day < S.night) {   // ignored: a penalty quest, or (a second time) the Camp pays
-      if (prev.penalty) {
-        const cost = Math.min(S.food, 3 + Math.floor(S.night / 3)), what = cost ? `-${cost} food` : `-${Math.min(S.gold, 5)} scrap`;
-        if (cost) S.food -= cost; else S.gold = Math.max(0, S.gold - 5);
-        toast(DAILY_TEXT.paid.replace('{cost}', what), 'bad'); ST.penalty = false; chron('Paid for an ignored penalty quest.', 2);
-      } else ST.penalty = true;
-    }
-    if (prev && prev.day === S.night) return;
-    if (!ST.penalty && !roomForQuest()) return;   // the gate: it comes when the quest before it is done
-    if (midday && ST.penalty) return;
-    const pool = DAILY.filter(q => (!q.when || q.when(S, openSites())) && (!prev || q.id !== prev.id));
-    const T = ST.penalty && prev ? (DAILY.find(q => q.id === prev.id) || pool[0]) : pool[rng.int(pool.length)];
-    if (!T) return;
-    const pen = !!ST.penalty, n0 = T.n(S.night), n1 = pen && n0 > 1 ? Math.ceil(n0 * 1.5) : n0;
-    const n = T.far ? Math.min(S.act === 1 ? 60 : 70, n1) : n1;   // [acts] the long walk stays a walk you can make (inside the fence in act 1)
-    ST.daily = { id: T.id, title: T.title, goal: T.goal.replace('{n}', n), n, base: T.stat(S, ST), done: false, penalty: pen, day: S.night, far: 0, back: false };
-    toast(`${(pen ? DAILY_TEXT.penalty : DAILY_TEXT.issued).replace('{title}', T.title)} ${ST.daily.goal}.${!ST.dailyWarned ? ` ${DAILY_TEXT.warn}` : ''}`, 'sys');
-    ST.dailyWarned = true; ev('daily', { id: T.id });
-  }
-  /** what the strip shows: "Put down 12 of the dead · 4/12" */
-  function dailyProgress() {
-    const q = ST.daily; if (!q || q.day !== S.night) return null;
-    const T = DAILY.find(x => x.id === q.id); if (!T) return null;
-    const have = T.far ? (q.back ? q.n : Math.min(q.n, Math.round(q.far))) : Math.max(0, Math.min(q.n, T.stat(S, ST) - q.base));
-    return { title: q.title, goal: q.goal, have, n: q.n, done: q.done, penalty: q.penalty };
-  }
+  // ---------- the daily quest (sim/daily.js) ----------
+  const dailyProgress = () => daily.progress();
   /** the one line the strip shows: the active quest, in plain words */
   function questLine() {
     const qs = activeQuests(), d = dailyProgress();
@@ -509,7 +504,7 @@ export function createStory(ctx) {
     const A = ctx.actGoal && ctx.actGoal(); if (A) return withContract(A);   // [acts] act 1's main goal: burn the hollows
     const th = qs.find(q => q.kind === 'thread');
     if (th) { const tid = th.site !== undefined ? (ST.quests.find(q => q.site === th.site) || {}).thread : (ST.spots.find(sp => sp.id === th.spot) || {}).thread; const T = tid && THREADS[tid]; return withContract({ tag: '[Quest]', text: `${T ? T.title : 'Story'}: go ${dirOf(th.x, th.y)}` }); }
-    if (d && !d.done) return withContract({ tag: d.penalty ? '[Penalty]' : '[Daily]', have: d.have, n: d.n, text: d.goal });
+    if (d && !d.done) return withContract({ tag: '[Daily]', have: d.have, n: d.n, text: `${d.goal} · ${d.ends}` });
     const b = qs.find(q => q.kind === 'beacon');
     if (b) return withContract({ tag: '[Quest]', text: `Reach the blue beacon · ${dirOf(b.x, b.y)}` });
     if (d && d.done) return withContract({ tag: '[Daily]', done: true, text: d.goal });
@@ -517,24 +512,8 @@ export function createStory(ctx) {
     return null;
   }
   /** the contract's countdown rides along every quest line: "Gravelord: 7 nights" */
-  function withContract(q) { const K = contracts.stripLine(); return K ? { ...q, extra: K.extra } : q; }
-  function dailyTick() {
-    const q = ST.daily; if (!q || q.done || q.day !== S.night || S.over) return;
-    const T = DAILY.find(x => x.id === q.id); if (!T) return;
-    if (T.far && !S.hero.dead) { const d = Math.hypot(S.hero.x - map.town.x, S.hero.y - map.town.y); if (d > q.far) q.far = d; if (q.far >= q.n && d < 9) q.back = true; }
-    if (S.phase === 'night' && !q.failedSaid) { q.failedSaid = true; toast(DAILY_TEXT.failed, 'bad'); return; }
-    if (S.phase !== 'day') return;
-    if (T.stat(S, ST) - q.base < q.n) return;
-    q.done = true; ST.dailies = (ST.dailies || 0) + 1;
-    const fx = T.reward(S.night).map(f => (q.penalty && f.op !== 'lean' ? { ...f, n: Math.ceil(f.n / 2) } : f));
-    for (const f of fx) apply(f, null);
-    const say = fx.filter(f => f.op !== 'lean').map(f => (f.op === 'xp' ? `+${f.n} xp` : f.op === 'gold' ? `+${f.n} scrap` : f.op === 'food' ? `+${f.n} food` : '')).filter(Boolean).join(' · ');
-    toast(`${DAILY_TEXT.done.replace('{title}', q.title)} ${say}.`, 'sys'); ev('dailyDone', { id: q.id });
-    chron(`Finished the daily quest ${q.title}.`, 1);
-    if (q.penalty) { ST.penalty = false; grant('penitent'); }
-    if (ST.dailies === 7) grant('diligent');
-  }
-
+  // (an accepted daily quest under another main line takes the second line instead: it ends at dawn, the contract in nights)
+  function withContract(q) { const d = dailyProgress(); if (d && !d.done && q.tag !== '[Daily]') return { ...q, extra: `Daily ${d.have}/${d.n}: ${d.goal}` }; const K = contracts.stripLine(); return K ? { ...q, extra: K.extra } : q; }
   // ---------- the night: one line that scales with the wave, the System's arrival on night 1 ----------
   const dirOf = (x, y) => DIRS[((Math.round(Math.atan2(y - map.town.y, x - map.town.x) / (Math.PI / 4)) % 8) + 8) % 8];
   const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'], TEEN = ['Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -607,8 +586,8 @@ export function createStory(ctx) {
     if ((gateT -= dt) > 0 || n >= questCap()) return;
     gateT = 2;
     const left = TIDE.dayLen - (S.dayT || 0);
-    if ((!ST.daily || ST.daily.day < S.night) && left > TIDE.dayLen * 0.45) { issueDaily(true); if (ST.daily && ST.daily.day === S.night) return; }
-    if (left > 30) placeSpots();
+    if (daily.offerOk() && daily.offer()) return;   // offered only when calm, with time left in the day
+    if (left > 30 && daily.calmOk()) placeSpots();   // a new beacon waits for a calm moment too
   }
   function genStreet() {
     const G = STREET_GEN, who = G.who[rng.int(G.who.length)], where = G.where[rng.int(G.where.length)], ask = G.ask[rng.int(G.ask.length)];
@@ -643,7 +622,7 @@ export function createStory(ctx) {
     for (const t of TIPS) if (!ST.tips.includes(t.id) && t.when(S, api())) { ST.tips.push(t.id); ev('tip', { id: t.id, at: t.at, text: t.text }); tipT = 45; return; }
   }
   function tick(dt = 1 / 60) {
-    tips(); nightTick(); dailyTick(); gateTick(dt);
+    tips(); nightTick(); daily.tick(dt); gateTick(dt);
     contracts.check();
     const tr = ST.trial;
     if (tr && !tr.done && !tr.started && !S.hero.dead && Math.hypot(S.hero.x - tr.x, S.hero.y - tr.y) < 3) { tr.started = true; ctx.spawnTrial(tr); const w = S.mobs.find(m => m.trial && !m.bossName); if (w) { const k = [1, 1.6, 2.4][(tr.tier || 1) - 1]; w.bossName = tr.boss || 'The Warden'; w.bossTier = tr.tier || 1; w.hp = w.maxHp = Math.round(w.maxHp * k); } toast(`[${tr.boss || tr.name}] Kill it. It won't follow you home.`, 'bad'); ev('trialStart', { boss: tr.boss, tier: tr.tier || 1 }); }
@@ -755,6 +734,6 @@ export function createStory(ctx) {
     offerWin: w => offer({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: 'Got it', hint: '', fx: [] }] }, w.pri || 6, 30),
     // [acts] a System window now (by day; at night it waits for the dawn like any card)
     windowNow: w => push({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: w.ok || 'Got it', hint: '', fx: [] }] }),
-    release, flush, dailyProgress, questLine, nightLine, contracts, skillOf, endThread,
+    release, flush, dailyProgress, arrivalOf, questLine, nightLine, contracts, skillOf, endThread,
     rarityColor: r => (RARITY[r] || RARITY.common).color };
 }

@@ -85,8 +85,8 @@ test('the dawn budget: at most one story card and one System window a dawn, noth
 
 test('night 1: a short first day, then the System arrives when the first dead reaches you; the gift waits for dawn 2', () => {
   const g = frontier(3), S = g.state;
-  assert.ok(Math.abs(g.duskIn() - 40) < 1, `day 1 is ${g.duskIn()} s, not ~40`);
-  assert.ok(TIDE.dayLen > 60);
+  assert.ok(Math.abs(g.duskIn() - TIDE.dayOne) < 1, `day 1 is ${g.duskIn()} s, not ~${TIDE.dayOne}`);
+  assert.ok(TIDE.dayOne >= 50 && TIDE.dayLen >= 160, 'days are a rush again');
   let scene = null, arrived = null;
   for (let k = 0; k < 60 * 120 && !arrived; k++) {
     g.step(1 / 60);
@@ -118,23 +118,65 @@ test('night copy scales with the wave', () => {
   void S;
 });
 
-test('the daily quest: issued from day 2, done by doing it, and ignoring it brings a penalty quest', () => {
+test('the daily quest: offered only when calm, Accept or Not now; no means no cost; an accepted one left undone costs what it said, at dawn', () => {
   const g = frontier(5), S = g.state, st = g.story();
-  S.night = 2; S.phase = 'day'; st.dawn(); st.flush(); while (S.story.encounters.length) g.choose(S.story.encounters[0].choices.at(-1).id);
-  const q = S.story.daily; assert.ok(q && q.day === 2 && q.n > 0, 'no daily quest');
-  const xp0 = S.xp + S.lvl * 1000;
-  // force the cull quest and do it
-  S.story.daily = { id: 'cull', title: 'Strength Training', goal: 'Put down 3 of the dead', n: 3, base: S.kills, done: false, penalty: false, day: S.night };
-  S.kills += 3; for (let k = 0; k < 30; k++) g.step(1 / 60);
-  assert.ok(S.story.daily.done, 'not done'); assert.ok(S.xp + S.lvl * 1000 > xp0, 'no xp');
-  assert.equal(st.dailyProgress().have, 3);
-  // ignore the next one: the next dawn is a penalty quest
-  S.night = 3; st.dawn(); st.flush(); while (S.story.encounters.length) g.choose(S.story.encounters[0].choices.at(-1).id);
-  S.night = 4; st.dawn(); st.flush(); while (S.story.encounters.length) g.choose(S.story.encounters[0].choices.at(-1).id);
-  assert.ok(S.story.daily.penalty, 'no penalty quest');
-  const food = S.food = 40;
-  S.night = 5; st.dawn();
-  assert.ok(S.food < food, 'the ignored penalty quest cost nothing');
+  const clear = () => { for (let k = 0; k < 9 && S.story.encounters.length; k++) { const e = S.story.encounters[0]; if (e.kind === 'daily') return e; g.choose(e.choices.at(-1).id); } return S.story.encounters.find(e => e.kind === 'daily') || null; };
+  const day = (n, foe) => {   // eslint-disable-line no-param-reassign   // a fresh day n: everything else answered, then up to 20 s by day (a foe kept beside the hero, or none)
+    S.night = n; S.phase = 'day'; S.dayT = 0; st.dawn(); st.flush(); clear(); S.story.later = [];
+    for (let k = 0; k < 60 * 20; k++) { S.mobs = S.mobs.filter(m => foe && m === foe && !m.dying); if (foe && !S.mobs.length) { foe = g.spawnMob('walker', S.hero.x + 2, S.hero.y); foe.rise = 1; } if (foe) { foe.x = S.hero.x + 2; foe.y = S.hero.y; foe.hp = foe.maxHp; } S.hero.hp = S.hero.maxHp; S.dayT = 10; g.step(1 / 60); const e = clear(); if (e) return e; }
+    return null;
+  };
+  S.story.threads = {}; S.story.spots = [];
+  // mid-fight: nothing is offered
+  { S.story.daily = null; assert.equal(day(2, true), null, 'a quest offered mid-fight'); S.mobs.length = 0; }
+  // calm: the card, Accept / Not now, the terms on it
+  S.story.daily = null; S.story.spots = []; const c1 = day(2); assert.ok(c1, 'no daily quest offered on a calm day 2');
+  assert.deepEqual(c1.choices.map(c => c.id), ['accept', 'later']);
+  assert.match(c1.choices[0].hint, /dawn.*−\d+ scrap/, 'the cost of failing is not on the card');
+  assert.match(c1.choices[1].hint, /No cost/);
+  // Not now: no objective, and the next dawn costs nothing
+  S.story.encounters = [c1]; g.choose('later');
+  assert.ok(!g.story().objectives().some(o => o.kind === 'daily'), 'a declined quest is on the objectives');
+  S.gold = 50; S.food = 20; const toasts0 = S.events.length;
+  const c2 = day(3); assert.equal(S.gold, 50, 'declining cost scrap'); assert.ok(!S.events.slice(toasts0).some(e => e.t === 'toast' && /failed/.test(e.msg)), 'a declined quest failed');
+  // Accept: a MAIN objective with its progress; doing it pays
+  assert.ok(c2, 'no quest on day 3'); S.story.encounters = [c2]; g.choose('accept');
+  const q = S.story.daily; assert.equal(q.state, 'active');
+  const ob = g.story().objectives().find(o => o.kind === 'daily'); assert.ok(ob && ob.priority === 'main' && /0\/\d+ · ends at dawn/.test(ob.sub), `objective: ${ob && ob.sub}`);
+  S.story.daily = { ...q, id: 'cull', title: 'Strength Training', goal: 'Put down 3 of the dead', n: 3, base: S.kills };
+  const xp0 = S.xp + S.lvl * 1000; S.kills += 3; for (let k = 0; k < 30; k++) g.step(1 / 60);
+  assert.equal(S.story.daily.state, 'done'); assert.ok(S.xp + S.lvl * 1000 > xp0, 'no xp'); assert.equal(st.dailyProgress().have, 3);
+  // Accept and leave it: the dawn takes exactly what the card said, never before
+  const c4 = day(4); assert.ok(c4, 'no quest on day 4'); S.story.encounters = [c4]; g.choose('accept');
+  const fail = S.story.daily.fail; S.story.daily.id = 'hunt'; S.story.daily.base = 1e9;   // a quest that cannot be done
+  S.gold = 50; S.phase = 'night'; for (let k = 0; k < 60 * 5; k++) { S.qT = 1; g.step(1 / 60); }
+  assert.ok(S.gold >= 50, 'it cost something at night'); S.gold = 50;
+  S.night = 5; S.phase = 'day'; st.dawn();
+  assert.equal(S.gold, 50 - fail, 'the failed quest did not cost what it said');
+});
+
+test('every choice that adds people says how they arrive, and the tag matches what happens', () => {
+  const g = frontier(3), S = g.state, st = g.story(), t = g.map.town;
+  const enc = { kind: 'street', title: 't', choices: [] };
+  const ch = (fx, extra = {}) => ({ id: 'x', label: 'x', fx, ...extra });
+  S.hero.x = t.x + 2; S.hero.y = t.y + 2;
+  assert.equal(st.arrivalOf(enc, ch([{ op: 'gold', n: 3 }])), null, 'a tag on a choice with no people');
+  assert.equal(st.arrivalOf(enc, ch([{ op: 'survivors', n: 3 }])).mode, 'now');
+  assert.equal(st.arrivalOf(enc, ch([{ op: 'flag', key: 'beacon' }])).mode, 'dawn');
+  assert.match(st.arrivalOf(enc, ch([{ op: 'flag', key: 'beacon' }])).text, /on their own.*dawn/);
+  assert.equal(st.arrivalOf(enc, ch([{ op: 'recruitNew' }], { npcName: 'Mara joins' })).text, 'Mara is at the Camp now.');
+  // far from the Camp a group walks home as a convoy you escort; one person just comes in
+  S.hero.x = t.x + 40; S.hero.y = t.y;
+  const far = st.arrivalOf(enc, ch([{ op: 'survivors', n: 3 }])); assert.equal(far.mode, 'convoy'); assert.match(far.text, /escort/);
+  assert.equal(st.arrivalOf(enc, ch([{ op: 'survivors', n: 1 }])).mode, 'now');
+  // what the tag said is what happens
+  S.story.encounters = [{ id: 950, kind: 'street', title: 'Roof', choices: [ch([{ op: 'survivors', n: 3 }], { id: 'bring' })] }];
+  const said = st.arrivalOf(S.story.encounters[0], S.story.encounters[0].choices[0]).mode, n0 = S.survivors;
+  assert.ok(g.choose('bring'));
+  assert.equal(said, 'convoy'); assert.equal(S.survivors, n0, 'they appeared at the Camp'); assert.ok(g.road.convoys().length >= 1, 'no convoy');
+  S.hero.x = t.x + 2; S.hero.y = t.y + 2; const n1 = S.survivors;
+  S.story.encounters = [{ id: 951, kind: 'street', title: 'Roof', choices: [ch([{ op: 'survivors', n: 3 }], { id: 'bring' })] }];
+  assert.equal(st.arrivalOf(S.story.encounters[0], S.story.encounters[0].choices[0]).mode, 'now'); g.choose('bring'); assert.equal(S.survivors, n1 + 3, 'not at the Camp now');
 });
 
 function signContract(g, id) {

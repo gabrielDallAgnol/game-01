@@ -18,7 +18,7 @@ export function createHud(ui) {
     if (SUPPRESS.some(r => r.test(msg))) return;
     if (/^\[Title acquired: First Light\]/.test(msg) && ui.game && ui.game.state.night <= 2) return;   // the arrival window already stamped it
     const dawn = /^Dawn\. ([+-]?\d+) scrap.*?, \+(\d+) food\. Citizens ate (\d+)\./.exec(msg);
-    if (dawn) { const line = `Dawn · **${+dawn[1] >= 0 ? '+' : '−'}${Math.abs(+dawn[1])}** scrap · **+${dawn[2]}** food · ate ${dawn[3]}`; ui.dawnLine = line; setTimeout(() => { if (!ui.ledgerUp) ctoast.show(line, 'good', 'sun'); }, 700); return; }
+    if (dawn) { const line = `Since yesterday · **${+dawn[1] >= 0 ? '+' : '−'}${Math.abs(+dawn[1])}** scrap · **+${dawn[2]}** food · ate ${dawn[3]}`; ui.dawnLine = line; setTimeout(() => { if (!ui.ledgerUp) ctoast.show(line, 'good', 'sun'); }, 700); return; }
     const sys = /^\[[^\]]+\]/.exec(msg);
     if (sys && systemHere()) { strip.say(msg, kind === 'win' ? 'sys' : kind, BEAT.test(msg) || kind === 'win'); return; }
     ctoast.show(sys ? msg.replace(/^\[([^\]]+)\]\s*/, '$1. ') : msg, kind, kind === 'bad' ? 'skull' : null);
@@ -129,6 +129,9 @@ export function createHud(ui) {
     $('#keepFill').style.width = `${kp * 100}%`; $('#campHp').classList.toggle('hurt', kp < 0.7); $('#campHp').classList.toggle('low', kp < 0.35);
     if (S.keep.hp < lastKeep - 0.5) keepHitT = 2; lastKeep = S.keep.hp; keepHitT = Math.max(0, keepHitT - 0.2);
     $('#gold').textContent = S.gold; $('#food').textContent = S.food; $('#pop').textContent = ui.game.pop();
+    // [income] what comes in a second, right now (slower at night)
+    if (ui.game.incomeRate) { const r = ui.game.incomeRate(), f = v => { const a = Math.abs(v); return Math.abs(v) < 0.005 ? '' : `${v > 0 ? '+' : '−'}${a < 0.1 ? a.toFixed(2) : a.toFixed(1)}/s`; };
+      for (const [id, v] of [['#goldRt', r.gold], ['#foodRt', r.food]]) { const el = $(id), t = S.over ? '' : f(v); if (el.textContent !== t) el.textContent = t; el.classList.toggle('neg', v < 0); } }
     $('#food').classList.toggle('warn', ui.game.foodPerDawn() + S.food < ui.game.foodNeed());
     { const cw = ui.game.crewing(); $('#pop').classList.toggle('warn', cw.need > cw.people); }
     const noiseShown = S.noise !== undefined || !!S.feat.heat, nz = noiseNow();

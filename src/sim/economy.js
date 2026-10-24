@@ -49,7 +49,7 @@ export function createEconomy(G) {
   function keepNeeds() {
     const n = KEEP.need[keep.level]; if (!n) return [];
     const out = [];
-    if (n.foodNet !== undefined && foodPerDawn() - foodNeed() < n.foodNet) out.push(`food income ${foodNeed() + n.foodNet} a dawn (now ${foodPerDawn()})`);
+    if (n.foodNet !== undefined && foodPerDawn() - foodNeed() < n.foodNet) out.push(`food income ${foodNeed() + n.foodNet} a day (now ${foodPerDawn()})`);
     if (n.food && S.food < n.food) out.push(`${n.food} food in store`);
     if (pop() < n.people) out.push(`${n.people} people`);
     if (n.won && S.stats.regionsClaimed + (S.stats.sites || 0) < n.won) out.push('a hive burned or a site claimed');
@@ -65,20 +65,17 @@ export function createEconomy(G) {
 
   function dawn() {
     S.phase = 'day'; S.dawns++; S.handsUsed = 0; S.chestsToday = 0;
-    let foodIn = CUT.crew ? 0 : G.sc.dawnFood(), hg = 0;
-    for (const b of S.buildings) { if (b.ruined) continue; if (b.type === 'farm') foodIn += farmFood(b); if (b.type === 'house') hg += houseGold(b); }   // ruins pay nothing
-    foodIn = Math.round(foodIn * prosper() * G.W8().food) + S.landmarks.reduce((a, l) => a + (l.owned ? LANDMARKS[l.kind].food || 0 : 0), 0);   // farms and the sites you hold
-    S.food += foodIn;
-    const need = foodNeed(), fed = need === 0 ? 1 : Math.min(1, S.food / need);
-    S.food = Math.max(0, S.food - need);
+    // [income] scrap and food came in all day and night (sim/income.js): dawn only closes the cycle for the ledger.
+    // What stays a dawn lump: the salvage hauled off the night's dead, the crew's cook, a broadcast's survivor.
+    const inc = G.incomeDawn();
+    let foodIn = inc.food;
+    const need = inc.ate, fed = inc.fed;
+    if (!CUT.crew) { const cf = G.sc.dawnFood(); S.food += cf; foodIn += cf; }
     const upk = upkeep();
     const salv = Math.min(8 + S.night, Math.floor(S.salvage || 0)); S.salvage = 0;   // what the town can haul in a morning
-    let goldIn = Math.round((START.baseIncome * G.DIFF.eco + S.P.tax + hg * fed) * prosper()) - upk + salv;
-    if (has('granary')) goldIn += Math.floor(S.food / 5);
-    for (const l of S.landmarks) if (l.owned) { const L = LANDMARKS[l.kind]; goldIn += L.gold || 0; if (L.reveal && S.night % 2 === 0) { S.survivors++; toast('A survivor followed the broadcast to your gates.', 'good'); } }
-    if (owns('tvtower')) goldIn += 3;
-    if (G.HC.quarter) { goldIn += 4; S.food += 2; }
-    S.gold = Math.max(0, S.gold + goldIn); S.stats.goldEarned += Math.max(0, goldIn);
+    for (const l of S.landmarks) if (l.owned) { const L = LANDMARKS[l.kind]; if (L.reveal && S.night % 2 === 0) { S.survivors++; toast('A survivor followed the broadcast to your gates.', 'good'); } }
+    S.gold += salv; S.stats.goldEarned += salv;
+    const goldIn = inc.gold + salv;
     let claimedNow = null, nestPick = false;
     if (S.purge !== null) { claimedNow = S.purge; G.burnHive(S.purge); nestPick = true; S.purge = null; }
     // Merchant Guild: free tower upgrades, by the same rules as any upgrade (hall level, Workshop, power)
@@ -131,8 +128,8 @@ export function createEconomy(G) {
     if (G.HC.trader && !CUT.trader) S.trade = { deals: rng.shuffle([...TRADES]).slice(0, 3).map(t => t.id), done: false };
     S.stats.peakPop = Math.max(S.stats.peakPop, pop());
     ev('dawn', { goldIn, foodIn, need, fed });
-    toast(`Dawn. ${goldIn >= 0 ? '+' : ''}${goldIn} scrap${salv ? ` (${salv} salvaged from the dead)` : ''}${upk ? ` after ${upk} tower upkeep` : ''}, +${foodIn} food. Citizens ate ${need}.`, 'good');
-    if (fed < 1) toast(`Not enough food. Houses earned ${Math.round(fed * 100)}% of their scrap.`, 'bad');
+    toast(`Dawn. ${goldIn >= 0 ? '+' : ''}${goldIn} scrap${salv ? ` (${salv} salvaged from the dead)` : ''}${upk ? ` after ${upk} tower upkeep` : ''}, +${foodIn} food. Citizens ate ${need}.`, 'good');   // (the HUD reads this line: it came in since yesterday)
+    if (fed < 0.99) toast(`Not enough food. Houses earned ${Math.round(fed * 100)}% of their scrap.`, 'bad');
     if (isBloodMoon(S.night + 1)) toast(`[Warning: red sky] The sky is turning red. **Tomorrow night is a blood moon**${S.unique && !S.unique.slain && S.unique.night === S.night + 1 ? `, and ${S.unique.name} comes with it` : ''}. Build up today and tomorrow.`, 'win');
   }
 
@@ -188,5 +185,5 @@ export function createEconomy(G) {
     Object.assign(l, { keepEnd: Math.max(0, Math.ceil(keep.hp)), keepMax: keep.maxHp, seconds: Math.round(S.qT) }, extra);
     S.log.push(l);
   }
-  return { costOf, newCost, buyCost, handsMax, handsFree, useHand, upCostOf, maxHpOf, keepMaxHp, powerLive, powerIn, powerOut, powered, checkPower, houseGold, prosper, upkeep, foodNeed, foodPerDawn, keepNeeds, checkForeman, dawn, endRun, trade, rollPacks, choosePack, rerollPacks, townCounts, newLog };
+  return { costOf, newCost, buyCost, handsMax, handsFree, useHand, upCostOf, maxHpOf, keepMaxHp, powerLive, powerIn, powerOut, powered, checkPower, houseGold, farmFood, prosper, upkeep, foodNeed, foodPerDawn, keepNeeds, checkForeman, dawn, endRun, trade, rollPacks, choosePack, rerollPacks, townCounts, newLog };
 }

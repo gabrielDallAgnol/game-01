@@ -52,17 +52,21 @@ export function createPlanner(g) {
     }
     return false;
   }
-  function tech(type) { if (S.buildings.some(b => b.type === type) || g.keepLevel() < 2 || S.gold < g.buyCost(type) + RESERVE + 4) return false; return place(type); }
-  const can = type => (S.stock[type] || 0) > 0 || S.gold >= g.buyCost(type) + RESERVE;
+  let saving = 0, savePlan = null;   // what the builders bank for, and which plan asked
+  let short = 0;   // the scrap the step the builders are saving for still needs (0: nothing is held up by scrap alone)
+  const lack = n => { if (S.gold >= n) return false; short = Math.max(short, n); return true; };
+  function tech(type) { if (S.buildings.some(b => b.type === type) || g.keepLevel() < 2 || lack(g.buyCost(type) + RESERVE + 4)) return false; return place(type); }
+  const can = type => (S.stock[type] || 0) > 0 || !lack(g.buyCost(type) + RESERVE);
   function upgradeOne(type) {
     const cap = Math.min(3, g.keepLevel());
     const cands = S.buildings.filter(x => x.type === type && !x.ruined && x.level < cap && !(x.level === 2 && UNL[type] && !g.hasTech(UNL[type]))).sort((a, c) => a.level - c.level || a.id - c.id), b = cands[0];
-    if (!b || S.gold < g.upCostOf(b) + RESERVE) return false;
+    if (!b) return false;
     if (type === 'tower' && g.crewing().free < 1) return false;
+    if (lack(g.upCostOf(b) + RESERVE)) return false;
     if (g.raiseBlock && /power/.test(g.raiseBlock(b.id))) return ACT.power();   // never upgrade into a blackout
     return g.upgrade(b.id);
   }
-  function keepUp() { return g.keepLevel() < 3 && S.buildings.some(b => b.level >= g.keepLevel()) && g.upgradeKeep(); }
+  function keepUp() { const K = g.keepCost && g.keepCost(); if (!K || K.needs.length || !S.buildings.some(b => b.level >= g.keepLevel())) return false; if (lack(K.scrap)) return false; return g.upgradeKeep(); }
 
   const ACT = {
     farm: () => can('farm') && place('farm'),
@@ -125,8 +129,15 @@ export function createPlanner(g) {
     if ((net < 0 || (net < 1 && S.food < 4)) && ACT.farm()) return true;
     if (S.blackout && ACT.power()) return true;
     if (ACT.rebuild()) return true;
-    const list = focus === 'balanced' ? PLAN[(flip = !flip) ? 'defence' : 'growth'] : PLAN[focus];
-    for (const a of list) if (ACT[a]()) return true;
+    // [income] scrap comes by the second, not in a dawn lump: the first step on the list that only lacks scrap is saved
+    // for (the builders bank until it is paid, and that plan gets the first go at the purse), instead of the cheaper
+    // steps below it, or the other plan, eating every trickle
+    if (saving && S.gold < saving) return false;
+    const list = saving && savePlan ? PLAN[savePlan] : focus === 'balanced' ? PLAN[(flip = !flip) ? 'defence' : 'growth'] : PLAN[focus];
+    short = 0; let ok = false;
+    for (const a of list) { if (ACT[a]()) { ok = true; break; } if (short) break; }
+    saving = short; savePlan = short ? (list === PLAN.defence ? 'defence' : 'growth') : null;
+    return ok;
     return false;
   }
   function tick(dt) {

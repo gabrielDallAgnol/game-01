@@ -44,11 +44,11 @@ export const PERKS = [
   { id: 'salvage', fam: 'stone', rarity: R, name: 'Salvage', desc: 'Whenever a building falls, recover a quarter of what it cost.', max: 1, fx: P => { P.salvage = true; } },
   { id: 'bell',    fam: 'stone', rarity: L, name: 'Bell of Last Light', desc: 'Once a run, when the keep would fall it holds at 30% and every zombie within 8 takes 20 damage.', max: 1, fx: P => { P.bell = true; } },
   // Harvest
-  { id: 'market',  fam: 'harvest', rarity: C, name: 'Market Day', desc: 'Each house pays 1 more scrap at dawn.', max: 3, fx: P => { P.houseGold += 1; } },
+  { id: 'market',  fam: 'harvest', rarity: C, name: 'Market Day', desc: 'Each house pays 1 more scrap a day.', max: 3, fx: P => { P.houseGold += 1; } },
   { id: 'soil',    fam: 'harvest', rarity: C, name: 'Fertile Soil', desc: 'Each farm grows 2 more food.', max: 3, fx: P => { P.farmFood += 2; } },
-  { id: 'tax',     fam: 'harvest', rarity: C, name: 'Tax Collector', desc: '+5 scrap every dawn.', max: 2, fx: P => { P.tax += 5; } },
+  { id: 'tax',     fam: 'harvest', rarity: C, name: 'Tax Collector', desc: '+5 scrap a day.', max: 2, fx: P => { P.tax += 5; } },
   { id: 'guarded', fam: 'harvest', rarity: R, name: 'Guarded Streets', desc: 'Houses within 6 of a tower pay 2 more scrap.', max: 1, fx: P => { P.guarded = true; } },
-  { id: 'granary', fam: 'harvest', rarity: R, name: 'Granary', desc: 'Every 5 spare food at dawn turns into 1 scrap.', max: 1, fx: P => { P.granary = true; } },
+  { id: 'granary', fam: 'harvest', rarity: R, name: 'Granary', desc: 'Every 5 food in store adds 1 scrap a day.', max: 1, fx: P => { P.granary = true; } },
   { id: 'bounty',  fam: 'harvest', rarity: R, name: 'Bounty', desc: '+1 scrap for every 3 zombies killed.', max: 1, fx: P => { P.bounty = true; } },
   { id: 'labour',  fam: 'harvest', rarity: R, name: 'Cheap Labour', desc: 'Houses and farms cost 1 less; tower upkeep 2 lower.', max: 1, fx: P => { P.ecoDiscount += 1; P.upkeepCut += 1; } },
   { id: 'guild',   fam: 'harvest', rarity: L, name: 'Merchant Guild', desc: 'Every dawn, one tower is upgraded free for each 4 houses you have.', max: 1, fx: P => { P.guild = true; } },
@@ -80,7 +80,7 @@ export const PERKS = [
   { id: 'sanct',   fam: 'heart', rarity: L, name: 'Sanctuary', desc: 'The keep mends 2 health a second at night.', max: 1, fx: P => { P.sanctuary = true; } },
   // Pacts: rare, with a real downside
   { id: 'pactBlood', fam: 'bow', rarity: R, pact: true, name: 'Blood Arrows', desc: 'Towers deal 50% more damage.', cost: 'The keep has 30% less health.', max: 1, fx: P => { P.towerDmg += 0.5; P.keepHpMult *= 0.7; } },
-  { id: 'pactGreed', fam: 'harvest', rarity: R, pact: true, name: 'Usury', desc: '+12 scrap every dawn.', cost: 'Each claimed region adds 25% threat instead of 12%.', max: 1, fx: P => { P.tax += 12; P.greed = true; } },
+  { id: 'pactGreed', fam: 'harvest', rarity: R, pact: true, name: 'Usury', desc: '+12 scrap a day.', cost: 'Each claimed region adds 25% threat instead of 12%.', max: 1, fx: P => { P.tax += 12; P.greed = true; } },
   { id: 'pactRage',  fam: 'hero', rarity: R, pact: true, name: 'Berserker', desc: 'Your attacks deal double damage.', cost: 'You no longer heal by day and lose 40% max health.', max: 1, fx: P => { P.heroDmgMult *= 2; P.noDayHeal = true; P.heroHpMult *= 0.6; } },
   { id: 'pactStone', fam: 'stone', rarity: R, pact: true, name: 'Walls of Bone', desc: 'Barricades +150% health.', cost: 'Every house pays 1 less scrap.', max: 1, fx: P => { P.wallHp += 1.5; P.houseGold -= 1; } },
 ];
@@ -120,7 +120,7 @@ export const MASTERIES = {
     { id: 'fortress', name: 'Fortress', desc: 'Crawlers cannot climb barricades, and barricades hit back for half the damage they take.' },
   ],
   harvest: [
-    { id: 'prosperity', name: 'Prosperity', desc: '+30% scrap and food at dawn.' },
+    { id: 'prosperity', name: 'Prosperity', desc: '+30% scrap and food from homes and farms.' },
     { id: 'patronage', name: 'Patronage', desc: 'Every blessing offer includes at least one rare.' },
   ],
 };
