@@ -54,7 +54,7 @@ In every root, creation order and per-frame call order are load-bearing:
 ### `src/content/`: pure data, so tuning starts here
 
 `buildings` · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
-`season` (pacing, rules) · `folk` (the folk's projects) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
+`solar` (the Solar Flare canon, opening, acts, System voice) · `barks` (citizen lines) · `season` (pacing, rules) · `folk` (the folk's projects) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
 (numbers and words for the road and missions) · `weather` · `legacy` · `woods` (worn trails)
 `buildings` · `towers` (the level 3 roles) · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
 `season` (pacing, rules) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`

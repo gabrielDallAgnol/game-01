@@ -12,6 +12,8 @@ which loads from a CDN as the global `THREE`. Read `docs/ARCHITECTURE.md` for th
 | The public API used by the UI, bots and tests | `src/sim/api.js`: add, never rename |
 | Story text, encounter words, contract names | `src/content/story.js`, `src/content/contracts.js` |
 | Story effects and offers | `src/sim/story.js`, `src/sim/contracts.js` |
+| World canon, the opening cards, crew, act and Rig lines, System voice | `src/content/solar.js` (player-facing names: Ash-Born, Inferno Nest, Haven Rig; code ids keep their old names) |
+| Citizen and crew barks | `src/content/barks.js` (`pick(kind)`, `pickWho(kind)`) |
 | What the Chronicler (Claude) may write | `src/ui/story-ai.js` (prompts and validators) |
 | A 3D model or prop | `src/render/kit/<family>.js`, exposed through `K` in `src/render/kit.js` |
 | How the game state is drawn | `src/render/view/<concern>.js`, a `createX(V)` factory wired in `src/render/view.js` |
