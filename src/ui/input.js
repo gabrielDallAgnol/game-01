@@ -21,6 +21,12 @@ export function createInput(ui) {
   });
   function endJoy() { joyIn.x = joyIn.y = 0; joy.hidden = true; }
   canvas.addEventListener('pointercancel', e => { touches.delete(e.pointerId); if (down && down.id === e.pointerId) { down = null; endJoy(); } });
+  // [gemini3] begin: a finger lifted over a button, a panel or off the canvas still lets go of the stick (Oct 24, to
+  // Gemini: "sometimes I get locked walking to a specific side… even after tapping the other side it still goes")
+  const letGo = e => { if (e.target === canvas && e.type === 'pointerup') return; touches.delete(e.pointerId); if (touches.size < 2) pinch0 = 0; if (down && down.id === e.pointerId) { down = null; endJoy(); } };
+  window.addEventListener('pointerup', letGo, true); window.addEventListener('pointercancel', letGo, true);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { for (const k in keys) keys[k] = false; down = null; endJoy(); } });
+  // [gemini3] end
   canvas.addEventListener('pointermove', e => {
     if (touches.has(e.pointerId)) { touches.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (touches.size === 2 && pinch0 && ui.view) { const [a, b] = [...touches.values()]; ui.view.setZoom(zoom0 * pinch0 / Math.max(20, Math.hypot(a.x - b.x, a.y - b.y))); return; } }
     if (!ui.game || !ui.view || ui.paused) return;
@@ -36,7 +42,7 @@ export function createInput(ui) {
     }
     if (e.pointerType === 'mouse') { const p = ui.view.pick(e.clientX, e.clientY); canvas.style.cursor = p && p.type !== 'ground' ? 'pointer' : ''; }
   });
-  const goTo = (x, y) => { ui.game.heroTo(x, y); ui.view.showMove(x, y); };
+  const goTo = (x, y) => { endJoy(); for (const k in keys) keys[k] = false; ui.game.heroTo(x, y); ui.view.showMove(x, y); };   // [gemini3] a tap to go always wins over a stuck stick or key
   canvas.addEventListener('pointerup', e => {
     const wasPinch = touches.size >= 2; touches.delete(e.pointerId); if (touches.size < 2) pinch0 = 0;
     const d = down; if (d && d.id === e.pointerId) down = null;
