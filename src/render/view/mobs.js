@@ -39,7 +39,7 @@ export function createMobs(V) {
       }
       const st = mobState.get(m.id); if (st.tag) { st.glow.position.copy(Wv(m.x, m.y, 2.4)); st.glow.material.opacity = 0.6 + Math.sin(time * 6) * 0.3; }
     }
-    for (const [id, e] of mobState) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) { fx.remove(e.tag); fx.remove(e.glow); } dying.push({ kind: e.kind, x: e.x, y: e.y, face: e.face, t: 0 }); mobState.delete(id); }
+    for (const [id, e] of mobState) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) { fx.remove(e.tag); fx.remove(e.glow); } dying.push({ id, kind: e.kind, x: e.x, y: e.y, face: e.face, t: 0 }); mobState.delete(id); }
   }
 
   const flames = []; const flameFor = new Map();
@@ -61,7 +61,7 @@ export function createMobs(V) {
     if (!h.dead) { const p = Wv(h.x, h.y); fx2.blobs.add(p.x, p.y, p.z, 0.5, 0.42); }
     for (const a of S.allies) { const p = Wv(a.x, a.y); fx2.blobs.add(p.x, p.y, p.z, 0.42, 0.36); }
     if (!frozen) {
-      crowd.begin();
+      crowd.begin(); const gl = V.gltf; if (gl) gl.begin();   // [assets3]
       for (const m of S.mobs) {
         const e = mobState.get(m.id); if (!e) continue;
         e.x = m.x; e.y = m.y;
@@ -72,7 +72,8 @@ export function createMobs(V) {
         const lunge = m.attacking ? Math.max(0, Math.sin(time * 6 + e.phase)) * 0.25 : 0;
         const fl = e.hitT ? Math.max(0, 1 - (time - e.hitT) / 0.07) : 0;
         const p = Wv(m.x, m.y, (m.rise - 1) * 1.1 + (m.attacking ? 0 : Math.abs(Math.sin(e.phase)) * 0.03));
-        crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, (m.unique ? 1.35 : m.bossTier ? 1.2 + 0.2 * m.bossTier : 1) * UNIT.dead, fl);
+        if (!(gl && gl.mob(m.id, m.kind, p, e.face, e.size, fl > 0.2 ? 'hit' : m.attacking ? 'attack' : m.speed > 2.4 ? 'run' : 'walk', dt)))   // [assets3]
+          crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, (m.unique ? 1.35 : m.bossTier ? 1.2 + 0.2 * m.bossTier : 1) * UNIT.dead, fl);
         if (m.rise >= 1) fx2.blobs.add(p.x, p.y, p.z, 0.36 * e.size, 0.32 * e.size);
         setBar(e.bar, m.x, 1.45 * Math.max(1, e.size) + 0.15, m.y, m.hp / m.maxHp, !!e.tag);
         if (e.tag) { camUp.set(0, 1, 0).applyQuaternion(V.camera.quaternion); e.tag.position.copy(e.bar.position).addScaledVector(camUp, TAG_GAP + e.tag.scale.y / 2); e.tag.visible = true; }   // the name sits above the bar, never on it
@@ -81,7 +82,8 @@ export function createMobs(V) {
         const dd = dying[k]; dd.t += dt; const p = Wv(dd.x, dd.y, -Math.max(0, dd.t - 0.55) * 1.0);
         // tip over: a quick fall with a small bounce, then sink into the ground
         const f = Math.min(1, dd.t / 0.32), fall = f < 1 ? f * f : 1 + Math.sin(Math.min(1, (dd.t - 0.32) / 0.18) * Math.PI) * 0.06;
-        crowd.add(dd.kind, 0, p.x, p.y, p.z, dd.face, -1.42 * fall, 0, UNIT.dead, Math.max(0, 1 - dd.t / 0.1));
+        if (!(gl && gl.mob('d' + dd.id, dd.kind, p, dd.face, 1, 'dead', dt)))   // [assets3]
+          crowd.add(dd.kind, 0, p.x, p.y, p.z, dd.face, -1.42 * fall, 0, UNIT.dead, Math.max(0, 1 - dd.t / 0.1));
         if (dd.t > 1.3) dying.splice(k, 1);
       }
       // townsfolk by day; at night the survivors sit round the camp fire
@@ -90,7 +92,7 @@ export function createMobs(V) {
         const [fx0, fz0] = keepFires[0], n = Math.min(7, Math.max(2, Math.round(game.pop() / 3)));
         for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2 + 0.4, x = fx0 + Math.cos(a) * 1.05, z = fz0 + Math.sin(a) * 1.05; crowd.add('folk' + (k % 6) + 's', 0, x, 0, z, Math.atan2(fx0 - x, fz0 - z), 0, 0, 1); fx2.blobs.add(x, 0, z, 0.3, 0.26); }
       }
-      crowd.end();
+      crowd.end(); if (gl) gl.end();   // [assets3]
     }
   }
   return { mobState, crowd, sync: syncMobs, updateFlames, draw };

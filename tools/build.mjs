@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const out = process.argv[2] || path.join(root, 'dist/index.html');
+const args = process.argv.slice(2), withGltf = args.includes('--gltf');   // [assets3] --gltf: also embed the GLTF loader and the test GLBs (only then; the default build is unchanged)
+const out = args.find(a => !a.startsWith('--')) || path.join(root, withGltf ? 'dist/index-gltf.html' : 'dist/index.html');
 const mods = new Map(), order = [];
 
 function visit(file) {
@@ -35,5 +36,9 @@ if (!html.includes(tag)) throw new Error('index.html is missing the module entry
 fs.mkdirSync(path.dirname(out), { recursive: true });
 // classic vendor scripts (three.js helpers) are inlined in place
 const withVendor = html.replace(/<script src="\.\/vendor\/([\w.-]+\.js)"><\/script>/g, (_, f) => `<script>\n${fs.readFileSync(path.join(root, 'vendor', f), 'utf8')}\n</script>`);
-fs.writeFileSync(out, withVendor.replace(tag, () => `<script>\n${bundle}\n</script>`));
+// [assets3] begin: GLTFLoader + SkeletonUtils (r128, MIT) and the trimmed GLBs as base64, for ?gltf=1
+const gltfBlock = !withGltf ? '' : ['GLTFLoader.js', 'SkeletonUtils.js'].map(f => `<script>\n${fs.readFileSync(path.join(root, 'vendor', f), 'utf8')}\n</script>\n`).join('')
+  + `<script>window.__GLB = {${['knight', 'skeleton'].map(n => `${n}: "${fs.readFileSync(path.join(root, 'assets/models', n + '.glb')).toString('base64')}"`).join(', ')}};</script>\n`;
+// [assets3] end
+fs.writeFileSync(out, withVendor.replace(tag, () => `${gltfBlock}<script>\n${bundle}\n</script>`));
 console.log(`${order.length} modules → ${path.relative(process.cwd(), out)} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);
