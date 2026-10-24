@@ -39,6 +39,7 @@ export function createHero(V) {
       let df = h.face - heroRig.g.rotation.y; while (df > Math.PI) df -= Math.PI * 2; while (df < -Math.PI) df += Math.PI * 2; heroRig.g.rotation.y += df * Math.min(1, dt * 14);
       heroRig.pose(h.moving, animT * 10, h.swing > 0 ? 1 - h.swing / 0.25 : -1);
     }
+    if (V.gltf) heroRig.g.visible = !V.gltf.hero(h, Wv(h.x, h.y), heroRig.g.rotation.y, dt, frozen) && !h.dead;   // [assets3] the Knight replaces the rig (?gltf=1)
     heroRing.visible = !h.dead; heroRing.position.copy(Wv(h.x, h.y, 0.05));
     if (heroAura) { heroAura.visible = !h.dead; heroAura.position.copy(Wv(h.x, h.y, 0.07)); heroAura.material.opacity = 0.4 + 0.2 * Math.sin(time * 3); heroAura.scale.setScalar(1 + 0.08 * Math.sin(time * 2)); }
     { const on = S.bountyT > 0 && !h.dead, R = (game.heroDef.ability && game.heroDef.ability.radius || 9) + S.P.bountyRadius; bountyRing.visible = on; if (on) { bountyRing.position.copy(Wv(h.x, h.y, 0.06)); bountyRing.scale.setScalar(R); bountyRing.material.opacity = 0.35 + Math.sin(time * 5) * 0.15; } }

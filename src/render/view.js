@@ -36,6 +36,8 @@ import { createLights } from './view/lights.js';
 import { createEvents } from './view/events.js';
 import { createPicking } from './view/picking.js';
 import { createCinema } from './view/cinema.js';
+// [assets3] the ?gltf=1 test path
+import { createGltf } from './view/gltf.js';
 // [folk] the village the folk raise by themselves
 import { createVillage } from './view/village.js';
 // [road] begin
@@ -71,6 +73,7 @@ export function createView(canvas, game, opts = {}) {
   const routes = createRoutes(V);
   const bars = V.bars = createBars(V);
   const keep = V.keep = createKeep(V);
+  V.gltf = createGltf(V);   // [assets3] null unless ?gltf=1
   const mobs = V.mobs = createMobs(V);
   const hero = V.hero = createHero(V);
   const projectiles = V.projectiles = createProjectiles(V);
