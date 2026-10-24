@@ -73,6 +73,7 @@ export function createRig(G) {
   /** the cargo the town would make if it rolled now: { scrap, food, …, salvaged, people, pct } */
   function cargoNow() {
     const out = { scrap: Math.max(0, Math.floor(S.gold)), food: Math.max(0, Math.floor(S.food)), salvaged: 0, buildings: 0, people: 0, pct: 0 };
+    for (const k of RIG.stock) if (typeof S[k] === 'number') out[k] = Math.max(0, Math.floor(S[k]));
     let cost = 0; const got = {};
     for (const b of S.buildings) {
       const p = paid(b), k = salvagePct(b);
@@ -101,7 +102,7 @@ export function createRig(G) {
     const cargo = cargoNow();
     for (const b of [...S.buildings]) { if (b.type === 'house' && b.folk) S.homeless = (S.homeless || 0) + b.folk; G.removeBuilding(b); }
     if (G.dropCrew) G.dropCrew();
-    S.gold = 0; S.food = 0;
+    S.gold = 0; S.food = 0; for (const k of RIG.stock) if (typeof S[k] === 'number') S[k] = 0;
     S.rig.cargo = cargo; S.rig.mode = 'rolling'; S.rig.rolls++;
     S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1;
     const next = legOf(S.rig.leg + 1);

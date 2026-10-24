@@ -19,6 +19,7 @@ export const RIG = {
     speed: { name: 'Speed', at: [2, 4, 7], src: 'Rig level (×2) and level 3 buildings', fx: 'Arrive earlier in the day: more daylight to rebuild', score: t => 2 * (t.keepLvl - 1) + t.lvl3 },
   },
   hpPer: 0.12, dmgPer: 0.2,
+  stock: ['timber', 'wood'],   // other stock (S[key], when a feature adds it) that rides in the hold beside scrap and food
   arrive: [0.3, 0.2, 0.1, 0.02],   // share of the day already gone when the Rig anchors, by Speed level
   // render timings (seconds of wall clock): fold up, drive off, unfold
   anim: { pack: 2.2, drive: 5.5, unpack: 2.4 },
