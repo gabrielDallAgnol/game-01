@@ -15,7 +15,7 @@ export const HYBRID_AT = 15;              // two stats at 15 or more each unlock
 export const STATS = {
   str: { name: 'STR', long: 'Strength', color: '#ff8a5c', icon: 'fist',
     per: { dmg: 0.02, hp: 0.6, hive: 0.02 },
-    lines: p => [`+${Math.round(p * 2)}% melee damage`, `+${Math.round(p * 0.6)} health`, `+${Math.round(p * 2)}% damage to hives`] },
+    lines: p => [`+${Math.round(p * 2)}% damage`, `+${Math.round(p * 0.6)} health`, `+${Math.round(p * 2)}% damage to hives`] },
   agi: { name: 'AGI', long: 'Agility', color: '#7dff9e', icon: 'run',
     per: { speed: 0.01, rate: 0.015, dodge: 0.006 }, dodgeMax: 0.3,
     lines: p => [`+${Math.round(p * 1)}% move speed`, `+${(p * 1.5).toFixed(0)}% attack speed`, `${Math.round(Math.min(0.3, p * 0.006) * 100)}% dodge`] },
