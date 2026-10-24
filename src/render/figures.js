@@ -65,7 +65,7 @@ export const OUTLINE = { px: 0.0011 };   // hull width per unit of view distance
 const outlineMats = {};
 /** a back-face hull in one flat colour; works on plain, instanced and skinned meshes */
 export function outlineMat(color, o = {}) {
-  const key = `${color}|${o.skinning ? 1 : 0}|${o.w || 1}`; if (outlineMats[key]) return outlineMats[key];
+  const key = `${color}|${o.skinning ? 1 : 0}|${o.w || 1}|${o.tag || ''}`; if (outlineMats[key]) return outlineMats[key];
   const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(color), side: THREE.BackSide, skinning: !!o.skinning, fog: false });
   const w = { value: OUTLINE.px * (o.w || 1) };
   m.onBeforeCompile = sh => {
