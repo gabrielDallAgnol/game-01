@@ -72,8 +72,10 @@ export function startApp() {
 
   // ---------- loop ----------
   const toastFor = new Set(['toast', 'fail']);
+  let drawnAt = 0;   // [gemini3]
   function frame(now) {
     requestAnimationFrame(frame);
+    if (ui.paused && ui.card && now - drawnAt < 95) return; drawnAt = now;   // [gemini3] behind a card the world idles at ~10 fps (battery, heat on phones)
     const raw = now - last, dt = Math.min(0.1, raw / 1000); last = now;
     if (!ui.game || !ui.view) return;
     const S = ui.game.state;
