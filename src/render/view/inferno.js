@@ -55,7 +55,7 @@ export function createInferno(V) {
     const r = reg.id, hv = hives.get(r), n = reg.nest, half = n.body ? n.body.half : 1.6, kind = n.heat || 'boiler';
     hv.model.visible = false; hv.decal.visible = false; hv.haze.forEach(s => { s.visible = false; });   // the old green hive look is gone
     hv.inf = true;
-    const root = new THREE.Group(); hv.g.add(root);
+    const root = new THREE.Group(); root.scale.setScalar(kind === 'tanker' ? 1.3 : 1.55); hv.g.add(root);   // big: a landmark among the ruins
     const bld = building(kind, half); root.add(bld);
     const scorchMat = new THREE.MeshBasicMaterial({ map: scorchTex, transparent: true, opacity: 0.95, depthWrite: false }), scorch = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), scorchMat);
     scorch.rotation.x = -Math.PI / 2; scorch.position.y = 0.04; scorch.renderOrder = 2; root.add(scorch);
@@ -104,7 +104,7 @@ export function createInferno(V) {
       const L = q.lvl, flick = i => 0.85 + 0.15 * Math.sin(time * 9 + i * 1.7) + 0.08 * Math.sin(time * 23 + i * 3.1);
       q.flames.forEach((f, i) => { const u = f.userData, k = L * flick(i) * u.s * (ph >= 2 && i % 3 ? 0.55 : 1); f.material.opacity = Math.min(0.92, L * 1.0) * (alive ? 1 : 0); f.scale.set(1.5 * k, 2.6 * k, 1); f.position.set(u.x, u.y + 1.3 * k, u.z); });
       q.jets.forEach((j, i) => { j.material.opacity = q.vents.visible ? 0.95 : 0; const k = (1.1 + 0.4 * Math.sin(time * 11 + i)) * L; j.scale.set(0.9 * k, 2.2 * k, 1); j.position.y = 2.5 + 1.0 * k; });
-      q.column.material.opacity = (0.4 + 0.1 * Math.sin(time * 5)) * Math.min(1, L) * (alive ? 1 : 0); q.column.scale.set(4.2 + 0.4 * Math.sin(time * 3), 10 + 2 * L + Math.sin(time * 4), 1); q.column.position.y = 6 + L;
+      q.column.material.opacity = (0.24 + 0.06 * Math.sin(time * 5)) * Math.min(1, L) * (alive ? 1 : 0); q.column.scale.set(3.4 + 0.4 * Math.sin(time * 3), 15 + 3 * L + Math.sin(time * 4), 1); q.column.position.y = 8.5 + L;
       q.glowTop.material.opacity = (0.1 + 0.45 * dark) * L * (alive ? 1 : 0); q.glowTop.scale.setScalar(13 + 5 * L);
       q.core.material.opacity = alive ? (ph >= 2 ? 0.8 : 0.35) * (0.8 + 0.2 * Math.sin(time * 7)) : 0; q.core.scale.setScalar(ph >= 2 ? 3.6 + Math.sin(time * 6) * 0.5 : 2.2);
       // the charred pad grows with the nest's age and shrinks as it is broken; a snuffed nest keeps a faint scar
