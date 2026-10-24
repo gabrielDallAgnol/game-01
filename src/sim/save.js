@@ -14,7 +14,7 @@ export function createSave(G) {
     if (S.phase !== 'day' || S.over) return null;
     return { v: SAVE_V, seed, mapSeed: mapSeed ?? seed, biome, hero: S.heroClass, mode: S.mode, difficulty: S.difficulty, clock: S.clock, city: map.name, savedAt: Date.now(),
       legacy: S.legacy, night: S.night, gold: S.gold, food: S.food, kills: S.kills, stock: S.stock, survivors: S.survivors, heat: S.heat, foreman: S.foreman, builders: S.builders, autopilot: !!S.autopilot,
-      sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
+      inferno: G.inferno ? G.inferno.save() : null, sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, reroll: S.reroll, halfUpgrade: S.halfUpgrade,
       landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),
       evo: S.evo, path: S.path, feat: S.feat, noiseChoice: S.noiseChoice || 0, mourned: S.mourned || 0, diffNight: S.diffNight || 0, tools: S.tools, carry: S.hero.carry, ledger: S.ledger || null, pickups: S.pickups, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, eruption: S.eruption, heatCool: S.heatCool, sawBlackout: !!S.sawBlackout, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], trails: S.trails || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT, inc: S.inc || null,
@@ -25,6 +25,7 @@ export function createSave(G) {
       kits: R.kits, claimed: new Set(R.claimed), nestAlive: R.nestAlive, wake: R.wake.map(w => (w < 0 ? Infinity : w)), P: R.P, picks: R.picks, chestsHeld: R.chestsHeld, dawns: R.dawns,
       weather: R.weather, reroll: R.reroll, halfUpgrade: R.halfUpgrade, stats: R.stats, log: R.log || [], evo: R.evo, pickups: R.pickups || [], path: R.path || S.path, feat: R.feat || {}, season: R.season || S.season, buildersWas: R.buildersWas ?? undefined, lvl: R.lvl || 1, xp: R.xp || 0, unique: R.unique || undefined, eruption: R.eruption || null, heatCool: R.heatCool || 0, sawBlackout: !!R.sawBlackout, trade: R.trade || null, drained: R.drained, salvage: R.salvage, clearedIdx: R.cleared, handsUsed: R.handsUsed, dayT: R.dayT, inc: R.inc || undefined });
     G.HC = heroKit(S.heroClass, S.evo && S.evo.calling);   // an advanced class is built on the Calling you took
+    if (G.inferno) G.inferno.restore(R.inferno || {});   // [nest3] broken segments stay broken
     S.sealed = Uint8Array.from(R.sealed); S.sealVersion++;
     syncMastery();
     R.landmarks.forEach(([o, k, st], i) => { const l = S.landmarks[i]; if (l) { l.owned = !!o; l.kind = k; l.stripped = !!st; } });

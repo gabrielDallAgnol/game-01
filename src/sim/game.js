@@ -40,6 +40,7 @@ import { createBlessings } from './blessings.js';
 import { createSave } from './save.js';
 import { createApi } from './api.js';
 import { createActs } from './acts.js';
+import { createInferno } from './inferno.js';   // [nest3]
 import { createSpots } from './spots.js';
 import { createNests } from './nests.js';
 // [pacify] begin
@@ -58,7 +59,7 @@ import { createIncome } from './income.js';
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome];   // [pacify] appended
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno];   // [nest3] appended   // [pacify] appended
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';
