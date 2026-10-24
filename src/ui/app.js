@@ -22,6 +22,8 @@ import { createPlacing } from './placing.js';
 import { createPanels } from './panels.js';
 import { createInput } from './input.js';
 import { createCinema } from './cinema.js';
+// [story3] the Solar Flare's voice on events
+import { solarVoice } from './solar-voice.js';
 // [pacify] begin
 import { createHomeward } from './homeward.js';
 // [pacify] end
@@ -100,6 +102,7 @@ export function startApp() {
       if (e.t === 'classUp') classBeat(e);
     }
     if (ui.roadUI && events.length) ui.roadUI.onEvents(events);
+    if (events.length) solarVoice(ui, events);   // [story3]
     if (windowAtDawn) ui.game.story().release();
     // decisions wait for a calm moment: never while the hero fights or the dead are close (the night-1 arrival may
     // type itself out); a card that waited long enough opens once the hero itself is out of reach
