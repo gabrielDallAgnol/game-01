@@ -25,18 +25,21 @@ export function createCombat(G) {
     if (G.HC.marshal && hd < 6) rate /= G.HC.marshal;
     if (near) rate /= PRESENCE.rate * (has('rally') ? 1.15 : 1);
     if (h.dead) rate /= TENSION.downRate;   // the hero is down: the town loses heart (25% slower)
-    return { range, dmg, rate, shots: has('volley') && b.level === 3 ? 2 : 1, presence: near };
+    // [gemini3] begin: a compact Camp hits harder; a companion at their post lends towers near the Camp part of your presence
+    let hold = null; if (G.towerHold) { hold = G.towerHold(b, near); dmg *= hold.dmg; rate /= hold.rate; range += hold.range; }
+    // [gemini3] end
+    return { range, dmg, rate, shots: has('volley') && b.level === 3 ? 2 : 1, presence: near || !!(hold && hold.captain) };
   }
   // towers are manned by people from your homes, oldest tower first; a tower without its full crew stays silent
   let crewKey = -1, crewCache = null;
   const dropCrew = () => { crewCache = null; };   // people or towers changed: re-man the towers
   function crewing() {
-    const key = (S.occVersion || 0) * 1000 + (S.phase === 'night' ? 1 : 0);
+    const key = (S.occVersion || 0) * 1000 + keep.level * 10 + (S.phase === 'night' ? 1 : 0);   // [gemini3] the Camp's level: its garrison
     if (S.phase === 'night' && crewCache && crewCache.night === S.night) return crewCache;   // posts are fixed for the night
     if (key === crewKey && crewCache) return crewCache;
-    let free = pop(); const manned = new Set(); let need = 0;
+    let free = pop() + (G.garrison ? G.garrison() : 0); const manned = new Set(); let need = 0;   // [gemini3] the Camp's own garrison
     for (const b of S.buildings.filter(x => x.type === 'tower' && !x.ruined).sort((a, c) => a.id - c.id)) { const n = CREW_NEED[b.level - 1]; need += n; if (free >= n) { manned.add(b.id); free -= n; } }
-    crewKey = key; crewCache = { manned, free, need, people: pop(), night: S.phase === 'night' ? S.night : null };
+    crewKey = key; crewCache = { manned, free, need, people: pop() + (G.garrison ? G.garrison() : 0), night: S.phase === 'night' ? S.night : null };
     return crewCache;
   }
   const manned = b => crewing().manned.has(b.id);
@@ -67,6 +70,7 @@ export function createCombat(G) {
     }
     if (G.HC.ward && !S.hero.dead && Math.hypot(S.hero.x - b.x, S.hero.y - b.y) < 5) d *= G.HC.ward;
     if (G.folkGuard) d *= G.folkGuard(b);   // [folk] sandbags and watch-posts the folk raised
+    if (G.strongTaken) d *= G.strongTaken(b);   // [gemini3] a compact Camp holds tighter
     S.cur.taken[b.type] = (S.cur.taken[b.type] || 0) + Math.min(d, b.hp);
     b.hp -= d; ev('hitB', { id: b.id });
     if (b.type === 'wall' && by && mastery('fortress')) hitMob(by, d * 0.5, 'thorns');

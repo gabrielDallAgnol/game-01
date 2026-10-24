@@ -31,7 +31,7 @@ export function createPanels(ui) {
     if (ui.selected.type === 'keep') {
       const k = S.keep, l = k.level;
       $('#pEyebrow').textContent = 'Your home'; $('#pTitle').textContent = `The Camp · level ${l}`;
-      let html = `<div class="stat"><span>Health <b>${Math.ceil(k.hp)} / ${k.maxHp}</b></span><span>${campCopy(KEEP.desc[l - 1])}</span></div><div class="opts two">`;
+      let html = `<div class="stat"><span>Health <b>${Math.ceil(k.hp)} / ${k.maxHp}</b></span><span>${campCopy(KEEP.desc[l - 1])}</span>${ui.strongLine ? ui.strongLine() : ''}</div><div class="opts two">`;   // [gemini3] small and strong
       const miss = l < 3 ? ui.game.keepNeeds() : [];
       html += l < 3 ? opt('opt-keep', 'data-keep="1"', 'Raise the Camp', KEEP.cost[l], miss.length ? `Still needed: ${miss.join(' · ')}` : `${campCopy(KEEP.desc[l])} · buildings up to level ${l + 1}`, miss.length > 0 || S.gold < KEEP.cost[l] || !day) : '';
       if (FLAGS.trader && S.trade && !S.trade.done && day) html += opt('opt-trader', 'data-trader="1"', 'Visit the trader', null, 'One deal before nightfall.', false);

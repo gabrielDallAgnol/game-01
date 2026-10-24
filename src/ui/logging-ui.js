@@ -22,5 +22,14 @@ export function createLoggingUi(ui) {
     ui.toast(r.loggers ? `The crew goes to work: ${Math.ceil(r.dur)} s.` : `You walk over to fell the trees: stay by them ${Math.ceil(r.dur)} s.`);
     return true;
   }
-  return { treesHtml, treesClick };
+  /** [gemini3] the Camp panel's small-and-strong line (sim/stronghold.js) */
+  function strongLine() {
+    const g = ui.game; if (!g.strongInfo) return '';
+    const I = g.strongInfo(), bits = [];
+    bits.push(I.compact ? `<b class="good">Compact stronghold</b> (${I.n}/${I.max} buildings): towers hit harder, buildings take less` : `Compact stronghold at ${I.max} buildings or fewer (now ${I.n})`);
+    if (I.garrison) bits.push(`garrison <b>${I.garrison}</b> crew`);
+    if (I.captain) bits.push('a companion holds the Camp');
+    return `<span>${bits.join(' · ')}</span>`;
+  }
+  return { treesHtml, treesClick, strongLine };
 }
