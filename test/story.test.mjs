@@ -262,7 +262,7 @@ test('the strip stays short on a phone: the contract line and the trial line fit
     signContract(g, id);
     const L = st.contracts.stripLine(); assert.ok(L && L.extra.startsWith('Contract · '), 'no contract line');
     assert.ok(L.extra.length <= 52, `contract line too long for 390 px: "${L.extra}"`);
-    assert.ok(!/\bthe the\b|comes to the Camp/.test(L.extra), L.extra);
+    assert.ok(!/\bthe the\b|comes to the Haven/.test(L.extra), L.extra);
     S.story.trial = { cls: 'scavver', x: S.hero.x + 20, y: S.hero.y, day: S.night, started: false, done: false, tier: 1, boss: 'The Warden of the Old Road', name: 'Trial of the Scavenger' };
     const q = st.questLine(); assert.equal(q.tag, '[Trial]'); assert.ok(!/^Win the /.test(q.text) && q.text.length <= 40, q.text); checked++;
   }

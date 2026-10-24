@@ -810,7 +810,7 @@ test('nests defend themselves: a guard pack wakes, rage climbs while you stay an
   assert.equal(g.siteLock(site.id), reg.id);
   S.hero.x = site.x; S.hero.y = site.y + site.size / 2 + 1; S.gold = 999; S.events.length = 0;
   assert.equal(g.claimLandmark(site.id), false, 'claimed a site next to a living hive');
-  assert.ok(S.events.some(e => e.t === 'fail' && /Burn the hive first/.test(e.msg)), 'no reason given');
+  assert.ok(S.events.some(e => e.t === 'fail' && /Burn the Inferno Nest first/.test(e.msg)), 'no reason given');
   // walk up to the hive: the guard rises and comes for you
   S.hero.hp = S.hero.maxHp = 1e6; S.hero.x = n.x + 1.5; S.hero.y = n.y; S.events.length = 0;
   const pin = () => { S.hero.x = n.x + 1.5; S.hero.y = n.y; S.hero.target = null; };
@@ -821,7 +821,7 @@ test('nests defend themselves: a guard pack wakes, rage climbs while you stay an
   for (let k = 0; k < 60 * NEST.step * 3.2; k++) { pin(); S.hero.cd = 1; g.step(); }   // stand without striking (the hive must not burn)
   const waves = S.events.filter(e => e.t === 'nestRage');
   assert.ok(waves.length >= 3, `${waves.length} rage waves`); assert.ok(waves[2].n >= waves[0].n, 'the rage does not grow');
-  assert.ok(g.nestRage(reg.id).lv >= 3 && S.events.some(e => e.t === 'toast' && /Hive stirs/.test(e.msg)), 'no rage telegraph');
+  assert.ok(g.nestRage(reg.id).lv >= 3 && S.events.some(e => e.t === 'toast' && /Inferno Nest stirs/.test(e.msg)), 'no rage telegraph');
   // a second visit the same day does not raise a second pack
   assert.equal(S.events.filter(e => e.t === 'nestGuard').length, 1);
   // walk away: it cools down and stops sending
