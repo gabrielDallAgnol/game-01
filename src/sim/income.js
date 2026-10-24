@@ -24,10 +24,12 @@ export function createIncome(G) {
   function perCycle() {
     const pr = G.prosper();
     let made = 0, hg = 0;
-    for (const b of S.buildings) { if (b.ruined) continue; if (b.type === 'farm') made += G.farmFood(b); if (b.type === 'house') hg += G.houseGold(b); }
+    for (const b of S.buildings) { if (b.ruined || b.built < 1) continue;   // [econ3] still going up: no pay, no food
+      if (b.type === 'farm') made += G.farmFood(b); if (b.type === 'house') hg += G.houseGold(b); }
     made = Math.round(made * pr * G.W8().food) + S.landmarks.reduce((a, l) => a + (l.owned ? LANDMARKS[l.kind].food || 0 : 0), 0) + (G.HC.quarter ? 2 : 0) + storyFood();
     const need = G.foodNeed(), fed = S.food > 0 || made >= need || need === 0 ? 1 : made / need;
-    let gold = Math.round((START.baseIncome * G.DIFF.eco + S.P.tax + hg * fed) * pr) - G.upkeep() + storyGold();
+    const tk = G.trickleK ? G.trickleK() : { base: 1, house: 1 };   // [econ3] the carts haul most of the scrap now
+    let gold = Math.round((START.baseIncome * G.DIFF.eco * tk.base + S.P.tax + hg * tk.house * fed) * pr) - G.upkeep() + storyGold();
     if (has('granary')) gold += Math.floor(S.food / 5);
     for (const l of S.landmarks) if (l.owned) gold += LANDMARKS[l.kind].gold || 0;
     if (owns('tvtower')) gold += 3;

@@ -77,6 +77,9 @@ export function createApi(G) {
     homeInfo: () => G.homeInfo(), returnHome: () => G.returnHome(), cancelReturn: () => G.cancelReturn(),
     hiveEdge: (r, x, y) => G.nestEdge(map.regions[r], x, y), hiveInReach: (x, y, reach) => { const r = G.hiveInReach(x, y, reach); return r ? r.id : -1; },   // [nests] reach is measured to the edge; a strike needs clear sight
     spawnAnimals: () => G.spawnAnimals(),   // [woods] the dawn top-up of the woods' game (tests, tools)
+    // [econ3] the construction queue (reorder: dir -1 / +1 / 'top'; cancel refunds), harvester carts and nodes, relics
+    queue: () => G.queueInfo(), queueMove: (id, dir) => G.queueMove(id, dir), queueCancel: id => G.queueCancel(id), crews: () => G.crews(),
+    haul: () => G.haulInfo(), buyCart: () => G.buyCart(), cartDock: () => G.cartDock(), relics: () => G.relicsInfo(),
   };
   return api;
 }

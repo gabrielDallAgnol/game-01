@@ -38,6 +38,8 @@ import { createPicking } from './view/picking.js';
 import { createCinema } from './view/cinema.js';
 // [folk] the village the folk raise by themselves
 import { createVillage } from './view/village.js';
+// [econ3] nodes, carts, scaffolds on the queue
+import { createHaul } from './view/haul.js';
 // [road] begin
 import { createRoadView } from './road-view.js';
 // [road] end
@@ -91,6 +93,7 @@ export function createView(canvas, game, opts = {}) {
   const rest = createRest(V);   // [nests] the "+ resting" tag at the Camp
   const village = V.village = createVillage(V);   // [folk] the folk's props and scaffold
   const birds = V.birds = createBirds(V);   // [woods] birds flushed from the trees
+  const haul = V.haul = createHaul(V);   // [econ3] nodes, carts, scaffolds on the queue
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -125,6 +128,7 @@ export function createView(canvas, game, opts = {}) {
     rest.update(dt);
     village.update(dt, ui.events);   // [folk]
     birds.update(dt, ui.events);   // [woods]
+    haul.update(dt);   // [econ3]
     routes.update();
     markers.updateSelection(dt, ui.selected);
     placing.setGhost(ui.ghost || null); placing.setZone(ui.zone || null);

@@ -56,6 +56,7 @@ export function createBuildings(G) {
       if (map.ramp[i] && type !== 'wall') { out.reason = 'Keep the ramp clear (a barricade can close it).'; return out; }
     }
     for (const reg of map.regions) if (nestAlive(reg.id) && Math.hypot(reg.nest.x - cx, reg.nest.y - cy) < 4) { out.reason = 'Too close to a nest.'; return out; }
+    { const why = G.nodeBlock && G.nodeBlock(out.cells); if (why) { out.reason = why; return out; } }   // [econ3] the carts' timber stands and scrap heaps
     if (opts.deep && type !== 'wall' && sealsOff(out.cells)) { out.reason = 'That would close off a space you could not walk out of.'; return out; }
     out.ok = true; return out;
   }
@@ -63,7 +64,15 @@ export function createBuildings(G) {
   const heroOk = i => PASSABLE[map.terrain[i]] && (S.occ[i] < 0 || isWall(S.occ[i])) && !S.sealed[map.region[i]];
   let reachKey = '', reachSet = null;
   function heroReach(extraBlocked) {
-    const seen = new Uint8Array(N * N), start = idx(Math.floor(c), Math.floor(c + 3.5)), q = [start]; seen[start] = 1;
+    // [econ3] begin: start the flood from open ground by the keep (the yard cell itself may have been built over, and
+    // then nothing counted as reachable: any building passed and the hero could wall himself in)
+    const seen = new Uint8Array(N * N), q = [];
+    for (let r = 0; r <= 8 && !q.length; r++) for (let dy = -r; dy <= r && !q.length; dy++) for (let dx = -r; dx <= r && !q.length; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = Math.floor(keep.x) + dx, y = Math.floor(keep.y + 3.5) + dy; if (!inside(x, y)) continue;
+      const i = idx(x, y); if (heroOk(i) && !(extraBlocked && extraBlocked.has(i))) { seen[i] = 1; q.push(i); }
+    }
+    // [econ3] end
     for (let h = 0; h < q.length; h++) {
       const i = q[h], x = i % N, y = (i / N) | 0;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {

@@ -19,10 +19,15 @@ export function createBuild(G) {
     if (S.over) return false;
     const p = G.canPlace(type, x, y, rot || 0, { deep: true }); if (!p.ok) return fail(p.reason);
     if (G.handsFree() < 1) return G.useHand();
+    // [econ3] begin: what this costs, for a refund if the job is called off
+    const stock0 = (S.stock[type] || 0) > 0, paid0 = stock0 ? 0 : G.buyCost(type);
+    if (G.queueOn && G.queueOn() && G.queueFull()) return fail('The work queue is full: let the crews finish something first.');
+    // [econ3] end
     if (!pay(type)) return false;
     S.handsUsed++;
     S.cur.built.push(type); S.stats.built++;
-    G.placeBuilding(type, p.x, p.y, p.rot, 1);
+    const nb = G.placeBuilding(type, p.x, p.y, p.rot, 1);
+    if (G.queueNew) G.queueNew(nb, paid0, stock0);   // [econ3] it goes up as a blueprint in the construction queue
     G.unstickHero();
     return true;
   }
@@ -90,8 +95,14 @@ export function createBuild(G) {
     if (S.over) return false;
     const b = S.byId.get(id); { const why = raiseBlock(b); if (why) return fail(why); }
     const cost = G.upCostOf(b); if (S.gold < cost) return fail('Not enough scrap.');
+    // [econ3] begin: an upgrade is a job in the queue; one at a time per building
+    const queued = G.queueOn && G.queueOn() && b.type !== 'wall';
+    if (queued && (G.upQueued(b.id) || b.cq)) return fail(b.cq ? 'It is still going up.' : 'Its upgrade is already in the queue.');
+    if (queued && G.queueFull()) return fail('The work queue is full: let the crews finish something first.');
+    // [econ3] end
     if (!G.useHand()) return false;
     S.gold -= cost; S.halfUpgrade = false; S.cur.spent += cost; S.cur.upgraded.push(`${b.type}${b.level + 1}`); S.stats.upgraded++; S.stats.goldSpent += cost;
+    if (queued) return G.queueUp(b, cost);   // [econ3]
     raise(b); return true;
   }
   function raise(b) { G.removeBuilding(b); const nb = G.placeBuilding(b.type, b.x, b.y, b.rot, b.level + 1, b.id); nb.hp = Math.min(nb.maxHp, nb.hp); if (b.type === 'house') nb.folk = (b.folk ?? houseCap(b)) + houseCap(nb) - houseCap(b); return nb; }
