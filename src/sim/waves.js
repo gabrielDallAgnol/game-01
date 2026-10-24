@@ -137,9 +137,9 @@ export function createWaves(G) {
     return spawnMob(kind, n.x, n.y);
   }
   function planPurge(r) {
-    if (r !== null && map.regions[r] && keep.level < keepForRing(map.regions[r].ring)) return fail(`Raise the keep to level ${keepForRing(map.regions[r].ring)} first.`);
+    if (r !== null && map.regions[r] && keep.level < keepForRing(map.regions[r].ring)) return fail(`Raise the Haven Rig to level ${keepForRing(map.regions[r].ring)} first.`);
     if (r === null) { S.purge = null; return true; }
-    if (!canPurge(r)) return fail('You can only march on a nest next to your land.');
+    if (!canPurge(r)) return fail('You can only march on an Inferno Nest next to your land.');
     S.purge = r; return true;
   }
 
@@ -158,7 +158,7 @@ export function createWaves(G) {
     if (!CUT.crew) G.sc.nightfall(keep);
     { const rt = G.ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight beats your towers. Stay near the homes.`, 'bad'); }
     ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
-    toast(isBloodMoon(S.night) ? `Blood moon. Night ${S.night} begins.` : `Dusk. Night ${S.night}: the dead come in force.`, isBloodMoon(S.night) ? 'bad' : undefined);
+    toast(isBloodMoon(S.night) ? `Blood moon. Night ${S.night} begins.` : `Dusk. Night ${S.night}: the Ash-Born come in force.`, isBloodMoon(S.night) ? 'bad' : undefined);
     return true;
   }
 

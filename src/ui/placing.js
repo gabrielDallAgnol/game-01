@@ -27,7 +27,7 @@ export function createPlacing(ui) {
     }).join('') + TECH_ORDER.map(t => {
       const have = S.buildings.some(b => b.type === t), locked = ui.game.keepLevel() < BUILDINGS[t].keep, cost = ui.game.buyCost(t), on = ui.placing && ui.placing.type === t;
       if (have || ui.game.keepLevel() < 2) return '';
-      return `<button class="tb tech ${t}${on ? ' on' : ''}" data-tray="${t}" ${locked || S.gold < cost || hands < 1 ? 'aria-disabled="true"' : ''} title="${BUILDINGS[t].desc[0]}"><i></i><span class="tn">${SHORT[t]}</span>${locked ? '<span class="tc">Camp 2</span>' : `<span class="cost">${icon('scrap')}${cost}</span>`}</button>`;
+      return `<button class="tb tech ${t}${on ? ' on' : ''}" data-tray="${t}" ${locked || S.gold < cost || hands < 1 ? 'aria-disabled="true"' : ''} title="${BUILDINGS[t].desc[0]}"><i></i><span class="tn">${SHORT[t]}</span>${locked ? '<span class="tc">Rig 2</span>' : `<span class="cost">${icon('scrap')}${cost}</span>`}</button>`;
     }).join('');
   }
   function setDrawer(open) { $('#tray').classList.toggle('open', open); $('#tray').hidden = !open || !!ui.card; $('#buildBtn').setAttribute('aria-expanded', open); if (open) { ui.closePanel(); trayKey = ''; renderTray(); } ui.dockH(); }
@@ -38,7 +38,7 @@ export function createPlacing(ui) {
     const b = e.target.closest('[data-tray]'); if (!b || !ui.game || ui.paused) return;
     const t = b.dataset.tray;
     if (ui.placing && ui.placing.type === t) { stopPlacing(); return; }
-    if (BUILDINGS[t].tech && ui.game.keepLevel() < BUILDINGS[t].keep) { ui.toast(`Raise the Camp to level ${BUILDINGS[t].keep} to build a ${SHORT[t]}.`, 'bad'); return; }
+    if (BUILDINGS[t].tech && ui.game.keepLevel() < BUILDINGS[t].keep) { ui.toast(`Raise the Haven to level ${BUILDINGS[t].keep} to build a ${SHORT[t]}.`, 'bad'); return; }
     if (!(ui.game.state.stock[t] > 0) && ui.game.state.gold < ui.game.buyCost(t)) { ui.toast(`A ${SHORT[t].toLowerCase()} costs ${ui.game.buyCost(t)} scrap.`, 'bad'); return; }
     if (handsLeft() < 1) { ui.toast('Everyone is busy today. More people, more hands.', 'bad'); return; }
     if (t === 'tower' && ui.game.crewing().free < CREW_NEED[0]) ui.toast('[No crew free] A new tower will stand silent. Build or upgrade homes first.', 'bad');   // [towers]

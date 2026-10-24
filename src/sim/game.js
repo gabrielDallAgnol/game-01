@@ -127,7 +127,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     guard: (x, y, n) => { for (let k = 0, tries = 0; k < n && tries < 40; tries++) { const a = rng.range(0, Math.PI * 2), gx = x + Math.cos(a) * rng.range(1, 2.8), gy = y + Math.sin(a) * rng.range(1, 2.8), cx = Math.floor(gx), cy = Math.floor(gy); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue; k++; const m = spawnMob(rng.pick(S.night >= 4 ? ['walker', 'runner'] : ['walker']), gx, gy, { instant: true }); m.roam = { x, y, region: -1 }; } },
     actGoal: () => G.actGoal(),   // [acts]
     landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) { if (G.siteLocked(l)) G.promiseSite(l); else takeSite(l); } }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
-    risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the dead.', 'bad'); } });
+    risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the Ash-Born.', 'bad'); } });
   G.story.start();
   // legacy edges from earlier runs
   { const Lg = S.legacy; if (!restore) { S.gold += 10 * (Lg.scrap || 0); S.food += 6 * (Lg.food || 0); } S.P.heroDmgMult *= 1 + 0.08 * (Lg.dmg || 0); S.P.keepHp += 25 * (Lg.keep || 0); refreshMax(); keep.hp = keep.maxHp; }
@@ -199,7 +199,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
         if (m.unique && S.unique) S.unique.escaped = true;   // at your walls: the sunrise burns the night's dead (the hives' stream keeps coming)
         S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: 'sun', dmg: 0 }); burnt++;
       }
-      if (burnt) toast(`Sunrise: **${burnt}** of the dead burn at your walls.`);
+      if (burnt) toast(`Sunrise: **${burnt}** of the Ash-Born burn at your walls.`);
       dawn();
     }
     // [folk] begin: the folk's own projects, their fund, beauty (sim/folk-build.js)

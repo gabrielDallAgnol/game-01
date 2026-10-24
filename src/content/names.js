@@ -1,4 +1,4 @@
-// Names for the city's districts and its hives, picked per map seed. Modern, a little worn.
+// Names for the city's districts and its Inferno Nests, picked per map seed. Modern, a little worn.
 import { Rng, hashSeed } from '../sim/rng.js';
 
 const FIRST = ['Ashford', 'Kingsgate', 'Marrow', 'Northwall', 'Saltmarket', 'Greyfield', 'Vine', 'Cannery', 'Harbour', 'Old Mill', 'Bellmont', 'Tanner', 'Foundry', 'Linden', 'Crown', 'Weaver', 'Rook', 'Station', 'Chapel', 'Copper'];
@@ -17,10 +17,10 @@ export function regionNames(seed, count) {
   }
   return out;
 }
-/** a hive is a building that went bad: it keeps its old name */
+/** an Inferno Nest is a building that went bad: it keeps its old name */
 export function hiveName(seed, region) {
   const rng = new Rng(hashSeed(seed, 'hive', region)), kind = HIVE_KINDS[region % HIVE_KINDS.length];
-  if (kind === 'metro') return `${rng.pick(LINES)} Line Station`;
-  if (kind === 'petrol') return `${rng.pick(PUMPS)} Petrol`;
-  return `St. ${rng.pick(SAINTS)}'s Hospital`;
+  if (kind === 'metro') return `${rng.pick(LINES)} Line Substation`;
+  if (kind === 'petrol') return `${rng.pick(PUMPS)} Gas Station`;
+  return `St. ${rng.pick(SAINTS)}'s Boiler Works`;
 }

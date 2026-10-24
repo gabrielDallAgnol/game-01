@@ -17,7 +17,7 @@ export const MOVE_COST = [1, 1.6, Infinity, Infinity, Infinity, 2.5, 1, Infinity
 export const WORLD = { cityD: 178, cityR: 30 * K, wildR: 70, camp: 10, corridor: 11, roadFrom: 40 };   // the city edge is ~150 cells out: about a minute on foot
 
 export const BIOMES = {
-  riverbend: { name: 'Paris', blurb: 'A river curls through the far city; the dead cross at the bridges. The Eiffel Tower stands over it.', signature: 'eiffel' },
+  riverbend: { name: 'Paris', blurb: 'A river curls through the far city; the Ash-Born cross at the bridges. The Eiffel Tower stands over it.', signature: 'eiffel' },
   highland:  { name: 'Rio de Janeiro', blurb: 'The far city sits on a raised plaza with few ramps up. Christ the Redeemer watches from a cliff top.', signature: 'christ' },
   lakeshore: { name: 'Berlin', blurb: 'A lake guards one side of the far city. The Fernsehturm towers over it.', signature: 'tvtower' },
   vale:      { name: 'The Cut', blurb: 'The far city lies in a sunken bowl ringed by cliffs, with one gap facing your woods.', signature: 'tvtower' },
@@ -307,8 +307,8 @@ export function validateMap(map) {
   if (core.slots.length < 7) problems.push(`camp has only ${core.slots.length} slots`);
   const nests = map.regions.filter(r => r.nest);
   if (nests.filter(r => r.ring === 1).length < 2) problems.push('fewer than 2 forest hollows');
-  if (nests.filter(r => r.ring >= 2).length < 4) problems.push('fewer than 4 city hives');
-  for (const r of nests) if (!map.reach[idx(Math.floor(r.nest.x), Math.floor(r.nest.y))]) problems.push(`nest ${r.id} unreachable`);
+  if (nests.filter(r => r.ring >= 2).length < 4) problems.push('fewer than 4 city Inferno Nests');
+  for (const r of nests) if (!map.reach[idx(Math.floor(r.nest.x), Math.floor(r.nest.y))]) problems.push(`Inferno Nest ${r.id} unreachable`);
   const cc = idx(Math.floor(map.city.x), Math.floor(map.city.y));
   if (!map.reach[cc] && !map.regions.some(r => r.ring === 2 && r.nest)) problems.push('the city cannot be reached');
   if (map.slots.length < 30) problems.push(`only ${map.slots.length} slots`);

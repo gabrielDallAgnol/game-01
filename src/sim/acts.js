@@ -41,7 +41,7 @@ export function createActs(G) {
     ev('actOpen', { act: 2 });
     toast('[The road is open] The hollows are ash. The fences come down.', 'sys');
     const win = { eyebrow: '[Act 2]', title: 'The road is open', feat: 'road', ok: 'Walk the road',
-      lines: ['The woods are **clear**. The quarantine fences are **down**.', 'The **old road** runs to the city: light its **fires** and hold them.', 'Beyond it, **the city**. Its hives are bigger.'] };
+      lines: ['The woods are **clear**. The quarantine fences are **down**.', 'The **old road** runs to the city: light its **fires** and hold them.', 'Beyond it, **the city**. Its Inferno Nests are bigger.'] };
     if (G.story && G.story.windowNow) G.story.windowNow(win); else ev('window', win);
     if (G.story) G.story.chron('Burned the last hollow. The road opened.', 4, ['act']);
     return true;

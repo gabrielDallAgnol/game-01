@@ -84,7 +84,7 @@ export function createCards(ui) {
       else if (f.op === 'lose') add('neg', 'heartBreak', 'leaves');
       else if (f.op === 'bond') add(f.n > 0 ? 'pos' : 'neg', 'heartFill', sg(f.n));
       else if (f.op === 'gamble') add('risk', 'dice', `${Math.round(f.p * 100)}%`);
-      else if (f.op === 'risen') add('neg', 'skull', 'the dead rise');
+      else if (f.op === 'risen') add('neg', 'skull', 'the Ash-Born rise');
       else if (f.op === 'hurt') add('neg', 'drop', 'you get hurt');
       else if (f.op === 'unique') add('risk', 'eye', 'boss fight');
       else if (f.op === 'fail' && !f.quiet) add('risk', f.after ? 'hourglass' : 'end', f.after ? 'they may not wait' : 'the story ends');
@@ -250,7 +250,7 @@ export function createCards(ui) {
     return [...L.filter(c => !/: "/.test(c.text)), ...L.filter(c => /: "/.test(c.text))].slice(0, 3).sort((a, b) => a.day - b.day).map(c => chronLine(c.text));
   }
   function showVictory(enc, st) {
-    const P = usePatch(enc), beats = P && P.beats ? P.beats : (seasonLines(enc.season).length ? seasonLines(enc.season) : ['You held the Camp through a whole season.']), next = (P && P.next) || enc.next;
+    const P = usePatch(enc), beats = P && P.beats ? P.beats : (seasonLines(enc.season).length ? seasonLines(enc.season) : ['You held the Haven through a whole season.']), next = (P && P.next) || enc.next;
     showCard('enc', `<div class="eyebrow"><span id="vEb"></span>${chronicler.available() ? `<span class="chr">${icon('quill')}${P ? 'Chronicler' : ''}</span>` : ''}</div>
       <h1 class="big">${esc(enc.title)}</h1><p class="scene">${rich(enc.scene)}</p>
       <ul class="obit">${beats.map(b => `<li>${rich(b)}</li>`).join('')}</ul><div class="nexton">${esc(next)}</div>

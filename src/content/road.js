@@ -48,9 +48,9 @@ export const AMBUSH = { after: 40, every: 55, ahead: 18, minNight: 2, warn: '[Mo
 
 // Night missions: one choice at dusk. On a Pied Piper night a flare is a pitch flare: it burns where it lands (`traps.pyre*`).
 export const MISSIONS = {
-  hold: { name: 'Hold the Camp', icon: 'shield', line: 'Stand with your towers. The classic night.' },
-  hunt: { name: 'The Hunt', icon: 'flame', line: 'The hives empty as their dead march. Sneak out and burn one. Lantern off: unseen but slow.' },
-  piper: { name: 'The Pied Piper', icon: 'horn', line: 'Sound the horn and the dead come for you, not the camp. Lead them into a trap.' },
+  hold: { name: 'Hold the Haven', icon: 'shield', line: 'Stand with your towers. The classic night.' },
+  hunt: { name: 'The Hunt', icon: 'flame', line: 'The Inferno Nests empty as their Ash-Born march. Sneak out and burn one. Lantern off: unseen but slow.' },
+  piper: { name: 'The Pied Piper', icon: 'horn', line: 'Sound the horn and the Ash-Born come for you, not the Haven. Lead them into a trap.' },
 };
 export const MISSION = {
   pick: 6,            // seconds to choose before Hold is chosen for you
@@ -73,13 +73,13 @@ export const STATION_SCENES = {
   bus: { eyebrow: '[Location discovered]', title: 'The Stalled Bus',
     scene: 'Inside the school bus, chalk on the windows: **WE ARE STILL HERE**. A mother, two kids and their grandfather, out of water for a day.',
     choices: [
-      { id: 'home', label: 'Walk them home', hint: '+4 people, if you get them to the camp. The dead will smell them.', fx: [{ op: 'survivors', n: 4 }] },
+      { id: 'home', label: 'Walk them home', hint: '+4 people, if you get them to the Haven. The Ash-Born will smell them.', fx: [{ op: 'survivors', n: 4 }] },
       { id: 'fuel', label: 'Drain the tank and move on', hint: '+6 scrap.', fx: [{ op: 'gold', n: 6 }] },
     ] },
   ranger: { eyebrow: '[Survivor detected]', title: 'The Ranger Tower',
-    scene: 'A ranger called **Ilse** has watched the road from up here for a month. She counts the dead going by like weather.',
+    scene: 'A ranger called **Ilse** has watched the road from up here for a month. She counts the Ash-Born going by like weather.',
     choices: [
-      { id: 'home', label: 'Bring her and her stores home', hint: '+1 person and a cart of +8 food, if you get them to the camp.', fx: [{ op: 'survivors', n: 1 }], road: { cart: { food: 8 } } },
+      { id: 'home', label: 'Bring her and her stores home', hint: '+1 person and a cart of +8 food, if you get them to the Haven.', fx: [{ op: 'survivors', n: 1 }], road: { cart: { food: 8 } } },
       { id: 'watch', label: 'She keeps the fire lit', hint: 'The tower\'s fire is lit for free. +1 hero damage from her sighting tips.', fx: [{ op: 'perk', key: 'heroDmg', add: 1 }], road: { light: true } },
     ] },
   toll: { eyebrow: '[Location discovered]', title: 'The Toll Gate',

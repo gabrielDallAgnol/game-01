@@ -44,7 +44,7 @@ export function createMissions(ctx, getRoad) {
   }
   function whereIs() {
     const h = S.hero, road = getRoad();
-    if (Math.hypot(h.x - c, h.y - c) < 18) return 'the camp';
+    if (Math.hypot(h.x - c, h.y - c) < 18) return 'the Haven';
     const st = road.stations.find(s => Math.hypot(s.x - h.x, s.y - h.y) < 9);
     if (st) return st.name;
     return road.convoys().length ? 'the road, with your convoy' : 'out on the road';
@@ -117,7 +117,7 @@ export function createMissions(ctx, getRoad) {
     if (room <= 0) return ctx.fail('They are all on your heels already: lead them into a trap.');
     const cand = S.mobs.filter(m => hears(m) && Math.hypot(m.x - h.x, m.y - h.y) < r)
       .sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y));
-    if (!cand.length) return ctx.fail(`Nothing in earshot yet: the horn carries about ${Math.round(r)} steps. Wait for the dead to come.`);
+    if (!cand.length) return ctx.fail(`Nothing in earshot yet: the horn carries about ${Math.round(r)} steps. Wait for the Ash-Born to come.`);
     const take = cand.slice(0, Math.min(room, Math.ceil(cand.length * hornShare())));
     M.blows++;
     for (const m of take) pipe(m);
@@ -125,7 +125,7 @@ export function createMissions(ctx, getRoad) {
     if (ctx.addNoise) ctx.addNoise(H.noise);   // a horn in the night is heard far off: the camp's Noise rises for nights (fading a fifth each dawn)
     ev('horn', { x: h.x, y: h.y, r, n: take.length });
     const t = nearestTrap(h.x, h.y);
-    toast(`[Horn] **${take.length} dead** turn from the camp toward you.${t ? ` Nearest trap: **${t.name}**, ${Math.round(Math.hypot(t.x - h.x, t.y - h.y))} steps.` : ' Lead them somewhere that kills them.'}`, 'sys');
+    toast(`[Horn] **${take.length} Ash-Born** turn from the Haven toward you.${t ? ` Nearest trap: **${t.name}**, ${Math.round(Math.hypot(t.x - h.x, t.y - h.y))} steps.` : ' Lead them somewhere that kills them.'}`, 'sys');
     return take.length;
   }
   /** how many of the dead the horn would reach right now */
@@ -200,8 +200,8 @@ export function createMissions(ctx, getRoad) {
       if (M.id === 'hunt' && night()) {
         const bonus = Math.round(WAVES.plunder(reg.ring) * (MISSION.hunt.pay - 1));
         ctx.earn(bonus); ctx.gainXp(20); M.burned++; S.stats.nightHives = (S.stats.nightHives || 0) + 1;
-        toast(`[Night hunt] The hive burned while its dead were out: **+${bonus} scrap** more.`, 'good');
-        const story = ctx.story(); if (story) story.chron('Burned a hive by night while its dead were out.', 4, ['hunt']);
+        toast(`[Night hunt] The Inferno Nest burned while its Ash-Born were out: **+${bonus} scrap** more.`, 'good');
+        const story = ctx.story(); if (story) story.chron('Burned an Inferno Nest by night while its Ash-Born were out.', 4, ['hunt']);
       }
     } else if (e.t === 'horde' && M.id === 'hunt' && night() && Array.isArray(e.ids)) {
       // most of its dead are out on the road tonight: fewer pour out after you (the runners and brute stay)
@@ -233,7 +233,7 @@ export function createMissions(ctx, getRoad) {
       const share = M.ledKilled / M.led;
       // the horn gets louder with every Piper night that worked
       if (share >= H.lvNeed && M.ledKilled >= H.lvKills && (M.hornLv || 0) < H.lvMax) { M.hornLv = (M.hornLv || 0) + 1; toast(`[Skill up: Horn Lv ${M.hornLv + 1}] It carries ${H.lvR} steps further and turns more of them.`, 'win'); }
-      const story = ctx.story(); if (story && M.ledKilled >= 10) story.chron(`Led ${M.led} dead out of the camp by night; ${M.ledKilled} never came back.`, 3, ['piper']);
+      const story = ctx.story(); if (story && M.ledKilled >= 10) story.chron(`Led ${M.led} Ash-Born out of the Haven by night; ${M.ledKilled} never came back.`, 3, ['piper']);
     }
     // the dead you led and left out there wander the woods now: they do not come back to the camp by day
     for (const m of S.mobs) if (m.piped && outside(m.x, m.y)) { m.roam = { x: m.x, y: m.y, region: -1 }; m.lost = true; }

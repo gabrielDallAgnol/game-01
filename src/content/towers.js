@@ -12,9 +12,9 @@ export const SPECS = {
   brazier: { name: 'Brazier', short: 'close in', r: 4.5, dmg: 1.6, rate: 1.1, burn: { t: 3, dps: 1.2 }, est: 4,
     line: 'Fire ring: **1.6** + burning **1.2**/s to all within **4.5** · every 1.1 s' },
   // pierce: a heavy bolt down a line, made for brutes and bosses
-  ballista: { name: 'Ballista', short: 'vs brutes', range: 13, dmg: 7, width: 0.75, big: 2, rate: 2, est: 2.2,
-    line: 'Piercing bolt: **7** to all in a line, **×2** vs brutes · every 2 s · range 13' },
+  ballista: { name: 'Ballista', short: 'vs Brutes', range: 13, dmg: 7, width: 0.75, big: 2, rate: 2, est: 2.2,
+    line: 'Piercing bolt: **7** to all in a line, **×2** vs Slag Brutes · every 2 s · range 13' },
   // support: the bell slows the dead around it and marks them for every other tower
   bell: { name: 'Watch Bell', short: 'slows, marks', r: 8, dmg: 0.6, slow: 0.55, t: 3.2, rate: 3, est: 6,
-    line: 'Toll: the dead within **8** slow to **55%** and take **+30%** · every 3 s' },
+    line: 'Toll: the Ash-Born within **8** slow to **55%** and take **+30%** · every 3 s' },
 };

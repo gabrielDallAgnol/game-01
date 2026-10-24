@@ -121,7 +121,7 @@ export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, isB
     for (const c of [...crew]) if (c.bitten && !c.out) {
       crew.splice(crew.indexOf(c), 1); scav.lost++;
       spawnMob('runner', keep.x + (rng.next() - 0.5), keep.y + 3.5, { instant: true });
-      toast(`${c.name} turned. One of the dead is inside the town.`, 'bad');
+      toast(`${c.name} turned. One of the Ash-Born is inside the town.`, 'bad');
     }
   }
 

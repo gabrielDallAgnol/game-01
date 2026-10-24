@@ -79,7 +79,7 @@ export function createStatus(ui) {
     if (!ui.game || ui.card) return;
     ui.paused = true; ui.closePanel(); if (ui.placing) ui.stopPlacing();
     const S = ui.game.state, m = audio.muted();
-    ui.showCard('more', `<button class="closex" id="moX" aria-label="Close">${icon('close')}</button><div class="eyebrow">The Camp</div><h1 class="sm">More</h1>
+    ui.showCard('more', `<button class="closex" id="moX" aria-label="Close">${icon('close')}</button><div class="eyebrow">The Haven</div><h1 class="sm">More</h1>
       <div class="moregrid">
         <button id="moStatus">${icon('level')}<span>Status<small>titles, companions</small></span></button>
         <button id="moMap">${icon('map')}<span>Map<small>where you have been</small></span></button>
@@ -107,7 +107,7 @@ export function createStatus(ui) {
   function logTable() {
     const rows = ui.game.logRows(); if (!rows.length) return '<p class="note">No nights played yet.</p>';
     const pk = id => id.startsWith('m:') ? id.slice(2) : (PERKS.find(p => p.id === id) || { name: id }).name;
-    return `<div class="logwrap"><table class="log"><thead><tr><th>Night</th><th>Camp left</th><th>Threat</th><th>Wave HP</th><th>Tower DPS</th><th>Kills hero·tower·Camp</th><th>Lost</th><th>Scrap in / spent</th><th>Skills</th></tr></thead><tbody>${rows.map(l => {
+    return `<div class="logwrap"><table class="log"><thead><tr><th>Night</th><th>Haven left</th><th>Threat</th><th>Wave HP</th><th>Tower DPS</th><th>Kills hero·tower·Haven</th><th>Lost</th><th>Scrap in / spent</th><th>Skills</th></tr></thead><tbody>${rows.map(l => {
       const kp = l.keepEnd !== undefined ? Math.round(l.keepEnd / l.keepMax * 100) : null;
       return `<tr><td>${l.night}${l.bloodMoon ? ' (blood moon)' : ''}</td><td>${kp !== null ? kp + '%' : 'now'}</td><td>${l.ratio ?? '–'}</td><td>${l.waveHp}</td><td>${l.defDps}</td>
       <td>${l.kills.hero || 0} · ${l.kills.tower || 0} · ${l.kills.keep || 0}</td><td>${l.lost.length}${l.risen ? ` (${l.risen} rose)` : ''}</td><td>+${l.goldIn ?? 0} / ${l.spent}</td><td>${l.perks.map(pk).join(', ') || '–'}</td></tr>`; }).join('')}</tbody></table></div>`;
@@ -125,21 +125,21 @@ export function createStatus(ui) {
     const L = ST.lostContract;
     return [
       `You woke in the woods with a window only you could see, and a bus full of strangers who chose to follow you.`,
-      big ? `Day ${big.day}. ${chronLine(big.text)}` : `You held the Camp for ${S.night - 1} ${S.night - 1 === 1 ? 'night' : 'nights'}${comps.length ? `, with ${comps.slice(0, 2).join(' and ')} beside you` : ''}.`,
-      L ? `The contract "${L.name}" ran out on night ${L.night}. ${L.finale} was still out there.` : `On night ${S.night} the Camp fell, and the window closed.`,
+      big ? `Day ${big.day}. ${chronLine(big.text)}` : `You held the Haven for ${S.night - 1} ${S.night - 1 === 1 ? 'night' : 'nights'}${comps.length ? `, with ${comps.slice(0, 2).join(' and ')} beside you` : ''}.`,
+      L ? `The contract "${L.name}" ran out on night ${L.night}. ${L.finale} was still out there.` : `On night ${S.night} the Haven fell, and the window closed.`,
     ];
   }
   function showEnd() {
     const S = ui.game.state, st = S.stats, prev = store.get('best', 0), best = Math.max(prev, S.night), ST = S.story;
     store.set('best', best); store.set('runs', store.get('runs', 0) + 1);
     const kills = Object.values(st.killsByKind || {}).reduce((a, b) => a + b, 0), by = st.killsBy || {};
-    const stats = [['Dead put down', kills], ['Your kills', by.hero || 0], ['Scrap earned', st.goldEarned], ['Buildings raised', st.built], ['Sites claimed', st.sites || 0], ['Companions', ST.npcs.filter(n => n.joined).length], ['Titles', ST.titles.length], ['Most people', st.peakPop], ['Hives burned', st.regionsClaimed], ['Buildings lost', st.buildingsLost], ['Times you fell', st.heroDeaths], ['Contracts won', ST.wins || 0]];
+    const stats = [['Dead put down', kills], ['Your kills', by.hero || 0], ['Scrap earned', st.goldEarned], ['Buildings raised', st.built], ['Sites claimed', st.sites || 0], ['Companions', ST.npcs.filter(n => n.joined).length], ['Titles', ST.titles.length], ['Most people', st.peakPop], ['Inferno Nests burned', st.regionsClaimed], ['Buildings lost', st.buildingsLost], ['Times you fell', st.heroDeaths], ['Contracts won', ST.wins || 0]];
     const lastPages = ST.chronicle.filter(c => c.imp >= 3).slice(-3);
     const L = ST.lostContract, survived = Math.max(0, S.night - 1);
     let beats = obituaryScript(), shownAt = performance.now();
     const render = () => {
       ui.showCard('end', `<div class="eyebrow"><span>${L ? `[Contract failed: ${esc(L.name)}]` : '[The window closes]'}</span>${chronicler.available() ? `<span class="chr">${icon('quill')}Chronicler</span>` : ''}</div>
-        <h1 class="big">${L ? 'The season ends without you' : 'The Camp has fallen'}</h1>
+        <h1 class="big">${L ? 'The season ends without you' : 'The Haven has fallen'}</h1>
         <div class="bignum"><b>${survived}</b><span>${survived === 1 ? 'night' : 'nights'} survived${S.night > prev ? ' · a new best' : ` · best ${best}`}</span></div>
         <ul class="obit">${beats.map(b => `<li>${rich(b)}</li>`).join('')}</ul>
         <h2>The last pages</h2><ol class="lastpages">${lastPages.map(c => `<li><span>Day ${c.day}</span>${esc(chronLine(c.text))}</li>`).join('')}</ol>
@@ -148,7 +148,7 @@ export function createStatus(ui) {
       $('#again').onclick = ui.onArmed(() => { location.reload(); });
     };
     render();
-    if (chronicler.available()) chronicler.obituary(ui.game.story().fullContext(), L ? `the contract "${L.name}" was lost` : `the Camp fell on night ${S.night}`).then(b => { if (b && ui.card === 'end' && performance.now() - shownAt < AI_WAIT * 2) { beats = b; render(); } });
+    if (chronicler.available()) chronicler.obituary(ui.game.story().fullContext(), L ? `the contract "${L.name}" was lost` : `the Haven fell on night ${S.night}`).then(b => { if (b && ui.card === 'end' && performance.now() - shownAt < AI_WAIT * 2) { beats = b; render(); } });
   }
   $('#moreBtn').onclick = () => showMore();
   $('#dayPill').onclick = () => { if (ui.game && !ui.card && !ui.game.state.over) showStatus(); };

@@ -123,7 +123,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     const st = road.stations.find(s => !S.sealed[s.region] && Math.hypot(s.x - p.x, s.y - p.y) < 4);
     if (st) return { name: st.name, x: st.x + st.normal.x * -1.4, y: st.y + st.normal.y * -1.4, kind: 'station' };
     if (p.type === 'landmark') { const l = S.landmarks[p.id]; return { name: l.kind === 'unknown' ? 'Sealed building' : (game.map.name && l.kind) ? labelOf(l) : 'A site', x: l.x, y: l.y + l.size / 2 + 1, kind: 'site' }; }
-    if (p.type === 'region') { const reg = game.map.regions[p.id]; if (reg.nest && S.nestAlive[p.id]) return { name: reg.ring === 1 ? 'Forest hollow' : 'City hive', x: reg.nest.x, y: reg.nest.y + 2.4, kind: 'hive' }; if (reg.ring >= 2 && S.act !== 1) return { name: 'The city', x: p.x, y: p.y, kind: 'city' }; }
+    if (p.type === 'region') { const reg = game.map.regions[p.id]; if (reg.nest && S.nestAlive[p.id]) return { name: reg.ring === 1 ? 'Forest hollow' : 'City Inferno Nest', x: reg.nest.x, y: reg.nest.y + 2.4, kind: 'hive' }; if (reg.ring >= 2 && S.act !== 1) return { name: 'The city', x: p.x, y: p.y, kind: 'city' }; }
     return null;
   }
   const labelOf = l => (road.places().find(q => q.kind === 'site' && q.id === l.id) || { name: 'A site' }).name;
@@ -133,7 +133,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
   }
   function tripHtml(t, short) {
     const i = t.info, cls = i.late ? 'late' : i.risky ? 'risky' : 'ok';
-    const fc = i.day && !short ? ` · camp holds without you: <em class="${i.campHolds.word === 'likely' ? 'ok' : i.campHolds.word === 'risky' ? 'risky' : 'late'}">${i.campHolds.word}</em>` : '';
+    const fc = i.day && !short ? ` · the Haven holds without you: <em class="${i.campHolds.word === 'likely' ? 'ok' : i.campHolds.word === 'risky' ? 'risky' : 'late'}">${i.campHolds.word}</em>` : '';
     return `<b>${icon('route')}${esc(t.place.name)}</b><span><em class="${cls}">${i.label.replace(/ · /, '</em> · ')}${i.late ? ' · <em class="late">back after dark</em>' : ''}${fc}</span>`;
   }
   function showTrip(t) {
@@ -166,10 +166,10 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     if (sig !== sigWin) {
       sigWin = sig;
       const fc = M.forecast || { word: 'likely' }, word = { likely: 'likely', risky: 'risky', no: 'no' }[fc.word] || fc.word;
-      const say = { hold: 'Stand with your towers.', hunt: 'Burn a hive while its dead are out.', piper: 'Sound the horn. Lead the dead into a trap.' };
+      const say = { hold: 'Stand with your towers.', hunt: 'Burn an Inferno Nest while its Ash-Born are out.', piper: 'Sound the horn. Lead the Ash-Born into a trap.' };
       win.innerHTML = `<div class="sh"><span>[Night ${S.night}] Choose your mission</span><span data-t></span></div>
         <h3>How do you spend the night?</h3>
-        <p class="fc">Camp holds without you: <b class="${fc.word}">${esc(word.toUpperCase())}</b> · you are at ${esc(M.where || 'the camp')}${M.captain ? ` · ${esc(M.captain)} captains the camp` : ''}</p>
+        <p class="fc">Haven holds without you: <b class="${fc.word}">${esc(word.toUpperCase())}</b> · you are at ${esc(M.where || 'the Haven')}${M.captain ? ` · ${esc(M.captain)} captains the Haven` : ''}</p>
         <div class="rd-ms">${Object.entries(MISSIONS).map(([id, D]) => `<button data-m="${id}" class="${id === 'hold' ? 'def' : ''}">${icon(D.icon)}<b>${esc(D.name.replace(/^The /, ''))}</b><span>${esc(say[id] || D.line)}</span></button>`).join('')}</div>
         <div class="rd-tick"><i data-tick></i></div>`;
       win.querySelectorAll('[data-m]').forEach(b => { b.onclick = () => { road.setMission(b.dataset.m); renderWin(); renderTool(); }; });
@@ -229,7 +229,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
     const ruins = game.ruins ? game.ruins() : [], all = L.rebuildAll || ruins.reduce((a, r) => a + r.cost, 0), cheap = ruins.length && S.gold >= all;
     const lost = line || (L.fell.length ? `${L.fell.length} ${L.fell.length === 1 ? 'building' : 'buildings'} fell.` : 'Nothing fell.');
     const pp = L.piper ? `<span class="dl pp">${icon('horn')}Pied Piper: led <em>${L.piper.led}</em> · <em>${L.piper.killed}</em> fell outside the walls${L.piper.pay ? ` · <em>+${L.piper.pay} scrap</em>` : ''}</span>` : '';
-    ledEl.innerHTML = `<div class="t"><b>${icon('skull')}Night ${L.night}: the Camp held at ${L.held}%</b><span>${esc(lost)}${ruins.length ? ` · <em>${ruins.length} ${ruins.length === 1 ? 'ruin' : 'ruins'}</em>${cheap ? '' : ' · tap a ruin to rebuild it'}` : ''}</span>${pp}${L.folk && folkLine(L.folk) ? `<span class="dl">${icon('build')}${esc(folkLine(L.folk))}</span>` : '' /* [folk] */}${dawn ? `<span class="dl">${esc(dawn).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>')}</span>` : ''}</div>
+    ledEl.innerHTML = `<div class="t"><b>${icon('skull')}Night ${L.night}: the Haven held at ${L.held}%</b><span>${esc(lost)}${ruins.length ? ` · <em>${ruins.length} ${ruins.length === 1 ? 'ruin' : 'ruins'}</em>${cheap ? '' : ' · tap a ruin to rebuild it'}` : ''}</span>${pp}${L.folk && folkLine(L.folk) ? `<span class="dl">${icon('build')}${esc(folkLine(L.folk))}</span>` : '' /* [folk] */}${dawn ? `<span class="dl">${esc(dawn).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>')}</span>` : ''}</div>
       <div class="acts">${cheap ? `<button class="btn sm" data-rb>Rebuild all · ${all}</button>` : ''}<button class="x" data-x aria-label="Close">${icon('close')}</button></div>`;
     const rb = ledEl.querySelector('[data-rb]'); if (rb) rb.onclick = () => { const n = game.rebuildAll(); if (n) toast(`${n} ${n === 1 ? 'ruin' : 'ruins'} rebuilt.`, 'good'); closeLedger(); };
     ledEl.querySelector('[data-x]').onclick = closeLedger;
@@ -263,7 +263,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
       if (!el) {
         el = document.createElement('div'); el.className = 'rd-cv'; cvBox.appendChild(el); cvCards.set(cv.id, el);
         el.innerHTML = `<div class="hd">${icon('people')}<b></b><span class="rd-hp"><i></i></span></div><div class="st"></div>
-          <div class="bt"><button data-o="go" aria-label="Go to Camp">${icon('camp')}Go to Camp</button><button data-o="wait" aria-label="Wait here">${icon('pin')}Wait here</button></div>`;
+          <div class="bt"><button data-o="go" aria-label="Go to Haven">${icon('camp')}Go to Haven</button><button data-o="wait" aria-label="Wait here">${icon('pin')}Wait here</button></div>`;
         el.querySelectorAll('[data-o]').forEach(b => { b.onclick = () => { road.order(cv.id, b.dataset.o); el.dataset.sig = ''; renderConvoy(); }; });
       }
       const mem = cv.members, people = mem.filter(m => !m.cart).length, cart = mem.some(m => m.cart), go = cv.order === 'go';
@@ -353,7 +353,7 @@ export function createRoadUI({ game, view, toast, hideCard, isBusy, systemHere =
       const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * (cv.width / r.width) / s + ox, y = (e.clientY - r.top) * (cv.height / r.height) / s + oy;
       let best = null, bd = 9;
       for (const q of road.places()) { const d = Math.hypot(q.x - x, q.y - y); if (d < bd) { bd = d; best = q; } }
-      if (!best) { box.innerHTML = '<div class="t"><b>Nothing known there</b><span>Tap a station, a site, a hive, the city or the camp.</span></div>'; draw(null); return; }
+      if (!best) { box.innerHTML = '<div class="t"><b>Nothing known there</b><span>Tap a station, a site, an Inferno Nest, the city or the Haven.</span></div>'; draw(null); return; }
       const info = road.tripInfo(best.x, best.y); if (!info) return;
       const t = { place: best, info };
       box.innerHTML = `<div class="t">${tripHtml(t)}</div><button class="btn sm" data-go>Go</button>`;

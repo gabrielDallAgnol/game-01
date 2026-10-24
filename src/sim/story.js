@@ -24,8 +24,8 @@ export const SLOT = { thread: 'story', ambient: 'story', district: 'story', stre
 const NIGHT_OK = new Set(['arrival']);
 const DIFF_OFFER = [
   { id: 'keep', label: 'Keep it as it is', hint: 'Fair but hard. The way it is meant to be played.' },
-  { id: 'story', label: 'Gentler', hint: 'Fewer dead, richer homes. For the story.' },
-  { id: 'veteran', label: 'Harder', hint: 'More dead, thinner supplies. Mistakes cost buildings.' },
+  { id: 'story', label: 'Gentler', hint: 'Fewer Ash-Born, richer homes. For the story.' },
+  { id: 'veteran', label: 'Harder', hint: 'More Ash-Born, thinner supplies. Mistakes cost buildings.' },
 ];
 const DIRS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
 
@@ -79,7 +79,7 @@ export function createStory(ctx) {
       case 'lean': if (ctx.addPath) ctx.addPath(f.fam, f.n); break;
       case 'trial': startTrial(f, enc); break;
       case 'recruitNew': { const d = enc && enc.npc; if (!d) break; const n = { id: `n${ST.nextId++}`, role: d.role, name: d.name, epithet: d.epithet, persona: { traits: d.traits, quirk: d.quirk, want: d.want, fear: d.fear }, secret: d.secret, bond: 1, alive: true, joined: true, named: false, thread: null, chatToday: 0, memory: [], made: 'chronicler' };
-        ST.npcs.push(n); toast(`[${n.name} joined] ${ROLES[n.role].post}: ${ROLES[n.role].bonus}.`, 'sys'); chron(`${n.name}, ${n.epithet}, joined the Camp as its ${ROLES[n.role].post.toLowerCase()}.`, 4, [n.id]); ev('recruit', { id: n.id }); break; }
+        ST.npcs.push(n); toast(`[${n.name} joined] ${ROLES[n.role].post}: ${ROLES[n.role].bonus}.`, 'sys'); chron(`${n.name}, ${n.epithet}, joined the Haven as its ${ROLES[n.role].post.toLowerCase()}.`, 4, [n.id]); ev('recruit', { id: n.id }); break; }
       case 'heat': if (ctx.addHeat) ctx.addHeat(f.n); break;
       case 'power': ST.power += f.n; break;
       case 'hands': ST.hands += f.n; break;
@@ -94,10 +94,10 @@ export function createStory(ctx) {
       case 'reward': contracts.pay(); break;
       case 'openFor': { if (!th) break; const p = placeFor(f.kit, enc.thread); if (!p) { enc.noRegion = true; break; } pointThread(enc.thread, p); break; }
       case 'open': ctx.openDistrict(f.region, f.why); ST.lastOpen = S.night; { const l = ctx.siteOf(f.region); if (l && !l.owned) addQuest(l, null); } break;
-      case 'recruit': { const n = castFor(enc.thread, f.role); n.joined = true; toast(`[${n.name} joined] ${ROLES[n.role].post}: ${ROLES[n.role].bonus}.`, 'sys'); chron(`${n.name} joined the Camp as its ${ROLES[n.role].post.toLowerCase()}.`, 4, [n.id]); ev('recruit', { id: n.id }); break; }
-      case 'lose': { const n = th && npc(th.cast[f.role]); if (n) { n.alive = false; n.joined = false; n.withHero = false; n.lost = S.night; chron(`${n.name} left the Camp.`, 4, [n.id]); } break; }
+      case 'recruit': { const n = castFor(enc.thread, f.role); n.joined = true; toast(`[${n.name} joined] ${ROLES[n.role].post}: ${ROLES[n.role].bonus}.`, 'sys'); chron(`${n.name} joined the Haven as its ${ROLES[n.role].post.toLowerCase()}.`, 4, [n.id]); ev('recruit', { id: n.id }); break; }
+      case 'lose': { const n = th && npc(th.cast[f.role]); if (n) { n.alive = false; n.joined = false; n.withHero = false; n.lost = S.night; chron(`${n.name} left the Haven.`, 4, [n.id]); } break; }
       case 'bond': { const n = th && npc(th.cast[f.role]); if (n) n.bond = Math.max(-3, Math.min(5, n.bond + f.n)); break; }
-      case 'name': { const n = th && npc(th.cast[f.role]); if (n) { n.named = true; n.name = ctx.reviveName ? ctx.reviveName() : n.name; S.drained = S.night; toast('[Named] It is stronger now. You are weaker tonight.', 'sys'); chron(`Named one of the dead: ${n.name}.`, 5, [n.id]); } break; }
+      case 'name': { const n = th && npc(th.cast[f.role]); if (n) { n.named = true; n.name = ctx.reviveName ? ctx.reviveName() : n.name; S.drained = S.night; toast('[Named] It is stronger now. You are weaker tonight.', 'sys'); chron(`Named one of the Ash-Born: ${n.name}.`, 5, [n.id]); } break; }
       case 'claimHere': { const l = th && th.site !== undefined ? S.landmarks[th.site] : th && th.region !== undefined && ctx.siteOf(th.region); if (l && !l.owned) ctx.claimFree(l.id); else ctx.earn(8); break; }
       case 'risen': ctx.risen(f.n); break;
       case 'gamble': if (rng.next() >= f.p) { for (const b of f.bad) apply(b, enc); } else if (f.good) { for (const b of f.good) apply(b, enc); } else toast('The fever broke at dawn. He lives.', 'good'); break;
@@ -398,7 +398,7 @@ export function createStory(ctx) {
     const C = { name: k.name, n: k.n };
     offer({ kind: 'victory', season: k.n, contract: k.name, eyebrow: `[Contract complete: ${k.name}]`, title: `Season ${k.n} is yours`,
       scene: 'The boss is down. From tonight, **the nights get easier**.',
-      next: 'Next: a new challenge. The dead remember who won.',
+      next: 'Next: a new challenge. The Ash-Born remember who won.',
       reward: k.reward, choices: [{ id: 'take', label: 'Take the reward', hint: `+${k.reward.scrap} scrap · a rare blessing · easier nights · +${k.reward.fame} Legacy (kept after this run).`, fx: [{ op: 'reward' }] }], ...C }, 11, 30);
   }
 
@@ -427,7 +427,7 @@ export function createStory(ctx) {
     const a = api();
     if (a && typeof a.setDifficulty === 'function') { a.setDifficulty(key); return; }
     S.difficulty = key; S.difficultyWanted = key; ev('difficulty', { key });   // without api.setDifficulty the page applies it (one game per page)
-    toast(`[Difficulty set: ${DIFF_OFFER.find(d => d.id === key).label}] The System adjusts the dead.`, 'sys');
+    toast(`[Difficulty set: ${DIFF_OFFER.find(d => d.id === key).label}] The System adjusts the Ash-Born.`, 'sys');
   }
 
   // ---------- the director: what comes at dawn ----------
@@ -442,7 +442,7 @@ export function createStory(ctx) {
     // threads that waited too long close, with a card
     for (const [tid, th] of Object.entries(ST.threads)) if (th.status === 'waiting' && S.night >= th.failAt) endThread(tid, 'too late');
     // the System measures you after the first night, then offers season 1's contract
-    if (S.night === 2 && !ST.diffOffered) { ST.diffOffered = true; offer({ kind: 'difficulty', eyebrow: '[The System has measured you]', title: 'How hard should it be?', scene: 'One night survived. The System can **change how many dead** it sends. You can ask again later on the status window.', choices: DIFF_OFFER.map(d => ({ id: d.id, label: d.label, hint: d.hint, fx: [{ op: 'difficulty', key: d.id }] })) }, 9, 3); }
+    if (S.night === 2 && !ST.diffOffered) { ST.diffOffered = true; offer({ kind: 'difficulty', eyebrow: '[The System has measured you]', title: 'How hard should it be?', scene: 'One night survived. The System can **change how many Ash-Born** it sends. You can ask again later on the status window.', choices: DIFF_OFFER.map(d => ({ id: d.id, label: d.label, hint: d.hint, fx: [{ op: 'difficulty', key: d.id }] })) }, 9, 3); }
     if (S.night >= contracts.firstSeasonDay && !ST.contract && !ST.contractOffered && (!S.season || S.season.n === 1)) { ST.contractOffered = true; offerContract(1); }
     { const k = contracts.current(); if (k && k.won && !k.told) { k.told = true; victoryCard(k); } }
     contracts.armFinale();
@@ -510,7 +510,7 @@ export function createStory(ctx) {
     const K = contracts.stripLine(); if (K) return { ...K, extra: K.left ? `${K.left} night${K.left === 1 ? '' : 's'} left` : 'Tonight' };
     return null;
   }
-  /** the contract's countdown rides along every quest line: "Gravelord: 7 nights" */
+  /** the contract's countdown rides along every quest line: "Cinder Lord: 7 nights" */
   // (an accepted daily quest under another main line takes the second line instead: it ends at dawn, the contract in nights)
   function withContract(q) { const d = dailyProgress(); if (d && !d.done && q.tag !== '[Daily]') return { ...q, extra: `Daily ${d.have}/${d.n}: ${d.goal}` }; const K = contracts.stripLine(); return K ? { ...q, extra: K.extra } : q; }
   // ---------- the night: one line that scales with the wave, the System's arrival on night 1 ----------
@@ -554,7 +554,7 @@ export function createStory(ctx) {
     const lines = SYSTEM.arrival.map(l => l.replace('{hp}', Math.ceil(S.hero.maxHp)));
     push({ kind: 'arrival', eyebrow: '[Status window]', title: SYSTEM.arrivalTitle, scene: lines.join(' '), lines, after: SYSTEM.firstLight,
       choices: [{ id: 'fight', label: 'Fight', hint: 'Shove: the round button.', fx: [{ op: 'title', id: 'firstLight' }] }] });
-    chron('The status window opened in the air as the first of the dead reached you.', 5);
+    chron('The status window opened in the air as the first of the Ash-Born reached you.', 5);
     ev('arrival', {});
   }
 

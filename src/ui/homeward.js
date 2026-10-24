@@ -21,7 +21,7 @@ export function createHomeward(ui) {
   if (!document.getElementById('hw-css')) { const st = document.createElement('style'); st.id = 'hw-css'; st.textContent = CSS; document.head.appendChild(st); }
   const ca = $('#campAway');
   const walk = document.createElement('span'); walk.className = 'walk'; if (ca) ca.appendChild(walk);
-  const btn = document.createElement('button'); btn.className = 'homebtn'; btn.hidden = true; btn.setAttribute('aria-label', 'Return to Camp');
+  const btn = document.createElement('button'); btn.className = 'homebtn'; btn.hidden = true; btn.setAttribute('aria-label', 'Return to Haven');
   if (ca && ca.parentNode) ca.parentNode.insertBefore(btn, ca.nextSibling);
   btn.onclick = () => { if (ui.game && !ui.paused && !btn.classList.contains('off')) ui.game.returnHome(); };
   const mmss = s => `${Math.floor(s / 60)}:${String(Math.max(0, Math.round(s)) % 60).padStart(2, '0')}`;
@@ -41,7 +41,7 @@ export function createHomeward(ui) {
       if (i.channel > 0) label = 'Returning…';
       else if (i.why === 'cooldown') { label = `Return in ${i.cd}s`; off = true; }
       else if (i.why === 'fight') { label = 'Return · fight first'; off = true; }
-      else label = 'Return to Camp';
+      else label = 'Return to Haven';
     }
     const k = `${show}|${label}|${off}`;
     if (k !== sig) { sig = k; btn.hidden = !show; btn.classList.toggle('off', off); btn.innerHTML = `<i class="fill"></i>${icon('camp')}<span>${label}</span>`; }

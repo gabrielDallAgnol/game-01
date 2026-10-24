@@ -8,17 +8,17 @@ export const HEROES = {
     ability: { id: 'shove', name: 'Shove', cooldown: 14, radius: 2.8, dmg: 2, push: 2.4 },
   },
   warrior: {
-    name: 'Brawler', blurb: 'Fire axe and a work jacket. Holds the line up close. War Cry pulls the dead onto you while you shrug off half their damage.',
+    name: 'Brawler', blurb: 'Fire axe and a work jacket. Holds the line up close. War Cry pulls the Ash-Born onto you while you shrug off half their damage.',
     hp: 30, speed: 4.0, attack: { kind: 'melee', dmg: 3, reach: 2.2, rate: 0.55 },
     ability: { id: 'warcry', name: 'War Cry', cooldown: 25, radius: 6, taunt: 4, guard: 0.5 },
   },
   archer: {
-    name: 'Ranger', blurb: 'A crossbow and a hood. Fragile, but picks off the dead from far away. Volley rains bolts on the thickest crowd.',
+    name: 'Ranger', blurb: 'A crossbow and a hood. Fragile, but picks off the Ash-Born from far away. Volley rains bolts on the thickest crowd.',
     hp: 22, speed: 4.3, attack: { kind: 'ranged', dmg: 2.8, reach: 6.5, rate: 0.7 },
     ability: { id: 'volley', name: 'Volley', cooldown: 28, radius: 2.2, dmg: 4, reach: 9 },
   },
   merchant: {
-    name: 'Scavver', blurb: 'Quick with an old revolver, and runs the town by hand: picks up purses the dead drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays scrap.',
+    name: 'Scavver', blurb: 'Quick with an old revolver, and runs the town by hand: picks up purses the Ash-Born drop, haggles 10% off every building and meets a trader at dawn. Bounty: for a while, every kill near you pays scrap.',
     hp: 22, speed: 4.2, attack: { kind: 'ranged', dmg: 2.6, reach: 5.5, rate: 0.65 }, collects: true, discount: 0.1, extraOffer: 1, trader: true,
     ability: { id: 'bounty', name: 'Bounty', cooldown: 45, duration: 20, radius: 9, gold: 1, bigGold: 3 },
   },
@@ -32,12 +32,12 @@ export const HERO_ORDER = ['warrior', 'archer', 'merchant', 'medic'];
 // final classes: a Calling plus a second hero family. Each keeps its Calling's ability and adds one twist.
 // (these are the class defaults; the hero you actually play is FINAL_KIT below, built on top of your Calling)
 Object.assign(HEROES, {
-  vanguard: { ...HEROES.warrior, name: 'Vanguard', base: 'warrior', blurb: 'Brawler who learned to throw: every swing also strikes a second dead within reach.', hp: 34, attack: { kind: 'melee', dmg: 3.4, reach: 2.5, rate: 0.55 }, twin: true },
-  warlord: { ...HEROES.warrior, name: 'Warlord', base: 'warrior', blurb: 'War Cry pays: every dead that falls near you while it lasts pays 1 scrap. Tougher than anyone.', hp: 42, cryPays: 1 },
+  vanguard: { ...HEROES.warrior, name: 'Vanguard', base: 'warrior', blurb: 'Brawler who learned to throw: every swing also strikes a second Ash-Born within reach.', hp: 34, attack: { kind: 'melee', dmg: 3.4, reach: 2.5, rate: 0.55 }, twin: true },
+  warlord: { ...HEROES.warrior, name: 'Warlord', base: 'warrior', blurb: 'War Cry pays: every Ash-Born that falls near you while it lasts pays 1 scrap. Tougher than anyone.', hp: 42, cryPays: 1 },
   warden: { ...HEROES.warrior, name: 'Warden', base: 'warrior', blurb: 'Brawler with a medic\'s heart: buildings within 5 of you take 30% less damage.', hp: 40, ward: 0.7 },
   marshal: { ...HEROES.archer, name: 'Marshal', base: 'archer', blurb: 'Ranger who leads: towers within 6 of you shoot 25% faster.', hp: 26, marshal: 1.25 },
   quartermaster: { ...HEROES.medic, name: 'Quartermaster', base: 'medic', blurb: 'Keeps everyone fed and patched: +4 scrap and +2 food a day, and Patch Up mends the whole town.', hp: 26, quarter: true },
-  deadeye: { ...HEROES.archer, name: 'Deadeye', base: 'archer', blurb: 'Ranger who sells the shot: reach 8, shots pierce 2 dead, brutes take double, and every dead your Volley kills pays 2 scrap.', hp: 26, attack: { kind: 'ranged', dmg: 3.6, reach: 8, rate: 0.7 }, volleyPays: 2, pierce: 2, bruteCrit: 2 },
+  deadeye: { ...HEROES.archer, name: 'Deadeye', base: 'archer', blurb: 'Ranger who sells the shot: reach 8, shots pierce 2 Ash-Born, Slag Brutes take double, and every Ash-Born your Volley kills pays 2 scrap.', hp: 26, attack: { kind: 'ranged', dmg: 3.6, reach: 8, rate: 0.7 }, volleyPays: 2, pierce: 2, bruteCrit: 2 },
 });
 // no Calling deals less than the Survivor (2.2 / 0.6 s ≈ 3.7 a second): a job change is never a downgrade
 // which hero family leads to which Calling, and which pair to which final class
@@ -52,7 +52,7 @@ export const TRADES = [
   { id: 'pick', name: 'A relic', desc: 'An extra blessing pick now.', gold: 15 },
   { id: 'sellfood', name: 'Hungry travellers', desc: 'Sell 5 food for 4 scrap.', food: 5, give: 4 },
   { id: 'halfup', name: 'A master builder', desc: 'Your next upgrade costs half.', gold: 4 },
-  { id: 'mend', name: 'Stonemasons', desc: 'Repair the keep by a quarter.', gold: 8 },
+  { id: 'mend', name: 'Stonemasons', desc: 'Repair the Haven Rig by a quarter.', gold: 8 },
 ];
 
 // ---------- class tiers: the Calling (Lv 15), the advanced class (Lv 30), the legendary form (Lv 45) ----------
@@ -65,21 +65,21 @@ export const CLASS_TIERS = [
   { tier: 3, lvl: LEGEND_LVL, key: 'legend', eyebrow: '[LEGENDARY CLASS]', title: 'A name the city will fear', boss: 'The Last Gravekeeper' },
 ];
 export const CLASS_INFO = {
-  warrior: { tier: 1, icon: 'sword', who: 'Holds the line up close.', perks: ['Hits hardest up close (axe)', 'War Cry: the dead come at you; you take half damage', '+6 health'], look: { cape: '#8e1f1f', mantle: '#6d6f73', scarf: '#d8b04e' } },
+  warrior: { tier: 1, icon: 'sword', who: 'Holds the line up close.', perks: ['Hits hardest up close (axe)', 'War Cry: the Ash-Born come at you; you take half damage', '+6 health'], look: { cape: '#8e1f1f', mantle: '#6d6f73', scarf: '#d8b04e' } },
   archer: { tier: 1, icon: 'eye', who: 'Kills from far away.', perks: ['Crossbow: hits from 6 cells away', 'Volley: bolts rain on the biggest crowd', 'Faster on foot'], look: { hood: '#2f5d3a', coat: '#2f5d3a' } },
-  merchant: { tier: 1, icon: 'scrap', who: 'Runs the Camp, and the money.', perks: ['Picks up scrap the dead drop', 'Buildings cost 10% less', 'Bounty: every kill near you pays scrap'], look: { cap: '#c98b2e', pack: '#6b4a2a' } },
+  merchant: { tier: 1, icon: 'scrap', who: 'Runs the Haven, and the money.', perks: ['Picks up scrap the Ash-Born drop', 'Buildings cost 10% less', 'Bounty: every kill near you pays scrap'], look: { cap: '#c98b2e', pack: '#6b4a2a' } },
   medic: { tier: 1, icon: 'heart', who: 'Keeps everyone standing.', perks: ['Patch Up: mends buildings around you', 'Puts you back on your feet', '+4 health'], look: { top: '#e8e4dc', scarf: '#c23b2e', cap: '#e8e4dc' } },
-  vanguard: { tier: 2, icon: 'sword', who: 'A Brawler who throws.', perks: ['Every swing hits a second dead', 'Longer reach', '+4 health'], look: { cape: '#8e1f1f', mantle: '#9aa0a6', helmet: '#7d838a', scarf: '#d8b04e' } },
+  vanguard: { tier: 2, icon: 'sword', who: 'A Brawler who throws.', perks: ['Every swing hits a second Ash-Born', 'Longer reach', '+4 health'], look: { cape: '#8e1f1f', mantle: '#9aa0a6', helmet: '#7d838a', scarf: '#d8b04e' } },
   warlord: { tier: 2, icon: 'fist', who: 'A Brawler who gets paid.', perks: ['War Cry kills pay 1 scrap each', 'Toughest of all: 42 health'], look: { cape: '#5a1414', mantle: '#c99a3a', helmet: '#3a3a3e' } },
-  warden: { tier: 2, icon: 'shield', who: 'A Brawler who shields the Camp.', perks: ['Buildings near you take 30% less damage', '40 health'], look: { cape: '#2e4f7a', mantle: '#d8d4cc', helmet: '#9aa0a6' } },
+  warden: { tier: 2, icon: 'shield', who: 'A Brawler who shields the Haven.', perks: ['Buildings near you take 30% less damage', '40 health'], look: { cape: '#2e4f7a', mantle: '#d8d4cc', helmet: '#9aa0a6' } },
   marshal: { tier: 2, icon: 'tower', who: 'A Ranger who leads the towers.', perks: ['Towers near you shoot 25% faster', 'Crossbow and Volley stay'], look: { hood: '#2e4f7a', coat: '#2e4f7a', mantle: '#c99a3a' } },
-  deadeye: { tier: 2, icon: 'eye', who: 'A Ranger who sells the shot.', perks: ['Shots pierce 2 dead; double damage to brutes', 'Reach 8: hits from further', 'Ability kills pay 2 scrap'], look: { hood: '#1f2a24', coat: '#1f2a24', scarf: '#c23b2e' } },
-  quartermaster: { tier: 2, icon: 'food', who: 'Keeps everyone fed and patched.', perks: ['+4 scrap and +2 food a day', 'Patch Up mends the whole Camp'], look: { top: '#e8e4dc', scarf: '#c99a3a', pack: '#3a5a7a', cap: '#3a5a7a' } },
+  deadeye: { tier: 2, icon: 'eye', who: 'A Ranger who sells the shot.', perks: ['Shots pierce 2 Ash-Born; double damage to Slag Brutes', 'Reach 8: hits from further', 'Ability kills pay 2 scrap'], look: { hood: '#1f2a24', coat: '#1f2a24', scarf: '#c23b2e' } },
+  quartermaster: { tier: 2, icon: 'food', who: 'Keeps everyone fed and patched.', perks: ['+4 scrap and +2 food a day', 'Patch Up mends the whole Haven'], look: { top: '#e8e4dc', scarf: '#c99a3a', pack: '#3a5a7a', cap: '#3a5a7a' } },
 };
 // the legendary form of each Calling: its ability becomes a signature, its look transforms (stats on top of the
 // advanced class you have); data only — the engine reads ability ids, so a signature is the same move, much bigger
 export const LEGENDS = {
-  warrior: { name: 'Juggernaut', who: 'The wall the dead break on.', hpAdd: 14, dmgMult: 1.35, ability: { name: 'Titan\'s Roar', radius: 9, taunt: 6, guard: 0.3, cooldown: 20 }, perks: ['Titan\'s Roar: pulls the dead from 9 cells; you take 70% less damage', '+35% damage, +14 health'], look: { cape: '#2a1240', mantle: '#e6b84a', helmet: '#e6b84a', scarf: '#e6b84a' }, glow: '#ffb02e' },
+  warrior: { name: 'Juggernaut', who: 'The wall the Ash-Born break on.', hpAdd: 14, dmgMult: 1.35, ability: { name: 'Titan\'s Roar', radius: 9, taunt: 6, guard: 0.3, cooldown: 20 }, perks: ['Titan\'s Roar: pulls the Ash-Born from 9 cells; you take 70% less damage', '+35% damage, +14 health'], look: { cape: '#2a1240', mantle: '#e6b84a', helmet: '#e6b84a', scarf: '#e6b84a' }, glow: '#ffb02e' },
   archer: { name: 'Stormeye', who: 'Nothing walks out of range.', hpAdd: 10, dmgMult: 1.4, ability: { name: 'Bolt Storm', radius: 3.6, dmg: 9, reach: 12, cooldown: 20 }, perks: ['Bolt Storm: a huge rain of bolts, 12 cells away', '+40% damage, +10 health'], look: { hood: '#1c2f4a', coat: '#1c2f4a', mantle: '#e6b84a' }, glow: '#7fd4ff' },
   merchant: { name: 'Kingpin', who: 'The city pays you to live.', hpAdd: 10, dmgMult: 1.3, ability: { name: 'Gold Rush', duration: 30, radius: 12, gold: 2, bigGold: 6, cooldown: 40 }, perks: ['Gold Rush: every kill near you pays double, for 30 s', '+30% damage, +10 health'], look: { cap: '#e6b84a', pack: '#2a1240', scarf: '#e6b84a' }, glow: '#ffd77a' },
   medic: { name: 'Saint of Hollowmere', who: 'Where you stand, nothing falls.', hpAdd: 14, dmgMult: 1.3, ability: { name: 'Sanctuary', radius: 12, heal: 0.5, cooldown: 18 }, perks: ['Sanctuary: mends every building in 12 cells by half', '+30% damage, +14 health'], look: { top: '#f4f0e6', scarf: '#e6b84a', cap: '#e6b84a' }, glow: '#fff2cc' },
@@ -93,18 +93,18 @@ export const FINAL_DMG = 1.5;
 const KEEP_KEYS = ['collects', 'trader'], MAX_KEYS = ['discount', 'extraOffer', 'speed'];
 // the signatures, in plain words; `ab` = the ability you kept (a twist tied to an ability follows the one you have)
 const SIGNATURE = {
-  vanguard: () => ['Every hit also strikes a second dead'],
+  vanguard: () => ['Every hit also strikes a second Ash-Born'],
   warlord: ab => [ab === 'bounty' ? 'Bounty kills pay +1 scrap more' : 'War Cry kills pay 1 scrap each'],
   warden: () => ['Buildings within 5 of you take 30% less damage'],
   marshal: () => ['Towers within 6 of you shoot 25% faster'],
-  deadeye: ab => ['Shots pierce: they hit 2 more dead behind', 'Double damage to brutes and bosses', ab === 'bounty' ? 'Bounty kills pay +2 scrap more' : 'Volley kills pay 2 scrap each'],
-  quartermaster: ab => ['+4 scrap and +2 food every dawn', ab === 'bounty' ? 'Bounty covers the whole Camp' : 'Patch Up mends the whole Camp'],
+  deadeye: ab => ['Shots pierce: they hit 2 more Ash-Born behind', 'Double damage to Slag Brutes and bosses', ab === 'bounty' ? 'Bounty kills pay +2 scrap more' : 'Volley kills pay 2 scrap each'],
+  quartermaster: ab => ['+4 scrap and +2 food every dawn', ab === 'bounty' ? 'Bounty covers the whole Haven' : 'Patch Up mends the whole Haven'],
 };
 // what each Calling gives you, in plain words (the "You keep" list)
 const CALLING_KEEPS = {
   warrior: ['War Cry', 'Your axe'],
   archer: ['Volley', 'Your crossbow', 'Fast on foot'],
-  merchant: ['Bounty', 'Scrap pickup from the dead', 'Buildings 10% off', 'Dawn trader, +1 blessing choice'],
+  merchant: ['Bounty', 'Scrap pickup from the Ash-Born', 'Buildings 10% off', 'Dawn trader, +1 blessing choice'],
   medic: ['Patch Up', 'Your sidearm'],
 };
 function buildFinal(adv, calling) {

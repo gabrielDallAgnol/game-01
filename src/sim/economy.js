@@ -52,7 +52,7 @@ export function createEconomy(G) {
     if (n.foodNet !== undefined && foodPerDawn() - foodNeed() < n.foodNet) out.push(`food income ${foodNeed() + n.foodNet} a day (now ${foodPerDawn()})`);
     if (n.food && S.food < n.food) out.push(`${n.food} food in store`);
     if (pop() < n.people) out.push(`${n.people} people`);
-    if (n.won && S.stats.regionsClaimed + (S.stats.sites || 0) < n.won) out.push('a hive burned or a site claimed');
+    if (n.won && S.stats.regionsClaimed + (S.stats.sites || 0) < n.won) out.push('an Inferno Nest burned or a site claimed');
     return out;
   }
 
@@ -106,7 +106,7 @@ export function createEconomy(G) {
     S.weather = G.rollWeather(S.night); if (S.weather !== 'clear' && !CUT.weather) toast(`Tonight: ${G.W8().name.toLowerCase()}. ${G.W8().desc}`, G.W8().kind);
     G.planDay(S.night); G.spawnRoamers(); G.spawnAnimals(); G.scatterPickups(G.PICKUP.perDawn);
     for (const d of [...S.drops]) if (--d.ttl <= 0) { S.drops.splice(S.drops.indexOf(d), 1); ev('dropGone', { id: d.id }); }
-    { const was = S.night - 1; if (isBloodMoon(was)) G.dropSupply('The blood moon has set.'); else if (claimedNow !== null) G.dropSupply('With the hive burned,'); else if (was >= 3 && rng.next() < 0.2) G.dropSupply('At first light,'); }
+    { const was = S.night - 1; if (isBloodMoon(was)) G.dropSupply('The blood moon has set.'); else if (claimedNow !== null) G.dropSupply('With the Inferno Nest burned,'); else if (was >= 3 && rng.next() < 0.2) G.dropSupply('At first light,'); }
     S.reroll.cost = REROLL.base;
     const want = [];
     if (owns('christ') && S.night % 3 === 0) want.push('chest');   // no dawn blessings: they come from hives (epic loot) and key levels

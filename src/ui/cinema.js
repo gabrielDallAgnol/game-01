@@ -5,10 +5,10 @@ import { DIR8 } from './shared.js';
 
 const SLOW = 0.15;   // sim speed while a shot plays: the world keeps breathing, the hero is never left in a fight
 const KINDS = {
-  hollow: { color: '#9dff4a', tag: 'HIVE', line: d => `[Hive located] Your dead crawl out of here: ${d} of the Camp.`, kind: 'bad' },
-  unique: { color: '#ff6a4a', tag: 'IT COMES', line: d => `[Unique Monster] It rises ${d} of the Camp.`, kind: 'bad' },
-  city: { color: '#9dff4a', tag: 'CITY HIVE', line: d => `[Hive awake] A city hive wakes, ${d}. Its dead march tonight.`, kind: 'bad' },
-  erupt: { color: '#ff5a3a', tag: 'ABOUT TO BURST', line: d => `[Warning] A hive swells, ${d} of the Camp. It is about to burst.`, kind: 'bad' },
+  hollow: { color: '#9dff4a', tag: 'HIVE', line: d => `[Inferno Nest located] Your Ash-Born crawl out of here: ${d} of the Haven.`, kind: 'bad' },
+  unique: { color: '#ff6a4a', tag: 'IT COMES', line: d => `[Unique Monster] It rises ${d} of the Haven.`, kind: 'bad' },
+  city: { color: '#9dff4a', tag: 'CITY HIVE', line: d => `[Inferno Nest awake] A city Inferno Nest wakes, ${d}. Its Ash-Born march tonight.`, kind: 'bad' },
+  erupt: { color: '#ff5a3a', tag: 'ABOUT TO BURST', line: d => `[Warning] An Inferno Nest swells, ${d} of the Haven. It is about to burst.`, kind: 'bad' },
 };
 
 export function createCinema(ui) {

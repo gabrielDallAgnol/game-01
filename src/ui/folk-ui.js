@@ -66,7 +66,7 @@ export function createFolkUi(ui) {
   function folkRow() {
     const g = ui.game; if (!g || typeof g.folk !== 'function') return '';
     const f = g.folk(); if (g.state.night < 2 && !f.total) return '';
-    return `<div class="folkrow" role="group" aria-label="The folk build by themselves"><b>Let them build</b><button data-folk aria-pressed="${f.on}">${f.on ? 'On' : 'Off'}</button><small>${f.on ? `They keep ${Math.round(f.share * 100)}% of the scrap · beauty ${f.beauty}${f.regen ? ` · Camp heals +${f.regen}%` : ''}` : 'You build everything yourself.'}</small></div>`;
+    return `<div class="folkrow" role="group" aria-label="The folk build by themselves"><b>Let them build</b><button data-folk aria-pressed="${f.on}">${f.on ? 'On' : 'Off'}</button><small>${f.on ? `They keep ${Math.round(f.share * 100)}% of the scrap · beauty ${f.beauty}${f.regen ? ` · Haven heals +${f.regen}%` : ''}` : 'You build everything yourself.'}</small></div>`;
   }
   const folkSig = () => { const g = ui.game; if (!g || typeof g.folk !== 'function') return ''; const f = g.folk(); return `${f.on}|${f.beauty}|${g.state.night >= 2 || f.total ? 1 : 0}`; };
   function folkToggle() { const g = ui.game; if (!g) return; g.setFolkBuild(!g.folk().on); sig = ''; }

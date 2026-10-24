@@ -14,7 +14,7 @@ export function createHives(G) {
     if (S.season && S.season.finaleHive === r && S.night <= S.season.end) G.finale(true);
     for (const m of S.mobs) if (m.stream === r) m.stream = -1;
     if (G.nestBurned) G.nestBurned(r);   // [nests] its guards run with the horde, its sites unlock
-    ev('claim', { region: r }); toast(`Hive burned: +${loot} scrap and a rare blessing.`, 'good');
+    ev('claim', { region: r }); toast(`Inferno Nest burned: +${loot} scrap and a rare blessing.`, 'good');
     // [acts] begin
     if (G.actCheck) G.actCheck();
     // [acts] end
@@ -43,15 +43,15 @@ export function createHives(G) {
   /** the hero hits a hive: it bleeds, it rages (pours out the dead), and at zero it burns */
   function hitHive(r, d) {
     const reg = map.regions[r];
-    if (keep.level < G.keepForRing(reg.ring)) { if (!S.nightFlags.keepWarn) { S.nightFlags.keepWarn = true; fail(`This hive is too strong: raise the keep to level ${G.keepForRing(reg.ring)} first.`); } return false; }
-    if (!hiveDmg[r]) { toast('You strike the hive. It wakes and pours out its dead!', 'bad'); if (S.wake[r] > S.night) S.wake[r] = S.night; }
+    if (keep.level < G.keepForRing(reg.ring)) { if (!S.nightFlags.keepWarn) { S.nightFlags.keepWarn = true; fail(`This Inferno Nest is too strong: raise the Haven Rig to level ${G.keepForRing(reg.ring)} first.`); } return false; }
+    if (!hiveDmg[r]) { toast('You strike the Inferno Nest. It wakes and pours out its Ash-Born!', 'bad'); if (S.wake[r] > S.night) S.wake[r] = S.night; }
     // [road] begin
     if (G.road) d *= G.road.hiveMult(r);
     // [road] end
     hiveDmg[r] = (hiveDmg[r] || 0) + d * (S.story && S.story.flags.hiveTip ? 1.15 : 1); rage[r] = STREAM.rageTime;
     if (G.angerNest) G.angerNest(r);   // [nests] a strike angers it faster
     ev('hitHive', { region: r, hp: Math.max(0, 1 - hiveDmg[r] / hiveMax(r)) });
-    if (hiveDmg[r] >= hiveMax(r)) { G.gainXp(40); burnHive(r); hiveFall(r); S.picks.push('nest'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); G.dropSupply('The hive is ash.'); delete hiveDmg[r]; delete rage[r]; }
+    if (hiveDmg[r] >= hiveMax(r)) { G.gainXp(40); burnHive(r); hiveFall(r); S.picks.push('nest'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); G.dropSupply('The Inferno Nest is ash.'); delete hiveDmg[r]; delete rage[r]; }
     return true;
   }
   const hiveHealth = r => (S.nestAlive[r] ? Math.max(0, 1 - (hiveDmg[r] || 0) / hiveMax(r)) : 0);
@@ -63,7 +63,7 @@ export function createHives(G) {
     const r = cands[0];
     S.eruption = { region: r.id, t: HEAT.warn, x: r.nest.x, y: r.nest.y };
     ev('eruptWarn', { region: r.id, x: r.nest.x, y: r.nest.y });
-    toast(`[Too loud] The ${compass(r.nest.x, r.nest.y)} hive bursts in ${HEAT.warn} s.`, 'bad');
+    toast(`[Too loud] The ${compass(r.nest.x, r.nest.y)} Inferno Nest bursts in ${HEAT.warn} s.`, 'bad');
   }
   function erupt() {
     const r = S.eruption.region; S.eruption = null; S.heatCool = HEAT.cool; S.noiseSpike = 0; S.noiseChoice = Math.min(S.noiseChoice || 0, Math.max(0, (S.noiseChoice || 0) + HEAT.after));   // the burst spends the fighting noise and most of the choices'
@@ -72,7 +72,7 @@ export function createHives(G) {
     const u = G.unlocked(Math.max(1, S.night)), n = Math.round((HEAT.burst + S.night) * G.DIFF.threat);
     for (let k = 0; k < n; k++) { const [kind] = u[rng.weighted(u.map(([, m]) => m.weight))]; const m = G.spawnAtNest(kind, r); m.stream = r; }
     const nest = map.regions[r].nest; reveal(nest.x, nest.y, 4);
-    ev('erupt', { region: r, x: nest.x, y: nest.y }); toast('The hive bursts! The dead pour out toward the noise.', 'bad');
+    ev('erupt', { region: r, x: nest.x, y: nest.y }); toast('The Inferno Nest bursts! The Ash-Born pour out toward the noise.', 'bad');
     S.stats.eruptions = (S.stats.eruptions || 0) + 1;
   }
   // ---------- burning a hive: the horde comes at once (no pause); a flare or smoke is a button, any time ----------
@@ -87,8 +87,8 @@ export function createHives(G) {
     for (const kind of kinds) { const m = G.spawnAtNest(kind, r); m.rise = 0.6; m.hunt = true; m.horde = r; ids.push(m.id); }
     S.stats.hordes = (S.stats.hordes || 0) + 1;
     ev('horde', { region: r, x: n.x, y: n.y, n: kinds.length, ids });
-    if (CUT.tools) toast(`[The hive is ash] **${kinds.length} dead** pour out after you. Run for the towers.`, 'bad');
-    else toast(`[The hive is ash] **${kinds.length} dead** pour out after you. A **flare** (${TOOLS.flare.cost} scrap) pulls them away; **smoke** (${TOOLS.smoke.cost} food) hides your scent.`, 'bad');
+    if (CUT.tools) toast(`[The Inferno Nest is ash] **${kinds.length} Ash-Born** pour out after you. Run for the towers.`, 'bad');
+    else toast(`[The Inferno Nest is ash] **${kinds.length} Ash-Born** pour out after you. A **flare** (${TOOLS.flare.cost} scrap) pulls them away; **smoke** (${TOOLS.smoke.cost} food) hides your scent.`, 'bad');
   }
   /** throw a flare: the dead near you (or near the point) chase the light for 20 s. x, y: where it lands (default: ahead of you). */
   function useFlare(x, y) {
@@ -107,7 +107,7 @@ export function createHives(G) {
       m.lure = { x: x + rng.range(-1, 1), y: y + rng.range(-1, 1), t: F.t }; m.hunt = false; m.last = null; n++;
     }
     S.stats.flares = (S.stats.flares || 0) + 1;
-    ev('flare', { x, y, dur: F.t, n }); toast(`[Flare] **${n} dead** turn toward the light for **${F.t} seconds**.`, 'good');
+    ev('flare', { x, y, dur: F.t, n }); toast(`[Flare] **${n} Ash-Born** turn toward the light for **${F.t} seconds**.`, 'good');
     return true;
   }
   /** light smoke: the dead near you lose your scent (they find it again only if they bump into you) */
@@ -121,7 +121,7 @@ export function createHives(G) {
     let n = 0;
     for (const m of S.mobs) { if (MOBS[m.kind].animal || Math.hypot(m.x - h.x, m.y - h.y) > M.r) continue; m.smoke = M.t; if (m.hunt) n++; m.hunt = false; m.last = null; m.ambushAt = null; }
     S.stats.smokes = (S.stats.smokes || 0) + 1;
-    ev('smoke', { x: h.x, y: h.y, r: M.r, n }); toast(`[Smoke] Grey all around you. **${n} dead** lost your scent: keep your distance.`, 'good');
+    ev('smoke', { x: h.x, y: h.y, r: M.r, n }); toast(`[Smoke] Grey all around you. **${n} Ash-Born** lost your scent: keep your distance.`, 'good');
     return true;
   }
   /** the old escape card's call, kept for old callers: 'flare' / 'smoke' use the tool, 'run' does nothing */

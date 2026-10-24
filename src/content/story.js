@@ -7,7 +7,7 @@ export const SYSTEM = {
   intro: 'You **survived** night one. Pick a **gift** for it.',
   // night 1, hand-authored: the System arrives when the first of the dead reaches you (Solo Leveling, episode 2)
   dayOne: 'Light the fire. **They come at dusk.**',
-  arrival: ['[Status window]', 'Survivor · Lv 1 · HP {hp}', '[Skill acquired: Shove]', 'Push the dead back. Tap the round button.', '[Quest] Survive the night. A **gift** waits at dawn.'],
+  arrival: ['[Status window]', 'Survivor · Lv 1 · HP {hp}', '[Skill acquired: Shove]', 'Push the Ash-Born back. Tap the round button.', '[Quest] Survive the night. A **gift** waits at dawn.'],
   arrivalTitle: 'The window only you can see',
   firstLight: '[Title acquired: First Light]',
 };
@@ -19,8 +19,8 @@ export const GIFT = {
   scene: 'You held the first night. One gift, **yours for good**.',
   choices: [
     { id: 'lantern', label: 'The Lantern of Dawn', hint: 'You hit 15% harder.', fx: [{ op: 'perk', key: 'heroDmgMult', mul: 1.15 }, { op: 'title', id: 'lantern' }] },
-    { id: 'boots', label: 'The Quiet Boots', hint: 'The dead notice you later. A quieter Camp.', fx: [{ op: 'flag', key: 'quiet' }, { op: 'title', id: 'quiet' }] },
-    { id: 'will', label: 'An Iron Will', hint: '+8 health for you. +30 for the Camp.', fx: [{ op: 'perk', key: 'keepHp', add: 30 }, { op: 'perk', key: 'heroHp', add: 8 }, { op: 'title', id: 'will' }] },
+    { id: 'boots', label: 'The Quiet Boots', hint: 'The Ash-Born notice you later. A quieter Haven.', fx: [{ op: 'flag', key: 'quiet' }, { op: 'title', id: 'quiet' }] },
+    { id: 'will', label: 'An Iron Will', hint: '+8 health for you. +30 for the Haven.', fx: [{ op: 'perk', key: 'keepHp', add: 30 }, { op: 'perk', key: 'heroHp', add: 8 }, { op: 'title', id: 'will' }] },
   ],
 };
 
@@ -30,14 +30,14 @@ export const TITLES = {
   quiet: { name: 'Soft-Step', desc: 'Chose silence.' },
   will: { name: 'Unbroken', desc: 'Chose to endure.' },
   firstLight: { name: 'First Light', desc: 'The first to see the window.' },
-  gravedigger: { name: 'Gravedigger', desc: 'Put down 150 of the dead.' },
-  hivebreaker: { name: 'Hive-Breaker', desc: 'Burned a hive.' },
+  gravedigger: { name: 'Gravedigger', desc: 'Put down 150 of the Ash-Born.' },
+  hivebreaker: { name: 'Hive-Breaker', desc: 'Burned an Inferno Nest.' },
   pathfinder: { name: 'Pathfinder', desc: 'Walked into three districts.' },
   lamplighter: { name: 'Lamplighter', desc: 'Forgave the one who opened the gates.' },
-  shepherd: { name: 'Shepherd of the Quiet', desc: 'Named one of the dead.' },
+  shepherd: { name: 'Shepherd of the Quiet', desc: 'Named one of the Ash-Born.' },
   warden: { name: 'Warden of the Young', desc: 'Brought every child home.' },
   ironGrid: { name: 'Iron Grid', desc: 'Survived a blackout.' },
-  loud: { name: 'The Loudest Camp', desc: 'Burst a hive. Lived anyway.' },
+  loud: { name: 'The Loudest Haven', desc: 'Burst an Inferno Nest. Lived anyway.' },
   called: { name: 'The Called', desc: 'Passed a Calling trial.' },
   ascended: { name: 'Ascended', desc: 'Passed the final trial.' },
   uniqueSlayer: { name: 'Light-Breaker', desc: 'Killed a monster with a name.' },
@@ -60,17 +60,17 @@ export const SITES = {
     scene: 'An empty building. **Claim it** for its bonus, or **strip it** for scrap.',
     claim: 'Make it ours', strip: 'Strip it for scrap', leave: 'Leave it for now',
   },
-  flats: { scene: 'A family is trapped up here. **Out of water.** Take them in?', claim: 'Bring them to the Camp', strip: 'Take the water, go' },
+  flats: { scene: 'A family is trapped up here. **Out of water.** Take them in?', claim: 'Bring them to the Haven', strip: 'Take the water, go' },
   farmstead: { scene: 'A working farm, **abandoned this week**. Farm it, or take the stores.', claim: 'Work the fields', strip: 'Take the stores' },
   lumber: { scene: 'A lumber camp. **Timber and a saw**, nobody here.', claim: 'Run the camp', strip: 'Haul the timber home' },
   quarry: { scene: 'A quarry. A crew is **camped on the ledge**.', claim: 'Bring the crew in', strip: 'Take the tools' },
   lodge: { scene: 'A hunting lodge. **Snares, smoke racks**, a cold stove.', claim: 'Make it a hunting post', strip: 'Take the meat and traps' },
-  cabin: { scene: 'A ranger cabin. Someone inside asks: **"Who sent you?"**', claim: 'Bring them to the Camp', strip: 'Take their supplies' },
+  cabin: { scene: 'A ranger cabin. Someone inside asks: **"Who sent you?"**', claim: 'Bring them to the Haven', strip: 'Take their supplies' },
   allotment: { scene: 'A garden with a sign: **TAKE WHAT YOU NEED.**', claim: 'Fence it and farm it', strip: 'Harvest it all now' },
   market: { scene: 'A market **nobody looted**. Tins, tools, a pharmacy.', claim: 'Run it as a market', strip: 'Take everything now' },
   police: { scene: 'A police station. **The armory is full.**', claim: 'Arm the towers', strip: 'Sell the guns for scrap' },
   clinic: { scene: 'A clinic with clean beds. The nurse asks: **"Bitten?"**', claim: 'Make it our clinic', strip: 'Take the medicine, go' },
-  substation: { scene: 'A power substation, **still humming**. It can light the Camp.', claim: 'Bring the grid back', strip: 'Pull the copper' },
+  substation: { scene: 'A power substation, **still humming**. It can light the Haven.', claim: 'Bring the grid back', strip: 'Pull the copper' },
   fuel: { scene: 'A fuel depot, **half full**. The pumps are **loud**.', claim: 'Run the depot', strip: 'Drain what you can' },
   school: { scene: '**Eleven children** and a teacher, hiding behind desks.', claim: 'Take them all in', strip: 'Leave food and go' },
   radio: { scene: 'A radio station, **still on air**. The mic is warm.', claim: 'Take the broadcast', strip: 'Pull the transmitter' },
@@ -82,7 +82,7 @@ export const SITES = {
 export const THREADS = {
   channel9: {
     title: 'The Voice on Channel 9',
-    cast: { engineer: { role: 'engineer', names: ['Mara Voss', 'Lena Brandt', 'Sofia Reyes', 'Ada Kowal'], epithet: 'the Wire Witch', persona: { traits: ['blunt', 'restless', 'proud'], quirk: 'counts in volts when she is nervous', want: 'to see the city lights come back', fear: 'the dark under the city' }, secret: 'She opened the metro gates the night the city fell, to let people shelter. The dead came up instead.' } },
+    cast: { engineer: { role: 'engineer', names: ['Mara Voss', 'Lena Brandt', 'Sofia Reyes', 'Ada Kowal'], epithet: 'the Wire Witch', persona: { traits: ['blunt', 'restless', 'proud'], quirk: 'counts in volts when she is nervous', want: 'to see the city lights come back', fear: 'the dark under the city' }, secret: 'She opened the metro gates the night the city fell, to let people shelter. The Ash-Born came up instead.' } },
     start: { day: 7 },
     failed: { eyebrow: '[Quest failed]', title: 'Channel 9 goes quiet', scene: 'Channel 9 is **silent**. She didn\'t make it.', label: 'Turn the dial off' },
     stages: [
@@ -92,7 +92,7 @@ export const THREADS = {
         choices: [
           { id: 'answer', label: 'Answer her', hint: 'A marker shows where she is. +10 noise.', fx: [{ op: 'heat', n: 10 }, { op: 'openFor', kit: 'substation' }, { op: 'advance' }] },
           { id: 'triangulate', label: 'Trace her quietly', hint: 'Costs 4 scrap. No noise. A marker shows where she is.', cost: { gold: 4 }, fx: [{ op: 'openFor', kit: 'substation' }, { op: 'advance' }] },
-          { id: 'ignore', label: 'Turn it off', hint: 'The Camp isn\'t ready. She may not last.', fx: [{ op: 'fail', after: 3 }] },
+          { id: 'ignore', label: 'Turn it off', hint: 'The Haven isn\'t ready. She may not last.', fx: [{ op: 'fail', after: 3 }] },
         ],
       },
       {
@@ -100,14 +100,14 @@ export const THREADS = {
         speaker: 'engineer', line: '"You actually came. Mind the **red switch**."',
         scene: 'You found her: an **engineer** with a crowbar. Bring her home?',
         choices: [
-          { id: 'bring', label: 'Bring her to the Camp', hint: '{name} joins: she rigs lamps on your towers (+8% damage) while she lives.', fx: [{ op: 'recruit', role: 'engineer' }, { op: 'advance' }] },
+          { id: 'bring', label: 'Bring her to the Haven', hint: '{name} joins: she rigs lamps on your towers (+8% damage) while she lives.', fx: [{ op: 'recruit', role: 'engineer' }, { op: 'advance' }] },
           { id: 'trade', label: 'Ask her to stay', hint: 'She keeps this place running and gives it to you. She won\'t join.', fx: [{ op: 'claimHere' }, { op: 'resolve' }] },
         ],
       },
       {
         id: 'secret', at: 'dawn', after: 2, eyebrow: '[Quest updated]', title: 'What {name} opened',
         speaker: 'engineer', line: '"The metro gates. **It was me.** I wanted them to hide."',
-        scene: '{name} confesses: she **opened the metro gates**. The dead came up.',
+        scene: '{name} confesses: she **opened the metro gates**. The Ash-Born came up.',
         choices: [
           { id: 'forgive', label: 'Forgive her', hint: '+1 bond. She lights the towers for good: +5% damage.', fx: [{ op: 'bond', role: 'engineer', n: 1 }, { op: 'perk', key: 'towerDmg', add: 0.05 }, { op: 'title', id: 'lamplighter' }, { op: 'resolve' }] },
           { id: 'work', label: 'Make her work it off', hint: 'Day and night at the lamps: towers +10% damage, but -1 bond.', fx: [{ op: 'bond', role: 'engineer', n: -1 }, { op: 'perk', key: 'towerDmg', add: 0.1 }, { op: 'resolve' }] },
@@ -118,24 +118,24 @@ export const THREADS = {
   },
   hummer: {
     title: 'The One Who Hums',
-    cast: { revenant: { role: 'revenant', names: ['The Hummer'], epithet: 'one of the dead', persona: { traits: ['silent', 'gentle', 'watchful'], quirk: 'hums the same four notes', want: 'to remember its own name', fear: 'fire' }, secret: 'It was the bandleader at the old concert hall. The four notes are the first bar of its last song.' } },
+    cast: { revenant: { role: 'revenant', names: ['The Hummer'], epithet: 'one of the Ash-Born', persona: { traits: ['silent', 'gentle', 'watchful'], quirk: 'hums the same four notes', want: 'to remember its own name', fear: 'fire' }, secret: 'It was the bandleader at the old concert hall. The four notes are the first bar of its last song.' } },
     start: { day: 12 },
     failed: { eyebrow: '[Quest closed]', title: 'Four notes, further away', scene: 'The humming one is **gone**. You still hear it, far off.', label: 'Let it go' },
     stages: [
       {
         id: 'sighting', at: 'dawn', eyebrow: '[Anomaly: infected, non-hostile?]', title: 'The one who hums',
-        scene: 'One of the dead hums at the fence. It **doesn\'t attack**. What now?',
+        scene: 'One of the Ash-Born hums at the fence. It **doesn\'t attack**. What now?',
         choices: [
-          { id: 'cage', label: 'Cage it at the Camp', hint: 'Eats 1 food a dawn. The dead slow near it. Something more?', fx: [{ op: 'flag', key: 'caged' }, { op: 'advance' }] },
+          { id: 'cage', label: 'Cage it at the Haven', hint: 'Eats 1 food a dawn. The Ash-Born slow near it. Something more?', fx: [{ op: 'flag', key: 'caged' }, { op: 'advance' }] },
           { id: 'kill', label: 'Put it down', hint: 'Safe. Lesson learned: +0.5 hero damage.', fx: [{ op: 'perk', key: 'heroDmg', add: 0.5 }, { op: 'fail', quiet: true }] },
           { id: 'watch', label: 'Leave it be', hint: 'It wanders off. Maybe it comes back.', fx: [{ op: 'fail' }] },
         ],
       },
       {
         id: 'cure', at: 'dawn', after: 2, eyebrow: '[Quest: The One Who Hums]', title: 'Four notes',
-        scene: 'The caged one **slows the dead** near it. You could try to **cure** it.',
+        scene: 'The caged one **slows the Ash-Born** near it. You could try to **cure** it.',
         choices: [
-          { id: 'cure', label: 'Try to bring it back', hint: 'Costs 6 food, 6 scrap (half with a clinic). It joins: the dead slow near the Camp.', cost: { gold: 6, food: 6 }, clinicHalf: true, fx: [{ op: 'recruit', role: 'revenant' }, { op: 'advance' }] },
+          { id: 'cure', label: 'Try to bring it back', hint: 'Costs 6 food, 6 scrap (half with a clinic). It joins: the Ash-Born slow near the Haven.', cost: { gold: 6, food: 6 }, clinicHalf: true, fx: [{ op: 'recruit', role: 'revenant' }, { op: 'advance' }] },
           { id: 'release', label: 'Open the cage', hint: 'It walks off, humming. +3 scrap from the cage.', fx: [{ op: 'gold', n: 3 }, { op: 'fail' }] },
         ],
       },
@@ -144,7 +144,7 @@ export const THREADS = {
         speaker: 'revenant', line: '(four notes, softer now)',
         scene: 'Give it a name? Named, it **gets stronger**. **Tonight you get weaker.**',
         choices: [
-          { id: 'name', label: 'Give it a name', hint: 'It becomes a Named Revenant: the dead slow much more. Tonight: hero -25% damage.', fx: [{ op: 'name', role: 'revenant' }, { op: 'title', id: 'shepherd' }, { op: 'resolve' }] },
+          { id: 'name', label: 'Give it a name', hint: 'It becomes a Named Revenant: the Ash-Born slow much more. Tonight: hero -25% damage.', fx: [{ op: 'name', role: 'revenant' }, { op: 'title', id: 'shepherd' }, { op: 'resolve' }] },
           { id: 'noname', label: 'Leave it nameless', hint: 'It stays as it is.', fx: [{ op: 'resolve' }] },
         ],
       },
@@ -169,7 +169,7 @@ export const THREADS = {
         speaker: 'teacher', line: '"Single file. Nobody runs. **Nobody screams.** We practiced."',
         scene: '**Eleven children** and their teacher. How many can you feed?',
         choices: [
-          { id: 'all', label: 'Bring everyone to the Camp', hint: '+5 people. {name} joins (+1 food a day). Their garden: +1 food a day. -6 food now.', cost: { food: 6 }, fx: [{ op: 'survivors', n: 5 }, { op: 'recruit', role: 'teacher' }, { op: 'flag', key: 'garden' }, { op: 'title', id: 'warden' }, { op: 'advance' }] },
+          { id: 'all', label: 'Bring everyone to the Haven', hint: '+5 people. {name} joins (+1 food a day). Their garden: +1 food a day. -6 food now.', cost: { food: 6 }, fx: [{ op: 'survivors', n: 5 }, { op: 'recruit', role: 'teacher' }, { op: 'flag', key: 'garden' }, { op: 'title', id: 'warden' }, { op: 'advance' }] },
           { id: 'few', label: 'Take teacher and oldest', hint: '+2 people. {name} joins. The rest stay: -3 food left for them.', fx: [{ op: 'food', n: -3 }, { op: 'survivors', n: 2 }, { op: 'recruit', role: 'teacher' }, { op: 'advance' }] },
         ],
       },
@@ -208,9 +208,9 @@ THREADS.lantern = {
     },
     {
       id: 'aftermath', at: 'dawn', after: 1, needs: 'uniqueDone', eyebrow: '[Slain: The Lantern-Eater]', title: 'The thing on the road',
-      scene: 'The Lantern-Eater is **dead**. What do you do with it?',
+      scene: 'The Lantern-Eater is **down**. What do you do with it?',
       choices: [
-        { id: 'skull', label: 'Mount the lamp-skull', hint: 'Towers +10% damage for good. The dead fear the light.', fx: [{ op: 'perk', key: 'towerDmg', add: 0.1 }, { op: 'resolve' }] },
+        { id: 'skull', label: 'Mount the lamp-skull', hint: 'Towers +10% damage for good. The Ash-Born fear the light.', fx: [{ op: 'perk', key: 'towerDmg', add: 0.1 }, { op: 'resolve' }] },
         { id: 'burn', label: 'Burn it by the fire', hint: '-25 noise, and +1 food a day: people sleep again.', fx: [{ op: 'heat', n: -25 }, { op: 'flag', key: 'garden' }, { op: 'resolve' }] },
       ],
     },
@@ -251,9 +251,9 @@ THREADS.toll = {
 export const AMBIENT = [
   { id: 'dog', when: S => S.night >= 3, eyebrow: '[Event]', title: 'A dog at the gate',
     scene: 'A stray dog **followed you home**. Keep it?',
-    choices: [{ id: 'keep', label: 'Let it in', hint: 'Barks at the dead: hero 8% faster. The Camp sleeps better: +1 food a day.', fx: [{ op: 'perk', key: 'heroSpeed', mul: 1.08 }, { op: 'flag', key: 'garden' }] }, { id: 'shoo', label: 'Shoo it away', hint: 'One more mouth is too many.', fx: [] }] },
+    choices: [{ id: 'keep', label: 'Let it in', hint: 'Barks at the Ash-Born: hero 8% faster. The Haven sleeps better: +1 food a day.', fx: [{ op: 'perk', key: 'heroSpeed', mul: 1.08 }, { op: 'flag', key: 'garden' }] }, { id: 'shoo', label: 'Shoo it away', hint: 'One more mouth is too many.', fx: [] }] },
   { id: 'flag', when: S => S.night >= 4, eyebrow: '[Event]', title: 'Your flag on the old road',
-    scene: 'Someone painted **your flag** on the road. **Strangers** will find you. **So will the dead.**',
+    scene: 'Someone painted **your flag** on the road. **Strangers** will find you. **So will the Ash-Born.**',
     choices: [{ id: 'leave', label: 'Leave it up', hint: 'Survivors find you: +2 people next dawn. +10 noise.', fx: [{ op: 'heat', n: 10 }, { op: 'flag', key: 'beacon' }, { op: 'flag', key: 'beacon' }] }, { id: 'paint', label: 'Paint over it', hint: 'The road forgets you. -10 noise.', fx: [{ op: 'heat', n: -10 }] }] },
   { id: 'fever', when: S => S.night >= 4, eyebrow: '[Warning]', title: 'Fever in the bunks',
     scene: '**Fever** in the bunks. Four people are sick. Spend food on them?',
@@ -273,7 +273,7 @@ export const AMBIENT = [
 export const ROLES = {
   engineer: { post: 'Engineer', bonus: 'towers +8% damage', towers: 0.08 },
   teacher: { post: 'Quartermaster', bonus: '+1 food a day', food: 1 },
-  revenant: { post: 'Revenant', bonus: 'the dead slow near the Camp', lullaby: 0.8 },
+  revenant: { post: 'Revenant', bonus: 'the Ash-Born slow near the Haven', lullaby: 0.8 },
   raider: { post: 'Captain of the Watch', bonus: 'towers +10% damage', towers: 0.1 },
   // roles for the people Claude (or the woods) makes up
   scout: { post: 'Scout', bonus: '+2 scrap a day', gold: 2 },
@@ -291,7 +291,7 @@ export const QUEST_TEMPLATES = {
     { id: 'bring', label: 'Bring them home', fx: n => [{ op: 'survivors', n: 2 + (n >> 3) }, { op: 'food', n: -2 }] },
     { id: 'supply', label: 'Leave supplies and a map', fx: () => [{ op: 'food', n: -2 }, { op: 'flag', key: 'beacon' }] },
   ] },
-  recruit: { who: true, desc: 'a person with a skill and a past who could join the Camp as a companion (pick a role: scout, medic, cook, mechanic or gunner)', choices: [
+  recruit: { who: true, desc: 'a person with a skill and a past who could join the Haven as a companion (pick a role: scout, medic, cook, mechanic or gunner)', choices: [
     { id: 'join', label: 'Ask them to join you', fx: () => [{ op: 'recruitNew' }] },
     { id: 'trade', label: 'Trade, then part ways', fx: n => [{ op: 'gold', n: 5 + (n >> 1) }] },
   ] },
@@ -305,7 +305,7 @@ export const QUEST_TEMPLATES = {
   ] },
   dilemma: { who: true, desc: 'a hard choice between mercy and safety (or between two people), with no clean answer', choices: [
     { id: 'mercy', label: 'Choose mercy', fx: n => [{ op: 'survivors', n: 1 + (n >> 4) }, { op: 'heat', n: 8 }] },
-    { id: 'safety', label: 'Choose the Camp', fx: n => [{ op: 'gold', n: 4 + (n >> 1) }] },
+    { id: 'safety', label: 'Choose the Haven', fx: n => [{ op: 'gold', n: 4 + (n >> 1) }] },
   ] },
   echo: { who: false, desc: 'a callback: something or someone from an earlier day comes back, changed', choices: [
     { id: 'welcome', label: 'Meet it head on', fx: n => [{ op: 'perk', key: 'heroDmg', add: 0.3 }] },
@@ -323,12 +323,12 @@ export const BARKS = {
 // One new idea at a time: inline callouts anchored to the HUD element they explain (never modals, never on day 1).
 // `at`: the HUD element the callout points to (see ui/app.js ANCHORS). Dismissed on tap.
 export const TIPS = [
-  { id: 'noise', at: 'noise', when: (S, g) => S.night >= 2 && S.phase === 'day' && (S.noise ?? S.heat ?? 0) > 20, text: 'Noise: the louder the Camp, the more dead come.' },
+  { id: 'noise', at: 'noise', when: (S, g) => S.night >= 2 && S.phase === 'day' && (S.noise ?? S.heat ?? 0) > 20, text: 'Noise: the louder the Haven, the more Ash-Born come.' },
   { id: 'forecast', at: 'forecast', when: S => S.night >= 2 && S.phase === 'day', text: 'Tonight\'s forecast: what may fall tonight.' },
   { id: 'quest', at: 'strip', when: S => S.night >= 2 && S.phase === 'day' && S.dayT > 4 && !!(S.story.daily && S.story.daily.state === 'active'), text: 'Your daily quest. It ends at dawn.' },
-  { id: 'street', at: 'map', when: S => S.night >= 2 && S.story.spots.length > 0 && S.phase === 'day', text: 'Blue beacon: someone needs you. A few dead guard it.' },
+  { id: 'street', at: 'map', when: S => S.night >= 2 && S.story.spots.length > 0 && S.phase === 'day', text: 'Blue beacon: someone needs you. A few Ash-Born guard it.' },
   { id: 'evolve', at: 'strip', when: S => S.lvl >= 8, text: 'Your choices shape your class. It unlocks at level 15.' },
-  { id: 'roam', at: 'camp', when: S => S.night >= 2 && S.mobs.some(m => m.hunt), text: 'The dead follow you home. Lead them into your towers.' },
+  { id: 'roam', at: 'camp', when: S => S.night >= 2 && S.mobs.some(m => m.hunt), text: 'The Ash-Born follow you home. Lead them into your towers.' },
   { id: 'clear', at: 'build', when: S => S.night >= 3 && S.phase === 'day', text: 'Tap rubble on your land to clear it.' },
 ];
 
@@ -340,16 +340,16 @@ export const STREET = [
     choices: [{ id: 'take', label: 'Bring him home', hint: '+1 person. Knows the streets: next scout call shows one more route.', fx: [{ op: 'survivors', n: 1 }, { op: 'flag', key: 'scout' }] }, { id: 'water', label: 'Give water and directions', hint: '-2 food. He spreads the word: +1 person at dawn. +8 noise.', fx: [{ op: 'food', n: -2 }, { op: 'heat', n: 8 }, { op: 'flag', key: 'beacon' }] }] },
   { id: 'pharmacy', eyebrow: '[Location discovered]', title: 'The jammed pharmacy',
     scene: 'A locked pharmacy. **Something is breathing** behind the door.',
-    choices: [{ id: 'open', label: 'Force the door', hint: 'Coin toss: +12 scrap of medicine, or a dead pharmacist (you get hurt).', fx: [{ op: 'gamble', p: 0.5, good: [{ op: 'gold', n: 12 }], bad: [{ op: 'hurt', n: 10 }, { op: 'gold', n: 4 }] }] }, { id: 'front', label: 'Take what is out front', hint: '+5 scrap. No risk.', fx: [{ op: 'gold', n: 5 }] }] },
+    choices: [{ id: 'open', label: 'Force the door', hint: 'Coin toss: +12 scrap of medicine, or an Ash-Born pharmacist (you get hurt).', fx: [{ op: 'gamble', p: 0.5, good: [{ op: 'gold', n: 12 }], bad: [{ op: 'hurt', n: 10 }, { op: 'gold', n: 4 }] }] }, { id: 'front', label: 'Take what is out front', hint: '+5 scrap. No risk.', fx: [{ op: 'gold', n: 5 }] }] },
   { id: 'radio', eyebrow: '[Signal]', title: 'Sparrow on the radio',
     scene: 'A **child** on a walkie-talkie: "This is **Sparrow**. Anyone?"',
-    choices: [{ id: 'answer', label: 'Answer Sparrow', hint: 'Sparrow and two others reach you: +3 people. +10 noise.', fx: [{ op: 'heat', n: 10 }, { op: 'survivors', n: 3 }] }, { id: 'keep', label: 'Keep it and listen', hint: 'Learn their patrol routes: the dead notice you later.', fx: [{ op: 'flag', key: 'quiet' }] }] },
+    choices: [{ id: 'answer', label: 'Answer Sparrow', hint: 'Sparrow and two others reach you: +3 people. +10 noise.', fx: [{ op: 'heat', n: 10 }, { op: 'survivors', n: 3 }] }, { id: 'keep', label: 'Keep it and listen', hint: 'Learn their patrol routes: the Ash-Born notice you later.', fx: [{ op: 'flag', key: 'quiet' }] }] },
   { id: 'church', eyebrow: '[Location discovered]', title: 'Candles in the chapel',
     scene: 'A chapel with **forty names** on the wall. Fresh candles.',
-    choices: [{ id: 'add', label: 'Add your own dead', hint: 'Your people take heart: +1 food a day. -15 noise.', fx: [{ op: 'heat', n: -15 }, { op: 'flag', key: 'garden' }] }, { id: 'take', label: 'Take the candles', hint: '+4 scrap. Light is light.', fx: [{ op: 'gold', n: 4 }] }] },
+    choices: [{ id: 'add', label: 'Add your own Ash-Born', hint: 'Your people take heart: +1 food a day. -15 noise.', fx: [{ op: 'heat', n: -15 }, { op: 'flag', key: 'garden' }] }, { id: 'take', label: 'Take the candles', hint: '+4 scrap. Light is light.', fx: [{ op: 'gold', n: 4 }] }] },
   { id: 'market', eyebrow: '[Encounter]', title: 'A trader with a trolley',
     scene: 'A trader with **tins and batteries**. "I trade. I don\'t give."',
-    choices: [{ id: 'food', label: 'Trade scrap for food', hint: '-6 scrap, +8 food.', cost: { gold: 6 }, fx: [{ op: 'food', n: 8 }] }, { id: 'tip', label: 'Ask what she has seen', hint: 'Free. She knows a hive\'s weak spot: hero +15% damage to hives.', fx: [{ op: 'flag', key: 'hiveTip' }] }] },
+    choices: [{ id: 'food', label: 'Trade scrap for food', hint: '-6 scrap, +8 food.', cost: { gold: 6 }, fx: [{ op: 'food', n: 8 }] }, { id: 'tip', label: 'Ask what she has seen', hint: 'Free. She knows an Inferno Nest\'s weak spot: hero +15% damage to Inferno Nests.', fx: [{ op: 'flag', key: 'hiveTip' }] }] },
   { id: 'dog2', eyebrow: '[Encounter]', title: 'The dog at the door',
     scene: 'A dog guards a basement door. **Someone is inside.**',
     choices: [{ id: 'food', label: 'Throw it some food', hint: '-2 food. It lets you in: a family of three joins (+3 people).', cost: { food: 2 }, fx: [{ op: 'survivors', n: 3 }] }, { id: 'leave', label: 'Leave them be', hint: 'Not everyone wants to be found.', fx: [] }] },
@@ -370,7 +370,7 @@ export const STREET_GEN = {
     { name: 'an electrician', trait: 'talks to cables' }, { name: 'a postwoman', trait: 'still delivers letters nobody reads' }, { name: 'a teenager', trait: 'filmed everything on a dead phone' },
     { name: 'a priest', trait: 'lost the faith, kept the collar' }, { name: 'a gardener', trait: 'has seeds sewn into his coat' }, { name: 'a taxi driver', trait: 'knows every back road' },
   ],
-  where: [['on the roof of a laundromat', 'on the laundromat roof'], ['in a bank vault with the door wedged', 'in the bank vault'], ['up a scaffold on a half-built block', 'up the scaffold'], ['in the back of an ice-cream van', 'in the ice-cream van'], ['behind the counter of a kebab shop', 'in the kebab shop'], ['in a stalled tram', 'in the stalled tram'], ['in a church bell tower', 'in the bell tower'], ['on a footbridge with both ends full of dead', 'on the footbridge']],
+  where: [['on the roof of a laundromat', 'on the laundromat roof'], ['in a bank vault with the door wedged', 'in the bank vault'], ['up a scaffold on a half-built block', 'up the scaffold'], ['in the back of an ice-cream van', 'in the ice-cream van'], ['behind the counter of a kebab shop', 'in the kebab shop'], ['in a stalled tram', 'in the stalled tram'], ['in a church bell tower', 'in the bell tower'], ['on a footbridge with both ends full of Ash-Born', 'on the footbridge']],
   ask: [
     { id: 'rescue', line: 'They wave a sheet. They **can\'t get down** alone.', choices: [
       { id: 'bring', label: 'Get them down', hint: '+{n} people (they were not alone). -{f} food.', fx: [{ op: 'survivors', n: '{n}' }, { op: 'food', n: '-{f}' }] },
@@ -378,7 +378,7 @@ export const STREET_GEN = {
     { id: 'trade', line: 'They want to **trade**. Something for something.', choices: [
       { id: 'buy', label: 'Trade scrap for goods', hint: '-{g} scrap, +{h} food.', cost: { gold: '{g}' }, fx: [{ op: 'food', n: '{h}' }] },
       { id: 'invite', label: 'Offer them a place', hint: '+1 person, plus their pack: +{h2} food.', fx: [{ op: 'survivors', n: 1 }, { op: 'food', n: '{h2}' }] } ] },
-    { id: 'skill', line: 'They have a **skill** the Camp needs.', choices: [
+    { id: 'skill', line: 'They have a **skill** the Haven needs.', choices: [
       { id: 'hire', label: 'Put them to work', hint: '+1 person. They earn their keep: +{g} scrap.', fx: [{ op: 'survivors', n: 1 }, { op: 'gold', n: '{g}' }] },
       { id: 'learn', label: 'Learn from them', hint: 'Your hero picks it up: +0.4 damage.', fx: [{ op: 'perk', key: 'heroDmg', add: 0.4 }] } ] },
     { id: 'warning', line: 'They saw something. **You need to hear it.**', choices: [
@@ -392,7 +392,7 @@ export const STREET_GEN = {
 // Rewards use only what the engine already has: xp, a lean on the path, scrap, food (and a title, as flavour).
 // Ignore it and the next dawn brings a penalty quest; ignore that too and the Camp pays.
 export const DAILY = [
-  { id: 'cull', title: 'Strength Training', goal: 'Put down {n} of the dead', n: d => Math.min(30, 6 + 2 * d), stat: S => S.kills,
+  { id: 'cull', title: 'Strength Training', goal: 'Put down {n} of the Ash-Born', n: d => Math.min(30, 6 + 2 * d), stat: S => S.kills,
     reward: d => [{ op: 'xp', n: 15 + 4 * d }, { op: 'lean', fam: 'hero', n: 0.6 }] },
   { id: 'salvage', title: 'The Gatherer\'s Round', goal: 'Carry {n} salvage home', n: d => Math.min(8, 3 + Math.floor(d / 3)), stat: S => (S.stats.pickups || 0),
     reward: d => [{ op: 'xp', n: 10 + 3 * d }, { op: 'gold', n: 4 + Math.floor(d / 2) }, { op: 'lean', fam: 'scavver', n: 0.6 }] },
@@ -430,17 +430,17 @@ export const NIGHT_TEXT = {
   two: '{N} from the {dir}. {M} from the {dir2}.',
   three: '{N}, from the {dir}, the {dir2} and the {dir3}.',
   many: '{N}. From every side.',
-  brute: ' A brute walks with them.',
-  brutes: ' {B} brutes walk with them.',
+  brute: ' A Slag Brute walks with them.',
+  brutes: ' {B} Slag Brutes walk with them.',
   blood: 'Blood moon. ',
   unique: ' {name} comes with them.',
 };
 
 // ---------- how people arrive: every choice that adds people says it plainly (the engine adds this line, never the AI) ----------
 export const ARRIVE = {
-  now: { icon: 'camp', tag: 'At the Camp now', text: 'They\'re at the Camp now.' },
-  convoy: { icon: 'route', tag: 'Escort · convoy', text: 'You must escort them home from here ({dir}, {d} m out). The dead hunt them.' },
-  dawn: { icon: 'clock', tag: 'On their own', text: 'They walk to the Camp on their own (arrive by dawn).' },
-  join: { icon: 'camp', tag: 'At the Camp now', text: '{who} is at the Camp now.' },
+  now: { icon: 'camp', tag: 'At the Haven now', text: 'They\'re at the Haven now.' },
+  convoy: { icon: 'route', tag: 'Escort · convoy', text: 'You must escort them home from here ({dir}, {d} m out). The Ash-Born hunt them.' },
+  dawn: { icon: 'clock', tag: 'On their own', text: 'They walk to the Haven on their own (arrive by dawn).' },
+  join: { icon: 'camp', tag: 'At the Haven now', text: '{who} is at the Haven now.' },
   more: ' +{n} more walk in on their own by dawn.',
 };

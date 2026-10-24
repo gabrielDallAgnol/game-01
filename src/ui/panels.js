@@ -30,12 +30,12 @@ export function createPanels(ui) {
     const S = ui.game.state, body = $('#pBody'), day = !S.over;
     if (ui.selected.type === 'keep') {
       const k = S.keep, l = k.level;
-      $('#pEyebrow').textContent = 'Your home'; $('#pTitle').textContent = `The Camp · level ${l}`;
+      $('#pEyebrow').textContent = 'Your home'; $('#pTitle').textContent = `The Haven · level ${l}`;
       let html = `<div class="stat"><span>Health <b>${Math.ceil(k.hp)} / ${k.maxHp}</b></span><span>${campCopy(KEEP.desc[l - 1])}</span></div><div class="opts two">`;
       const miss = l < 3 ? ui.game.keepNeeds() : [];
-      html += l < 3 ? opt('opt-keep', 'data-keep="1"', 'Raise the Camp', KEEP.cost[l], miss.length ? `Still needed: ${miss.join(' · ')}` : `${campCopy(KEEP.desc[l])} · buildings up to level ${l + 1}`, miss.length > 0 || S.gold < KEEP.cost[l] || !day) : '';
+      html += l < 3 ? opt('opt-keep', 'data-keep="1"', 'Raise the Haven', KEEP.cost[l], miss.length ? `Still needed: ${miss.join(' · ')}` : `${campCopy(KEEP.desc[l])} · buildings up to level ${l + 1}`, miss.length > 0 || S.gold < KEEP.cost[l] || !day) : '';
       if (FLAGS.trader && S.trade && !S.trade.done && day) html += opt('opt-trader', 'data-trader="1"', 'Visit the trader', null, 'One deal before nightfall.', false);
-      body.innerHTML = html + '</div>' + (l >= 3 ? '<p class="note">The Camp stands at its full height.</p>' : '');
+      body.innerHTML = html + '</div>' + (l >= 3 ? '<p class="note">The Haven stands at its full height.</p>' : '');
       ui.selected.range = KEEP.range[l - 1] + S.P.towerRange;
       return;
     }
@@ -48,17 +48,17 @@ export function createPanels(ui) {
     // [acts] end
     if (ui.selected.type === 'region' && S.sealed[ui.selected.id]) {
       const known = S.kits[ui.selected.id]; $('#pEyebrow').textContent = 'The old core · sealed'; $('#pTitle').textContent = ui.names[ui.selected.id];
-      body.innerHTML = `<div class="stat"><span>Behind the old quarantine fence${known ? ` · scouts say: <b>${known === 'signature' ? 'a landmark' : (KITS[known] || {}).name || known}</b>` : ''}</span></div><p class="note">The old core opens through the story. You cannot walk in until then. The dead can.</p>`;
+      body.innerHTML = `<div class="stat"><span>Behind the old quarantine fence${known ? ` · scouts say: <b>${known === 'signature' ? 'a landmark' : (KITS[known] || {}).name || known}</b>` : ''}</span></div><p class="note">The old core opens through the story. You cannot walk in until then. The Ash-Born can.</p>`;
       return;
     }
     if (ui.selected.type === 'region') {
       const info = ui.game.regionInfo(ui.selected.id), reg = ui.game.map.regions[ui.selected.id];
       $('#pEyebrow').textContent = `${ui.names[ui.selected.id]} · ${RINGS[Math.min(3, reg.ring)]}`;
-      $('#pTitle').textContent = info.nest ? `Hive: ${hiveName(ui.game.map.seed, ui.selected.id)} · ${info.active ? 'awake' : 'asleep'}` : ui.names[ui.selected.id];
+      $('#pTitle').textContent = info.nest ? `Inferno Nest: ${hiveName(ui.game.map.seed, ui.selected.id)} · ${info.active ? 'awake' : 'asleep'}` : ui.names[ui.selected.id];
       let html = '';
-      if (info.nest) html += ui.game.keepLevel() < info.needKeep ? `<p class="note">Too strong for now: <b>raise the Camp to level ${info.needKeep}</b> to break a ${reg.ring >= 3 ? 'core' : 'city'} hive.</p>`
-        : `<div class="stat"><span>Hive health <b>${Math.round(ui.game.hiveHealth(ui.selected.id) * 100)}%</b>${(() => { const rg = ui.game.nestRage(ui.selected.id), gd = ui.game.nestGuards(ui.selected.id); return (gd ? ` · <b class="bad">${gd}</b> on guard` : '') + (rg && rg.lv ? ` · <b class="bad">Rage ${rg.lv}</b>` : ''); })()}</span><span>Guarded: its dead rise when you come near. Stay close and it rages, sending more every few seconds. Come ready.</span></div><p class="note">When it burns: a legendary blessing, scrap, and the site beside it unlocks. Its last dead come after you.</p>`;
-      else html += '<p class="note">No hive here.</p>';
+      if (info.nest) html += ui.game.keepLevel() < info.needKeep ? `<p class="note">Too strong for now: <b>raise the Haven to level ${info.needKeep}</b> to break a ${reg.ring >= 3 ? 'core' : 'city'} Inferno Nest.</p>`
+        : `<div class="stat"><span>Inferno Nest health <b>${Math.round(ui.game.hiveHealth(ui.selected.id) * 100)}%</b>${(() => { const rg = ui.game.nestRage(ui.selected.id), gd = ui.game.nestGuards(ui.selected.id); return (gd ? ` · <b class="bad">${gd}</b> on guard` : '') + (rg && rg.lv ? ` · <b class="bad">Rage ${rg.lv}</b>` : ''); })()}</span><span>Guarded: its Ash-Born rise when you come near. Stay close and it rages, sending more every few seconds. Come ready.</span></div><p class="note">When it burns: a legendary blessing, scrap, and the site beside it unlocks. Its last Ash-Born come after you.</p>`;
+      else html += '<p class="note">No Inferno Nest here.</p>';
       body.innerHTML = html;
       return;
     }
@@ -68,7 +68,7 @@ export function createPanels(ui) {
       $('#pTitle').textContent = L.name;
       let html = `<div class="stat"><span>${L.desc}</span><span>${l.owned ? 'You can build around it.' : 'Claim it and you can build around it too.'}</span></div>`;
       const lock = l.owned ? -1 : ui.game.siteLock(ui.selected.id);   // [nests] a living hive guards it: burn the nest first
-      if (lock >= 0) { const n = ui.game.map.regions[lock].nest, d = Math.round(Math.hypot(n.x - l.x, n.y - l.y)); const inside = n.site === l.id; html += `<div class="opts one">${opt('opt-claim', `data-hive="${lock}"`, inside ? 'Burn it' : 'Burn the nest first', null, `<b class="bad">${inside ? 'Infested' : 'Locked'}</b> · ${inside ? 'the hive nests inside. Strike its walls until it burns, then claim the ruin' : `its dead guard this place. The hive is ${d} steps away`}${l.promised ? ' · <b class="good">promised to you</b>' : ''}. Tap to see it.`, false)}</div>`; }
+      if (lock >= 0) { const n = ui.game.map.regions[lock].nest, d = Math.round(Math.hypot(n.x - l.x, n.y - l.y)); const inside = n.site === l.id; html += `<div class="opts one">${opt('opt-claim', `data-hive="${lock}"`, inside ? 'Burn it' : 'Burn the Inferno Nest first', null, `<b class="bad">${inside ? 'Infested' : 'Locked'}</b> · ${inside ? 'the Inferno Nest burns inside. Strike its walls until it burns, then claim the ruin' : `its Ash-Born guard this place. The Inferno Nest is ${d} steps away`}${l.promised ? ' · <b class="good">promised to you</b>' : ''}. Tap to see it.`, false)}</div>`; }
       else if (!l.owned) html += `<div class="opts one">${opt('opt-claim', 'data-claim="1"', near ? `Claim the ${L.name}` : 'Walk up to it first', near ? L.cost : null, near ? 'Yours for good: its bonus and a build zone around it.' : 'Your hero is on the way. Tap again when you are next to it.', !near || S.gold < L.cost || !day)}</div>`;
       body.innerHTML = html; return;
     }
@@ -76,7 +76,7 @@ export function createPanels(ui) {
       const r = ui.game.rubbleAt(ui.selected.x, ui.selected.y);
       const woods = ui.game.map.wild && ui.game.map.wild[idx(Math.floor(ui.selected.x), Math.floor(ui.selected.y))];
       $('#pEyebrow').textContent = 'Your land'; $('#pTitle').textContent = r.blocks ? 'A ruined block' : woods ? 'Trees' : 'Rubble';
-      body.innerHTML = `<div class="stat"><span>${r.blocks ? 'Walls block building and the dead alike.' : 'Blocks building. Slows the dead.'}</span><span>Knock it down to make room.</span></div>`
+      body.innerHTML = `<div class="stat"><span>${r.blocks ? 'Walls block building and the Ash-Born alike.' : 'Blocks building. Slows the Ash-Born.'}</span><span>Knock it down to make room.</span></div>`
         + (r.cells.length ? `<div class="opts one">${opt('opt-clear', 'data-clear="1"', r.blocks ? `Knock down ${r.blocks} ${r.blocks === 1 ? 'bay' : 'bays'} of the block` : woods ? `Fell ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of trees` : `Clear ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of rubble`, r.cost, r.blocks ? 'A 3×3 patch becomes open ground. The noise carries.' : 'A 3×3 patch around this spot becomes open ground.', S.gold < r.cost || !day)}</div>` : '<p class="note">Nothing left to clear here.</p>');
       return;
     }
@@ -87,14 +87,14 @@ export function createPanels(ui) {
     if (b.ruined) {   // a ruin stays until you rebuild it by hand: no income, no defence
       const rc = ui.game.rebuildCost(b.id);
       body.innerHTML = `<div class="stat"><span><b class="bad">Ruined</b> · no ${b.type === 'tower' ? 'fire' : b.type === 'farm' ? 'food' : b.type === 'house' ? 'scrap, nobody lives here' : 'use'} until rebuilt</span><span>Rebuilding costs half the price, and it stands at full health.</span></div><div class="opts two">`
-        + opt('opt-up', 'data-rebuild="1"', day ? `Rebuild the ${B.name.toLowerCase()}` : 'Rebuild at dawn', rc, day ? `Back as it was: level ${b.level}.` : 'Nobody lays bricks with the dead at the gate.', S.gold < rc || !day)
+        + opt('opt-up', 'data-rebuild="1"', day ? `Rebuild the ${B.name.toLowerCase()}` : 'Rebuild at dawn', rc, day ? `Back as it was: level ${b.level}.` : 'Nobody lays bricks with the Ash-Born at the gate.', S.gold < rc || !day)
         + opt('opt-demo', 'data-demo="1"', 'Clear the ruin', null, '<b class="bad">No scrap back</b> · the lot is free again.', !day) + '</div>';
       ui.selected.range = null; return;
     }
     let html = `<div class="stat"><span>Health <b>${Math.ceil(b.hp)} / ${b.maxHp}</b></span><span>${b.spec ? rich(SPECS[b.spec].line) : B.desc[b.level - 1]}</span></div><div class="opts two">`;
     if (b.type === 'wall') {
       const run = ui.game.wallRun(b.id), total = run.reduce((a, w) => a + ui.game.upCostOf(w), 0);
-      if (b.level < MAX_LEVEL) { const capped = b.level >= ui.game.keepLevel(); html += opt('opt-upw', 'data-upw="1"', capped ? 'Raise the Camp first' : `Upgrade this barricade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, capped ? null : total, capped ? `Nothing grows past the Camp (level ${ui.game.keepLevel()}).` : `${B.desc[b.level]} each.`, capped || S.gold < ui.game.upCostOf(b) || !day); }
+      if (b.level < MAX_LEVEL) { const capped = b.level >= ui.game.keepLevel(); html += opt('opt-upw', 'data-upw="1"', capped ? 'Raise the Haven first' : `Upgrade this barricade · ${run.length} ${run.length === 1 ? 'post' : 'posts'}`, capped ? null : total, capped ? `Nothing grows past the Haven (level ${ui.game.keepLevel()}).` : `${B.desc[b.level]} each.`, capped || S.gold < ui.game.upCostOf(b) || !day); }
       { const back = Math.floor(ui.game.costOf(b.type) / 2); html += opt('opt-demo', 'data-demo="1"', 'Pull down this post', null, `<b class="good">${back ? `+${back} scrap back` : 'No scrap back'}</b> · <b class="bad">a gap in the line</b>.`, !day); }
       body.innerHTML = html + '</div>'; ui.selected.range = null; return;
     }
@@ -108,7 +108,7 @@ export function createPanels(ui) {
       body.innerHTML = html + '</div><p class="note">Level 3: pick a role for good. Same crew, same upkeep.</p>'; ui.selected.range = ui.game.towerStats(b).range; return;
     }
     // [towers] end
-    if (b.level < maxL) { const c = ui.game.upCostOf(b); html += opt('opt-up', 'data-up="1"', capped ? 'Raise the Camp first' : needTech ? `Needs a ${SHORT[UNLOCKS[b.type]]}` : `Upgrade to level ${b.level + 1}`, capped || needTech ? null : c, capped ? `Nothing grows past the Camp (level ${ui.game.keepLevel()}).` : needTech ? `Build a ${SHORT[UNLOCKS[b.type]]} to unlock level 3.` : `${B.desc[b.level]} · ${ui.game.maxHpOf(b.type, b.level + 1)} hp${b.type === 'tower' ? ` · needs ${CREW_NEED[b.level]} crew${ui.game.manned(b) && ui.game.crewing().free < CREW_NEED[b.level] - CREW_NEED[b.level - 1] ? ' · <b class="bad">nobody free: it falls silent</b>' : ''}` : ''}`, capped || needTech || S.gold < c || !day); }
+    if (b.level < maxL) { const c = ui.game.upCostOf(b); html += opt('opt-up', 'data-up="1"', capped ? 'Raise the Haven first' : needTech ? `Needs a ${SHORT[UNLOCKS[b.type]]}` : `Upgrade to level ${b.level + 1}`, capped || needTech ? null : c, capped ? `Nothing grows past the Haven (level ${ui.game.keepLevel()}).` : needTech ? `Build a ${SHORT[UNLOCKS[b.type]]} to unlock level 3.` : `${B.desc[b.level]} · ${ui.game.maxHpOf(b.type, b.level + 1)} hp${b.type === 'tower' ? ` · needs ${CREW_NEED[b.level]} crew${ui.game.manned(b) && ui.game.crewing().free < CREW_NEED[b.level] - CREW_NEED[b.level - 1] ? ' · <b class="bad">nobody free: it falls silent</b>' : ''}` : ''}`, capped || needTech || S.gold < c || !day); }
     html += opt('opt-demo', 'data-demo="1"', 'Pull down', null, `<b class="good">+${Math.floor(ui.game.costOf(b.type) / 2)} scrap back</b> · <b class="bad">level ${b.level} lost</b>.`, !day);
     body.innerHTML = html + '</div>' + (b.level >= MAX_LEVEL ? '<p class="note">Fully upgraded.</p>' : '');
     ui.selected.range = b.type === 'tower' ? (b.spec ? ui.game.specRange(b) : ui.game.towerStats(b).range) : null;
@@ -119,7 +119,7 @@ export function createPanels(ui) {
     if (btn.dataset.hive) { openSel({ type: 'region', id: +btn.dataset.hive }); return; }   // [nests] point at the hive that locks the site
     if (btn.dataset.clear) { const n = ui.game.clearRubble(ui.selected.x, ui.selected.y); if (n) { ui.toast(`${n} ${n === 1 ? 'cell' : 'cells'} cleared.`); closePanel(); ui.updateHud(); return; } }
     if (btn.dataset.rebuild) { if (ui.game.rebuild(ui.selected.id)) { audio.play('build'); ui.toast(`${BUILDINGS[ui.game.state.byId.get(ui.selected.id).type].name} rebuilt.`, 'good'); renderPanel(); ui.updateHud(); } return; }
-    if (btn.dataset.keep && ui.game.upgradeKeep()) ui.toast('The Camp rises higher.');
+    if (btn.dataset.keep && ui.game.upgradeKeep()) ui.toast('The Haven rises higher.');
     if (btn.dataset.trader && FLAGS.trader) { closePanel(); ui.paused = true; showTrader(); return; }
     if (btn.dataset.up && ui.game.upgrade(ui.selected.id)) ui.toast('Upgraded.');
     if (btn.dataset.spec && ui.game.specialise(ui.selected.id, btn.dataset.spec)) { audio.play('build'); ui.toast(`[Tower specialised: ${SPECS[btn.dataset.spec].name}] ${SPECS[btn.dataset.spec].line}`, 'good'); }   // [towers]

@@ -20,17 +20,17 @@ for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => aud
 // Cut or parked (decisions, Oct 20): everything stays behind a flag so it can come back.
 // the start screen's "What's new" (under More): short, for players
 export const WHATS_NEW = [
-  '**Two acts.** First the woods: burn the forest hollows round the Camp. Then the fences come down and **the road** opens.',
+  '**Two acts.** First the woods: burn the forest hollows round the Haven. Then the fences come down and **the road** opens.',
   '**The old road** (act 2). Four stations with fires. Light one and it becomes an outpost; walk the people you find home in a **convoy**, and spend a night out there if you dare.',
   '**Seasons are contracts.** The System offers a rule and a finale. Win it and the city eases off; lose it and the run ends with its name.',
-  '**One Noise meter.** The louder the Camp, the more dead come and the farther the hives hear you (the ring on the map).',
+  '**One Noise meter.** The louder the Haven, the more Ash-Born come and the farther the Inferno Nests hear you (the ring on the map).',
   '**Ruins stay ruins** until you rebuild them: tap one, or **Rebuild all** at dawn.',
   'A **lantern-lit** world: warm fires, cold nights, a frontier camp that grows from a stalled bus.',
   'Fewer, sharper systems: power, hands, barricades, weather and the trader are gone for now.',
 ];
 export const FLAGS = { trader: false, crew: false, legacyAll: false, foremanFirstRun: false, runLog: false, perkShop: false, changelog: false, startDifficulty: false };
 export const LEGACY_KEEP = ['scrap', 'dmg', 'keep'];
-export const RINGS = ['Camp', 'The woods', 'The city', 'The old core'];
+export const RINGS = ['Haven', 'The woods', 'The city', 'The old core'];
 export const ARM_MS = 600;          // cards ignore taps this long after they appear
 export const DAWN_DELAY = 1.2;      // seconds between the last kill and the first card
 export const JOY_PX = 14;           // a touch that moves further than this is a joystick drag, not a tap
@@ -46,4 +46,4 @@ export const mmss = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(
 /** one name for the hall: the game's own strings still say keep / town hall in places */
 /** a chronicle line as a sentence: 'Drawings on the glass: "Go and get them"' → 'Drawings on the glass. You chose: Go and get them.' */
 export const chronLine = t => { const m = /^(.+?): "(.+)"$/.exec(t); return m ? `${m[1].replace(/\.$/, '')}. You chose: ${m[2].replace(/^\[|\]$/g, '')}.` : t; };
-export const campCopy = t => String(t).replace(/\b([Tt])he (keep|town hall|hall)\b/g, (_, T0) => `${T0}he Camp`).replace(/\btown hall\b/gi, 'Camp').replace(/\bthe town\b/g, 'the Camp');
+export const campCopy = t => String(t).replace(/\b([Tt])he (keep|town hall|hall)\b/g, (_, T0) => `${T0}he Haven`).replace(/\btown hall\b/gi, 'Haven').replace(/\bthe town\b/g, 'the Haven');

@@ -76,7 +76,7 @@ export function createNests(G) {
     while (kinds.length < k) kinds.push('walker');
     for (const kind of kinds) raise(r, kind, 1);
     ev('nestGuard', { region: r, x: n.x, y: n.y, n: kinds.length });
-    toast(`[Hive guard] **${kinds.length} dead** claw out to guard the hive. Stay close and it sends more.`, 'bad');
+    toast(`[Inferno Nest guard] **${kinds.length} Ash-Born** claw out to guard the Inferno Nest. Stay close and it sends more.`, 'bad');
   }
   /** a wave of rage: bigger and tougher with every level */
   function rageWave(r) {
@@ -124,7 +124,7 @@ export function createNests(G) {
     }
   }
   /** a story reward that hands you a locked site: it is promised, and yours the moment its hive burns */
-  function promiseSite(l) { l.promised = true; toast(`[Promised] The **${LANDMARKS[l.kind].name}** is yours once the hive beside it burns.`, 'good'); }
+  function promiseSite(l) { l.promised = true; toast(`[Promised] The **${LANDMARKS[l.kind].name}** is yours once the Inferno Nest beside it burns.`, 'good'); }
   const nestGuards = r => S.mobs.filter(m => m.guard === r).length;
   return { nestBody, nestEdge, hiveInSight, hiveInReach, nearHive, stepNests, angerNest, nestBurned, siteLocked, lockedBy, promiseSite, nestGuards };
 }

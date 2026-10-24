@@ -32,7 +32,7 @@ export function createHud(ui) {
     const parts = Object.entries(by).sort((a, b) => b[1] - a[1]).map(([t, n]) => (n === 1 ? ONE[t] || `a ${t}` : `${NUMW[n] || n} ${PLURAL[t] || t + 's'}`));
     const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
     const sides = [...new Set(losses.map(l => l.dir))];
-    const where = sides.length >= 3 ? 'all around the Camp' : sides.length === 2 ? `on the ${sides[0]} and ${sides[1]} sides` : `on the ${sides[0]} side`;
+    const where = sides.length >= 3 ? 'all around the Haven' : sides.length === 2 ? `on the ${sides[0]} and ${sides[1]} sides` : `on the ${sides[0]} side`;
     const total = losses.length; losses = [];
     return `${list[0].toUpperCase()}${list.slice(1)} ${total === 1 ? 'fell' : 'fell'} ${where}.`;
   }
@@ -102,10 +102,10 @@ export function createHud(ui) {
     if (typeof ui.game.forecastStrip === 'function') { try { f = ui.game.forecastStrip(); } catch { f = null; } }
     const word = { safe: 'safe', risk: 'at risk', fall: 'may fall' };
     if (f && f.hall) {
-      const bits = [`<span class="st ${f.hall}">Camp: ${word[f.hall] || f.hall}</span>`];
+      const bits = [`<span class="st ${f.hall}">Haven: ${word[f.hall] || f.hall}</span>`];
       if (f.from && f.from.length) bits.push(`<span class="from">From ${f.from.length === 1 ? f.from[0] : `${f.from.slice(0, -1).join(', ')} and ${f.from[f.from.length - 1]}`}</span>`);
       if (f.atRisk) bits.push(`<span>~${f.atRisk} ${f.atRisk === 1 ? 'building' : 'buildings'} at risk</span>`);
-      if (f.brutes) bits.push(`<span>${f.brutes} ${f.brutes === 1 ? 'brute' : 'brutes'}</span>`);
+      if (f.brutes) bits.push(`<span>${f.brutes} ${f.brutes === 1 ? 'Slag Brute' : 'Slag Brutes'}</span>`);
       if (f.crew && f.crew.silent) bits.push(silentLine());   // [towers] "4 towers silent: need 6 more people"
       else if (f.crew && f.crew.short) bits.push(`<span class="st risk">crew thin: homes may fall tonight</span>`);
       return bits.join('<span class="sep">·</span>');
@@ -113,7 +113,7 @@ export function createHud(ui) {
     // without the honest forecast from the game: the threat rating and tonight's count
     const r = ui.game.ratingOf(ui.game.threatRatio()), hall = r === 'Impossible' ? 'fall' : r === 'Hard' ? 'risk' : 'safe';
     const dead = ui.view ? ui.view.routes().reduce((a, x) => a + x.count, 0) : 0, boss = ui.view ? ui.view.routes().some(x => x.boss) : false;
-    return [`<span class="st ${hall}">Camp: ${word[hall]}</span>`, dead ? `<span>~${dead} dead tonight</span>` : '', boss ? '<span>a boss</span>' : ''].filter(Boolean).join('<span class="sep">·</span>');
+    return [`<span class="st ${hall}">Haven: ${word[hall]}</span>`, dead ? `<span>~${dead} Ash-Born tonight</span>` : '', boss ? '<span>a boss</span>' : ''].filter(Boolean).join('<span class="sep">·</span>');
   }
   function updateHud() {
     dockH();
@@ -150,7 +150,7 @@ export function createHud(ui) {
       if (S.hero.dead) mid = `${icon('heart')}<span class="soon">Back in ${Math.ceil(S.hero.respawn)}s</span>`;
       else if (night) mid = `${sunDial(ui.game.nightFrac(), false, true)}${loose ? `<span><em>${loose}</em> coming</span>` : '<span>Hold</span>'}${hunting ? `<span><em class="hunt">${hunting}</em> on you</span>` : ''}`;
       else { const dusk = ui.game.duskIn(); mid = `${sunDial(ui.game.dayFrac(), dusk <= 15)}<span class="${dusk <= 15 ? 'soon' : ''}">Dusk ${mmss(dusk)}</span>${hunting ? `<span><em class="hunt">${hunting}</em> on you</span>` : ''}`; }
-      if (S.eruption) mid = `<span class="erupt">Hive bursts ${Math.ceil(S.eruption.t)}s</span>${mid}`;
+      if (S.eruption) mid = `<span class="erupt">Inferno Nest bursts ${Math.ceil(S.eruption.t)}s</span>${mid}`;
       $('#info').innerHTML = mid;
     }
     ui.renderTray(); renderAbility();
@@ -215,7 +215,7 @@ export function createHud(ui) {
         buckets.set(`o:${o.key}`, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, main, opt: !main, contract: o.kind === 'contract', label: o.label, dist: o.dist });
       } }
     { const c = ui.game.map.city, h = S.hero; if (c && !(ui.game.act && ui.game.act() < 2) && Math.hypot(c.x - h.x, c.y - h.y) > c.r + 6) { const p = ui.view.project(c.x, c.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8000, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'City' }); } }
-    { const tw = ui.game.map.town, h = S.hero; if (Math.hypot(tw.x - h.x, tw.y - h.y) > 24) { const p = ui.view.project(tw.x, tw.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8001, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'Camp' }); } }
+    { const tw = ui.game.map.town, h = S.hero; if (Math.hypot(tw.x - h.x, tw.y - h.y) > 24) { const p = ui.view.project(tw.x, tw.y, 1); if (p.behind || !(p.x > m && p.x < Wd - m && p.y > t && p.y < bt)) buckets.set(8001, { ang: Math.atan2(p.y - cy, p.x - cx) + (p.behind ? Math.PI : 0), n: 0, big: false, place: true, label: 'Haven' }); } }
     for (let k = tagN; k < edge.tags.length; k++) edge.tags[k].hidden = true;
     let i = 0;
     const hx = Wd / 2 - m, hy = Math.max(10, (bt - t) / 2 - m * 0.5);

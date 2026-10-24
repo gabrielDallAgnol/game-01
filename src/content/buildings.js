@@ -16,7 +16,7 @@ export const BUILDINGS = {
   // barricades are real walls: the dead chew through them post by post. No salvage; a fallen post is a ruin you rebuild.
   wall: {
     name: 'Barricade', cost: [2, 3, 4], hp: [40, 90, 160], blocks: true,
-    desc: ['One barricade post · 40 hp · you walk through, the dead must chew through', 'Wrecks and sandbags · 90 hp', 'Concrete and razor wire · 160 hp'],
+    desc: ['One barricade post · 40 hp · you walk through, the Ash-Born must chew through', 'Wrecks and sandbags · 90 hp', 'Concrete and razor wire · 160 hp'],
   },
   // power: loud, but it keeps the lights (and the best guns) on
   generator: {

@@ -98,7 +98,7 @@ export function createRoad(ctx) {
     st.lit = true; st.fell = false; st.maxHp = ROAD.hp(S.night); st.hp = st.maxHp; st.prog = 0; st.litN++; R.lit++;
     ctx.reveal(st.x, st.y, ROAD.revealR); ctx.gainXp(st.litN === 1 ? 10 : 3);
     ev('outpost', { id: st.id, x: st.x, y: st.y });
-    toast(`[Outpost: ${st.name}] The fire takes. **The dead keep out of its light**, you can rest here, and it holds **${ROAD.towers} towers**. At night the dead come for it.`, 'sys');
+    toast(`[Outpost: ${st.name}] The fire takes. **The Ash-Born keep out of its light**, you can rest here, and it holds **${ROAD.towers} towers**. At night the Ash-Born come for it.`, 'sys');
     const story = ctx.story(); if (story && st.litN === 1) story.chron(`Lit the fire at ${st.name}.`, 3, ['road', st.id]);
     return true;
   }
@@ -172,7 +172,7 @@ export function createRoad(ctx) {
     }
     R.convoys.push(cv); R.rescued += n; routeHome(cv);
     ev('convoy', { id: cv.id, n, x: h.x, y: h.y });
-    toast(`[Convoy: ${n} ${n === 1 ? 'person' : 'people'}${cart ? ' and a cart' : ''}] They set off for the Camp on their own. **The dead will hunt them**: escort them, or tell them to wait. They count once they reach the camp.`, 'sys');
+    toast(`[Convoy: ${n} ${n === 1 ? 'person' : 'people'}${cart ? ' and a cart' : ''}] They set off for the Haven on their own. **The Ash-Born will hunt them**: escort them, or tell them to wait. They count once they reach the Haven.`, 'sys');
     return cv;
   }
   /** people the story or a site gave you while you are far from the camp walk home with you instead of appearing there */
@@ -262,7 +262,7 @@ export function createRoad(ctx) {
       toast(`[Convoy home] ${home} of ${cv.size} made it${cv.lost ? `; ${cv.lost} did not` : ''}. ${bits}.`, home === cv.size ? 'win' : 'good');
       const story = ctx.story(); if (story) story.chron(`Brought ${home} of ${cv.size} survivors home down the road${cv.lost ? `; ${cv.lost} were lost` : ''}.`, cv.lost ? 3 : 2, ['road']);
       ctx.gainXp(4 * home);
-    } else toast(`[Convoy lost] None of the ${cv.size} reached the camp.`, 'bad');
+    } else toast(`[Convoy lost] None of the ${cv.size} reached the Haven.`, 'bad');
     ev('convoyDone', { id: cv.id, home, lost: cv.lost });
   }
   function hurtMember(m, d, by) {
@@ -277,7 +277,7 @@ export function createRoad(ctx) {
       cv.lost++;
       const z = ctx.spawnMob('risen', m.x, m.y, { instant: false }); z.rise = 0.4; z.stream = -1;
       ev('convoyTurned', { id: m.id, x: m.x, y: m.y, name: m.name });
-      if (!cv.turnedToast) { cv.turnedToast = true; toast(`[Convoy] ${m.name} is caught. **A family rises with the dead.**`, 'bad'); }
+      if (!cv.turnedToast) { cv.turnedToast = true; toast(`[Convoy] ${m.name} is caught. **A family rises with the Ash-Born.**`, 'bad'); }
       else toast(`[Convoy] ${m.name} is gone.`, 'bad');
     }
     if (!cv.members.length) finish(cv);
@@ -311,7 +311,7 @@ export function createRoad(ctx) {
     }
     R.ambushes.push(a); ctx.reveal(spot.x, spot.y, 2);
     ev('roadAmbush', { id: a.id, x: spot.x, y: spot.y, n: list.length });
-    toast(`${AMBUSH.warn} Something is **waiting on the road home**, to the ${ctx.compass(spot.x, spot.y)}. ${list.includes('brute') ? 'A big one, with company.' : 'A pack of runners.'}`, 'sys');
+    toast(`${AMBUSH.warn} Something is **waiting on the road home**, to the ${ctx.compass(spot.x, spot.y)}. ${list.includes('brute') ? 'A big one, with company.' : 'A pack of Flickers.'}`, 'sys');
   }
 
   // ---------- the brain, extended: the dead go for the nearest of you and the convoy; they gnaw at lit fires ----------
@@ -454,7 +454,7 @@ export function createRoad(ctx) {
     const seen = (x, y) => S.seen[idx(Math.floor(x), Math.floor(y))] === 1, out = [];
     for (const st of stations) if (!S.sealed[st.region]) out.push({ kind: 'station', id: st.id, name: st.name, x: st.x, y: st.y, lit: st.lit });
     for (const l of S.landmarks) if (seen(l.x, l.y) && l.kind !== 'unknown') out.push({ kind: 'site', id: l.id, name: ctx.LANDMARKS[l.kind].name, x: l.x, y: l.y + l.size / 2 + 1, owned: l.owned });
-    for (const r of map.regions) if (r.nest && S.nestAlive[r.id] && seen(r.nest.x, r.nest.y)) out.push({ kind: 'hive', id: r.id, name: r.ring === 1 ? 'Forest hollow' : 'City hive', x: r.nest.x, y: r.nest.y + 2.5 });
+    for (const r of map.regions) if (r.nest && S.nestAlive[r.id] && seen(r.nest.x, r.nest.y)) out.push({ kind: 'hive', id: r.id, name: r.ring === 1 ? 'Forest hollow' : 'City Inferno Nest', x: r.nest.x, y: r.nest.y + 2.5 });
     if (S.act !== 1) out.push({ kind: 'city', name: 'The city', x: map.city.x, y: map.city.y });   // [acts] act 1: the city is not on the map yet
     out.push({ kind: 'camp', name: 'Camp', x: c, y: c + 3.5 });
     return out;
@@ -478,7 +478,7 @@ export function createRoad(ctx) {
     // a lit outpost is a beacon: while the camp has lost people, wanderers follow its fire in (one a dawn per fire)
     const lit = stations.filter(st => st.lit), owed = Math.max(0, (S.mourned || 0) - (S.stats.peopleBack || 0));
     const n = Math.min(owed, lit.length * ROAD.beacon);
-    if (n > 0) { addPeople(n); S.stats.peopleBack = (S.stats.peopleBack || 0) + n; ev('beacon', { n }); toast(`[Outpost] ${n === 1 ? 'A wanderer' : `${n} wanderers`} followed the fire${lit.length === 1 ? ` at ${lit[0].name}` : 's on the road'} to the Camp. **+${n} ${n === 1 ? 'person' : 'people'}**.`, 'good'); }
+    if (n > 0) { addPeople(n); S.stats.peopleBack = (S.stats.peopleBack || 0) + n; ev('beacon', { n }); toast(`[Outpost] ${n === 1 ? 'A wanderer' : `${n} wanderers`} followed the fire${lit.length === 1 ? ` at ${lit[0].name}` : 's on the road'} to the Haven. **+${n} ${n === 1 ? 'person' : 'people'}**.`, 'good'); }
   }
   function hiveMult(r) { return missions.hiveMult(r); }
   function attach(a) {

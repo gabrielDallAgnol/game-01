@@ -82,7 +82,7 @@ export function createBuild(G) {
     if (!b || b.type === 'keep' || b.level >= (BUILDINGS[b.type].maxLevel || MAX_LEVEL)) return 'Cannot upgrade.';
     if (b.ruined) return 'Rebuild it first.';
     if (b.level + 1 === 3 && UNLOCKS[b.type] && !hasTech(UNLOCKS[b.type])) return `Level 3 needs a ${BUILDINGS[UNLOCKS[b.type]].name}.`;
-    if (b.level >= keep.level) return `Raise the keep first: nothing grows past the keep (level ${keep.level}).`;
+    if (b.level >= keep.level) return `Raise the Haven Rig first: nothing grows past the Haven Rig (level ${keep.level}).`;
     if (G.powerLive()) { const more = ((POWER.draw[b.type] || [])[b.level] || 0) - ((POWER.draw[b.type] || [])[b.level - 1] || 0); if (more > 0 && G.powerIn() - G.powerOut() < more) return `Not enough power: that needs ${more} more.`; }
     return '';
   }
@@ -104,7 +104,7 @@ export function createBuild(G) {
   function rebuild(id) {
     if (S.over) return false;
     const b = S.byId.get(id); if (!b || !b.ruined || b.type === 'keep') return fail('Nothing to rebuild there.');
-    if (S.phase === 'night') return fail('Rebuild by day: nobody lays bricks with the dead at the gate.');
+    if (S.phase === 'night') return fail('Rebuild by day: nobody lays bricks with the Ash-Born at the gate.');
     const cost = rebuildCost(b); if (S.gold < cost) return fail(`Rebuilding the ${BUILDINGS[b.type].name} costs ${cost} scrap.`);
     if (b.cells.some(i => S.occ[i] >= 0 && S.occ[i] !== b.id)) return fail('Something stands in the way.');
     if (!G.useHand()) return false;
@@ -149,7 +149,7 @@ export function createBuild(G) {
     return cells.length;
   }
   function upgradeKeep() {
-    if (S.over || keep.level >= 3) return fail('Cannot raise the keep.');
+    if (S.over || keep.level >= 3) return fail('Cannot raise the Haven Rig.');
     { const miss = G.keepNeeds(); if (miss.length) return fail(`The town hall needs more first: ${miss.join(', ')}.`); }
     const cost = KEEP.cost[keep.level]; if (S.gold < cost) return fail('Not enough scrap.');
     if (!G.useHand()) return false;

@@ -62,9 +62,9 @@ export const RULE_FX = {
 };
 // Difficulty: threat (how many dead), economy (what homes and farms give), heat (how fast attention builds).
 export const DIFFICULTY = {
-  story:     { name: 'Story', blurb: 'For the story and the city. Fewer dead, richer homes.', threat: 0.55, eco: 1.25, heat: 0.7 },
+  story:     { name: 'Story', blurb: 'For the story and the city. Fewer Ash-Born, richer homes.', threat: 0.55, eco: 1.25, heat: 0.7 },
   survivor:  { name: 'Survivor', blurb: 'Fair but hard. The way it is meant to be played.', threat: 0.88, eco: 1, heat: 1 },
-  veteran:   { name: 'Veteran', blurb: 'More dead, thinner supplies. Mistakes cost buildings.', threat: 1.15, eco: 0.9, heat: 1.2 },
+  veteran:   { name: 'Veteran', blurb: 'More Ash-Born, thinner supplies. Mistakes cost buildings.', threat: 1.15, eco: 0.9, heat: 1.2 },
   nightmare: { name: 'Nightmare', blurb: 'The city wants you dead. It usually gets its way.', threat: 1.45, eco: 0.8, heat: 1.4 },
 };
 export const FOREMAN = { buildings: 6, keep: 3 };   // the Foreman: a toggle, never on by itself
@@ -135,5 +135,5 @@ export const NEST = {
   wake: 11, near: 8, step: 9, hit: 0.1, decay: 1.2, max: 12, cap: 5, bruteLv: 5, bruteNight: 11, hpLv: 0.05,
   body: { hollow: 3, city: 2.2 }, struck: 2.5,   // a mound hive's body radius (the model's footprint, cells); striking it counts as standing near it this long
   pack: [0, 3, 5, 7], packPer: 0.25, wave: 1, waveLv: 0.45, nightBase: 0.85, nightPer: 0.02, nightMax: 1.15, tier: [1, 1, 1.6, 2.2],
-  lines: { 1: '[Hive stirs] It knows you are here: **{n} more** crawl out. The longer you stay, the more it sends.', 3: '[Hive enraged] **{n} more**, faster and tougher. Burn it now or back off.', 5: '[Hive frenzied] It pours out everything it has.' },
+  lines: { 1: '[Inferno Nest stirs] It knows you are here: **{n} more** crawl out. The longer you stay, the more it sends.', 3: '[Inferno Nest enraged] **{n} more**, faster and tougher. Burn it now or back off.', 5: '[Inferno Nest frenzied] It pours out everything it has.' },
 };

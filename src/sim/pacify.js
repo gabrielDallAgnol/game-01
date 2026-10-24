@@ -105,17 +105,17 @@ export function createPacify(G) {
       if (live(r) && S.wake[r] <= S.night && !smothered(r) && !told.awake.has(r)) {
         told.awake.add(r); reveal(reg.nest.x, reg.nest.y, 5);
         ev('hiveAwake', { region: r, x: reg.nest.x, y: reg.nest.y });
-        if (!quiet && S.night > 1) toast(`[Hive awake] A ${reg.ring <= 1 ? 'forest hollow' : 'city hive'} to the **${compass(reg.nest.x, reg.nest.y)}** wakes. It is on your map.`, 'bad');
+        if (!quiet && S.night > 1) toast(`[Inferno Nest awake] A ${reg.ring <= 1 ? 'forest hollow' : 'city hive'} to the **${compass(reg.nest.x, reg.nest.y)}** wakes. It is on your map.`, 'bad');
       }
       if (smothered(r) && !told.smother.has(r)) {
         told.smother.add(r); reveal(reg.nest.x, reg.nest.y, 5);
         ev('hiveSmothered', { region: r, x: reg.nest.x, y: reg.nest.y });
-        if (!quiet) toast(`[Pacified] A sleeping hive to the **${compass(reg.nest.x, reg.nest.y)}** lies on your ground. It will not wake while you hold it.`, 'good');
+        if (!quiet) toast(`[Pacified] A sleeping Inferno Nest to the **${compass(reg.nest.x, reg.nest.y)}** lies on your ground. It will not wake while you hold it.`, 'good');
       }
     }
     if (newLand.length && !quiet) {
       ev('pacified', { regions: newLand.map(r => r.id) });
-      toast(`[Land pacified] The ground to the **${compass(newLand[0].x, newLand[0].y)}** is quiet now. No hive wakes on your land.`, 'sys');
+      toast(`[Land pacified] The ground to the **${compass(newLand[0].x, newLand[0].y)}** is quiet now. No Inferno Nest wakes on your land.`, 'sys');
     }
   }
 
@@ -149,7 +149,7 @@ export function createPacify(G) {
   function returnHome() {
     const i = homeInfo();
     if (!i.ok) {
-      const msg = { night: 'Only by day: at night the paths belong to the dead.', nowhere: 'Go home from a lit fire on the road or a site you hold.', cooldown: `The way home is ready in ${i.cd} s.`, fight: 'Not with the dead on you.' }[i.why];
+      const msg = { night: 'Only by day: at night the paths belong to the Ash-Born.', nowhere: 'Go home from a lit fire on the road or a site you hold.', cooldown: `The way home is ready in ${i.cd} s.`, fight: 'Not with the Ash-Born on you.' }[i.why];
       return msg ? G.fail(msg) : false;
     }
     if (H.ch > 0) return true;
@@ -172,7 +172,7 @@ export function createPacify(G) {
     for (const a of S.allies) if (a.comp !== undefined) { a.x = h.x + 1; a.y = h.y + 0.5; }   // companions walk the old paths with you
     G.reveal(h.x, h.y, 8);
     ev('homeward', { fx, fy, x: h.x, y: h.y });
-    toast('[Return to Camp] You take the old paths home. **The Camp.**', 'good');
+    toast('[Return to Haven] You take the old paths home. **The Haven.**', 'good');
   }
   /** once a day: dusk comes before the walk home is done */
   function duskWarn() {
@@ -183,7 +183,7 @@ export function createPacify(G) {
     warnDay = S.night;
     const t = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
     ev('duskWarn', { left: Math.round(left), walk: Math.round(walk) });
-    toast(`[Dusk in ${t(left)}] The Camp is **${t(walk)}** away.${homeFrom() ? ' **Return to Camp** from here.' : ' A lit fire or a site you hold takes you home.'}`, 'bad');
+    toast(`[Dusk in ${t(left)}] The Haven is **${t(walk)}** away.${homeFrom() ? ' **Return to Camp** from here.' : ' A lit fire or a site you hold takes you home.'}`, 'bad');
   }
 
   /** once a step (game.js): the land watch (4× a second), the way home, the dusk warning */

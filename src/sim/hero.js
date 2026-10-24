@@ -22,7 +22,7 @@ export function createHero(G) {
   function useAbility(x, y) {
     const A = G.HC.ability, h = S.hero;
     if (!A || S.over) return false;
-    if (A.id !== 'patch' && !S.mobs.some(m => !m.roam || Math.hypot(m.x - h.x, m.y - h.y) < 10)) return fail('No dead nearby.');
+    if (A.id !== 'patch' && !S.mobs.some(m => !m.roam || Math.hypot(m.x - h.x, m.y - h.y) < 10)) return fail('No Ash-Born nearby.');
     if (S.ability.cd > 0 || h.dead) return false;
     if (A.id === 'warcry') {
       const rad = A.radius + S.P.abilityRadius;
@@ -33,7 +33,7 @@ export function createHero(G) {
       if (tx === undefined || Math.hypot(tx - h.x, ty - h.y) > A.reach) {
         let best = null, bn = 0;
         for (const m of S.mobs) { if (Math.hypot(m.x - h.x, m.y - h.y) > A.reach) continue; const n = S.mobs.filter(o => Math.hypot(o.x - m.x, o.y - m.y) < A.radius).length; if (n > bn) { bn = n; best = m; } }
-        if (!best) return fail('No dead in range.');
+        if (!best) return fail('No Ash-Born in range.');
         tx = best.x; ty = best.y;
       }
       const dmg = A.dmg * S.P.abilityDmg * Math.sqrt(G.hpS(S.night)), rad = A.radius + S.P.abilityRadius;

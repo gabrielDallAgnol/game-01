@@ -76,13 +76,13 @@ export function createCombat(G) {
     if (b.type === 'keep' && has('bell') && !S.P.bellUsed) {
       S.P.bellUsed = true; b.hp = Math.round(b.maxHp * 0.3);
       for (const m of [...S.mobs]) if (Math.hypot(m.x - b.x, m.y - b.y) < 8) hitMob(m, 20, 'keep');
-      ev('bell'); toast('The Bell of Last Light rings. The keep holds.', 'good'); return;
+      ev('bell'); toast('The Bell of Last Light rings. The Haven Rig holds.', 'good'); return;
     }
     b.ruined = true; b.fell = true; b.hp = 0; G.vacate(b, true); dropLive(); ev('ruin', { id: b.id });
     if (b.type === 'keep') { G.endRun(false); return; }
     S.cur.lost.push(b.type); S.stats.buildingsLost++; (S.cur.fellB || (S.cur.fellB = [])).push({ id: b.id, type: b.type, level: b.level });
     if (rule('raiders') && S.phase === 'night') S.gold = Math.max(0, S.gold - 2);
-    if (S.phase === 'night' && !S.nightFlags.breach && b.type !== 'wall') { S.nightFlags.breach = true; ev('breach', { x: b.x, y: b.y }); toast(`[Breach: ${compass(b.x, b.y)}] The dead are inside. Get there!`, 'bad'); }
+    if (S.phase === 'night' && !S.nightFlags.breach && b.type !== 'wall') { S.nightFlags.breach = true; ev('breach', { x: b.x, y: b.y }); toast(`[Breach: ${compass(b.x, b.y)}] The Ash-Born are inside. Get there!`, 'bad'); }
     // Salvage: a quarter of what the building cost (never a barricade post: no profit in losing things)
     if (has('salvage') && b.type !== 'wall') earn(Math.max(1, Math.floor(G.investOf(b) * (combo('salvage', 'mortar') ? 0.4 : 0.25))));
     if (b.type === 'house' && S.P.shelter) { S.stats.housesLost++; toast('A home fell. Its families hid in the safe room.', 'bad'); }
@@ -94,7 +94,7 @@ export function createCombat(G) {
       (S.cur.rose || (S.cur.rose = [])).push({ id: b.id, n, people, fled });
       for (let k = 0; k < n; k++) { const m = G.spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1), { instant: false }); m.rise = 0.4; }
       dropCrew();
-      toast(n ? `A home fell. ${n === 1 ? 'One of its people rises' : `${n} of its people rise`} with the dead${fled ? `; ${fled} fled to the Camp` : ''}.` : `A home fell${fled ? `; ${fled} fled to the Camp` : ''}. Rebuild it to take them in.`, 'bad');
+      toast(n ? `A home fell. ${n === 1 ? 'One of its people rises' : `${n} of its people rise`} with the Ash-Born${fled ? `; ${fled} fled to the Camp` : ''}.` : `A home fell${fled ? `; ${fled} fled to the Camp` : ''}. Rebuild it to take them in.`, 'bad');
     } else toast(`${BUILDINGS[b.type].name} destroyed. Rebuild it by hand.`, 'bad');
   }
   function hitMob(m, d, src) {
