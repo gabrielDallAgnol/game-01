@@ -12,7 +12,8 @@ export function createCombat(G) {
     toast
   } = G;
   const towerMult = () => (1 + S.P.towerDmg + (G.sc && !CUT.crew ? G.sc.towerBonus() : 0) + (owns('police') ? 0.15 : 0) + (G.story ? G.story.bonus.towers() : 0)) * (mastery('deadeye') ? 1.4 : 1);
-  const keepMult = () => (1 + S.P.keepDmg) * (mastery('deadeye') ? 1.4 : 1);
+  const keepMult = () => (1 + S.P.keepDmg) * (mastery('deadeye') ? 1.4 : 1) * (G.rigK ? G.rigK('dmg') : 1);   // [rig3] the Rig's guns
+  const keepShots = l => KEEP.shots[l] + (G.rigK ? G.rigK('shots') : 0);   // [rig3] a second gun
   function towerStats(b) {
     const B = BUILDINGS.tower, l = b.level - 1;
     const h = S.hero, hd = h.dead ? Infinity : Math.hypot(h.x - b.x, h.y - b.y);
@@ -47,7 +48,7 @@ export function createCombat(G) {
     cacheNeighbours();
     let d = 0;
     for (const b of live()) if (b.type === 'tower' && manned(b) && G.powered(b)) { const t = towerStats(b); d += b.spec ? G.specDps(b, t) : t.dmg * t.shots / t.rate; }   // [towers] a specialised tower: sim/towers.js
-    if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * KEEP.shots[keep.level - 1] + (has('ballista') ? 8 / 3 * 2 : 0);
+    if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * keepShots(keep.level - 1) + (has('ballista') ? 8 / 3 * 2 : 0);
     return d;
   }
   function heroDmg() { return G.HC.attack ? (G.HC.attack.dmg + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult * (1 + LEVEL.dmg * (S.lvl - 1)) * (S.drained === S.night ? 0.75 : 1) * (G.HC.dmgMult || 1) : 0; }
@@ -201,7 +202,7 @@ export function createCombat(G) {
     if (!keep.ruined) {
       const l = keep.level - 1, range = (KEEP.range[l] + S.P.towerRange) * G.W8().range, dmg = KEEP.dmg[l] * keepMult();
       keep.cd -= dt;
-      if (keep.cd <= 0) { const ms = nearestMobs(c, c, range, 2); if (ms.length) { for (let k = 0; k < KEEP.shots[l]; k++) fire(4, c, c, ms[k % ms.length], dmg, 'keep'); keep.cd = KEEP.rate / S.P.keepRate; } }
+      if (keep.cd <= 0) { const ms = nearestMobs(c, c, range, 2); if (ms.length) { for (let k = 0; k < keepShots(l); k++) fire(4, c, c, ms[k % ms.length], dmg, 'keep'); keep.cd = KEEP.rate / S.P.keepRate; } }
       if (has('ballista')) {
         keep.boltT -= dt;
         if (keep.boltT <= 0) {

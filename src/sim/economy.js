@@ -25,7 +25,7 @@ export function createEconomy(G) {
   const useHand = () => { if (CUT.hands) return true; if (handsFree() < 1) return fail('No free hands today. More people (homes) means more hands; they rest at dawn.'); S.handsUsed++; return true; };
   const upCostOf = (b) => { const c0 = costOf(b.type, b.level + 1); return S.halfUpgrade ? Math.max(1, Math.ceil(c0 / 2)) : c0; };
   const maxHpOf = (type, level) => Math.round(BUILDINGS[type].hp[level - 1] * (1 + S.P.allHp + (type === 'wall' ? S.P.wallHp : 0)));
-  const keepMaxHp = () => Math.round((KEEP.hp[keep.level - 1] + S.P.keepHp) * S.P.keepHpMult);
+  const keepMaxHp = () => Math.round((KEEP.hp[keep.level - 1] + S.P.keepHp) * S.P.keepHpMult * (G.rigK ? G.rigK('hp') : 1));   // [rig3] the Rig's plating
   // ---------- power (CUT: only a "Lights Out" season rule brings it back) ----------
   const powerLive = () => !CUT.power || rule('lightsOut');
   const powerDraw = b => (powerLive() ? ((POWER.draw[b.type] || [])[b.level - 1] || 0) : 0);
