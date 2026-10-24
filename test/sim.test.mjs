@@ -9,6 +9,7 @@ import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../src/content/season.js';
 import { BUILDINGS } from '../src/content/buildings.js';
 import { TIDE } from '../src/content/mobs.js';
 import { playRun } from '../tools/bot.mjs';
+import { STATS_FLAG } from '../src/content/stats.js';   // [hero3]
 
 test('the frontier map generates valid worlds across 20 seeds', () => {
   for (const biome of ['riverbend']) for (let s = 1; s <= 20; s++) {
@@ -540,7 +541,8 @@ function passTrial(g, choiceId) {
   return e;
 }
 const levelTo = (g, lv) => { while (g.state.lvl < lv) g.gainXp(g.xpNext() - g.state.xp); };
-test('evolution: three tiers by level, each earned by a trial with a named boss', () => {
+test('evolution: three tiers by level, each earned by a trial with a named boss', tc => {
+  STATS_FLAG.on = false; tc.after(() => { STATS_FLAG.on = true; });   // [hero3] the class picks run with the stats off
   const g = createGame({ seed: 8, hero: 'survivor' }); const S = g.state; readyDay(g);
   g.addPath('hero', 6); g.addPath('heart', 1);
   levelTo(g, CALLING_LVL - 1); g.story().flush(); assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'offered before the Calling level');
@@ -589,7 +591,8 @@ test('saving: a dawn snapshot restores the town, the story and the city', withOp
   assert.ok(!R.over);
 }));
 
-test('the Heart family: a Medic patches the town', async () => {
+test('the Heart family: a Medic patches the town', async tc => {
+  STATS_FLAG.on = false; tc.after(() => { STATS_FLAG.on = true; });   // [hero3] the class picks run with the stats off
   const g = createGame({ seed: 12, hero: 'survivor' }); const S = g.state; readyDay(g);
   const take = id => { S.picks = ['dawn']; S.offer = [id]; S.pendingPicks = 1; g.choosePerk(id); };
   g.addPath('heart', 6); levelTo(g, CALLING_LVL); passTrial(g, 'trial-medic'); assert.equal(S.heroClass, 'medic');
