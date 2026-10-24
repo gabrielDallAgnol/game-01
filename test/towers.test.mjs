@@ -9,7 +9,7 @@ const clearStory = g => { const S = g.state; for (let k = 0; k < 9 && S.story.en
 const ready = o => { const g = newGame({ mode: 'classic', seed: 3, ...o }); const S = g.state; S.handsExtra = 99; clearStory(g); while (S.pendingPicks) g.choosePerk(S.offer[0]); while (S.packs.length) g.choosePack(S.packs[0]); S.survivors = 30; S.gold = 500; g.state.occVersion = (g.state.occVersion || 0) + 1; return g; };
 const ring = (g, type, r0 = 4) => { const t = g.map.town; for (let r = r0; r < 16; r++) for (let a = 0; a < 24; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace(type, x, y).ok) return { x, y }; } return null; };
 // a level 3 tower (the test skips the keep and the workshop: the level is what the rule reads)
-const tower3 = g => { const p = ring(g, 'tower'); assert.ok(g.build('tower', p.x, p.y)); const b = g.state.buildings[g.state.buildings.length - 1]; b.level = 3; b.maxHp = b.hp = 50; g.state.occVersion = (g.state.occVersion || 0) + 1; return b; };
+const tower3 = g => { const p = ring(g, 'tower'); assert.ok(g.build('tower', p.x, p.y)); const b = g.state.buildings[g.state.buildings.length - 1]; b.level = 3; b.maxHp = b.hp = 50; b.built = 1;   /* [econ3] finished: a scaffold does not shoot */ g.state.occVersion = (g.state.occVersion || 0) + 1; return b; };
 const walkers = (g, x, y, n, spread = 0.6) => Array.from({ length: n }, (_, k) => { const m = g.spawnMob('walker', x + Math.cos(k) * spread, y + Math.sin(k) * spread); m.rise = 1; m.speed = 0; m.hp = m.maxHp = 50; return m; });
 const run = (g, sec) => { for (let k = 0; k < sec * 60; k++) g.step(); };
 

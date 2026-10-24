@@ -73,7 +73,7 @@ export function createCombat(G) {
     if (b.hp <= 0) ruin(b);
   }
   function ruin(b) {
-    if (b.cq && G.scaffoldFell) { G.scaffoldFell(b); return; }   // [econ3] a scaffold torn down is simply gone
+    if (b.cq && b.built < 1 && G.scaffoldFell) { G.scaffoldFell(b); return; }   // [econ3] a scaffold torn down is simply gone
     if (b.type === 'keep' && has('bell') && !S.P.bellUsed) {
       S.P.bellUsed = true; b.hp = Math.round(b.maxHp * 0.3);
       for (const m of [...S.mobs]) if (Math.hypot(m.x - b.x, m.y - b.y) < 8) hitMob(m, 20, 'keep');

@@ -233,6 +233,8 @@ test('save mid-run and reload: contract, rules, ruins, noise, road, story queues
   signContract(g, 'c3');
   S.gold = 200; S.food = 60;
   for (const t of ['house', 'tower', 'farm']) assert.ok(g.planner.place(t), `could not place a ${t}`);
+  for (const x of S.buildings) x.built = 1;   // [econ3] finished (a scaffold torn down is gone, not a ruin)
+  g.step();
   const b = S.buildings.find(x => x.type === 'house'); g.hitBuilding(b.id, 1e6); assert.ok(b.ruined, 'no ruin');
   S.noiseChoice = 12; S.tools.flare = 7;
   const stn = road.stations[0]; S.hero.x = stn.x; S.hero.y = stn.y; assert.ok(road.light(stn.id), 'the fire did not take');
