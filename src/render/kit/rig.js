@@ -5,6 +5,7 @@ import { territory } from './territory.js';
 import { M } from './materials.js';
 import { rng } from './rng.js';
 import { glowSprite } from './helpers.js';
+import { PAL } from '../palette.js';
 
 // ======================================================================
 // PEOPLE & THE DEAD — stylised low-poly figures: ~1.75 m, a big readable head, short legs, chunky hands and boots
@@ -19,8 +20,8 @@ const C = {
   cape: '#d9822b', capeIn: '#6e3a1c', scarf: '#f0a040', leather: '#5a3d29', leather2: '#7a5434', belt: '#3a2a20', buckle: '#d8b25a',
   shirt: '#d9c8a2', shirtB: '#4f6f8f', denim: '#3e5a78', olive: '#56603e', khaki: '#8a7a58', forest: '#3f5a36', tabard: '#cf8a32', mail: '#8b9094', helm: '#7b8286',
   hairDark: '#2a221d', hairBrown: '#5a3922', hairAuburn: '#8a4326', hairBlond: '#d2a95e', hairGrey: '#9a9690', hairBlack: '#1e1c1b',
-  // the dead: ash-violet skin and clothes gone grey; rot-green is for their eyes and wounds only
-  zskin: '#8a8794', zskin2: '#9a96a2', zrot: '#6f6a78', wound: '#8fc443', zshirt: '#5b5765', zshirt2: '#6a6170', zpants: '#45424d', zpants2: '#3c3a44',
+  // the Ash-Born: charcoal-black skin cracked with ember; clothes keep their kind's colour
+  zskin: PAL.ash.skin, zskin2: PAL.ash.skin2, zrot: PAL.ash.rot, wound: PAL.ember, zshirt: '#5b5765', zshirt2: '#6a6170', zpants: '#45424d', zpants2: '#3c3a44',
 };
 const SKINS = ['#efc3a0', '#d9a47e', '#b07a55', '#7d5136'];
 // a lathe from [radius, y] pairs (bottom to top), flat faces front/back/sides
@@ -98,6 +99,28 @@ function hair(head, F, R) {
   if (st === 'pony') pc(head, geo('pony', () => new THREE.CylinderGeometry(0.045, 0.02, 0.24, 5)), col, 0, -0.02, -R * 1.1, { rx: 0.35 });
 }
 
+
+// [look3] Ash-Born cracks: thin ember veins on the skin. Emissive ei 2 (the eyes are 6): bake() sends them to the glow mesh,
+// scaled down by ei/6, so they read orange at game zoom without blooming white. A zig-zag of 3 slim boxes per crack.
+const CRACK = () => M('toxic', { emissive: PAL.ember, ei: 2 });
+function zig(parent, pts, w, d) {   // pts: [x,y,z] polyline; one slim box per segment
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 0.05;
+    const m = mesh(geo('crk' + len.toFixed(3) + w, () => new THREE.BoxGeometry(w, len, d)), CRACK(), (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+    m.rotation.z = -Math.atan2(dx, dy); parent.add(m);
+  }
+}
+function crackHead(hg, R) {   // a vein over the crown (read from above) and one down the forehead
+  zig(hg, [[0.05, R * 0.98, 0.0], [-0.03, R * 0.97, -0.07], [0.04, R * 0.9, -0.13]].map(([x, y, z]) => [x, y, z]), 0.018, 0.05);
+  zig(hg, [[-0.07, R * 0.45, R * 0.9], [-0.03, R * 0.2, R * 0.97], [-0.09, -0.01, R * 0.95]], 0.016, 0.02);
+}
+function crackTorso(spine, cr, cd, chestH, bw) {   // chest, shoulders and back
+  const zf = cr * 0.66 * cd + 0.004;
+  zig(spine, [[0.03 * bw, chestH * 0.85, zf], [-0.04 * bw, chestH * 0.68, zf + 0.004], [0.04 * bw, chestH * 0.5, zf + 0.004], [-0.02 * bw, chestH * 0.3, zf]], 0.022, 0.02);
+  zig(spine, [[-0.1 * bw, chestH * 0.78, zf - 0.01], [-0.15 * bw, chestH * 0.6, zf - 0.03]], 0.018, 0.02);
+  zig(spine, [[-0.05 * bw, chestH * 0.95, -zf], [0.04 * bw, chestH * 0.7, -zf], [-0.03 * bw, chestH * 0.42, -zf]], 0.022, 0.02);
+  zig(spine, [[0.0, chestH * 1.03, 0.02], [0.08 * bw, chestH * 1.0, -0.06]], 0.02, 0.06);   // across the shoulders, seen from above
+}
 /**
  * rig({ outfit, pose, bw (body width), bh (height), belly, chestDepth, scale, eyes, props })
  * outfit: { top, sleeve, legs, boots, skin, hair, hairStyle (short|quiff|mop|long|bun|pony|patchy|bald), beard,
@@ -145,6 +168,7 @@ function rig(o = {}) {
     pc(spine, geo('flap', () => new THREE.BoxGeometry(0.31, 0.12, 0.18)), F.packFlap || C.leather, 0, chestH * 0.52 + 0.12, -cr * 0.66 * cd - 0.075);
   }
   if (F.wounds) for (const [x, y, zz, s] of [[0.08, chestH * 0.55, 1, 1], [-0.06, chestH * 0.6, -1, 1.2]]) pc(spine, geo('wound', () => new THREE.BoxGeometry(0.09, 0.08, 0.04)), F.wounds, x * bw, y, zz * cr * 0.6 * cd, { s: [s, s, 1], rz: x * 4 });
+  if (z && !o.noCracks) crackTorso(spine, cr, cd, chestH, bw);   // [look3] ember cracks
   // neck & head: the head is big — it is what you read from above
   const neck = bone(spine, 0, chestH * 0.98, 0); neck.rotation.x = P.neck || 0;
   pc(neck, geo('neck', () => new THREE.CylinderGeometry(0.06, 0.07, 0.12, 6, 1, true)), skin, 0, 0.03, 0);
@@ -154,11 +178,12 @@ function rig(o = {}) {
   const hg = new THREE.Group(); hg.position.y = R * 0.85; head.add(hg);  // head centre
   pc(hg, geo('head', () => new THREE.SphereGeometry(R, 8, 6, Math.PI / 8)), skin, 0, 0, 0, { s: z ? [0.95, 1.02, 1] : [1, 1.04, 1] });
   if (z) {
-    const em = M('toxic', { emissive: '#b4ff4e', ei: o.eyesI || 6 }), es = 0.018 * (CFG.eyeScale || 1);
+    const em = M('toxic', { emissive: PAL.emberHot, ei: o.eyesI || 6 }), es = 0.018 * (CFG.eyeScale || 1);
     pc(hg, geo('brow', () => new THREE.BoxGeometry(0.2, 0.055, 0.04)), '#2a2724', 0, 0.005, R * 0.86);
     for (const x of [-0.058, 0.058]) hg.add(mesh(geo('eye' + es, () => new THREE.IcosahedronGeometry(es, 0)), em, x * (CFG.eyeScale > 1 ? 1.08 : 1), 0.0, R * 0.95));
     pc(hg, geo('maw', () => new THREE.BoxGeometry(0.09, 0.035, 0.03)), C.wound, 0.01, -0.085, R * 0.88, { rz: 0.15 });
-    if (o.eyeGlow) { const sp = glowSprite('#b4ff4e', o.eyeGlow, 1.3); sp.position.set(0, 0, 0.12); hg.add(sp); }
+    if (!o.noCracks) crackHead(hg, R);
+    if (o.eyeGlow) { const sp = glowSprite(PAL.ember, o.eyeGlow, 1.3); sp.position.set(0, 0, 0.12); hg.add(sp); }
   } else {
     for (const x of [-0.06, 0.06]) pc(hg, geo('eyeD', () => new THREE.BoxGeometry(0.028, 0.045, 0.02)), C.hairBlack, x, 0.0, R * 0.95);
     pc(hg, geo('nose', () => new THREE.BoxGeometry(0.035, 0.05, 0.04)), skin, 0, -0.035, R * 0.98);
