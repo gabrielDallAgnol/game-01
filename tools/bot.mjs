@@ -141,6 +141,7 @@ function useAbilityBot(g) {
 export function heroTick(g, mode) {
   const S = g.state, h = S.hero, t = g.map.town;
   if (h.dead) return;
+  if (g.autoStats) { g.autoStats(); g.powersAuto(); }   // [hero3] a bot spends its stat points by the spread and fires its abilities
   if (g.heroDef.collects && mode !== 'idle') {
     useAbilityBot(g);
     const p = S.purses.filter(q => Math.hypot(q.x - t.x, q.y - t.y) < 12).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];

@@ -1,0 +1,47 @@
+// [hero3] The Thermal Pioneer's stats: no class, four stats you raise with points (3 at the awakening, 3 a level, +1
+// from a stat tome). What each point gives, the thresholds that unlock abilities (content/abilities.js), the titles
+// your build earns, and the spread the bots and the autopilot spend by. Data only: sim/stats.js reads it.
+
+/** the switch: on = stat points (class picks are off); off = the old Survivor → Calling → advanced class line */
+export const STATS_FLAG = { on: true };
+
+export const STAT_IDS = ['str', 'agi', 'int', 'gov'];
+export const POINTS = { start: 3, perLevel: 3 };
+export const THRESHOLDS = [10, 20, 30];   // a stat's own ability (10), its second rank (20), its capstone (30)
+export const HYBRID_AT = 15;              // two stats at 15 or more each unlock their combination
+
+// per point. Kept modest: the old Calling (+47% damage a second at Lv 15) and advanced class (×1.5 at Lv 30) are
+// what a spread build of ~45 / ~90 points must roughly match, never beat by much.
+export const STATS = {
+  str: { name: 'STR', long: 'Strength', color: '#ff8a5c', icon: 'fist',
+    per: { dmg: 0.02, hp: 0.6, hive: 0.02 },
+    lines: p => [`+${Math.round(p * 2)}% melee damage`, `+${Math.round(p * 0.6)} health`, `+${Math.round(p * 2)}% damage to hives`] },
+  agi: { name: 'AGI', long: 'Agility', color: '#7dff9e', icon: 'run',
+    per: { speed: 0.01, rate: 0.015, dodge: 0.006 }, dodgeMax: 0.3,
+    lines: p => [`+${Math.round(p * 1)}% move speed`, `+${(p * 1.5).toFixed(0)}% attack speed`, `${Math.round(Math.min(0.3, p * 0.006) * 100)}% dodge`] },
+  int: { name: 'INT', long: 'Intellect', color: '#7fc8ff', icon: 'skill',
+    per: { power: 0.03, cd: 0.01, tower: 0.01 }, cdMax: 0.35,
+    lines: p => [`+${Math.round(p * 3)}% ability power`, `-${Math.round(Math.min(0.35, p * 0.01) * 100)}% cooldowns`, `+${Math.round(p * 1)}% fire rate, towers near you`] },
+  gov: { name: 'GOV', long: 'Governance', color: '#ffd36a', icon: 'flag',
+    per: { income: 0.012, build: 0.02, ally: 0.02 },
+    lines: p => [`+${(p * 1.2).toFixed(0)}% scrap income`, `+${Math.round(p * 2)}% build speed`, `+${Math.round(p * 2)}% ally and crew strength`] },
+};
+
+// the bots' and the autopilot's spread: each point goes to the stat furthest below its share (a fighter who leads)
+export const AUTO_SPREAD = { str: 0.4, agi: 0.3, int: 0.15, gov: 0.15 };
+
+// ---------- titles: the System names you by your build ----------
+// one leading stat (≥ 60% of a total of 12+), two leading stats (each ≥ 30%), or a balanced build. The words are
+// story3's to rewrite; the engine only picks the key.
+export const TITLES_SOLO = {
+  str: ['Ironhand Hauler', 'Rackbreaker', 'The Unbroken'],
+  agi: ['Dock Runner', 'Ash Dancer', 'Flicker'],
+  int: ['Spark Reader', 'Ember Sage', 'Aether Savant'],
+  gov: ['Shift Lead', 'Warden of the Rig', 'Lord of the Haven'],
+};
+export const TITLES_PAIR = {
+  'agi+str': 'Ashwind Reaver', 'int+str': 'Radiant Knight', 'gov+str': 'Iron Foreman',
+  'agi+int': 'Wildfire Stalker', 'agi+gov': 'Skirmish Captain', 'gov+int': 'Pale Shepherd',
+};
+export const TITLE_BALANCED = ['Thermal Pioneer', 'Thermal Vanguard', 'Hollowmere Paragon'];
+export const TITLE_START = 'Thermal Pioneer';

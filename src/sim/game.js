@@ -53,12 +53,15 @@ import { createWoods } from './woods.js';
 import { createTowers } from './towers.js';
 // [income] scrap and food by the second
 import { createIncome } from './income.js';
+// [hero3] stat points, threshold and hybrid abilities
+import { createStats } from './stats.js';
+import { createPowers } from './powers.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome];   // [pacify] appended
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createStats, createPowers];   // [pacify] [hero3] appended
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';
@@ -208,5 +211,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [income] begin: scrap and food trickle in by the second (sim/income.js)
     G.stepIncome(dt);
     // [income] end
+    G.stepStats(dt);   // [hero3] stat points and abilities
   }
 }

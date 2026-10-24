@@ -77,6 +77,10 @@ export function createApi(G) {
     homeInfo: () => G.homeInfo(), returnHome: () => G.returnHome(), cancelReturn: () => G.cancelReturn(),
     hiveEdge: (r, x, y) => G.nestEdge(map.regions[r], x, y), hiveInReach: (x, y, reach) => { const r = G.hiveInReach(x, y, reach); return r ? r.id : -1; },   // [nests] reach is measured to the edge; a strike needs clear sight
     spawnAnimals: () => G.spawnAnimals(),   // [woods] the dawn top-up of the woods' game (tests, tools)
+    // [hero3] begin: stat points (STR/AGI/INT/GOV), their abilities and the Status window (sim/stats.js, sim/powers.js)
+    statsOn: () => G.statsOn(), statsInfo: () => G.statsInfo(), spendStat: (id, n) => G.spendStat(id, n), addStatPoints: (n, why) => G.addStatPoints(n, why),
+    autoStats: () => G.autoSpend(), setStatAuto: on => { S.attr.auto = !!on; }, usePower: id => G.usePower(id), powersAuto: () => G.powersAuto(), powersInfo: () => G.powersInfo(),
+    // [hero3] end
   };
   return api;
 }

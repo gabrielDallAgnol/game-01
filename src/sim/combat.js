@@ -24,6 +24,7 @@ export function createCombat(G) {
     if (S.P.kingpin && S.bountyT > 0 && hd < 9) rate /= 1.4;
     if (G.HC.marshal && hd < 6) rate /= G.HC.marshal;
     if (near) rate /= PRESENCE.rate * (has('rally') ? 1.15 : 1);
+    if (G.attrTower) rate /= G.attrTower(b, near);   // [hero3] INT near the hero, Rally Cry, Skirmish Commander
     if (h.dead) rate /= TENSION.downRate;   // the hero is down: the town loses heart (25% slower)
     return { range, dmg, rate, shots: has('volley') && b.level === 3 ? 2 : 1, presence: near };
   }
@@ -50,8 +51,8 @@ export function createCombat(G) {
     if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * KEEP.shots[keep.level - 1] + (has('ballista') ? 8 / 3 * 2 : 0);
     return d;
   }
-  function heroDmg() { return G.HC.attack ? (G.HC.attack.dmg + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult * (1 + LEVEL.dmg * (S.lvl - 1)) * (S.drained === S.night ? 0.75 : 1) * (G.HC.dmgMult || 1) : 0; }
-  function heroRate() { return G.HC.attack ? G.HC.attack.rate / S.P.heroRate / (mastery('champion') ? 1.3 : 1) : 1; }
+  function heroDmg() { return G.HC.attack ? (G.HC.attack.dmg + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult * (1 + LEVEL.dmg * (S.lvl - 1)) * (S.drained === S.night ? 0.75 : 1) * (G.HC.dmgMult || 1) * (G.attrDmg ? G.attrDmg() : 1) : 0; }   // [hero3] attrDmg: STR and the powers
+  function heroRate() { return G.HC.attack ? G.HC.attack.rate / S.P.heroRate / (mastery('champion') ? 1.3 : 1) / (G.attrRate ? G.attrRate() : 1) : 1; }   // [hero3] attrRate: AGI and the powers
   function heroDps() {
     if (!G.HC.attack) return G.HC.ability && G.HC.ability.id === 'hire' ? Math.min(4, Math.floor(S.gold / 15)) * MERC.dmg / MERC.rate : 0;
     return heroDmg() / heroRate() * (mastery('whirlwind') ? 1.6 : has('wardance') ? 1.25 : 1);
@@ -67,6 +68,7 @@ export function createCombat(G) {
     }
     if (G.HC.ward && !S.hero.dead && Math.hypot(S.hero.x - b.x, S.hero.y - b.y) < 5) d *= G.HC.ward;
     if (G.folkGuard) d *= G.folkGuard(b);   // [folk] sandbags and watch-posts the folk raised
+    if (G.attrWard) d *= G.attrWard(b);   // [hero3] Iron Warden
     S.cur.taken[b.type] = (S.cur.taken[b.type] || 0) + Math.min(d, b.hp);
     b.hp -= d; ev('hitB', { id: b.id });
     if (b.type === 'wall' && by && mastery('fortress')) hitMob(by, d * 0.5, 'thorns');
@@ -99,6 +101,7 @@ export function createCombat(G) {
   }
   function hitMob(m, d, src) {
     if (m.hp <= 0) return;
+    if (G.attrHit) d *= G.attrHit(m, src);   // [hero3] GOV allies, the hawk's mark, Smoke Step
     if (src === 'hero' && has('execute') && (m.hp - d) / m.maxHp < 0.25) d = m.hp;
     // Marked: whatever the hero hits takes more from the towers for a few seconds (the Marked blessing makes it longer and deeper)
     if (src === 'hero') m.markT = PRESENCE.markT * (S.P.mark ? 2 : 1);
@@ -146,6 +149,7 @@ export function createCombat(G) {
   function hurtHero(d) {
     const h = S.hero; if (h.dead) return;
     if (h.guardT > 0) d *= 1 - G.HC.ability.guard;
+    if (G.attrHurt) { d = G.attrHurt(d); if (d <= 0) return; }   // [hero3] AGI's dodge, Unbreakable
     if (has('last') && !S.nightFlags.lastUsed && h.hp - d < h.maxHp * 0.3) { S.nightFlags.lastUsed = true; S.nightFlags.lastT = 4; ev('lastStand'); toast('Last Stand!', 'good'); }
     S.cur.taken.hero = (S.cur.taken.hero || 0) + d; h.hp -= d; ev('hitH');
     if (S.nightFlags.lastT > 0 && h.hp < 1) h.hp = 1;
