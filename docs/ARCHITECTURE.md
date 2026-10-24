@@ -93,6 +93,9 @@ In every root, creation order and per-frame call order are load-bearing:
 | `road.js`, `missions.js` | the road, stations, convoys, night missions (`[road]` feature) |
 | `folk-build.js` | the folk build by themselves: needs, the village fund (a share of income), one project a day, props, beauty (`[folk]` hooks) |
 | `woods.js` | worn trails: woods the hero keeps walking through turn to dirt (`[woods]` hooks in game.js, save.js) |
+| `rig.js` | `[rig3]` the Haven Rig (the keep that moves): Plating / Guns / Cargo / Speed rise for good with the town's building tiers (`content/rig.js`), `rigK` scales the keep's hp, damage and shots; Pack up & roll (`rigPack`: by day, once the act's road is open) salvages every ground building into cargo (80–100%: tier, Cargo, the hero's GOV); `rigArrive` gives the next act's run what rode along; events `rigUp`, `rigRoad`, `rigMigrate`, `rigAnchor`, `actStart`; wraps snapshot/restore with a versioned `rig` block |
+| `migrate.js` | `[rig3]` the act change: `migrateRun(api)` builds the next act's game (new seed and map seed, the act theme, the carried hero, stats, story, cargo); not imported by game.js (no cycle) |
+| `legmap.js` | `[rig3]` an act's map theme on top of mapgen: act 2 (the rail yard) thins the woods, lays freight lines (`map.rail`) and places boxcars, a gantry crane and a water tower (`map.decor`) |
 | `mapgen.js`, `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | map generation, flow fields, town builders, scavenging, seeded RNG |
 
 ### `src/render/`: the three.js view
@@ -135,6 +138,9 @@ In every root, creation order and per-frame call order are load-bearing:
 | `figures.js` | baked crowd figures, live rigs, x-ray material |
 | `meshes.js`, `villagers.js` | small mesh builders, villager logic |
 | `road-view.js` | the road, drawn (`[road]` feature) |
+| `view/haven.js` | `[rig3]` the Haven Rig in motion: packed ↔ anchored pose, fold → drive off (camera follows via `V.rigCam`), drive in → unfold; a tap skips |
+| `view/legs.js` | `[rig3]` an act's look: its ground colours (`GROUND_TINT` in city.js) and the rail yard's rails, boxcars, crane, water tower |
+| `kit/haven.js` | `[rig3]` the Haven Rig model (`K.haven`, `K.setHaven`): cab, tracks, flatbed, stacks, halogens, outriggers, awnings, solar pylon; turrets, plates and crates follow the Rig's systems |
 
 ### `src/ui/`: screens, HUD and input
 
@@ -156,6 +162,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `road-ui.js` | road and mission HUD (`[road]` feature) |
 | `homeward.js` | `[pacify]` the walk home on the Camp pill and the Return to Camp button |
 | `folk-ui.js` | the folk's project chip (veto), "Let them build" in the build menu, their ledger line |
+| `rig-ui.js` | `[rig3]` the Rig section of the Camp panel (systems, what raises them, the cargo), the Pack up & roll pill and confirmation, the act change (`ui.beginRun` swaps the game and the view, then saves) |
 
 ## The story split: the engine owns the numbers, the story AI owns the words
 
