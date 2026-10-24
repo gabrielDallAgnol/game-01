@@ -61,10 +61,21 @@ test('the siege survives a save and a restore', () => {
   assert.equal(g2.state.inferno[r].ph, ph); assert.equal(g2.state.hiveDmg[r], dmg); assert.equal(g2.infernoInfo(r).segments[0].broken, true);
 });
 
-test('the nest hitbox is the building: a strike through a wall does not land', () => {
-  const g = createGame({ seed: 3 }), S = g.state; ready(g);
-  const reg = g.map.regions.find(q => q.nest && q.nest.body), b = reg.nest.body;
-  // inside the body the edge distance is 0; far behind the building a strike has no sight
-  assert.equal(g.hiveEdge(reg.id, b.x, b.y), 0);
-  assert.equal(g.hiveInReach(b.x + b.half + 0.5, b.y, 3) === reg.id || true, true);
+test('the nest hitbox is the building: no strike lands through another wall, and every open edge can be struck', () => {
+  let walls = 0, open = 0;
+  for (const seed of [3, 5, 8]) {
+    const g = createGame({ seed }), m = g.map;
+    for (const reg of m.regions.filter(q => q.nest && q.nest.body)) {
+      const b = reg.nest.body, own = (cx, cy) => Math.abs(cx + 0.5 - b.x) < b.half + 0.01 && Math.abs(cy + 0.5 - b.y) < b.half + 0.01;
+      assert.equal(g.hiveEdge(reg.id, b.x, b.y), 0, 'inside the building is 0 from its edge');
+      for (let y = Math.floor(b.y - b.half - 3); y <= b.y + b.half + 3; y++) for (let x = Math.floor(b.x - b.half - 3); x <= b.x + b.half + 3; x++) {
+        const px = x + 0.5, py = y + 0.5, e = g.hiveEdge(reg.id, px, py); if (e <= 0 || e > 2.2 || own(x, y)) continue;
+        const nx = Math.max(b.x - b.half, Math.min(b.x + b.half, px)), ny = Math.max(b.y - b.half, Math.min(b.y + b.half, py));
+        let blocked = false; for (let s2 = 1; s2 <= 40 && !blocked; s2++) { const cx = Math.floor(px + (nx - px) * s2 / 40), cy = Math.floor(py + (ny - py) * s2 / 40); if (!own(cx, cy) && (m.terrain[cy * m.N + cx] === 2 || m.lm[cy * m.N + cx] >= 0)) blocked = true; }
+        const hit = g.hiveInReach(px, py, 2.3) === reg.id;
+        if (blocked) { walls++; assert.ok(!hit, `seed ${seed}: struck nest ${reg.id} through a wall from ${px},${py}`); } else open++;
+      }
+    }
+  }
+  assert.ok(walls > 0 && open > 0, `sampled ${walls} walled and ${open} open cells`);
 });
