@@ -114,7 +114,7 @@ test('night copy scales with the wave', () => {
   const nine = st.nightLine(Array.from({ length: 9 }, () => ({ kind: 'walker', nest: nest.id })));
   assert.match(nine.line, /^Nine, from the (north|south|east|west|north-east|north-west|south-east|south-west)\.$/);
   const brutes = st.nightLine([...Array.from({ length: 21 }, () => ({ kind: 'walker', nest: nest.id })), { kind: 'brute', nest: nest.id }, { kind: 'brute', nest: nest.id }]);
-  assert.match(brutes.line, /^Twenty-three, from the .+\. Two brutes walk with them\.$/);
+  assert.match(brutes.line, /^Twenty-three, from the .+\. Two Slag Brutes walk with them\.$/);
   void S;
 });
 
@@ -164,7 +164,7 @@ test('every choice that adds people says how they arrive, and the tag matches wh
   assert.equal(st.arrivalOf(enc, ch([{ op: 'survivors', n: 3 }])).mode, 'now');
   assert.equal(st.arrivalOf(enc, ch([{ op: 'flag', key: 'beacon' }])).mode, 'dawn');
   assert.match(st.arrivalOf(enc, ch([{ op: 'flag', key: 'beacon' }])).text, /on their own.*dawn/);
-  assert.equal(st.arrivalOf(enc, ch([{ op: 'recruitNew' }], { npcName: 'Mara joins' })).text, 'Mara is at the Camp now.');
+  assert.equal(st.arrivalOf(enc, ch([{ op: 'recruitNew' }], { npcName: 'Mara joins' })).text, 'Mara is at the Haven now.');
   // far from the Camp a group walks home as a convoy you escort; one person just comes in
   S.hero.x = t.x + 40; S.hero.y = t.y;
   const far = st.arrivalOf(enc, ch([{ op: 'survivors', n: 3 }])); assert.equal(far.mode, 'convoy'); assert.match(far.text, /escort/);

@@ -63,8 +63,8 @@ test("Gabriel's path: Scavver → Deadeye keeps scrap pickup, Bounty and the dis
   // and the card says so
   const D = finalDelta('deadeye', 'merchant');
   assert.equal(D.gain[0], '+50% damage');
-  assert.ok(D.keep.includes('Scrap pickup from the dead') && D.keep.includes('Bounty'), JSON.stringify(D.keep));
-  assert.ok(D.gain.some(x => /pierce/i.test(x)) && D.gain.some(x => /brutes/i.test(x)), JSON.stringify(D.gain));
+  assert.ok(D.keep.includes('Scrap pickup from the Ash-Born') && D.keep.includes('Bounty'), JSON.stringify(D.keep));
+  assert.ok(D.gain.some(x => /pierce/i.test(x)) && D.gain.some(x => /Slag Brutes/i.test(x)), JSON.stringify(D.gain));
 });
 
 test('a Deadeye shot pierces into the dead behind, and brutes take double', () => {
