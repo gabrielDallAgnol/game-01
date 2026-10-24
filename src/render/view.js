@@ -34,6 +34,8 @@ import { createCamera } from './view/camera.js';
 import { createWeather } from './view/weather.js';
 import { createLights } from './view/lights.js';
 import { createEvents } from './view/events.js';
+// [hero3] the stat abilities' feedback
+import { createHero3Fx } from './view/hero3fx.js';
 import { createPicking } from './view/picking.js';
 import { createCinema } from './view/cinema.js';
 // [folk] the village the folk raise by themselves
@@ -91,6 +93,7 @@ export function createView(canvas, game, opts = {}) {
   const rest = createRest(V);   // [nests] the "+ resting" tag at the Camp
   const village = V.village = createVillage(V);   // [folk] the folk's props and scaffold
   const birds = V.birds = createBirds(V);   // [woods] birds flushed from the trees
+  const hero3fx = createHero3Fx(V);   // [hero3] the stat abilities' feedback
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -125,6 +128,7 @@ export function createView(canvas, game, opts = {}) {
     rest.update(dt);
     village.update(dt, ui.events);   // [folk]
     birds.update(dt, ui.events);   // [woods]
+    hero3fx.update(dt, ui.events);   // [hero3]
     routes.update();
     markers.updateSelection(dt, ui.selected);
     placing.setGhost(ui.ghost || null); placing.setZone(ui.zone || null);
