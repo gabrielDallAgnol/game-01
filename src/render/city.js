@@ -242,8 +242,8 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   // a pine: an open trunk and stacked six-sided cones (≈46 triangles)
   const pine = (tone, tone2, tall) => { const b = new K.B(); b.cyl('#5a4330', 0.12, 0.17, 1.1, 0, 0, 0, { seg: 5, open: true }); const L = tall ? 3 : 2; for (let k = 0; k < L; k++) { const hh = 1.5 - k * 0.2; b.geo(k % 2 ? tone2 : tone, new THREE.ConeGeometry(1.2 - k * 0.3, hh, 6, 1), 0, 0.8 + k * 0.95 + hh / 2, 0, 0, k * 0.5, 0); } return b.build({ ao: 2.2, aoMin: 0.5 }); };
   const roundTree = (seed, h) => K.tree({ seed, h });
-  const kPineT = kind(() => pine('#2f5a4a', '#33604c', true), { sway: true, cover: 0.55 });
-  const kPineS = kind(() => pine('#3e6b52', '#467456', false), { sway: true, cover: 0.45 });
+  const kPineT = kind(() => pine('#36603f', '#3b6a43', true), { sway: true, cover: 0.55 });
+  const kPineS = kind(() => pine('#4a7544', '#527d4a', false), { sway: true, cover: 0.45 });
   const kRound = kind(() => roundTree(7, 5), { sway: true, cover: 0.5 });
   const kStreet = kind(() => roundTree(9, 4), { sway: true, cover: 0.35 });
   const kDead = kind(() => K.tree({ dead: true, seed: 3 }), { cover: 0.2 });
