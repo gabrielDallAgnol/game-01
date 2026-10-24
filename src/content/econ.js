@@ -29,8 +29,8 @@ export const HAUL = {
   max: [2, 3, 5],                 // carts the Camp can keep, by Camp level
   cost: 12,                       // scrap for a new cart (a construction job: CONSTRUCT.time.cart)
   cap: 2,                         // scrap a cart carries home a trip
-  speed: 1.7,                     // cells a second (road ×1.3, woods ×0.65)
-  load: 4,                        // seconds to fill up at a node
+  speed: 1.4,                     // cells a second (road ×1.3, woods ×0.65)
+  load: 6,                        // seconds to fill up at a node
   unload: 1,                      // seconds to unload at the Camp
   hp: 20,                         // a cart's health; mended at dawn
   lure: 5,                        // the dead this close to a cart go for it
@@ -42,10 +42,10 @@ export const HAUL = {
     [27, 46, 3, 3, 60, 90],
   ],
   gap: 6,                         // nodes stand at least this far apart
-  foreman: 6,                     // the Foreman orders a cart when scrap beyond its price is at least this
+  foreman: 14,                    // the Foreman orders a cart when scrap beyond its price is at least this
 };
 // the trickle's share now the carts bring the scrap in (sim/income.js): the Camp's own base pay and what homes pay
-export const TRICKLE = { base: 0.25, house: 0.65 };
+export const TRICKLE = { base: 0.25, house: 0.5 };
 
 // ---------- the dawn Settlement report ----------
 // XP for a well-run town, so a governor levels too. Each line pays its base + per × the night just held.
