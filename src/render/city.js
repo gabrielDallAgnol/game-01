@@ -51,6 +51,10 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
       vec4 gp = texture2D(tPath, guv); gp.rgb *= gp.rgb;
       float gn = tNoise(vTWorld.xz * 0.27) * 0.55 + tNoise(vTWorld.xz * 1.6) * 0.45;
       float pe = smoothstep(0.42, 0.58, gp.a + (tNoise(vTWorld.xz * 2.2 + 5.1) - 0.5) * 0.3);
+      // [look3] painterly wash: broad warm-gold / cool-green patches and fine speckle, on grass more than on paths
+      float gw = tNoise(vTWorld.xz * 0.065 + 31.0), gs = tNoise(vTWorld.xz * 5.5);
+      vec3 wash = mix(vec3(1.09, 1.02, 0.84), vec3(0.93, 1.03, 1.06), smoothstep(0.3, 0.7, gw));
+      gb *= mix(vec3(1.0), wash, 0.8) * (0.95 + 0.1 * gs);
       diffuseColor.rgb = mix(gb * (0.84 + 0.3 * gn), gp.rgb * (0.9 + 0.18 * gn), pe);`,
   });
   const ground = new THREE.Group(); world.add(ground);
