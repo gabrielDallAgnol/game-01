@@ -76,6 +76,7 @@ export function createPanels(ui) {
       const r = ui.game.rubbleAt(ui.selected.x, ui.selected.y);
       const woods = ui.game.map.wild && ui.game.map.wild[idx(Math.floor(ui.selected.x), Math.floor(ui.selected.y))];
       $('#pEyebrow').textContent = 'Your land'; $('#pTitle').textContent = r.blocks ? 'A ruined block' : woods ? 'Trees' : 'Rubble';
+      if (r.trees && ui.treesHtml) { body.innerHTML = ui.treesHtml(r, opt, day); return; }   // [gemini3] trees are a job: by hand or the Logger's Hut
       body.innerHTML = `<div class="stat"><span>${r.blocks ? 'Walls block building and the dead alike.' : 'Blocks building. Slows the dead.'}</span><span>Knock it down to make room.</span></div>`
         + (r.cells.length ? `<div class="opts one">${opt('opt-clear', 'data-clear="1"', r.blocks ? `Knock down ${r.blocks} ${r.blocks === 1 ? 'bay' : 'bays'} of the block` : woods ? `Fell ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of trees` : `Clear ${r.cells.length} ${r.cells.length === 1 ? 'cell' : 'cells'} of rubble`, r.cost, r.blocks ? 'A 3×3 patch becomes open ground. The noise carries.' : 'A 3×3 patch around this spot becomes open ground.', S.gold < r.cost || !day)}</div>` : '<p class="note">Nothing left to clear here.</p>');
       return;
@@ -117,6 +118,7 @@ export function createPanels(ui) {
     const btn = e.target.closest('button'); if (!btn || btn.disabled || !ui.selected) return;
     if (btn.dataset.claim && ui.game.claimLandmark(ui.selected.id)) { closePanel(); ui.updateHud(); return; }
     if (btn.dataset.hive) { openSel({ type: 'region', id: +btn.dataset.hive }); return; }   // [nests] point at the hive that locks the site
+    if (btn.dataset.clear && ui.treesClick && ui.game.rubbleAt(ui.selected.x, ui.selected.y).trees) { if (ui.treesClick(ui.selected.x, ui.selected.y)) { closePanel(); ui.updateHud(); } return; }   // [gemini3]
     if (btn.dataset.clear) { const n = ui.game.clearRubble(ui.selected.x, ui.selected.y); if (n) { ui.toast(`${n} ${n === 1 ? 'cell' : 'cells'} cleared.`); closePanel(); ui.updateHud(); return; } }
     if (btn.dataset.rebuild) { if (ui.game.rebuild(ui.selected.id)) { audio.play('build'); ui.toast(`${BUILDINGS[ui.game.state.byId.get(ui.selected.id).type].name} rebuilt.`, 'good'); renderPanel(); ui.updateHud(); } return; }
     if (btn.dataset.keep && ui.game.upgradeKeep()) ui.toast('The Camp rises higher.');

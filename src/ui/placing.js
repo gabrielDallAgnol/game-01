@@ -26,7 +26,7 @@ export function createPlacing(ui) {
       return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${(!n && S.gold < cost) || hands < 1 ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost">${icon('scrap')}${cost}</span>`}${crew ? `<span class="tcrew${silent ? ' bad' : ''}">${icon('people')}${CREW_NEED[0]} crew${silent ? ' · none free' : ''}</span>` : ''}</button>`;
     }).join('') + TECH_ORDER.map(t => {
       const have = S.buildings.some(b => b.type === t), locked = ui.game.keepLevel() < BUILDINGS[t].keep, cost = ui.game.buyCost(t), on = ui.placing && ui.placing.type === t;
-      if (have || ui.game.keepLevel() < 2) return '';
+      if (have || ui.game.keepLevel() < Math.min(2, BUILDINGS[t].keep)) return '';   // [gemini3] the Logger's Hut shows from Camp 1
       return `<button class="tb tech ${t}${on ? ' on' : ''}" data-tray="${t}" ${locked || S.gold < cost || hands < 1 ? 'aria-disabled="true"' : ''} title="${BUILDINGS[t].desc[0]}"><i></i><span class="tn">${SHORT[t]}</span>${locked ? '<span class="tc">Camp 2</span>' : `<span class="cost">${icon('scrap')}${cost}</span>`}</button>`;
     }).join('');
   }
@@ -44,7 +44,7 @@ export function createPlacing(ui) {
     if (t === 'tower' && ui.game.crewing().free < CREW_NEED[0]) ui.toast('[No crew free] A new tower will stand silent. Build or upgrade homes first.', 'bad');   // [towers]
     startPlacing(t);
   });
-  const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, generator: 2 };
+  const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, generator: 2, lumbermill: 2 };   // [gemini3] lumbermill
   const cellOf = (x, y) => [Math.floor(x), Math.floor(y)];
   function computeZone(type) {
     const S = ui.game.state, n = SIZE[type], off = n % 2 ? 0.5 : 0, mask = new Uint8Array(N * N), spots = [];

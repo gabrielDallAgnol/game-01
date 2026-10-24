@@ -53,12 +53,16 @@ import { createWoods } from './woods.js';
 import { createTowers } from './towers.js';
 // [income] scrap and food by the second
 import { createIncome } from './income.js';
+// [gemini3] begin: ported from Gemini's fork (logging)
+import { createLogging } from './logging.js';
+// [gemini3] end
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
 const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome];   // [pacify] appended
+MODULES.push(createLogging);   // [gemini3] appended
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
   if (hero === 'steward') hero = 'merchant';
@@ -134,6 +138,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- the public API, the builder AI, a restored save, the road's hooks ----------
   G.step = step;
   G.api = createApi(G);
+  if (G.g3api) Object.assign(G.api, G.g3api);   // [gemini3] its modules' additions to the API
   planner = createPlanner(G.api); G.api.planner = planner;
   if (restore) { restoreSnap(restore); G.mendSpots(); }   // old saves: objectives off the map move onto good ground
   // [acts] begin
@@ -186,6 +191,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (G.road) G.road.tick(dt);
     // [road] end
     G.stepWoods();   // [woods] worn trails
+    G.stepLogging(dt);   // [gemini3] felling trees, the Logger's Hut
     stepHeat(dt);
     if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); G.story.tick(0.25); if (S.blackout) S.sawBlackout = true; }
     for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }

@@ -29,11 +29,12 @@ import { createHomeward } from './homeward.js';
 import { createFolkUi } from './folk-ui.js';
 // [gemini3] the build tag on the start screen
 import { createVersion } from './version.js';
+import { createLoggingUi } from './logging-ui.js';
 
 export { FLAGS };
 // the UI modules, in creation order (each registers its own DOM handlers when created)
 const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createHomeward, createFolkUi];   // [pacify] [folk] appended
-MODULES.push(createVersion);   // [gemini3] appended
+MODULES.push(createVersion, createLoggingUi);   // [gemini3] appended
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
