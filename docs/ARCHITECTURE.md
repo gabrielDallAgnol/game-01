@@ -131,6 +131,8 @@ In every root, creation order and per-frame call order are load-bearing:
 | `kit.js` + `kit/` | the city kit: `config` (CFG), `palette`, `territory` (mask and shader hook), `materials`, `rng`, `builder` (B), `helpers`, `city`, `street`, `craft`, `houses`, `defences`, `farm`, `keep`, `frontier` (hall, home), `hives`, `rig`, `people`, `overlays`, `flatten` |
 | `city.js` | woods, ground, streets and ruins from the cell map; streaming |
 | `look.js` | lights, sky, post-processing, quality levels |
+| `palette.js` | the storybook colour tokens (`PAL`: sky, haze, ground, caution-yellow, ember, System blue, warm ink, Ash-Born skin). Change a colour here, not in look.js / city.js |
+| `ink.js` | `inkify(obj, { w, color, kind })`: gives every mesh under `obj` a back-face ink hull in `PAL.ink` (constant ~1.5 px, shares the geometry, one extra draw per mesh). Call it on any new static model (nests, the Rig, carts) once, where the model is built or cached; `setInk(false)` switches all `static` hulls off. Characters (`liveRig`, `createCrowd`) have their own hulls in figures.js. |
 | `fx.js` | pooled particles, rings, labels, light pools, blob shadows |
 | `figures.js` | baked crowd figures, live rigs, x-ray material |
 | `meshes.js`, `villagers.js` | small mesh builders, villager logic |

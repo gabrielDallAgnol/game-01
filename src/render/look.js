@@ -8,17 +8,18 @@
 // Quality: high = full pass at DPR 2, medium = full pass at DPR 1.5, low = grade + vignette only at DPR 1, no bloom.
 /* global THREE */
 import { K } from './kit.js';
+import { PAL } from './palette.js';
 
 const L = K.lin;
 export const PRESETS = {
   day: {
-    bg: '#b9c2b6', hemiSky: '#b8cde0', hemiGnd: '#6a5a44', hemi: 0.62, sun: '#fff0d8', sunI: 2.35, sunDir: [-0.55, 1.0, 0.42],
-    exposure: 0.86, vignette: 0.26, grain: 0.012, outline: 0.42, haze: 0.14, hazeCol: '#cfd6cc', tilt: 1.0,
+    bg: PAL.day.bg, hemiSky: PAL.day.hemiSky, hemiGnd: PAL.day.hemiGnd, hemi: 0.62, sun: PAL.day.sun, sunI: 2.35, sunDir: [-0.55, 1.0, 0.42],
+    exposure: 0.86, vignette: 0.26, grain: 0.012, outline: 0.42, haze: 0.14, hazeCol: PAL.day.haze, tilt: 1.0,
     tint: 0.3, tdark: 0.85,
   },
   night: {
-    bg: '#0a1222', hemiSky: '#34508a', hemiGnd: '#0a0c12', hemi: 0.36, sun: '#7f9fd6', sunI: 0.62, sunDir: [0.5, 1.0, -0.2],
-    exposure: 1.18, vignette: 0.5, grain: 0.02, outline: 0.22, haze: 0.22, hazeCol: '#0f1a30', tilt: 1.0,
+    bg: PAL.night.bg, hemiSky: PAL.night.hemiSky, hemiGnd: PAL.night.hemiGnd, hemi: 0.36, sun: '#7f9fd6', sunI: 0.62, sunDir: [0.5, 1.0, -0.2],
+    exposure: 1.18, vignette: 0.5, grain: 0.02, outline: 0.22, haze: 0.22, hazeCol: PAL.night.haze, tilt: 1.0,
     tint: 0.4, tdark: 0.85,
   },
   blood: {
@@ -36,7 +37,7 @@ const GRADES = [
   // dawn: lilac shadows, peach-gold light, soft
   { lift: [0.035, 0.02, 0.05], gamma: [1.0, 1.02, 1.0], gain: [1.04, 0.98, 0.93], sat: 0.95, pastel: 0.22, contrast: 0.96, shadowTint: [0.62, 0.55, 0.82], highTint: [1.0, 0.86, 0.72], split: 0.14 },
   // noon: high-key miniature — lifted shadows, gentle contrast, saturated but pastel (the strongest colours compress)
-  { lift: [0.02, 0.022, 0.03], gamma: [1.0, 0.99, 1.0], gain: [1.03, 1.01, 0.99], sat: 1.0, pastel: 0.3, contrast: 1.08, shadowTint: [0.55, 0.62, 0.72], highTint: [1.0, 0.96, 0.88], split: 0.08 },
+  { lift: [0.02, 0.022, 0.03], gamma: [1.0, 0.99, 1.0], gain: [1.03, 1.01, 0.98], sat: 1.05, pastel: 0.26, contrast: 1.08, shadowTint: [0.58, 0.58, 0.74], highTint: [1.0, 0.94, 0.8], split: 0.08 },
   // dusk: amber light, plum-blue shadows
   { lift: [0.02, 0.0, 0.04], gamma: [1.0, 1.04, 1.06], gain: [1.08, 0.95, 0.84], sat: 1.04, pastel: 0.18, contrast: 1.06, shadowTint: [0.5, 0.42, 0.75], highTint: [1.0, 0.78, 0.55], split: 0.2 },
   // night: navy world; warm hues (fire, windows, the lantern) keep their colour and lift, everything else goes cold and quiet
@@ -105,7 +106,7 @@ const FinalShader = q => ({
     lutA: { value: 1 }, lutB: { value: 1 }, lutMix: { value: 0 }, bloom: { value: 0 },
     exposure: { value: 1 }, vignette: { value: 0.3 }, grain: { value: 0.012 }, time: { value: 0 }, res: { value: new THREE.Vector2(1, 1) },
     near: { value: 0.5 }, far: { value: 300 }, outline: { value: 0.4 }, haze: { value: 0.2 }, hazeCol: { value: new THREE.Color() }, focus: { value: 30 }, tilt: { value: 1 },
-    hit: { value: 0 }, fade: { value: 0 }, outlineCol: { value: new THREE.Color(0.05, 0.04, 0.06) },
+    hit: { value: 0 }, fade: { value: 0 }, outlineCol: { value: new THREE.Color(PAL.ink).convertSRGBToLinear().multiplyScalar(3.0) },
   },
   vertexShader: VERT,
   fragmentShader: `
@@ -201,8 +202,8 @@ export const SKY = [
 ];
 const SWAP = [0.10, 0.93];   // night time at which the key light becomes the moon, and the sun again
 export const TWILIGHT = {
-  dawn: { bg: '#c4b6cc', hemiSky: '#d8c4d6', hazeCol: '#d6c8d6' },
-  dusk: { bg: '#a48496', hemiSky: '#c99a9c', hazeCol: '#b894a4' },
+  dawn: { bg: PAL.dawn.bg, hemiSky: PAL.dawn.hemiSky, hazeCol: PAL.dawn.haze },
+  dusk: { bg: PAL.dusk.bg, hemiSky: PAL.dusk.hemiSky, hazeCol: PAL.dusk.haze },
 };
 const smooth = x => x * x * (3 - 2 * x);
 /** the sky at tod (0…1) for a day share D; pure, so tests and tools can read it */

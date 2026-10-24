@@ -2,6 +2,7 @@
 // draw the dead as instanced crowds, and animate full rigs for the hero and sellswords.
 /* global THREE */
 import { K, CFG } from './kit.js';
+import { PAL } from './palette.js';
 
 export const PEOPLE = 0.6;          // world units per metre for people (buildings use 0.3: people read a bit larger)
 
@@ -20,7 +21,7 @@ export function bake(obj, o = {}) {
     if (!g.attributes.normal) g.computeVertexNormals();
     tmpM.multiplyMatrices(inv, m.matrixWorld); g.applyMatrix4(tmpM);
     const isGlow = mat.emissive && mat.emissiveIntensity > 1.5;
-    col.copy(isGlow ? mat.emissive : mat.color);
+    col.copy(isGlow ? mat.emissive : mat.color); if (isGlow) col.multiplyScalar(Math.min(1, mat.emissiveIntensity / 6));   // [look3] dim glows (cracks) read orange, eyes stay full
     const n = g.attributes.position.count, c = new Float32Array(n * 3), vc = mat.vertexColors && g.attributes.color;
     // welded figure parts already carry their colours: keep them (tinted by the material colour)
     // o.ao: darken toward the feet (grounding) over this height, in the baked model's units
@@ -64,7 +65,7 @@ export const OUTLINE = { px: 0.0011 };   // hull width per unit of view distance
 const outlineMats = {};
 /** a back-face hull in one flat colour; works on plain, instanced and skinned meshes */
 export function outlineMat(color, o = {}) {
-  const key = `${color}|${o.skinning ? 1 : 0}|${o.w || 1}`; if (outlineMats[key]) return outlineMats[key];
+  const key = `${color}|${o.skinning ? 1 : 0}|${o.w || 1}|${o.tag || ''}`; if (outlineMats[key]) return outlineMats[key];
   const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(color), side: THREE.BackSide, skinning: !!o.skinning, fog: false });
   const w = { value: OUTLINE.px * (o.w || 1) };
   m.onBeforeCompile = sh => {
@@ -132,7 +133,7 @@ function strideFrame(root, k = 1) {
 }
 
 // the dead: a near-black violet edge (darker than the night ground, far darker than the meadow); people: dark umber
-export const CROWD_OUTLINE = { dead: '#07060b', folk: '#1c120a' };
+export const CROWD_OUTLINE = { dead: '#0b0605', folk: PAL.ink };   // [look3] warm ink
 const KIND_RIG = {
   walker: 'walker', runner: 'runner', crawler: 'crawler', brute: 'brute', spitter: 'spitter', bloater: 'bloater', screamer: 'screamer', gravelord: 'gravelord', guardian: 'gravelord', deer: 'deer', wolf: 'wolf', boar: 'boar',
 };

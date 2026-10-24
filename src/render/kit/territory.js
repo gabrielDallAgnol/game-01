@@ -16,7 +16,7 @@ const T = {
   mask: { value: maskTex }, off: { value: 32 }, amount: { value: 0.8 }, dark: { value: 0.7 },
   light: { value: null }, lightO: { value: new THREE.Vector2(-1e4, -1e4) }, lightS: { value: 64 }, lightK: { value: 0 },
   emitK: { value: 0 }, emitCol: { value: lin('#ffb15a') }, rim: { value: new THREE.Vector4(1, 0.8, 0.6, 0.15) },
-  mist: { value: new THREE.Vector4(0.8, 0.8, 0.85, 0) }, time: { value: 0 }, ao: { value: 0.55 },
+  mist: { value: new THREE.Vector4(0.8, 0.8, 0.85, 0) }, time: { value: 0 }, ao: { value: 0.72 },
   fogCol: { value: lin('#16223a') }, cyan: { value: lin('#5fd3ff') }, front: { value: 1 }, scan: { value: new THREE.Vector4(0, 0, 0, 0) },
   sway: { value: 1 }, night: { value: 0 },
 };

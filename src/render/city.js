@@ -9,15 +9,11 @@
 import { N, T, idx } from '../sim/mapgen.js';
 import { mulberry32 } from '../sim/rng.js';
 import { K } from './kit.js';
+import { PAL } from './palette.js';
 import { bake, vcMat } from './figures.js';
 
 // ground colours (sRGB): soft pastel-earthy by day; the grade and the night light do the rest
-const GROUND = {
-  open: '#6f6c64', paved: '#7b776d', meadow: '#5d864d', meadowOwn: '#6b9052',
-  plaza: '#a58f6b', rubble: '#68645b', rock: '#4a4741', ford: '#8d887d', cliff: '#77736a', voidc: '#3a3a36', bed: '#3d5a5c',
-  forestFloor: '#4a6640', forestOwn: '#557245', trail: '#a88e68', trailOwn: '#b39770', bank: '#6b6a52',
-  lot: '#9a8462', street: '#ab9470', road: '#58595a', roadOwn: '#5c5d5d', walk: '#8a857a', park: '#6c8650', deck: '#8e897d', deckOwn: '#99938a', ramp: '#8b867b',
-};
+const GROUND = PAL.ground;   // [look3] tokens live in palette.js
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
 export const HIGH = 1.1;     // height of the plateaus (high ground)
 const GCH = 64;              // ground chunk size (cells)
@@ -55,6 +51,10 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
       vec4 gp = texture2D(tPath, guv); gp.rgb *= gp.rgb;
       float gn = tNoise(vTWorld.xz * 0.27) * 0.55 + tNoise(vTWorld.xz * 1.6) * 0.45;
       float pe = smoothstep(0.42, 0.58, gp.a + (tNoise(vTWorld.xz * 2.2 + 5.1) - 0.5) * 0.3);
+      // [look3] painterly wash: broad warm-gold / cool-green patches and fine speckle, on grass more than on paths
+      float pw = tNoise(vTWorld.xz * 0.065 + 31.0), ps = tNoise(vTWorld.xz * 5.5);
+      vec3 wash = mix(vec3(1.09, 1.02, 0.84), vec3(0.93, 1.03, 1.06), smoothstep(0.3, 0.7, pw));
+      gb *= mix(vec3(1.0), wash, 0.8) * (0.95 + 0.1 * ps);
       diffuseColor.rgb = mix(gb * (0.84 + 0.3 * gn), gp.rgb * (0.9 + 0.18 * gn), pe);`,
   });
   const ground = new THREE.Group(); world.add(ground);
@@ -242,8 +242,8 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   // a pine: an open trunk and stacked six-sided cones (≈46 triangles)
   const pine = (tone, tone2, tall) => { const b = new K.B(); b.cyl('#5a4330', 0.12, 0.17, 1.1, 0, 0, 0, { seg: 5, open: true }); const L = tall ? 3 : 2; for (let k = 0; k < L; k++) { const hh = 1.5 - k * 0.2; b.geo(k % 2 ? tone2 : tone, new THREE.ConeGeometry(1.2 - k * 0.3, hh, 6, 1), 0, 0.8 + k * 0.95 + hh / 2, 0, 0, k * 0.5, 0); } return b.build({ ao: 2.2, aoMin: 0.5 }); };
   const roundTree = (seed, h) => K.tree({ seed, h });
-  const kPineT = kind(() => pine('#2f5a4a', '#33604c', true), { sway: true, cover: 0.55 });
-  const kPineS = kind(() => pine('#3e6b52', '#467456', false), { sway: true, cover: 0.45 });
+  const kPineT = kind(() => pine('#36603f', '#3b6a43', true), { sway: true, cover: 0.55 });
+  const kPineS = kind(() => pine('#4a7544', '#527d4a', false), { sway: true, cover: 0.45 });
   const kRound = kind(() => roundTree(7, 5), { sway: true, cover: 0.5 });
   const kStreet = kind(() => roundTree(9, 4), { sway: true, cover: 0.35 });
   const kDead = kind(() => K.tree({ dead: true, seed: 3 }), { cover: 0.2 });
