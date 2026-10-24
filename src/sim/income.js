@@ -83,7 +83,7 @@ export function createIncome(G) {
   /** the HUD: per second right now (day or night), and per whole day for the forecast */
   function incomeRate() {
     const r = rates(), k = S.phase === 'night' ? NIGHT_W : 1;
-    return { gold: r.gold * k, food: r.food * k, made: r.made * k, ate: r.ate * k, perDay: { gold: r.cycle.gold, food: r.cycle.made - r.cycle.need }, night: S.phase === 'night' };
+    return { gold: r.gold * k + (G.cartRate ? G.cartRate() : 0) /* [econ3] the carts' haul */, food: r.food * k, made: r.made * k, ate: r.ate * k, perDay: { gold: r.cycle.gold, food: r.cycle.made - r.cycle.need }, night: S.phase === 'night' };
   }
   return { stepIncome, incomeDawn, incomeRate, incomePerCycle: perCycle };
 }

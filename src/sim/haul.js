@@ -160,7 +160,7 @@ export function createHaul(G) {
     }
     if (cart.state === 'unload') {
       if ((cart.t -= dt) > 0) return;
-      if (cart.load > 0) { G.earn(cart.load); E().hauled = (E().hauled || 0) + cart.load; E().hauledToday = (E().hauledToday || 0) + cart.load; ev('haul', { id: cart.id, n: cart.load, kind: cart.kind, x: cart.x, y: cart.y }); }
+      if (cart.load > 0) { G.earn(cart.load); E().hauled = (E().hauled || 0) + cart.load; E().hauledToday = (E().hauledToday || 0) + cart.load; (E().haulLog || (E().haulLog = [])).push([+S.time.toFixed(1), cart.load]); ev('haul', { id: cart.id, n: cart.load, kind: cart.kind, x: cart.x, y: cart.y }); }
       cart.load = 0; cart.state = 'home'; cart.t = 0.5; cart.path = null;
     }
   }
@@ -196,9 +196,11 @@ export function createHaul(G) {
   }
   /** at dawn: the carts are mended; what they hauled since yesterday goes to the ledger */
   function haulDawn() { for (const cart of carts()) cart.hp = cart.maxHp; const n = E().hauledToday || 0; E().hauledToday = 0; return n; }
+  /** scrap a second the carts brought in over the last minute (the HUD's rate) */
+  function cartRate() { const L = E().haulLog; if (!L) return 0; while (L.length && S.time - L[0][0] > 60) L.shift(); return L.reduce((a, x) => a + x[1], 0) / 60; }
   const trickleK = () => (on() ? TRICKLE : { base: 1, house: 1 });
   const haulInfo = () => ({ carts: carts().map(k => ({ id: k.id, x: k.x, y: k.y, state: k.state, load: k.load, hp: k.hp, maxHp: k.maxHp })), max: maxCarts(), ordered: cartsOrdered(), cost: HAUL.cost, hauled: E().hauled || 0,
     nodes: nodes().map(n => ({ id: n.id, kind: n.kind, x: n.x, y: n.y, amt: n.amt, max: n.max })), left: nodes().reduce((a, n) => a + n.amt, 0) });
   function haulRestore() { for (const cart of carts()) { cart.path = null; if (cart.state !== 'home') { const d = cartDock(); cart.x = d.x; cart.y = d.y; cart.state = 'home'; cart.load = 0; } cart.res = 0; } for (const n of nodes()) n.res = 0; }
-  return { stepHaul, buyCart, addCart, cartDock, nodeBlock, haulInfo, haulDawn, haulRestore, trickleK, maxCarts, cartPlan: plan };
+  return { cartRate, stepHaul, buyCart, addCart, cartDock, nodeBlock, haulInfo, haulDawn, haulRestore, trickleK, maxCarts, cartPlan: plan };
 }
