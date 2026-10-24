@@ -55,7 +55,7 @@ In every root, creation order and per-frame call order are load-bearing:
 
 `buildings` · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
 `season` (pacing, rules) · `folk` (the folk's projects) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
-(numbers and words for the road and missions) · `weather` · `legacy` · `woods` (worn trails)
+(numbers and words for the road and missions) · `weather` · `legacy` · `woods` (worn trails) · `econ` (`[econ3]` queue, carts, nodes, trickle share, settlement; `ECON` flags) · `relics` (`[econ3]` relics, tomes, blueprints)
 `buildings` · `towers` (the level 3 roles) · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
 `season` (pacing, rules) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
 (numbers and words for the road and missions) · `weather` · `legacy`
@@ -93,6 +93,9 @@ In every root, creation order and per-frame call order are load-bearing:
 | `road.js`, `missions.js` | the road, stations, convoys, night missions (`[road]` feature) |
 | `folk-build.js` | the folk build by themselves: needs, the village fund (a share of income), one project a day, props, beauty (`[folk]` hooks) |
 | `woods.js` | worn trails: woods the hero keeps walking through turn to dirt (`[woods]` hooks in game.js, save.js) |
+| `construct.js` | `[econ3]` the construction queue: a placed building is a blueprint (scaffold, attackable, does nothing yet); upgrades and carts are jobs too; crews (1 + one per 7 people) work it top down, skipping a site with the dead close by; reorder and cancel (full refund) |
+| `haul.js` | `[econ3]` harvester carts and resource nodes: timber stands and scrap heaps in three bands that run dry; carts drive from the keep's yard, load, drive home and unload (the main scrap income; the trickle keeps `TRICKLE`); the dead go for a passing cart; more carts by Camp level |
+| `relics.js` | `[econ3]` no blessing cards: every pick becomes a find (relic, stat tome, blueprint: `content/relics.js`); the dawn Settlement report pays XP for a well-run town |
 | `mapgen.js`, `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | map generation, flow fields, town builders, scavenging, seeded RNG |
 
 ### `src/render/`: the three.js view
@@ -123,6 +126,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `view/placing.js` | placement ghost and build-zone overlay |
 | `view/folk.js` | villagers and scavenger crews |
 | `view/village.js` | the folk's props (instanced, `kit/village.js`) and the scaffold on today's project |
+| `view/haul.js` | `[econ3]` resource nodes (shrink as they are picked), harvester carts, a scaffold on every blueprint in the queue |
 | `view/camera.js` | zoom, follow spring, dusk dolly, orbit, shake, resize |
 | `view/weather.js` | rain, fog, lightning, ambient particles |
 | `view/lights.js` | time-of-day clock (sets `V.dark`), light pools, windows, lenses, rim, mist, blackout |
@@ -156,6 +160,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `road-ui.js` | road and mission HUD (`[road]` feature) |
 | `homeward.js` | `[pacify]` the walk home on the Camp pill and the Return to Camp button |
 | `folk-ui.js` | the folk's project chip (veto), "Let them build" in the build menu, their ledger line |
+| `econ-ui.js` | `[econ3]` the construction queue chip (reorder, call off), the carts row in the build menu, a blueprint's panel, the Settlement report toast |
 
 ## The story split: the engine owns the numbers, the story AI owns the words
 

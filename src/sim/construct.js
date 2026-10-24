@@ -91,6 +91,7 @@ export function createConstruct(G) {
     ev('queue', { id }); toast(`${nameOf(j)} called off${j.paid ? `: **+${j.paid}** scrap back` : ''}.`);
     return true;
   }
+  const cancelFor = bid => { const j = Q().find(x => x.kind === 'build' && x.bid === bid); return j ? queueCancel(j.id) : false; };
   /** the dead tore a scaffold down (combat.js ruin): it is gone, and so is what it cost */
   function scaffoldFell(b) {
     const q = Q(), j = q.find(x => x.kind === 'build' && x.bid === b.id); if (j) q.splice(q.indexOf(j), 1);
@@ -107,5 +108,5 @@ export function createConstruct(G) {
   function constructRestore() {
     for (const j of Q()) if (j.kind === 'build') { const b = S.byId.get(j.bid); if (b) { b.built = Math.min(0.999, j.work); b.cq = 1; if (b.type === 'house') { b.folkDue = b.folkDue || b.folk || G.houseCap(b); b.folk = 0; } } }
   }
-  return { queueNew, queueUp, upQueued, queueCart, stepConstruct, queueMove, queueCancel, queueInfo, scaffoldFell, constructRestore, queueOn: on, queueFull: full, crews };
+  return { cancelFor, queueNew, queueUp, upQueued, queueCart, stepConstruct, queueMove, queueCancel, queueInfo, scaffoldFell, constructRestore, queueOn: on, queueFull: full, crews };
 }

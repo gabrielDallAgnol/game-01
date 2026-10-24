@@ -99,6 +99,7 @@ export function createPanels(ui) {
       body.innerHTML = html + '</div>'; ui.selected.range = null; return;
     }
     const capped = b.level >= ui.game.keepLevel(), maxL = B.maxLevel || MAX_LEVEL, needTech = b.level + 1 === 3 && UNLOCKS[b.type] && !ui.game.hasTech(UNLOCKS[b.type]);
+    if (b.cq && ui.econPanel) { body.innerHTML = ui.econPanel(b, opt); ui.selected.range = null; return; }   // [econ3] a blueprint in the construction queue
     if (B.tech) { body.innerHTML = `<div class="stat"><span>${b.built < 1 ? `Under construction <b>${Math.floor(b.built * 100)}%</b>` : 'Working'}</span><span>${B.desc[0]}</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Pull down', null, `<b class="good">+${Math.floor(ui.game.costOf(b.type) / 2)} scrap back</b> · <b class="bad">its bonus is gone</b>.`, !day)}</div>`; ui.selected.range = null; return; }
     if (b.type === 'tower') { const on = ui.game.manned(b), need = CREW_NEED[b.level - 1], cw = ui.game.crewing(); html = html.replace('</div><div class="opts two">', `<span>${on ? `Crew <b>${need}</b> on watch` : `<b class="bad">Silent: no crew</b>. It needs ${need} people; ${cw.free} free. Build or upgrade homes.`}</span></div><div class="opts two">`); }
     // [towers] begin: a level 3 tower takes one role for good

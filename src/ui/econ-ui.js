@@ -72,5 +72,10 @@ export function createEconUi(ui) {
     }
     if ((t -= dt) > 0) return; t = 0.25; render();
   }
-  return { econRow, econSig, cartTap, econTick };
+  /** the selection panel for a blueprint still in the queue: how far along, and calling it off */
+  function econPanel(b, opt) {
+    const q = ui.game.queue(), k = q.findIndex(j => j.kind === 'build' && j.bid === b.id), j = q[k]; if (!j) return '';
+    return `<div class="stat"><span>Under construction <b>${j.pct}%</b> · ${j.fled ? '<b class="bad">its crew fled the dead</b>' : j.active ? `${j.left}s of work left` : `waiting · ${k + 1} in the queue`}</span><span>It does nothing until the roof is on.</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Call it off', null, `<b class="good">${j.stock ? 'Back in hand' : `+${j.paid} scrap back`}</b>.`, false)}</div>`;
+  }
+  return { econRow, econSig, cartTap, econTick, econPanel };
 }

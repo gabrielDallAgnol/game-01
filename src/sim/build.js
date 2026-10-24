@@ -109,6 +109,7 @@ export function createBuild(G) {
   function demolish(id) {
     if (S.over) return false;
     const b = S.byId.get(id); if (!b || b.type === 'keep') return fail('Cannot demolish that.');
+    if (b.cq && G.cancelFor) return G.cancelFor(b.id);   // [econ3] a blueprint: call the job off (full refund)
     if (!b.ruined) earn(Math.floor(G.costOf(b.type) / 2)); if (b.type === 'house' && b.folk) { S.homeless = (S.homeless || 0) + b.folk; G.dropCrew(); } G.removeBuilding(b); return true;   // clearing a ruin pays nothing; a pulled-down home's family moves to the Camp
   }
   // ---------- ruins: a fallen building stays on its lot (no income, no defence) until you rebuild it by hand ----------
