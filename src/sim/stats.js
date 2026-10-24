@@ -69,7 +69,7 @@ export function createStats(G) {
     }
     if (k) settle(); return k;
   }
-  const unlocked = () => (on() ? unlockedBy(A()) : []);
+  const statUnlocked = () => (on() ? unlockedBy(A()) : []);
   const hasAb = id => on() && unlockedBy(A()).includes(id);
 
   // ---------- once a step: levels pay points, GOV runs the town a little better ----------
@@ -136,5 +136,5 @@ export function createStats(G) {
     a.title = titleOf(a); G.refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp);
   };
 
-  return { addStatPoints, spendStat, autoSpend, unlocked, hasAb, stepStats, attrDmg, attrRate, attrSpeed, attrHp, attrHive, attrHurt, attrHit, attrWard, attrTower, abilityPower, cdCut, classPicksOff, statsInfo, snapshot, restoreSnap, statsOn: on };
+  return { addStatPoints, spendStat, autoSpend, statUnlocked, hasAb, stepStats, attrDmg, attrRate, attrSpeed, attrHp, attrHive, attrHurt, attrHit, attrWard, attrTower, abilityPower, cdCut, classPicksOff, statsInfo, snapshot, restoreSnap, statsOn: on };
 }

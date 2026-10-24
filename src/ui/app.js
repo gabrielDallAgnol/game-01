@@ -27,10 +27,12 @@ import { createHomeward } from './homeward.js';
 // [pacify] end
 // [folk] the folk's own projects: the chip, the build-menu row, the dawn line
 import { createFolkUi } from './folk-ui.js';
+// [hero3] the stats window, the title chip, the ability bar
+import { createHero3Ui } from './hero3.js';
 
 export { FLAGS };
 // the UI modules, in creation order (each registers its own DOM handlers when created)
-const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createHomeward, createFolkUi];   // [pacify] [folk] appended
+const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createHomeward, createFolkUi, createHero3Ui];   // [pacify] [folk] [hero3] appended
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
