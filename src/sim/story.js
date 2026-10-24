@@ -446,7 +446,7 @@ export function createStory(ctx) {
     if (S.night >= contracts.firstSeasonDay && !ST.contract && !ST.contractOffered && (!S.season || S.season.n === 1)) { ST.contractOffered = true; offerContract(1); }
     { const k = contracts.current(); if (k && k.won && !k.told) { k.told = true; victoryCard(k); } }
     contracts.armFinale();
-    // after each blood moon: the chapter closes, told back to you (only when nothing bigger wants the window)
+    // after each Flare Night: the chapter closes, told back to you (only when nothing bigger wants the window)
     if (S.night > 2 && (S.night - 1) % 5 === 0) {
       const ch = (S.night - 1) / 5, lines = ST.chronicle.filter(c => c.day > S.night - 6 && c.imp >= 3).map(c => `Day ${c.day}: ${c.text}`);
       const text = lines.length ? lines.slice(-4) : ['Five days of walls, smoke and small mercies.'];
@@ -466,10 +466,10 @@ export function createStory(ctx) {
       if (th.status !== 'open' || queued(e => e.thread === tid)) continue;
       const st = THREADS[tid].stages[th.stage]; if (!st || st.at !== 'dawn' || th.stage === 0) continue;
       if (S.night - th.since < (st.after || 0)) continue;
-      if (st.needs === 'uniqueDone' && !(S.unique && S.unique.slain)) { if (S.unique && S.unique.escaped && !S.unique.contract) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[${S.unique.name}] It got away. Back on the next blood moon.`, 'bad'); } continue; }
+      if (st.needs === 'uniqueDone' && !(S.unique && S.unique.slain)) { if (S.unique && S.unique.escaped && !S.unique.contract) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[${S.unique.name}] It got away. Back on the next Flare Night.`, 'bad'); } continue; }
       offer(threadEncounter(tid, th.stage), 7, 9);
     }
-    if (S.unique && S.unique.season && !S.unique.contract && S.unique.escaped && !S.unique.slain) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[${S.unique.name}] It got away. Back on the next blood moon.`, 'bad'); }
+    if (S.unique && S.unique.season && !S.unique.contract && S.unique.escaped && !S.unique.slain) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[${S.unique.name}] It got away. Back on the next Flare Night.`, 'bad'); }
     if (ST.beacon || ST.flags.beacon) { const n = (ST.beacon || 0) + (ST.flags.beacon ? 1 : 0); ST.beacon = 0; ST.flags.beacon = false; S.survivors += n; toast(`Strangers walked in under your flag. +${n} ${n === 1 ? 'person' : 'people'}.`, 'good'); }
     // a new dawn: yesterday's beacons fade first if the story needs the room (the story outranks a beacon)
     ST.spots = ST.spots.filter(sp => sp.thread || S.night - sp.day < 2);
@@ -552,9 +552,9 @@ export function createStory(ctx) {
   function arrival() {
     ST.n1.arrived = true;   // the gift comes at dawn 2, as the reward for surviving: no decision in the middle of the first fight
     const lines = SYSTEM.arrival.map(l => l.replace('{hp}', Math.ceil(S.hero.maxHp)));
-    push({ kind: 'arrival', eyebrow: '[Status window]', title: SYSTEM.arrivalTitle, scene: lines.join(' '), lines, after: SYSTEM.firstLight,
+    push({ kind: 'arrival', eyebrow: '[Thermal Pioneer System]', title: SYSTEM.arrivalTitle, scene: lines.join(' '), lines, after: SYSTEM.firstLight,
       choices: [{ id: 'fight', label: 'Fight', hint: 'Shove: the round button.', fx: [{ op: 'title', id: 'firstLight' }] }] });
-    chron('The status window opened in the air as the first of the Ash-Born reached you.', 5);
+    chron('The Thermal Pioneer System spoke up as the first of the Ash-Born reached you.', 5);
     ev('arrival', {});
   }
 
@@ -637,7 +637,7 @@ export function createStory(ctx) {
     }
   }
   function start() {
-    chron('Woke up in the woods outside the fallen city, with a bus full of strangers.', 5);
+    chron('Woke up under a fallen rack at Depot 9, with a Haven Rig and three coworkers who would not leave.', 5);
     if (S.clock && S.night === 1 && !S.dayT) S.dayT = Math.max(0, TIDE.dayLen - DAY_ONE);   // a short first day: light the fire, the night is close
     episode();   // day 1 has no quest: the System has not arrived yet
   }

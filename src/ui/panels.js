@@ -48,7 +48,7 @@ export function createPanels(ui) {
     // [acts] end
     if (ui.selected.type === 'region' && S.sealed[ui.selected.id]) {
       const known = S.kits[ui.selected.id]; $('#pEyebrow').textContent = 'The old core · sealed'; $('#pTitle').textContent = ui.names[ui.selected.id];
-      body.innerHTML = `<div class="stat"><span>Behind the old quarantine fence${known ? ` · scouts say: <b>${known === 'signature' ? 'a landmark' : (KITS[known] || {}).name || known}</b>` : ''}</span></div><p class="note">The old core opens through the story. You cannot walk in until then. The Ash-Born can.</p>`;
+      body.innerHTML = `<div class="stat"><span>Behind the old cordon fence${known ? ` · scouts say: <b>${known === 'signature' ? 'a landmark' : (KITS[known] || {}).name || known}</b>` : ''}</span></div><p class="note">The old core opens through the story. You cannot walk in until then. The Ash-Born can.</p>`;
       return;
     }
     if (ui.selected.type === 'region') {

@@ -5,14 +5,17 @@
 // Absent (outside the Claude viewer, declined, rate-limited): the game plays the scripted story, unchanged.
 // The prompt builders and parsers are exported so tools/ai-lab.mjs can test them on real run logs.
 
-export const TONE = 'Tone: an earnest isekai/anime survival story (think Shangri-La Frontier, That Time I Got Reincarnated as a Slime): the hero woke up in a fallen modern city with a game-like status window; hope under dread; vivid, concrete, short sentences; PG-13 (no gore detail, nothing sexual); no real brands or real people; never mention AI or that this is a game. The System speaks only inside [square brackets].';
-export const clip = (s, n) => String(s ?? '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
-const SHORT = 'Write like a modern mobile game, not a novel. The player reads on a phone mid-fight and must get it in ONE read. The FIRST beat says plainly WHAT happens or WHAT the player must decide (who, where, what). At most 2 beats; at most 12 words each; present tense; concrete nouns, no metaphors, no riddles, no lore dumps. Mark the 1–2 key words (who, what is at stake) with **double asterisks**. Cause and consequence must be obvious at a glance. If a sentence could be cut without losing a fact, cut it. Never say how or when rescued people reach the Camp (now, on their own by dawn, or a convoy to escort): the game adds that line under each choice.';
+import { CANON, TONE_WORLD } from '../content/solar.js';
+export const TONE = `${TONE_WORLD}\n${CANON}`;
+// off-canon words from the model are swapped for the world's own (the prompt forbids them; this is the net)
+const CANONIZE = t => t.replace(/\bzombies?\b/gi, 'Ash-Born').replace(/\bundead\b/gi, 'Ash-Born').replace(/\bmiasma\b/gi, 'heat haze').replace(/\bwalkers?\b/gi, 'Cinder');
+export const clip = (s, n) => CANONIZE(String(s ?? '')).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
+const SHORT = 'Write like a modern mobile game, not a novel. The player reads on a phone mid-fight and must get it in ONE read. The FIRST beat says plainly WHAT happens or WHAT the player must decide (who, where, what). At most 2 beats; at most 12 words each; present tense; concrete nouns, no metaphors, no riddles, no lore dumps. Mark the 1–2 key words (who, what is at stake) with **double asterisks**. Cause and consequence must be obvious at a glance. If a sentence could be cut without losing a fact, cut it. Never say how or when rescued people reach the Haven (now, on their own by dawn, or a convoy to escort): the game adds that line under each choice.';
 
 // ---------- rewrite one encounter ----------
 export function rewritePrompt(enc, ctx) {
   const choices = enc.choices.map(c => ({ id: c.id, label: c.label, effect: c.hint }));
-  return `You are the Chronicler of "Hold Hollowmere", a zombie town-defence game. ${TONE}
+  return `You are the Chronicler of "Hold Hollowmere", a town-defence adventure set after the Solar Flare. ${TONE}
 Rewrite the words of ONE encounter so it fits everything that already happened in this run. Keep its meaning and every choice's effect exactly; only the wording changes. Refer to one past event or companion if it fits naturally.
 RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, people: ctx.people, sites: ctx.sites, titles: ctx.titles, companions: ctx.companions })}
 CHRONICLE (oldest first): ${JSON.stringify(ctx.chronicle)}
@@ -33,7 +36,7 @@ export function parseRewrite(p, enc) {
 const fxText = fx => fx.map(f => (f.op === 'survivors' ? `${f.n > 0 ? '+' : ''}${f.n} people` : f.op === 'food' ? `${f.n > 0 ? '+' : ''}${f.n} food` : f.op === 'gold' ? `+${f.n} scrap` : f.op === 'heat' ? (f.n > 0 ? 'more noise' : 'less noise') : f.op === 'flag' ? 'one more person finds the town later' : f.op === 'blessing' ? 'a rare blessing' : f.op === 'hurt' ? 'the hero gets hurt' : f.op === 'hands' ? 'one more worker for good' : f.op === 'perk' ? 'the hero grows stronger' : f.op === 'recruitNew' ? 'the character joins the town' : '')).filter(Boolean).join(', ');
 export function inventPrompt(ctx, templates) {
   const menu = Object.entries(templates).map(([id, t]) => ({ id, what: t.desc, needsCharacter: !!t.who, choices: t.choices.map(c => ({ id: c.id, effect: fxText(c.fx(ctx.day || 1)) + (c.cost ? ` (costs ${c.cost(ctx.day || 1).gold} scrap)` : '') })) }));
-  return `You are the Chronicler of "Hold Hollowmere", a zombie town-defence game. ${TONE}
+  return `You are the Chronicler of "Hold Hollowmere", a town-defence adventure set after the Solar Flare. ${TONE}
 You decide what the hero finds in the city today. Read the whole run, then invent ONE side quest that grows out of it: a consequence of an earlier choice, a person connected to someone already met, a place tied to a district already opened, or a seed for something later. Not a random event: it must feel like the next episode of THIS story.
 Pick one TEMPLATE from the menu (the game owns every effect; you write words and, if the template needs one, invent the character).
 RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, season: ctx.season, episode: ctx.episode, hero: ctx.hero, people: ctx.people, sites: ctx.sites, districts: ctx.districts, titles: ctx.titles })}
@@ -67,10 +70,10 @@ export const parseRecap = p => { const b = p && Array.isArray(p.beats) ? p.beats
 // ---------- seasons as contracts: Claude names, frames and twists the engine's offer ----------
 // Every number, rule and reward is the engine's. A twist must hang on a HOOK (a real person, place or thread of this
 // run, quoted exactly); anything that reads like an effect (numbers, rewards, stats) is dropped for the script.
-export const EFFECT_TEXT = /\d|[+−]|\b(double|triple|half|free|bonus|reward|blessing|percent|stats?|damage|health|scrap|food|fame|xp)\b/i;
+export const EFFECT_TEXT = /\d|[+−]|\b(double|triple|half|free|bonus|reward|blessing|relic|tome|percent|stats?|damage|health|scrap|food|fame|xp)\b/i;
 export function contractPrompt(ctx, enc) {
-  const offers = enc.offers.map(o => ({ id: o.id, finale: o.finale.kind === 'unique' ? `a monster named ${o.finale.name}, on the season's last blood moon` : `a hive called ${o.finale.name}, to burn before the season ends`, rule: o.terms.rule.name, highStakes: !!o.big }));
-  return `You are the Chronicler of "Hold Hollowmere", a zombie survival game. ${TONE}
+  const offers = enc.offers.map(o => ({ id: o.id, finale: o.finale.kind === 'unique' ? `a monster named ${o.finale.name}, on the season's last Flare Night` : `an Inferno Nest called ${o.finale.name}, to burn before the season ends`, rule: o.terms.rule.name, highStakes: !!o.big }));
+  return `You are the Chronicler of "Hold Hollowmere", a survival adventure set after the Solar Flare. ${TONE}
 At the start of season ${enc.season} the System offers the hero a CONTRACT. The game already decided every rule, finale and reward. The card already shows each offer's goal, catch and reward in plain words. You write ONLY a short name and an anime-style PLOT TWIST in one plain sentence that hangs on someone or something from THIS run, the way a good season premiere recasts what came before ("the teacher you saved opened the gates", "the Lantern-Eater remembers your face"). The twist is flavour: it must be readable in one glance.
 Rules: each twist must name exactly one HOOK, written exactly as it appears in HOOKS. Use a different hook for each offer when you can. Never write numbers, rewards, rules, stats or effects. No brackets.
 RUN: ${JSON.stringify({ city: ctx.city, day: ctx.day, season: ctx.season, hero: ctx.hero, titles: ctx.titles, people: ctx.people })}

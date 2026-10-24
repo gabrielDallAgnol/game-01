@@ -29,15 +29,15 @@ export const FEATURES = {
   },
 };
 
-// a season is an arc: a new rule, a threat that grows, a finale on its last blood moon. After the written ones,
+// a season is an arc: a new rule, a threat that grows, a finale on its last Flare Night. After the written ones,
 // the city keeps making new seasons from the pool, so an open-ended run always has a next arc.
 export const SEASON_LEN = 10;
 export const FIRST_SEASON = 15;   // the first season is a full cour; later arcs run SEASON_LEN nights
 /** the last night of season n */
 export const seasonEnd = n => FIRST_SEASON + SEASON_LEN * (n - 1);
 export const SEASONS = [
-  { id: 'arrival', name: 'Arrival', blurb: 'A bus, a square, a status window. Learn the town before the city learns you.', finale: 'The Cinder Lord' },
-  { id: 'fence', name: 'Beyond the Fence', blurb: 'The quarantine fences come down one by one. Out there: people, supplies, and things that were people.', rule: 'raiders', finale: 'The Toll-King' },
+  { id: 'arrival', name: 'Arrival', blurb: 'A flatbed, a depot, a blue window. Learn the suburbs before the suburbs learn you.', finale: 'The Cinder Lord' },
+  { id: 'fence', name: 'Beyond the Fence', blurb: 'The cordon fences come down one by one. Out there: people, supplies, and things that were people.', rule: 'raiders', finale: 'The Toll-King' },
   { id: 'under', name: 'Under the City', blurb: 'The metro was never empty. Now the Ash-Born come up through the stations inside your lines.', rule: 'metro', finale: 'The Station Mother' },
   { id: 'winter', name: 'The Long Winter', blurb: 'Snow on the roofs. Farms give less; the Ash-Born slow down, but so do you.', rule: 'winter', finale: 'The Frost Choir' },
 ];
@@ -59,6 +59,6 @@ export const RULES = {
   lightsOut: { catch: 'Big towers need power again.', name: 'Lights out', desc: 'Level 2–3 towers need power again. Generators return; build too few and the lights go out.' },
 };
 // offline episode titles: one per day of the first season (Claude writes later ones when it is on)
-export const EPISODES = ['A Bus Full of Strangers', 'The Status Window', 'The Light That Went Out', 'Drawings on the Glass', 'The First Blood Moon',
+export const EPISODES = ['A Flatbed Full of Coworkers', 'The Thermal Pioneer', 'The Light That Went Out', 'Drawings on the Glass', 'The First Flare Night',
   'Breathing Room', 'They Can Hear Us', 'What the Radio Said', 'A Toll for the Road', 'The Thing That Eats the Light',
   'The Long Table', 'Behind the Fence', 'The Trial', 'The Eve', 'The Cinder Lord'];

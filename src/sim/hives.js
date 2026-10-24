@@ -29,7 +29,7 @@ export function createHives(G) {
     const nests = new Set(G.activeNests(n)); for (const r in rage) if (rage[r] > 0) { nests.add(+r); rage[r] -= dt; }
     const u = G.unlocked(Math.max(1, n - 1));
     for (const r of nests) {
-      if (!S.nestAlive[r] || ((S.sealed[r] || S.night < 5) && !(rage[r] > 0))) continue;   // the near hives only send their dead by night until the first blood moon (unless you anger one)
+      if (!S.nestAlive[r] || ((S.sealed[r] || S.night < 5) && !(rage[r] > 0))) continue;   // the near hives only send their dead by night until the first Flare Night (unless you anger one)
       streamAcc[r] = (streamAcc[r] || rng.range(0, every)) + dt * mult * (rage[r] > 0 ? STREAM.rage : 1);
       while (streamAcc[r] >= every) {
         streamAcc[r] -= every;

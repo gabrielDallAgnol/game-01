@@ -109,7 +109,7 @@ export function createStatus(ui) {
     const pk = id => id.startsWith('m:') ? id.slice(2) : (PERKS.find(p => p.id === id) || { name: id }).name;
     return `<div class="logwrap"><table class="log"><thead><tr><th>Night</th><th>Haven left</th><th>Threat</th><th>Wave HP</th><th>Tower DPS</th><th>Kills hero·tower·Haven</th><th>Lost</th><th>Scrap in / spent</th><th>Skills</th></tr></thead><tbody>${rows.map(l => {
       const kp = l.keepEnd !== undefined ? Math.round(l.keepEnd / l.keepMax * 100) : null;
-      return `<tr><td>${l.night}${l.bloodMoon ? ' (blood moon)' : ''}</td><td>${kp !== null ? kp + '%' : 'now'}</td><td>${l.ratio ?? '–'}</td><td>${l.waveHp}</td><td>${l.defDps}</td>
+      return `<tr><td>${l.night}${l.bloodMoon ? ' (Flare Night)' : ''}</td><td>${kp !== null ? kp + '%' : 'now'}</td><td>${l.ratio ?? '–'}</td><td>${l.waveHp}</td><td>${l.defDps}</td>
       <td>${l.kills.hero || 0} · ${l.kills.tower || 0} · ${l.kills.keep || 0}</td><td>${l.lost.length}${l.risen ? ` (${l.risen} rose)` : ''}</td><td>+${l.goldIn ?? 0} / ${l.spent}</td><td>${l.perks.map(pk).join(', ') || '–'}</td></tr>`; }).join('')}</tbody></table></div>`;
   }
   function showLog() {
@@ -124,7 +124,7 @@ export function createStatus(ui) {
     const big = ST.chronicle.filter(c => c.imp >= 4 && !/^Woke up|contract|title/i.test(c.text)).slice(-1)[0];
     const L = ST.lostContract;
     return [
-      `You woke in the woods with a window only you could see, and a bus full of strangers who chose to follow you.`,
+      `A flash in the sky, a blue window only you could see, and a flatbed full of coworkers who chose to follow you.`,
       big ? `Day ${big.day}. ${chronLine(big.text)}` : `You held the Haven for ${S.night - 1} ${S.night - 1 === 1 ? 'night' : 'nights'}${comps.length ? `, with ${comps.slice(0, 2).join(' and ')} beside you` : ''}.`,
       L ? `The contract "${L.name}" ran out on night ${L.night}. ${L.finale} was still out there.` : `On night ${S.night} the Haven fell, and the window closed.`,
     ];

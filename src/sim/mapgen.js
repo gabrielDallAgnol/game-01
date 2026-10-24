@@ -29,7 +29,7 @@ export function valeInside(rx, ry, pad = 0) { return Math.hypot(rx, ry) < R + pa
 // Landmarks: intact buildings you can claim. City sites start 'unknown': the story decides what they are.
 // power: silent power · gold/food: per dawn · noise: adds to heat · survivors: join when claimed · hands: per day
 export const LANDMARKS = {
-  unknown: { name: 'Sealed building', size: 3, cost: 0, desc: 'Behind the quarantine fence. Open the district to find out what it is.' },
+  unknown: { name: 'Sealed building', size: 3, cost: 0, desc: 'Behind the cordon fence. Open the district to find out what it is.' },
   flats:   { name: 'Tower Block', size: 3, cost: 6, manual: 'stone', survivors: 3, gold: 1, desc: 'Families holed up on the top floors: +3 people now, +1 scrap every dawn.' },
   allotment: { name: 'Allotments', size: 3, cost: 6, manual: 'harvest', food: 4, desc: 'Vegetable plots behind a fence: +4 food every dawn.' },
   market:  { name: 'High Street', size: 3, cost: 8, manual: 'scavver', gold: 4, desc: 'Shops to strip and a market to run: +4 scrap every dawn.' },

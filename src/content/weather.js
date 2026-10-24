@@ -1,4 +1,4 @@
-// Tonight's weather, rolled at dawn so you can prepare. Never on night 1–2 or a blood moon.
+// Tonight's weather, rolled at dawn so you can prepare. Never on night 1–2 or a Flare Night.
 //   dead: wave size · range: tower and keep reach · speed: how fast the dead walk · food: next dawn's harvest
 export const WEATHER = {
   clear: { odds: 70, name: 'Clear', desc: '', dead: 1, range: 1, speed: 1, food: 1 },

@@ -9,7 +9,7 @@ import { WEATHER } from '../content/weather.js';
 
 export function createSeasons(G) {
   const { S, c, ev, isBloodMoon, keep, map, rng, rule, seed } = G;
-  // weather for tonight, rolled at dawn on its own random stream (never on blood moons)
+  // weather for tonight, rolled at dawn on its own random stream (never on Flare Nights)
   const weatherRng = new Rng(hashSeed(seed, 'weather'));
   const W8 = () => WEATHER[S.weather] || WEATHER.clear;
   const weatherFor = n => (n === S.night ? W8() : WEATHER.clear);
@@ -74,7 +74,7 @@ export function createSeasons(G) {
     S.season.rules = list; S.season.rule = list[list.length - 1] || null; S.weather = rollWeather(S.night); G.dropFloor();
     return list;
   }
-  /** contracts.js names the finale: { kind: 'unique', name, mult } (the season's last blood moon) or { kind: 'hive', region } */
+  /** contracts.js names the finale: { kind: 'unique', name, mult } (the season's last Flare Night) or { kind: 'hive', region } */
   function setFinale(f = {}) {
     if (f.kind === 'hive' && map.regions[f.region] && map.regions[f.region].nest) { S.season.finaleHive = f.region; if (f.name) S.season.finale = f.name; return true; }
     if (f.kind === 'unique') { S.season.finaleHive = undefined; S.season.finale = f.name || S.season.finale; S.unique = { name: S.season.finale, mult: f.mult || (S.unique && S.unique.mult) || 1.5, night: f.night || S.season.end, season: S.season.n }; return true; }

@@ -2,20 +2,21 @@
 // version (Claude can rewrite the words of any encounter, never its effects).
 // Effects ({ op, ... }) are applied by src/sim/story.js. Costs are checked before a choice is allowed.
 
-// The voice of the world: terse, slightly cold, in [brackets]. The hero woke up in the woods with a window only they can see.
+// The voice of the world: the Thermal Pioneer System. Terse, a little dry, in [brackets]. The hero absorbed the Solar Flare's
+// charge and the System woke (the opening cards tell it; see content/solar.js).
 export const SYSTEM = {
   intro: 'You **survived** night one. Pick a **gift** for it.',
-  // night 1, hand-authored: the System arrives when the first of the dead reaches you (Solo Leveling, episode 2)
-  dayOne: 'Light the fire. **They come at dusk.**',
-  arrival: ['[Status window]', 'Survivor · Lv 1 · HP {hp}', '[Skill acquired: Shove]', 'Push the Ash-Born back. Tap the round button.', '[Quest] Survive the night. A **gift** waits at dawn.'],
-  arrivalTitle: 'The window only you can see',
+  // night 1, hand-authored: the System speaks up when the first of the Ash-Born reaches you (Solo Leveling, episode 2)
+  dayOne: 'Light the fire. **The heat draws them at dusk.**',
+  arrival: ['[Thermal Pioneer System · online]', 'Pioneer · Lv 1 · HP {hp}', '[Skill acquired: Shove]', 'Push the Ash-Born back. Tap the round button.', '[Quest] Survive the night. A **gift** waits at dawn.'],
+  arrivalTitle: 'The Thermal Pioneer System',
   firstLight: '[Title acquired: First Light]',
 };
 
 // The first gift: offered inside the System's arrival window on night one
 export const GIFT = {
   title: 'Pick a gift',
-  eyebrow: '[Reward: night one survived]',
+  eyebrow: '[Reward: first night survived]',
   scene: 'You held the first night. One gift, **yours for good**.',
   choices: [
     { id: 'lantern', label: 'The Lantern of Dawn', hint: 'You hit 15% harder.', fx: [{ op: 'perk', key: 'heroDmgMult', mul: 1.15 }, { op: 'title', id: 'lantern' }] },
@@ -187,7 +188,7 @@ export const THREADS = {
   },
 };
 
-// The unique monsters: each run's blood moons bring one with a name and a story. Kill it for a legendary blessing.
+// The unique monsters: each run's Flare Nights bring one with a name and a story. Kill it for a legendary blessing.
 THREADS.lantern = {
   title: 'The Lantern-Eater',
   cast: {},
@@ -195,15 +196,15 @@ THREADS.lantern = {
   stages: [
     {
       id: 'mark', at: 'dawn', eyebrow: '[You have been Marked]', title: 'The light that went out',
-      scene: 'Something tall put out the lamps. It **marked you**. It comes back on a **blood moon**.',
+      scene: 'Something tall put out the lamps. It **marked you**. It comes back on a **Flare Night**.',
       choices: [{ id: 'note', label: 'Remember it', hint: 'You keep your distance. Leans you toward **Aim**.', lean: 'ranger', fx: [{ op: 'advance' }] }, { id: 'stare', label: 'Stare into the dark', hint: 'You face it head on. Leans you toward **Brawn**.', lean: 'hero', fx: [{ op: 'advance' }] }],
     },
     {
       id: 'sighting', at: 'dawn', after: 7, eyebrow: '[Unique Monster: The Lantern-Eater]', title: 'Something eats the light',
-      scene: '**The Lantern-Eater** comes on the blood moon. Fight it tonight, or hide?',
+      scene: '**The Lantern-Eater** comes on the Flare Night. Fight it tonight, or hide?',
       choices: [
         { id: 'bait', label: 'Light every lamp', hint: 'It comes tonight, tough and slow. Kill it: a legendary blessing. +15 noise.', fx: [{ op: 'heat', n: 15 }, { op: 'unique', name: 'The Lantern-Eater', mult: 1.5 }, { op: 'advance' }] },
-        { id: 'dark', label: 'Douse the lights, hide', hint: 'A normal blood moon tonight. It returns next time, angrier.', fx: [{ op: 'unique', name: 'The Lantern-Eater', mult: 1.6, later: 5 }, { op: 'advance' }] },
+        { id: 'dark', label: 'Douse the lights, hide', hint: 'A normal Flare Night tonight. It returns next time, angrier.', fx: [{ op: 'unique', name: 'The Lantern-Eater', mult: 1.6, later: 5 }, { op: 'advance' }] },
       ],
     },
     {
@@ -432,7 +433,7 @@ export const NIGHT_TEXT = {
   many: '{N}. From every side.',
   brute: ' A Slag Brute walks with them.',
   brutes: ' {B} Slag Brutes walk with them.',
-  blood: 'Blood moon. ',
+  blood: 'Flare Night. ',
   unique: ' {name} comes with them.',
 };
 

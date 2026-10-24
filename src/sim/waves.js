@@ -35,13 +35,13 @@ export function createWaves(G) {
     const hp = u.reduce((a, [, m]) => a + m.weight * m.hp, 0) / w, cost = u.reduce((a, [, m]) => a + m.weight * m.cost, 0) / w;
     return hp / cost;
   }
-  // blood moons: a nest guardian at 5, two at 10, the Gravelord from 15 (one more every 10 nights)
+  // Flare Nights: a nest guardian at 5, two at 10, the Gravelord from 15 (one more every 10 nights)
   function bossesFor(n) { return n < 15 ? ['guardian'] : Array.from({ length: Math.floor((n - 5) / 10) }, () => 'gravelord'); }   // on night 10 the season's unique monster takes the guardian's place
   const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
   // the difficulty curve: a won contract pulls the night the curve reads from back (see contractWon)
   const effN = n => Math.max(1, n - (S.diffNight || 0));
   const hpS = n => WAVES.hpScale(effN(n));
-  function nightBudget(n) { return G.DIFF.threat * WAVES.budget(effN(n)) * (TIDE.opening[n] ?? 1) * territory() * G.townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * (n > 1 && isBloodMoon(n - 1) ? 0.75 : 1) * G.weatherFor(n).dead * (G.homeK ? G.homeK(n) : 1); }   // [pacify] homeK ≤ 1: the home threat plateaus once the land around the Camp is quiet (sim/pacify.js)   // the night after a blood moon is a breather
+  function nightBudget(n) { return G.DIFF.threat * WAVES.budget(effN(n)) * (TIDE.opening[n] ?? 1) * territory() * G.townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * (n > 1 && isBloodMoon(n - 1) ? 0.75 : 1) * G.weatherFor(n).dead * (G.homeK ? G.homeK(n) : 1); }   // [pacify] homeK ≤ 1: the home threat plateaus once the land around the Camp is quiet (sim/pacify.js)   // the night after a Flare Night is a breather
   function purgeBudget(r, n) { return WAVES.budget(effN(n)) * WAVES.purgeShare(map.regions[r].ring); }
 
   // ---------- waves ----------
@@ -158,7 +158,7 @@ export function createWaves(G) {
     if (!CUT.crew) G.sc.nightfall(keep);
     { const rt = G.ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight beats your towers. Stay near the homes.`, 'bad'); }
     ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
-    toast(isBloodMoon(S.night) ? `Blood moon. Night ${S.night} begins.` : `Dusk. Night ${S.night}: the Ash-Born come in force.`, isBloodMoon(S.night) ? 'bad' : undefined);
+    toast(isBloodMoon(S.night) ? `Flare Night. Night ${S.night} begins.` : `Dusk. Night ${S.night}: the Ash-Born come in force.`, isBloodMoon(S.night) ? 'bad' : undefined);
     return true;
   }
 

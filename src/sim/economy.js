@@ -106,7 +106,7 @@ export function createEconomy(G) {
     S.weather = G.rollWeather(S.night); if (S.weather !== 'clear' && !CUT.weather) toast(`Tonight: ${G.W8().name.toLowerCase()}. ${G.W8().desc}`, G.W8().kind);
     G.planDay(S.night); G.spawnRoamers(); G.spawnAnimals(); G.scatterPickups(G.PICKUP.perDawn);
     for (const d of [...S.drops]) if (--d.ttl <= 0) { S.drops.splice(S.drops.indexOf(d), 1); ev('dropGone', { id: d.id }); }
-    { const was = S.night - 1; if (isBloodMoon(was)) G.dropSupply('The blood moon has set.'); else if (claimedNow !== null) G.dropSupply('With the Inferno Nest burned,'); else if (was >= 3 && rng.next() < 0.2) G.dropSupply('At first light,'); }
+    { const was = S.night - 1; if (isBloodMoon(was)) G.dropSupply('The Flare Night has set.'); else if (claimedNow !== null) G.dropSupply('With the Inferno Nest burned,'); else if (was >= 3 && rng.next() < 0.2) G.dropSupply('At first light,'); }
     S.reroll.cost = REROLL.base;
     const want = [];
     if (owns('christ') && S.night % 3 === 0) want.push('chest');   // no dawn blessings: they come from hives (epic loot) and key levels
@@ -130,7 +130,7 @@ export function createEconomy(G) {
     ev('dawn', { goldIn, foodIn, need, fed });
     toast(`Dawn. ${goldIn >= 0 ? '+' : ''}${goldIn} scrap${salv ? ` (${salv} salvaged from the dead)` : ''}${upk ? ` after ${upk} tower upkeep` : ''}, +${foodIn} food. Citizens ate ${need}.`, 'good');   // (the HUD reads this line: it came in since yesterday)
     if (fed < 0.99) toast(`Not enough food. Houses earned ${Math.round(fed * 100)}% of their scrap.`, 'bad');
-    if (isBloodMoon(S.night + 1)) toast(`[Warning: red sky] The sky is turning red. **Tomorrow night is a blood moon**${S.unique && !S.unique.slain && S.unique.night === S.night + 1 ? `, and ${S.unique.name} comes with it` : ''}. Build up today and tomorrow.`, 'win');
+    if (isBloodMoon(S.night + 1)) toast(`[Warning: red sky] The sky is turning red. **Tomorrow night is a Flare Night**${S.unique && !S.unique.slain && S.unique.night === S.night + 1 ? `, and ${S.unique.name} comes with it` : ''}. Build up today and tomorrow.`, 'win');
   }
 
   /** the run ends: the hall fell, or (contracts.js) a lost contract ends it with a name. Closes the run log. */
