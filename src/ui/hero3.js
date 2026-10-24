@@ -106,11 +106,12 @@ export function createHero3Ui(ui) {
   }
   function tick() {
     if (!ui.game || !on() || ui.game.state.over || !ui.systemHere()) { chip.hidden = true; bar.innerHTML = ''; barKey = ''; return; }
+    bar.hidden = !!ui.card;
     const S = ui.game.state, a = S.attr;
     // the chip sits under the strip, at its left edge
     // the chip sits under the top of the HUD (the strip, the camp bar, the forecast line), at the left edge
     const below = ['#strip', '#campBar', '#forecast'].map(q => $(q)).filter(e => e && !e.hidden && e.getBoundingClientRect().height > 0).map(e => e.getBoundingClientRect().bottom);
-    chip.hidden = !below.length; if (below.length) chip.style.top = `${Math.round(Math.max(...below) + 6)}px`;
+    chip.hidden = !below.length || !!ui.card; if (below.length) chip.style.top = `${Math.round(Math.max(...below) + 6)}px`;
     chip.querySelector('.tt').textContent = `[${a.title}]`;
     chip.classList.toggle('pts', a.pts > 0); chip.querySelector('.pp').textContent = `+${a.pts}`;
     if (lastPts >= 0 && a.pts > lastPts) boom(`[+${a.pts - lastPts} Stat ${a.pts - lastPts === 1 ? 'Point' : 'Points'}]`, 'Tap your title to assign them.');
