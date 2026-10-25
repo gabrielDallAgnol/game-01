@@ -83,6 +83,10 @@ export function createApi(G) {
     // [econ3] the construction queue (reorder: dir -1 / +1 / 'top'; cancel refunds), harvester carts and nodes, relics
     queue: () => G.queueInfo(), queueMove: (id, dir) => G.queueMove(id, dir), queueCancel: id => G.queueCancel(id), crews: () => G.crews(),
     haul: () => G.haulInfo(), buyCart: () => G.buyCart(), cartDock: () => G.cartDock(), relics: () => G.relicsInfo(),
+    // [hero3] begin: stat points (STR/AGI/INT/GOV), their abilities and the Status window (sim/stats.js, sim/powers.js)
+    statsOn: () => G.statsOn(), statsInfo: () => G.statsInfo(), spendStat: (id, n) => G.spendStat(id, n), addStatPoints: (n, why) => G.addStatPoints(n, why),
+    autoStats: () => G.autoSpend(), setStatAuto: on => { S.attr.auto = !!on; }, usePower: id => G.usePower(id), powersAuto: () => G.powersAuto(), powersInfo: () => G.powersInfo(),
+    // [hero3] end
   };
   return api;
 }

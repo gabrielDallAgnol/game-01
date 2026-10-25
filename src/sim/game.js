@@ -67,6 +67,9 @@ import { createPressure } from './pressure.js';
 import { createConstruct } from './construct.js';
 import { createHaul } from './haul.js';
 import { createRelics } from './relics.js';
+// [hero3] stat points, threshold and hybrid abilities
+import { createStats } from './stats.js';
+import { createPowers } from './powers.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
@@ -75,6 +78,7 @@ export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_
 const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno, createRig];   // [nest3] appended   // [pacify] appended
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
 MODULES.push(createConstruct, createHaul, createRelics);   // [econ3] appended
+MODULES.push(createStats, createPowers);   // [hero3] appended
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null } = {}) {
   if (hero === 'steward') hero = 'merchant';
@@ -232,5 +236,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [econ3] begin: the construction queue and the harvester carts (sim/construct.js, sim/haul.js)
     G.stepConstruct(dt); G.stepHaul(dt);
     // [econ3] end
+    G.stepStats(dt);   // [hero3] stat points and abilities
   }
 }

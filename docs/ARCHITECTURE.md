@@ -101,6 +101,8 @@ In every root, creation order and per-frame call order are load-bearing:
 | `construct.js` | `[econ3]` the construction queue: a placed building is a blueprint (scaffold, attackable, does nothing yet); upgrades and carts are jobs too; crews (1 + one per 5 people) work it top down, skipping a site with the dead close by; reorder and cancel (full refund) |
 | `haul.js` | `[econ3]` harvester carts and resource nodes: timber stands and scrap heaps in three bands that run dry; carts drive from the keep's yard, load, drive home and unload (the main scrap income; the trickle keeps `TRICKLE`); the dead go for a passing cart; more carts by Camp level |
 | `relics.js` | `[econ3]` no blessing cards: every pick becomes a find (relic, stat tome, blueprint: `content/relics.js`); the dawn Settlement report pays XP for a well-run town |
+| `stats.js` | `[hero3]` the Thermal Pioneer's stats STR/AGI/INT/GOV: points (3 at the awakening, 3 a level, `G.addStatPoints(n, why)` for stat tomes), the per-point hooks (`attr*` in combat.js, hero.js), unlocks, titles, the bots' spread, the `hero3` save block (wraps snapshot/restoreSnap); `STATS_FLAG.on` (content/stats.js) switches the class picks off |
+| `powers.js` | `[hero3]` the abilities stats unlock (content/abilities.js): actives (Heavy Cleave, Blink Strike, Aether Burst, Rally Cry, Wild Shape, Raise the Fallen), passives and hybrids, the autopilot's use |
 | `mapgen.js`, `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | map generation, flow fields, town builders, scavenging, seeded RNG |
 
 ### `src/render/`: the three.js view
@@ -172,6 +174,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `folk-ui.js` | the folk's project chip (veto), "Let them build" in the build menu, their ledger line |
 | `rig-ui.js` | `[rig3]` the Rig section of the Camp panel (systems, what raises them, the cargo), the Pack up & roll pill and confirmation, the act change (`ui.beginRun` swaps the game and the view, then saves) |
 | `econ-ui.js` | `[econ3]` the construction queue chip (reorder, call off), the carts row in the build menu, a blueprint's panel, the Settlement report toast |
+| `hero3.js` | `[hero3]` the System Status window (stats, + buttons, abilities by threshold, hybrids), the title chip, the [+3 Stat Points] moment, the ability bar |
 
 ## The story split: the engine owns the numbers, the story AI owns the words
 

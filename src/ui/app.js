@@ -45,6 +45,9 @@ MODULES.push(createVersion, createLoggingUi);   // [gemini3] appended
 // [econ3] the construction queue chip, the carts row, the Settlement report
 import { createEconUi } from './econ-ui.js';
 MODULES.push(createEconUi);   // [econ3] appended
+// [hero3] the stats window, the title chip, the ability bar
+import { createHero3Ui } from './hero3.js';
+MODULES.push(createHero3Ui);   // [hero3] appended
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
