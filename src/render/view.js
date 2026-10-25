@@ -53,6 +53,7 @@ import { createHaul } from './view/haul.js';
 import { TOP } from './top.js';
 import { createTopCamera } from './view/topdown.js';
 import { createTopFlat } from './view/topflat.js';
+import { createTopMarks } from './view/topmarks.js';
 // [top] end
 // [road] begin
 import { createRoadView } from './road-view.js';
@@ -116,6 +117,7 @@ export function createView(canvas, game, opts = {}) {
   const haul = V.haul = createHaul(V);   // [econ3] nodes, carts, scaffolds on the queue
   const hero3fx = createHero3Fx(V);   // [hero3] the stat abilities' feedback
   const topFlat = createTopFlat(V);   // [top] the flat look's light (null without ?top=1)
+  V.topMarks = createTopMarks(V);   // [top] bars and tags toward screen-up (null without ?top=1)
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -167,6 +169,7 @@ export function createView(canvas, game, opts = {}) {
     if (roadView) roadView.frame(dt, V.time, V.dark, ui.events);
     // [road] end
     if (topFlat) topFlat.update();   // [top]
+    if (V.topMarks) V.topMarks.update();   // [top]
     look.render(V.time);
   }
 

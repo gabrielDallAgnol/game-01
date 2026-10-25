@@ -15,6 +15,6 @@ export function createBars(V) {
     const h = th || BAR_H[kind] || 0.16, pad = Math.max(0.06, h * 0.35), g = new THREE.Group(), bg = new THREE.Mesh(barGeo, barBg), fg = new THREE.Mesh(barFg, barM[kind] || barM.z);
     bg.scale.set(w + pad, h + pad, 1); fg.scale.set(w, h, 1); fg.position.set(-w / 2, 0, 0.001); bg.renderOrder = 20; fg.renderOrder = 21; g.add(bg, fg); g.visible = false; g.userData.fg = fg; g.userData.w = w; fx.add(g); return g;
   }
-  function setBar(bar, x, y, z, f, always = false) { if ((f >= 0.999 && !always) || f <= 0) { bar.visible = false; return; } bar.visible = true; bar.position.copy(Wv(x, z, y)); bar.quaternion.copy(camera.quaternion); bar.userData.fg.scale.x = Math.min(1, f) * bar.userData.w; }
+  function setBar(bar, x, y, z, f, always = false) { if ((f >= 0.999 && !always) || f <= 0) { bar.visible = false; return; } bar.visible = true; bar.position.copy(Wv(x, z, y)); bar.quaternion.copy(camera.quaternion); bar.userData.fg.scale.x = Math.min(1, f) * bar.userData.w; if (V.topMarks) V.topMarks.bar(bar, y); }   // [top] from above: toward screen-up, not up
   return { makeBar, setBar };
 }
