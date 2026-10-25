@@ -13,6 +13,8 @@ import { lc } from './view/shared.js';
 import { createTerrain } from './view/terrain.js';
 import { createFeel } from './view/feel.js';
 import { createHives } from './view/hives.js';
+// [nest3]
+import { createInferno } from './view/inferno.js';
 import { createLandmarks } from './view/landmarks.js';
 import { createBeacons } from './view/beacons.js';
 import { createFences } from './view/fences.js';
@@ -66,6 +68,7 @@ export function createView(canvas, game, opts = {}) {
 
   const feel = V.feel = createFeel(V);
   const hives = V.hives = createHives(V);
+  const inferno = V.inferno = createInferno(V);   // [nest3] the nests as burning heat sources
   const landmarks = V.landmarks = createLandmarks(V);
   const beacons = createBeacons(V);
   const fences = createFences(V);
@@ -125,6 +128,7 @@ export function createView(canvas, game, opts = {}) {
     keep.update();
     markers.updateMain();
     hives.update(dt);
+    inferno.update(dt, ui.events);   // [nest3]
     rest.update(dt);
     village.update(dt, ui.events);   // [folk]
     birds.update(dt, ui.events);   // [woods]

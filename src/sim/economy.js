@@ -124,6 +124,7 @@ export function createEconomy(G) {
     if (G.road) G.road.dawn();
     // [road] end
     G.story.dawn();
+    if (G.inferno) G.inferno.dawn();   // [nest3] hotter nests, embers before a nest wakes
     G.checkEvolution();
     if (G.HC.trader && !CUT.trader) S.trade = { deals: rng.shuffle([...TRADES]).slice(0, 3).map(t => t.id), done: false };
     S.stats.peakPop = Math.max(S.stats.peakPop, pop());

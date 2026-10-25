@@ -76,6 +76,7 @@ export function createApi(G) {
     pacifyMap: () => G.pacifyMap(), pacifiedAt: (x, y) => G.pacifiedAt(x, y), smothered: r => G.smothered(r), homeThreat: n => G.threatInfo(n), homeK: n => G.homeK(n),
     homeInfo: () => G.homeInfo(), returnHome: () => G.returnHome(), cancelReturn: () => G.cancelReturn(),
     hiveEdge: (r, x, y) => G.nestEdge(map.regions[r], x, y), hiveInReach: (x, y, reach) => { const r = G.hiveInReach(x, y, reach); return r ? r.id : -1; },   // [nests] reach is measured to the edge; a strike needs clear sight
+    infernoInfo: r => G.inferno.info(r), infernoNearest: (x, y, d) => G.inferno.nearest(x, y, d),   // [nest3] a nest's three-phase siege
     spawnAnimals: () => G.spawnAnimals(),   // [woods] the dawn top-up of the woods' game (tests, tools)
   };
   return api;

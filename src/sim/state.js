@@ -30,7 +30,7 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 // road and the city stay behind the quarantine fence until then (sim/acts.js).
 // the save format: v4 (Oct 20) carries ruins, Noise, tools, contracts and the road; older saves are ignored at the start screen
 export const SAVE_V = 4;
-export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true, missions: true, earlyRoad: true, tools: true };
+export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true, missions: true, earlyRoad: true, tools: true, inferno: true };
 // Heat (old name, same meter): see NOISE below. `stir`, `erupt`, `warn`, `cool`, `burst` still apply.
 export const HEAT = { floorPer: 1.4, floorMax: 70, combatMax: 77, decay: 0.1, rise: 2.5, shot: 0.03, kill: 0.15, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Noise: ONE meter (0–100). It rests on a floor set by loud CHOICES (level 3 towers, the market and workshop,

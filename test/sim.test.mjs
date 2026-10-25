@@ -482,7 +482,7 @@ test('burning a hive: the horde comes at once (no pause), with runners and a bru
   const city = g.map.regions.find(r => r.nest && r.ring === 2);
   assert.equal(g.hitHive(city.id, 5), false, 'a level 1 keep can break a city hive');
   const reg = g.map.regions.find(r => r.nest && r.ring === 1);
-  S.night = 4; let hits = 0;
+  S.night = 4; let hits = 0; S.hero.hp = S.hero.maxHp = 1e6;   // [nest3] its counter-surges stand on top of him
   for (; hits < 900 && S.nestAlive[reg.id]; hits++) g.hitHive(reg.id, 5);
   assert.equal(S.nestAlive[reg.id], false, 'the hive never burned');
   assert.ok(hits * 5 >= 102 * 1.7, `a hollow fell to ${hits * 5} damage`);
@@ -504,7 +504,7 @@ test('burning a hive: the horde comes at once (no pause), with runners and a bru
   S.food = 5; for (const m of horde) { m.lure = null; m.hunt = true; m.x = S.hero.x + 1; m.y = S.hero.y; }
   assert.ok(g.useSmoke()); assert.equal(S.food, 2); assert.ok(horde.every(m => !m.hunt && m.smoke > 0));
   // the old escape() call still works as a thin wrapper
-  S.hero.hp = S.hero.maxHp = 1e6; for (let k = 0; k < 60 * 21; k++) g.step(); S.gold = 10; assert.ok(g.escape('flare'));
+  for (let k = 0; k < 60 * 21; k++) { S.hero.hp = S.hero.maxHp; g.step(); } S.gold = 10; assert.ok(g.escape('flare'));   // [nest3] the surges stand on him: keep him up
   } finally { CUT.tools = true; }
 });
 
