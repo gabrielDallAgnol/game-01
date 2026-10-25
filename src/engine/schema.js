@@ -8,7 +8,7 @@ export const KINDS = ['building', 'prop', 'tree', 'vehicle', 'street', 'water', 
 export const COLLIDE = ['box', 'circle', 'segment', 'none'];
 // How the flat renderer draws an atom. A look is a drawing grammar shared by many atoms,
 // so a new atom picks a look and roles, and needs no drawing code.
-export const LOOKS = ['gable', 'flat', 'canopy', 'tarp', 'rig', 'car', 'lamp', 'ring', 'pool', 'tree', 'deadtree', 'ruin', 'railcar', 'tower', 'crater', 'nest', 'pylon', 'none'];
+export const LOOKS = ['gable', 'flat', 'canopy', 'tarp', 'rig', 'car', 'lamp', 'ring', 'pool', 'tree', 'deadtree', 'ruin', 'railcar', 'tower', 'crater', 'nest', 'pylon', 'church', 'mast', 'infested', 'none'];
 
 export function validateAtom(a) {
   const err = [];
