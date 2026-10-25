@@ -1,5 +1,5 @@
 // Noise: one meter (0–100). Loud choices set its floor, fighting spikes it, story choices hold it for nights.
-// (Old names kept: heat, addHeat. A hive bursting at the limit lives in hives.js.)
+// (Old names kept: heat, addHeat.)
 import { HEAT, NOISE } from './state.js';
 import { LANDMARKS } from './mapgen.js';
 
@@ -42,9 +42,6 @@ export function createNoise(G) {
     if (!S.clock || !S.feat.heat) { S.noise = S.heat = 0; S.noiseSpike = 0; return; }
     S.noiseSpike = Math.max(0, (S.noiseSpike || 0) * (1 - HEAT.decay * dt));
     S.noise = Math.max(0, Math.min(100, noiseBase() + S.noiseSpike)); S.heat = S.noise;
-    S.heatCool = Math.max(0, S.heatCool - dt);
-    if (S.eruption) { S.eruption.t -= dt; if (S.eruption.t <= 0) G.erupt(); return; }
-    if (S.noise >= HEAT.erupt && S.heatCool <= 0 && S.night >= 2) G.warnEruption();
   }
   return { dropFloor, noiseFloor, noiseCalm, noise, townDraw, heatFloor, addHeat, addSpike, stepHeat };
 }

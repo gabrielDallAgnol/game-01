@@ -107,19 +107,3 @@ function throughBlock(g, reach) {
   return null;
 }
 
-test('a hive is struck only in clear sight of its open face, never through a building', () => {
-  let tried = 0;
-  for (let seed = 1; seed <= 40 && tried < 4; seed++) {
-    const g = createGame({ seed, hero: 'archer' }), S = g.state; tidy(g);
-    for (const reg of g.map.regions) if (reg.nest) S.sealed[reg.id] = 0;
-    const reach = g.heroDef.attack.reach + S.P.heroRange, hit = throughBlock(g, reach); if (!hit) continue;
-    tried++;
-    const h = S.hero; h.hp = h.maxHp = 1e6; S.keep.level = 3;   // a city hive needs a strong keep before it can be struck at all
-    assert.equal(g.hiveInReach(hit.far.x, hit.far.y, reach), -1, `seed ${seed}: hive ${hit.r.id} counts as in reach through its block`);
-    assert.equal(g.hiveInReach(hit.open.x, hit.open.y, reach), hit.r.id, `seed ${seed}: hive ${hit.r.id} not in reach at its door`);
-    const at = p => { S.mobs.length = 0; h.x = p.x; h.y = p.y; h.target = null; h.path = null; h.cd = 0; S.events.length = 0; g.step(); return S.events.some(e => e.t === 'hitHive' && e.region === hit.r.id); };
-    assert.ok(!at(hit.far), `seed ${seed}: struck hive ${hit.r.id} through its block from ${hit.far.x.toFixed(1)},${hit.far.y.toFixed(1)}`);
-    assert.ok(at(hit.open), `seed ${seed}: could not strike hive ${hit.r.id} from its open face`);
-  }
-  assert.ok(tried >= 2, `only ${tried} hives with open ground behind their block within reach`);
-});

@@ -13,7 +13,7 @@ export function createLights(V) {
   // ---------- the night's light pools: every warm (and rot-green) source near the camera paints the light texture ----------
   const AMBER = lc('#ffa64d'), WARM = lc('#ffc070'), ROT = lc('#9dff4a'), REDL = lc('#ff5a3a'), FLARE = lc('#ff7a3a'), SIEGE = lc('#e3a54a'), LANT = lc('#ffc890');
   function paintLights(k, lit) {
-    const time = V.time, camTarget = V.camTarget, keepFires = V.keep.fires, hives = V.hives.hives, flares = V.flares;
+    const time = V.time, camTarget = V.camTarget, keepFires = V.keep.fires, flares = V.flares;
     // [top] begin: from above the pool texture is centred on the camera and covers the whole frustum
     if (TOP.on) fx2.pools.begin(camTarget.x, camTarget.z, Math.max(76, 2 * Math.max(V.cam.half.w, V.cam.half.h) + 8));
     // [top] end
@@ -28,7 +28,6 @@ export function createLights(V) {
         else if (b.type === 'tower') fx2.pools.light(p.x, p.z, 2.2 + b.level * 0.5, AMBER, (0.35 + 0.25 * b.level) * fl(b.id));
         else if (b.level >= 2 && b.type !== 'wall') fx2.pools.light(p.x, p.z, 1.8, WARM, 0.3 * lit);
       }
-      for (const [r, hv] of hives) if (hv.glow > 0.05 && hv.g.visible) { const n = map.regions[r].nest; const nb = n.body || n; fx2.pools.light(nb.x - C, nb.y - C, hv.inf ? 11 : 6, S.eruption && S.eruption.region === r ? REDL : S.purge === r ? SIEGE : hv.inf ? AMBER : ROT, hv.glow * (hv.inf ? 1.5 : 0.9), 0.3); }   // [nest3] a nest is a fire
       for (const m of S.mobs) if (m.burn) fx2.pools.light(m.x - C, m.y - C, 2.2, AMBER, 0.8 * fl(m.id));
       for (let i = flares.length - 1; i >= 0; i--) { const f = flares[i], a = (time - f.t0) / f.t; if (a > 1) { flares.splice(i, 1); continue; } fx2.pools.light(f.x - C, f.y - C, 8, FLARE, 2.2 * (1 - a * a) * fl(i + 5), 0.8); }
       for (const p of S.projectiles) if (p.enemy) fx2.pools.light(p.x - C, p.y - C, 1.2, ROT, 0.7);

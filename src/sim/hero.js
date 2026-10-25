@@ -129,11 +129,6 @@ export function createHero(G) {
       const reach = A.reach + S.P.heroRange, dmg = G.heroDmg() * (S.nightFlags.lastT > 0 ? 2 : 1);
       let best = null, bd = reach;
       for (const m of S.mobs) { if (m.rise < 1) continue; const d = Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size; if (d < bd) { bd = d; best = m; } }
-      if (!best) {
-        // nothing to fight: strike a hive in reach
-        const hv = G.hiveInReach(h.x, h.y, reach);   // reach is measured to the hive's edge: you strike it from outside, never from inside the model
-        if (hv && G.hitHive(hv.id, dmg)) { const b = G.nestBody(hv); h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.fightT = REGEN.combat; h.face = Math.atan2(b.x - h.x, b.y - h.y); ev(A.kind === 'melee' ? 'swing' : 'shot', { src: 'hero' }); }
-      }
       if (best) {
         h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.noiseT = 3; h.fightT = REGEN.combat; if (!moving) h.face = Math.atan2(best.x - h.x, best.y - h.y);
         const cleave = mastery('whirlwind') || (has('wardance') && h.attacks % 3 === 0);

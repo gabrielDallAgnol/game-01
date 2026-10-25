@@ -19,7 +19,7 @@ export function createSave(G) {
       sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, halfUpgrade: S.halfUpgrade,
       landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),
-      feat: S.feat, noiseChoice: S.noiseChoice || 0, mourned: S.mourned || 0, diffNight: S.diffNight || 0, tools: S.tools, carry: S.hero.carry, ledger: S.ledger || null, pickups: S.pickups, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, eruption: S.eruption, heatCool: S.heatCool, sawBlackout: !!S.sawBlackout, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], trails: S.trails || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT, inc: S.inc || null,
+      feat: S.feat, noiseChoice: S.noiseChoice || 0, mourned: S.mourned || 0, diffNight: S.diffNight || 0, carry: S.hero.carry, ledger: S.ledger || null, pickups: S.pickups, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, eruption: S.eruption, heatCool: S.heatCool, sawBlackout: !!S.sawBlackout, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], trails: S.trails || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT, inc: S.inc || null,
       buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0, b.ruined ? 1 : 0, b.type === 'house' ? (b.folk ?? -1) : -1, b.spec || 0]), homeless: S.homeless || 0, keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)], econ: S.econ ? JSON.parse(JSON.stringify(S.econ)) : null };   // [econ3] queue, carts, nodes, relics
   }
   function restoreSnap(R) {
@@ -43,7 +43,7 @@ export function createSave(G) {
       const was = S.survivors + S.buildings.reduce((a, b) => a + (b.type === 'house' ? houseCap(b) : 0), 0) - (R.mourned || 0), now = pop();
       if (was > now) S.homeless += was - now; else S.survivors = Math.max(0, S.survivors - (now - was));
     }
-    Object.assign(S, { noiseChoice: R.noiseChoice || 0, mourned: R.mourned || 0, diffNight: R.diffNight || 0, tools: R.tools || { flare: 0, smoke: 0 }, ledger: R.ledger || null });
+    Object.assign(S, { noiseChoice: R.noiseChoice || 0, mourned: R.mourned || 0, diffNight: R.diffNight || 0, ledger: R.ledger || null });
     if (R.carry) S.hero.carry = { scrap: R.carry.scrap || 0, food: R.carry.food || 0 };
     if (!S.season.rules) S.season.rules = S.season.rule ? [S.season.rule] : [];
     G.titlesRead((S.story.titles || []).length);

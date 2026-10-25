@@ -4,7 +4,7 @@
 // This file is the composition root: it builds the run's state, wires the rule modules together through one shared
 // context `G`, runs the start-of-run setup in a fixed order (the order is part of determinism: do not reorder), and
 // owns the per-frame step(). Each rule lives in its own module (createX(G) factories, see CLAUDE.md for the map):
-//   core · economy · buildings · build · waves · forecast · combat · noise · brain · hives · loot · districts ·
+//   core · economy · buildings · build · waves · forecast · combat · noise · brain · loot · districts ·
 //   seasons · hero · blessings · save · nests · api
 // G holds: the run's constants (S, map, c, keep, rng, mobById, seed, …), every module's functions, and five
 // late or changing slots read as G.x at call time: G.HC (the hero's class), G.DIFF (difficulty),
@@ -18,7 +18,7 @@ import { KITS } from '../content/districts.js';
 import { createScavenge } from './scavenge.js';
 import { createPlanner } from './planner.js';
 import { createStory } from './story.js';
-import { createState, STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN } from './state.js';
+import { createState, STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, REGEN } from './state.js';
 import { createCore } from './core.js';
 import { createEconomy } from './economy.js';
 import { createBuildings } from './buildings.js';
@@ -28,7 +28,6 @@ import { createForecast } from './forecast.js';
 import { createCombat } from './combat.js';
 import { createNoise } from './noise.js';
 import { createBrain } from './brain.js';
-import { createHives } from './hives.js';
 import { createLoot } from './loot.js';
 import { createDistricts } from './districts.js';
 import { createSeasons } from './seasons.js';
@@ -65,10 +64,10 @@ import { createV2Core } from './v2core.js';
 import { createHordes } from './hordes.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
-export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
+export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createSave, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome];   // [nest3] appended   // [pacify] appended
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createLoot, createDistricts, createSeasons, createHero, createSave, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome];   // [nest3] appended   // [pacify] appended
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
 MODULES.push(createConstruct, createSettle);   // [econ3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
@@ -96,7 +95,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     landmarkReach, live, mastery, metroSpot, moveToward, nestAlive, newLog, nightLen, occupy, openDistrict, placeBuilding, pop, rankOf,
     refreshFlow, refreshMax, restoreSnap, reveal, revealRegion, rollOffer, rollPacks, rule, scatterPickups, senseMult, siteOf,
     spawnAnimals, spawnAtNest, spawnMob, spawnRoamers, standable, startNight, stepAllies, stepDrops, stepHeat, stepHero, stepMobs,
-    stepPickups, stepProjectiles, stepStream, stepTowers, syncPicks, takeSite, toast, untitle, zone
+    stepPickups, stepProjectiles, stepTowers, syncPicks, takeSite, toast, untitle, zone
   } = G;
 
   // ---------- start of the run (order matters: it draws from the seeded streams) ----------
@@ -129,7 +128,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     hurtHero: n => hurtHero(n), gainXp: n => gainXp(n),
     findSpot: () => G.findSpot(),   // beacons, trials and story places (sim/spots.js)
     guard: (x, y, n) => { for (let k = 0, tries = 0; k < n && tries < 40; tries++) { const a = rng.range(0, Math.PI * 2), gx = x + Math.cos(a) * rng.range(1, 2.8), gy = y + Math.sin(a) * rng.range(1, 2.8), cx = Math.floor(gx), cy = Math.floor(gy); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue; k++; const m = spawnMob(rng.pick(S.night >= 4 ? ['walker', 'runner'] : ['walker']), gx, gy, { instant: true }); m.roam = { x, y, region: -1 }; } },
-    landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) { if (G.siteLocked(l)) G.promiseSite(l); else takeSite(l); } }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
+    landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) takeSite(l); }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
     risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the Ash-Born.', 'bad'); } });
   G.story.start();
   // legacy edges from earlier runs
@@ -170,13 +169,10 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       if (S.P.sanctuary && !keep.ruined) keep.hp = Math.min(keep.maxHp, keep.hp + 2 * dt);
     }
     stepMobs(dt); stepAllies(dt); stepTowers(dt);
-    for (const k in S.tools) if (S.tools[k] > 0) S.tools[k] = Math.max(0, S.tools[k] - dt);
     for (const p of [...S.purses]) { p.life -= dt; if (p.life <= 0) { S.purses.splice(S.purses.indexOf(p), 1); ev('purseGone', { id: p.id }); } }
     stepProjectiles(dt);
     if (S.drops.length) stepDrops(dt);
     if (S.pickups.length || S.hero.carry.scrap || S.hero.carry.food) stepPickups();
-    stepStream(dt);
-    G.stepNests(dt);   // [nests] the hives defend themselves
     G.stepPacify(dt);   // [pacify] pacified land, hives waking on the map, the way home, the dusk warning
     G.stepWoods();   // [woods] worn trails
     G.stepLogging(dt);   // [gemini3] felling trees, the Logger's Hut

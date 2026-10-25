@@ -77,7 +77,6 @@ export function createEconomy(G) {
     S.gold += salv; S.stats.goldEarned += salv;
     const goldIn = inc.gold + salv;
     let claimedNow = null, nestPick = false;
-    if (S.purge !== null) { claimedNow = S.purge; G.burnHive(S.purge); nestPick = true; S.purge = null; }
     // Merchant Guild: free tower upgrades, by the same rules as any upgrade (hall level, Workshop, power)
     if (has('guild')) {
       let free = Math.floor(S.buildings.filter(b => b.type === 'house' && !b.ruined).length / 4), done = 0;

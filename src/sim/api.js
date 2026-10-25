@@ -1,7 +1,7 @@
 // The public game API: the one object the UI, bots and tests drive. Names and shapes are a contract
 // (see src/CONTRACT.md): add, never rename.
-import { CUT, HEAT, LEVEL, TOOLS } from './state.js';
-import { ESCAPE, TIDE } from '../content/mobs.js';
+import { CUT, HEAT, LEVEL } from './state.js';
+import { TIDE } from '../content/mobs.js';
 import { FOCI } from './planner.js';
 import { KEEP, START } from '../content/buildings.js';
 import { LANDMARKS, idx } from './mapgen.js';
@@ -10,14 +10,14 @@ export function createApi(G) {
   const {
     S, W8, activeNests, addHeat, baseDist, build, buildLine, buildingAt, buyCost, canPlace, canPurge,
     choosePack, claimLandmark, clearRubble, companionFollow, costOf, crewing, damageBuilding,
-    defenceDps, demolish, districtOffer, dropSupply, effN, endRun, escape, foodNeed, foodPerDawn, forecast, forecastStrip,
-    frontier, gainXp, handsFree, handsMax, has, hasTech, hearR, heatFloor, heroDps, heroPath, hitHive, hiveHealth, houseGold, hurtHero,
+    defenceDps, demolish, districtOffer, dropSupply, effN, endRun, foodNeed, foodPerDawn, forecast, forecastStrip,
+    frontier, gainXp, handsFree, handsMax, has, hasTech, hearR, heatFloor, heroDps, heroPath, houseGold, hurtHero,
     inZone, isBloodMoon, keep, keepForRing, keepMaxHp, keepNeeds, killMob, kitFor, landmarkReach, lineCells, manned, map, mastered,
     mastery, maxHpOf, newCost, nightLen, noise, noiseCalm, noiseFloor, openDistrict, owns, partySize, planPurge, pop, powerIn,
     powerOut, powered, prosper, raiseBlock, ratingOf, rebuild, rebuildAll, rebuildCost, regionInfo, rerollPacks, reveal,
     rubbleAt, ruins, rule, setDifficulty, setHeroInput, siteOf, snapshot, spawnMob, startNight, step,
-    threatRatio, timeOfDay, toolsInfo, towerStats, townDraw, trade, upCostOf, upgrade, upgradeKeep, upgradeWall, upkeep,
-    useFlare, useSmoke, wallBudget, wallRun, zone
+    threatRatio, timeOfDay, towerStats, townDraw, trade, upCostOf, upgrade, upgradeKeep, upgradeWall, upkeep,
+    wallBudget, wallRun, zone
   } = G;
   const api = {
     setBuilders: f => { if ((S.foreman || S.autopilot) && FOCI.includes(f)) S.builders = f; },
@@ -32,8 +32,6 @@ export function createApi(G) {
     },
     buildLine, upgradeWall, wallRun, wallBudget, lineCells,
     weather: () => ({ id: S.weather, ...W8() }),
-    hiveHealth, hitHive, escape, escapeCost: k => (TOOLS[k] || ESCAPE[k] || {}).cost || 0,
-    useFlare, useSmoke, tools: toolsInfo,
     nightFrac: () => (S.phase === 'night' ? Math.min(1, S.qT / nightLen()) : 0), nightLen,
     timeOfDay,
     dayShare: () => TIDE.dayLen / (TIDE.dayLen + nightLen()),
@@ -64,16 +62,13 @@ export function createApi(G) {
     forecast, mastered, mastery, isBloodMoon, drainEvents: () => S.events.splice(0),
     findSpot: () => G.findSpot(), spotOk: (x, y) => G.spotOk(x, y),   // where an objective may stand (sim/spots.js)
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
-    // [nests] the hive that keeps a site locked (-1: free), a hive's rage ({ rage, lv, hot, near } or null), its guards
     // [folk] the folk's own projects: info (fund, project, beauty, props), the build-menu toggle, the veto (refund)
     folk: () => G.folkInfo(), setFolkBuild: on => G.setFolkBuild(on), folkVeto: () => G.folkVeto(),
     // [towers] a level 3 tower takes a role for good (content/towers.js): '' when it can, else why not
     specialise: (id, role) => G.specialise(id, role), specBlock: (id, role) => G.specBlock(S.byId.get(id), role), specCost: () => G.SPEC_COST, specRange: b => G.specRange(b),
-    siteLock: id => G.lockedBy(S.landmarks[id]), nestRage: r => S.nestRage[r] || null, nestGuards: r => G.nestGuards(r),
     // [pacify] pacified ground (a byte a cell), the home threat, the way home (Return to Camp)
     pacifyMap: () => G.pacifyMap(), pacifiedAt: (x, y) => G.pacifiedAt(x, y), smothered: r => G.smothered(r), homeThreat: n => G.threatInfo(n), homeK: n => G.homeK(n),
     homeInfo: () => G.homeInfo(), returnHome: () => G.returnHome(), cancelReturn: () => G.cancelReturn(),
-    hiveEdge: (r, x, y) => G.nestEdge(map.regions[r], x, y), hiveInReach: (x, y, reach) => { const r = G.hiveInReach(x, y, reach); return r ? r.id : -1; },   // [nests] reach is measured to the edge; a strike needs clear sight
     spawnAnimals: () => G.spawnAnimals(),   // [woods] the dawn top-up of the woods' game (tests, tools)
     // [econ3] the construction queue (reorder: dir -1 / +1 / 'top'; cancel refunds), harvester carts and nodes, relics
     queue: () => G.queueInfo(), queueMove: (id, dir) => G.queueMove(id, dir), queueCancel: id => G.queueCancel(id), crews: () => G.crews(),

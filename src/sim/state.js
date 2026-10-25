@@ -24,11 +24,9 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 // across the routes soaked 50 damage in all; the dead walk round a line. They come back with a ring-building tool.
 // missions: the dusk choice (Hold / The Hunt / The Pied Piper) is gone; every night is a plain hold. The code in
 // (sim/missions.js was deleted with the road, Oct 25.)
-// tools: the Flare and Smoke buttons are gone (Oct 20: "no idea what they do"); useFlare/useSmoke fail quietly,
-// the code, the fx and the tuning stay in sim/hives.js and TOOLS below.
 // the save format: v4 (Oct 20) carries ruins, Noise, tools, contracts and the road; older saves are ignored at the start screen
 export const SAVE_V = 4;
-export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true, missions: true, tools: true };
+export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true, missions: true };
 // Heat (old name, same meter): see NOISE below. `stir`, `erupt`, `warn`, `cool`, `burst` still apply.
 export const HEAT = { floorPer: 1.4, floorMax: 70, combatMax: 77, decay: 0.1, rise: 2.5, shot: 0.03, kill: 0.15, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
 // Noise: ONE meter (0–100). It rests on a floor set by loud CHOICES (level 3 towers, the market and workshop,
@@ -50,8 +48,6 @@ export const PRESENCE = { r: 6, rate: 1.3, range: 2, markT: 4, mark: 1.3 };
 // the awake hives lie on one side, a pack walks out of the deep woods ≥`far` round (weight `pack` of a hive), and each
 // source gets at least `min` of the night's dead. Same budget: only where it comes from.
 export const FRONTS = { want: n => (n >= 5 ? 3 : 2), side: 1.4, far: 1.75, pack: 0.5, min: 3 };
-// Field tools (any time, no pause): a flare lures the dead near you to a point; smoke makes them lose your scent.
-export const TOOLS = { flare: { cost: 4, t: 20, cd: 20, r: 14, throw: 9 }, smoke: { cost: 3, t: 25, cd: 20, r: 10 } };
 // Season rules that used to be weather (rolled at dawn, now a contract's rule): what they do to a night
 export const RULE_FX = {
   storm: { name: RULES.storm.name, desc: RULES.storm.desc, weather: 'storm' },
@@ -93,7 +89,7 @@ export function createState({ seed, biome, map, hero, mode, clock, difficulty, l
   const c = map.town.x;
   const S = {
     seed, biome, map, heroClass: hero, mode, lvl: 1, xp: 0, night: 1, phase: 'day', time: 0,
-    stock: { ...PACK_RULES.start }, packs: [], difficulty: DIFFICULTY[difficulty] ? difficulty : 'survivor', handsUsed: 0, handsExtra: 0, heat: 0, noise: 0, noiseChoice: 0, noiseSpike: 0, mourned: 0, diffNight: 0, tools: { flare: 0, smoke: 0 }, eruption: null, heatCool: 0, blackout: false, foreman: false, feat: {}, season: { n: 1, id: SEASONS[0].id, rule: SEASONS[0].rule || null, rules: SEASONS[0].rule ? [SEASONS[0].rule] : [], name: SEASONS[0].name, finale: SEASONS[0].finale, end: seasonEnd(1), start: 1, won: false },
+    stock: { ...PACK_RULES.start }, packs: [], difficulty: DIFFICULTY[difficulty] ? difficulty : 'survivor', handsUsed: 0, handsExtra: 0, heat: 0, noise: 0, noiseChoice: 0, noiseSpike: 0, mourned: 0, diffNight: 0, eruption: null, heatCool: 0, blackout: false, foreman: false, feat: {}, season: { n: 1, id: SEASONS[0].id, rule: SEASONS[0].rule || null, rules: SEASONS[0].rule ? [SEASONS[0].rule] : [], name: SEASONS[0].name, finale: SEASONS[0].finale, end: seasonEnd(1), start: 1, won: false },
     gold: START.gold, food: START.food, kills: 0, events: [],
     buildings: [], occ: new Int32Array(N * N).fill(-1), res: new Int32Array(N * N).fill(-1),
     claimed: new Set([0]), nestAlive: map.regions.map(r => !!r.nest), wake: map.regions.map(() => Infinity),
@@ -118,20 +114,7 @@ export function createState({ seed, biome, map, hero, mode, clock, difficulty, l
   cityNests.forEach((id, k) => { S.wake[id] = 6 + 2 * k; });
   return S;
 }
-// Nests defend themselves (sim/nests.js): a guard pack rises when you come within `wake` of a living hive (once a
-// day), and while you stay within `near` its rage climbs one level every `step` seconds (a strike adds `hit`), each
-// level a wave of (wave + waveLv × lv) × night × tier dead, tougher by hpLv a level. Away from it the rage cools at `decay`.
-// Re-measured with no healing by a hive (Oct 20 pm, tools: day-1 warrior striking a hollow from its edge, War Cry when
-// 3+ dead are on him): it burns in ~45 s and he ends at 59–80% (lowest 18–48% mid-fight); without War Cry 41–62%.
-// Standing beside it without striking, he dies in 90–260 s: a frenzied hive (rage at max) keeps sending a wave every
-// `step`. Brutes: city hives' frenzy only. `hit` 0.2 → 0.1: with no regen, every strike also stoking the rage was too much.
 // The hero's own healing (sim/hero.js): none while fighting (hit or hitting in the last `combat` s) or within `hive`
 // cells of a living hive; slow out in the field by day, quick at the Camp (within `campR` of the fire, or on your land).
 // Perks, the Clinic and companions add their regen on top, except next to a hive.
 export const REGEN = { combat: 5, hive: 11, field: 0.5, camp: 4, campNight: 2, campR: 7 };
-export const NEST = {
-  wake: 11, near: 8, step: 9, hit: 0.1, decay: 1.2, max: 12, cap: 5, bruteLv: 5, bruteNight: 11, hpLv: 0.05,
-  body: { hollow: 3, city: 2.2 }, struck: 2.5,   // a mound hive's body radius (the model's footprint, cells); striking it counts as standing near it this long
-  pack: [0, 3, 5, 7], packPer: 0.25, wave: 1, waveLv: 0.45, nightBase: 0.85, nightPer: 0.02, nightMax: 1.15, tier: [1, 1, 1.6, 2.2],
-  lines: { 1: '[Inferno Nest stirs] It knows you are here: **{n} more** crawl out. The longer you stay, the more it sends.', 3: '[Inferno Nest enraged] **{n} more**, faster and tougher. Burn it now or back off.', 5: '[Inferno Nest frenzied] It pours out everything it has.' },
-};

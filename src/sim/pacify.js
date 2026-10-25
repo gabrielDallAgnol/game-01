@@ -1,7 +1,6 @@
 // Pacified land, the home threat and the way home.
 // 1. Pacified land: the Camp, every claimed region and the ground within PACIFY.r of what you built or hold. A hive
 //    sleeping there never wakes (smothered): it shows on the map and can still be burned, but it sends no dead.
-//    Every hive that wakes anywhere is put on the map with a System line, so no hive is ever hidden.
 // 2. The home threat: after PACIFY.from nights the night's budget reads the wave curve (WAVES.budget, content/mobs.js)
 //    at a "home night" instead of the calendar night: a slow plateau plus a load for each awake, unpacified hive
 //    (more when it hears the Camp or sits at your door). Woods pacified: nights at home climb slowly and stay holdable.
@@ -27,7 +26,7 @@ export const PACIFY = {
 };
 
 export function createPacify(G) {
-  const { S, map, c, ev, toast, reveal, compass } = G;
+  const { S, map, c, ev, toast } = G;
   const live = r => map.regions[r].nest && S.nestAlive[r] && !S.claimed.has(r) && !S.sealed[r];
 
   // ---------- pacified ground ----------
@@ -88,36 +87,7 @@ export function createPacify(G) {
       smothered: map.regions.filter(r => r.nest && smothered(r.id)).map(r => r.id), pacified: map.regions.filter(r => regionPacified(r.id)).map(r => r.id) };
   }
 
-  // ---------- watching the land: wakes, smothered hives, newly pacified regions ----------
-  const told = { awake: new Set(), smother: new Set(), land: new Set() };
-  let first = true, watchT = 0, warnDay = -1;
-  function watch() {
-    const quiet = first; first = false;
-    const newLand = [];
-    for (const reg of map.regions) {
-      const r = reg.id;
-      if (regionPacified(r) && !told.land.has(r)) { told.land.add(r); if (!S.claimed.has(r) && r !== 0) newLand.push(reg); }
-      if (!reg.nest) continue;
-      // a hive awake anywhere is on your map: never a hidden one
-      if (S.smother[r] && !smothered(r)) delete S.smother[r];   // the ground was lost: it wakes on its own night
-      if (!S.smother[r] && canSmother(r)) S.smother[r] = 1;
-      if (smothered(r)) S.wake[r] = Math.max(S.wake[r], S.night + 1);
-      if (live(r) && S.wake[r] <= S.night && !smothered(r) && !told.awake.has(r)) {
-        told.awake.add(r); reveal(reg.nest.x, reg.nest.y, 5);
-        ev('hiveAwake', { region: r, x: reg.nest.x, y: reg.nest.y });
-        if (!quiet && S.night > 1) toast(`[Inferno Nest awake] A ${reg.ring <= 1 ? 'forest hollow' : 'city hive'} to the **${compass(reg.nest.x, reg.nest.y)}** wakes. It is on your map.`, 'bad');
-      }
-      if (smothered(r) && !told.smother.has(r)) {
-        told.smother.add(r); reveal(reg.nest.x, reg.nest.y, 5);
-        ev('hiveSmothered', { region: r, x: reg.nest.x, y: reg.nest.y });
-        if (!quiet) toast(`[Pacified] A sleeping Inferno Nest to the **${compass(reg.nest.x, reg.nest.y)}** lies on your ground. It will not wake while you hold it.`, 'good');
-      }
-    }
-    if (newLand.length && !quiet) {
-      ev('pacified', { regions: newLand.map(r => r.id) });
-      toast(`[Land pacified] The ground to the **${compass(newLand[0].x, newLand[0].y)}** is quiet now. No Inferno Nest wakes on your land.`, 'sys');
-    }
-  }
+  let watchT = 0, warnDay = -1;
 
   // ---------- the way home ----------
   const H = S.homeward = { cd: 0, ch: 0, hp: 0 };
@@ -188,7 +158,7 @@ export function createPacify(G) {
   function stepPacify(dt) {
     if (S.over) return;
     stepHome(dt);
-    if ((watchT -= dt) <= 0) { watchT = 0.25; if (!G.v2) watch(); duskWarn(); }   // [v2] no hive wakes on the map, no pacified-land lines
+    if ((watchT -= dt) <= 0) { watchT = 0.25; duskWarn(); }
   }
   return { pacifyMap, pacifiedAt, smothered, regionPacified, homeNight, homeK, threatInfo, homeInfo, returnHome, cancelReturn, stepPacify };
 }

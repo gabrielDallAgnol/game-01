@@ -16,60 +16,6 @@ function burnHollows(g) {
   S.mobs.length = 0; clearStory(g);
 }
 
-test('a sleeping hive on pacified ground never wakes, is on the map and stays burnable', () => {
-  let tried = 0;
-  for (let seed = 1; seed <= 6; seed++) {
-    const g = createGame({ seed }), S = g.state; burnHollows(g);
-    assert.equal(g.act(), 2, `seed ${seed}: act 2 after the hollows`);
-    // a city hive still asleep, and a site you hold right beside it
-    const reg = g.map.regions.find(r => r.ring === 2 && r.nest && S.nestAlive[r.id] && !S.sealed[r.id] && S.landmarks.some(l => l.region === r.id));
-    if (!reg) continue; tried++;
-    S.wake[reg.id] = S.night + 2;
-    const l = S.landmarks.filter(q => q.region === reg.id).sort((a, b) => Math.hypot(a.x - reg.nest.x, a.y - reg.nest.y) - Math.hypot(b.x - reg.nest.x, b.y - reg.nest.y))[0];
-    if (Math.hypot(l.x - reg.nest.x, l.y - reg.nest.y) > PACIFY.r) { l.x = reg.nest.x + 8; l.y = reg.nest.y; }
-    l.owned = true; S.occVersion = (S.occVersion || 0) + 1;
-    S.events.length = 0; run(g, 0.5);
-    assert.ok(g.pacifiedAt(reg.nest.x, reg.nest.y), `seed ${seed}: the hive's ground is pacified`);
-    assert.ok(g.smothered(reg.id), `seed ${seed}: the hive is smothered`);
-    assert.equal(S.seen[idx(Math.floor(reg.nest.x), Math.floor(reg.nest.y))], 1, `seed ${seed}: a smothered hive is on the map`);
-    assert.ok(S.events.some(e => e.t === 'hiveSmothered' && e.region === reg.id));
-    // its night comes and goes: it stays asleep and sends nothing
-    S.night += 4; run(g, 0.5);
-    assert.ok(!g.activeNests().includes(reg.id), `seed ${seed}: a smothered hive woke`);
-    assert.ok(S.wake[reg.id] > S.night, 'its wake is pushed (a save keeps it asleep)');
-    // the land is lost: it wakes on its own
-    l.owned = false; S.occVersion++; run(g, 0.5);
-    assert.ok(!g.smothered(reg.id));
-  }
-  assert.ok(tried >= 2, 'too few maps had a city hive with a site');
-});
-
-test('never an un-killable hive: every hive that wakes is on the map, unsealed, on reachable ground, with a keep that can be raised', () => {
-  for (let seed = 1; seed <= 8; seed++) {
-    for (const rule of [null, 'fog']) {
-      const g = createGame({ seed }), S = g.state, m = g.map;
-      if (rule) g.setSeasonRules([rule]);
-      burnHollows(g);
-      // every city hive wakes now (the city's schedule, compressed); the old core opens like a district would
-      for (const r of m.regions) if (r.nest && S.nestAlive[r.id]) { S.wake[r.id] = S.night; if (S.sealed[r.id]) g.openDistrict(r.id); }
-      S.events.length = 0; run(g, 0.5);
-      const awake = g.activeNests();
-      assert.ok(awake.length, `seed ${seed}: no hive woke`);
-      for (const r of awake) {
-        const reg = m.regions[r], n = reg.nest, i = idx(Math.floor(n.x), Math.floor(n.y));
-        assert.equal(S.seen[i], 1, `seed ${seed} ${rule}: awake hive ${r} is hidden`);
-        assert.ok(!S.sealed[r] && !g.actGated(r), `seed ${seed}: awake hive ${r} is behind a fence`);
-        assert.ok(m.reach[i] && PASSABLE[m.terrain[i]], `seed ${seed}: awake hive ${r} stands off the reachable ground`);
-        assert.ok(g.keepForRing(reg.ring) <= MAX_LEVEL, `seed ${seed}: hive ${r} needs a keep that cannot be built`);
-        assert.ok(S.events.some(e => e.t === 'hiveAwake' && e.region === r), `seed ${seed}: hive ${r} woke without a word`);
-      }
-      // and one can be burned once the keep is high enough
-      S.keep.level = MAX_LEVEL; const r0 = awake[0];
-      assert.ok(g.hitHive(r0, 1e9) && !S.nestAlive[r0], `seed ${seed}: hive ${r0} could not be burned`);
-    }
-  }
-});
-
 test('the home threat: the calendar until night 10, then a plateau when the woods are quiet, the old curve when hives hear the Camp', () => {
   const g = createGame({ seed: 3 }), S = g.state;
   for (let n = 1; n <= PACIFY.from; n++) assert.equal(g.homeK(n), 1);
