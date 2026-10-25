@@ -29,7 +29,7 @@
  "C dawn night=9 phase=day over=false gold=58 food=3 kills=12 mobs=150 bld=1 ev=1249:e4d5d8c34eaab4be state=f93cab6d4a4cb8b6 probe=e5f77c11072b4a71",
  "C dawn night=10 phase=day over=false gold=53 food=4 kills=16 mobs=150 bld=1 ev=1445:b6f51c677da07c70 state=ee6ec6244f3eb037 probe=825238fb304cec68",
  "C end night=10 phase=day over=false gold=53 food=4 kills=16 mobs=150 bld=1 ev=1445:b6f51c677da07c70 state=ee6ec6244f3eb037 probe=825238fb304cec68",
- "C log 056c93706e4d345b stats 0267c379a9a23296",
+ "C log 9d1a12b748b26cab stats 0267c379a9a23296",
  "D map a27ee5050aa87205 area=suburb homes=60 sites=14",
  "D built night=1 phase=day over=false gold=18 food=9 kills=0 mobs=80 bld=8 ev=0:e3b0c44298fc1c14 state=56ac811a95976e66 probe=4da75c14d7750301",
  "D dawn night=2 phase=day over=false gold=41 food=18 kills=3 mobs=91 bld=8 ev=310:aa53c41114eb9528 state=3c209e64c558470a probe=9942d5b282446136",
