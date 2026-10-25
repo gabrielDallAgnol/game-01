@@ -18,7 +18,7 @@ export function createHives(G) {
   // ---------- the stream: the dead never stop coming from awake hives, day and night ----------
   const streamAcc = {}, rage = {}, hiveDmg = S.hiveDmg || (S.hiveDmg = {});   // [nest3] hiveDmg lives in S and is saved: a broken segment never heals
   const hiveBase = r => Math.round(STREAM.hiveHp * (map.regions[r].ring <= 1 ? 1.8 : 1 + 0.6 * (map.regions[r].ring - 1)) * G.hpS(S.night));
-  const hiveMax = r => (G.inferno ? G.inferno.maxOf(r, hiveBase(r)) : hiveBase(r));   // [nest3] a struck nest keeps the hp it was struck at
+  const hiveMax = r => hiveBase(r);
   function stepStream(dt) {
     if (G.v2) return;   // [v2] the hives send no stream of dead (the hordes come next)
     if (!S.clock || S.night < 2 && !(S.phase === 'night' && S.qT > 15) && !(G.dayDeadOk && G.dayDeadOk())) return;   // [gemini3] the dead by day from day 1
@@ -44,14 +44,10 @@ export function createHives(G) {
     const reg = map.regions[r];
     if (keep.level < G.keepForRing(reg.ring)) { if (!S.nightFlags.keepWarn) { S.nightFlags.keepWarn = true; fail(`This Inferno Nest is too strong: raise the Haven Rig to level ${G.keepForRing(reg.ring)} first.`); } return false; }
     if (!hiveDmg[r]) { toast('You strike the Inferno Nest. It wakes and pours out its Ash-Born!', 'bad'); if (S.wake[r] > S.night) S.wake[r] = S.night; }
-    // [nest3] begin
-    if (G.inferno && G.inferno.on()) { G.inferno.arm(r, hiveBase(r)); d = G.inferno.clamp(r, hiveDmg[r] || 0, d * (S.story && S.story.flags.hiveTip ? 1.15 : 1)) / (S.story && S.story.flags.hiveTip ? 1.15 : 1); }
-    // [nest3] end
     hiveDmg[r] = (hiveDmg[r] || 0) + d * (S.story && S.story.flags.hiveTip ? 1.15 : 1); rage[r] = STREAM.rageTime;
     if (G.angerNest) G.angerNest(r);   // [nests] a strike angers it faster
     ev('hitHive', { region: r, hp: Math.max(0, 1 - hiveDmg[r] / hiveMax(r)) });
-    if (G.inferno && G.inferno.on() && hiveDmg[r] < hiveMax(r)) G.inferno.after(r);   // [nest3] a segment broke: the counter-surge
-    if (hiveDmg[r] >= hiveMax(r)) { if (G.inferno && G.inferno.on()) G.inferno.cleansed(r); G.gainXp(40); burnHive(r); hiveFall(r); S.picks.push('nest'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); G.dropSupply('The Inferno Nest is ash.'); delete hiveDmg[r]; delete rage[r]; }
+    if (hiveDmg[r] >= hiveMax(r)) { G.gainXp(40); burnHive(r); hiveFall(r); S.picks.push('nest'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); G.dropSupply('The Inferno Nest is ash.'); delete hiveDmg[r]; delete rage[r]; }
     return true;
   }
   const hiveHealth = r => (S.nestAlive[r] ? Math.max(0, 1 - (hiveDmg[r] || 0) / hiveMax(r)) : 0);

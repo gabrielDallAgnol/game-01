@@ -119,7 +119,6 @@ export function createEconomy(G) {
     if (S.sawBlackout && !S.blackout) G.story.grant('ironGrid');
     G.checkFeatures();
     G.story.dawn();
-    if (G.inferno) G.inferno.dawn();   // [nest3] hotter nests, embers before a nest wakes
     if (G.HC.trader && !CUT.trader) S.trade = { deals: rng.shuffle([...TRADES]).slice(0, 3).map(t => t.id), done: false };
     S.stats.peakPop = Math.max(S.stats.peakPop, pop());
     ev('dawn', { goldIn, foodIn, need, fed });

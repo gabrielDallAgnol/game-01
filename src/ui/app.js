@@ -30,11 +30,10 @@ import { createHomeward } from './homeward.js';
 // [folk] the folk's own projects: the chip, the build-menu row, the dawn line
 import { createFolkUi } from './folk-ui.js';
 // [nest3] the siege bar of an Inferno Nest
-import { createInfernoUi } from './inferno-ui.js';
 
 export { FLAGS };
 // the UI modules, in creation order (each registers its own DOM handlers when created)
-const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createHomeward, createFolkUi, createInfernoUi];   // [nest3] [rig3] appended   // [pacify] [folk] appended
+const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createHomeward, createFolkUi];   // [nest3] [rig3] appended   // [pacify] [folk] appended
 // [gemini3] the build tag on the start screen
 import { createVersion } from './version.js';
 import { createLoggingUi } from './logging-ui.js';
@@ -128,7 +127,6 @@ export function startApp() {
     edgeMarks(); watchFrames(raw);
     tickMini(dt);
     ui.folkTick(dt, events);   // [folk]
-    ui.infernoTick(dt);   // [nest3]
     ui.econTick(dt, events);   // [econ3]
     ui.dodgeTick(dt);   // [combat2]
     ui.v2coreTick(dt);   // [v2]
