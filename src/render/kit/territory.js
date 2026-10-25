@@ -1,6 +1,8 @@
 // Hollowmere city kit · The world-space hook every lit material shares: the territory / fog-of-war mask and the territory() shader patch.
 /* global THREE */
 import { lin } from './palette.js';
+// [top]
+import { TOP } from '../top.js';
 
 // ---------- the world-space hook every lit material shares ----------
 // A 512×512 mask (one texel per cell, sampled in world space): r = your land, g = explored (blurred),
@@ -19,6 +21,7 @@ const T = {
   mist: { value: new THREE.Vector4(0.8, 0.8, 0.85, 0) }, time: { value: 0 }, ao: { value: 0.72 },
   fogCol: { value: lin('#16223a') }, cyan: { value: lin('#5fd3ff') }, front: { value: 1 }, scan: { value: new THREE.Vector4(0, 0, 0, 0) },
   sway: { value: 1 }, night: { value: 0 },
+  flat: { value: new THREE.Color(1, 1, 1) },   // [top] the flat path's light: day white, night navy (view/topflat.js)
 };
 // the explored channel is blurred so the frontier is soft; the contact-shadow channel is a blurred footprint
 const blurA = new Float32Array(MS * MS), blurB = new Float32Array(MS * MS);
@@ -60,10 +63,10 @@ const NOISE = `
  *   fog: false to skip the fog of war (things drawn above it)
  */
 function territory(m, o = {}) {
-  const defs = [o.emit && 'T_EMIT', o.rim && 'T_RIM', o.flash && 'T_FLASH', o.ground && 'T_GROUND', o.sway && 'T_SWAY', o.fog === false && 'T_NOFOG'].filter(Boolean);
+  const defs = [o.emit && 'T_EMIT', o.rim && 'T_RIM', o.flash && 'T_FLASH', o.ground && 'T_GROUND', o.sway && 'T_SWAY', o.fog === false && 'T_NOFOG', TOP.on && 'T_FLAT'].filter(Boolean);   // [top] T_FLAT
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, { tMask: T.mask, tOff: T.off, tAmount: T.amount, tDark: T.dark, tLight: T.light, tLightO: T.lightO, tLightS: T.lightS, tLightK: T.lightK,
-      tEmitK: T.emitK, tEmitCol: T.emitCol, tRim: T.rim, tMist: T.mist, tTime: T.time, tAO: T.ao, tFogCol: T.fogCol, tCyan: T.cyan, tFront: T.front, tScan: T.scan, tSway: T.sway, tNight: T.night }, o.uniforms || {});
+      tEmitK: T.emitK, tEmitCol: T.emitCol, tRim: T.rim, tMist: T.mist, tTime: T.time, tAO: T.ao, tFogCol: T.fogCol, tCyan: T.cyan, tFront: T.front, tScan: T.scan, tSway: T.sway, tNight: T.night, tFlat: T.flat }, o.uniforms || {});
     const head = defs.map(d => `#define ${d}`).join('\n');
     sh.vertexShader = head + '\n' + sh.vertexShader.replace('#include <common>', `#include <common>
 varying vec3 vTWorld;
@@ -90,6 +93,9 @@ vEmit = aEmit;
     sh.fragmentShader = head + '\n' + sh.fragmentShader.replace('#include <common>', `#include <common>
 varying vec3 vTWorld; uniform sampler2D tMask, tLight; uniform float tOff, tAmount, tDark, tLightS, tLightK, tEmitK, tTime, tAO, tFront, tNight;
 uniform vec2 tLightO; uniform vec3 tEmitCol, tFogCol, tCyan; uniform vec4 tRim, tMist, tScan;
+#ifdef T_FLAT
+uniform vec3 tFlat;
+#endif
 #ifdef T_EMIT
 varying float vEmit;
 #endif
@@ -101,6 +107,10 @@ ${o.fragHead || ''}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
 ${o.fragColor || ''}`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+#if defined(T_FLAT) && defined(STANDARD)
+// [top] flat colour: the material's own colour under one light (no sun, no shading), a hint of slope so cones read
+gl_FragColor.rgb = diffuseColor.rgb * tFlat * (0.8 + 0.2 * clamp(dot(normal, (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz), 0.0, 1.0)) + totalEmissiveRadiance;
+#endif
 vec4 tM = texture2D(tMask, (vTWorld.xz + tOff) / 512.0);
 float tLow = 1.0 - smoothstep(0.02, 0.7, vTWorld.y);
 gl_FragColor.rgb *= mix(1.0, 0.25 + 0.75 * tM.a, tLow * tAO);

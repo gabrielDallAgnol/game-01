@@ -52,6 +52,7 @@ import { createHaul } from './view/haul.js';
 // [top] begin
 import { TOP } from './top.js';
 import { createTopCamera } from './view/topdown.js';
+import { createTopFlat } from './view/topflat.js';
 // [top] end
 // [road] begin
 import { createRoadView } from './road-view.js';
@@ -114,6 +115,7 @@ export function createView(canvas, game, opts = {}) {
   const legs = V.legs = createLegs(V);   // [rig3] the act's ground colours and props
   const haul = V.haul = createHaul(V);   // [econ3] nodes, carts, scaffolds on the queue
   const hero3fx = createHero3Fx(V);   // [hero3] the stat abilities' feedback
+  const topFlat = createTopFlat(V);   // [top] the flat look's light (null without ?top=1)
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -164,6 +166,7 @@ export function createView(canvas, game, opts = {}) {
     // [road] begin
     if (roadView) roadView.frame(dt, V.time, V.dark, ui.events);
     // [road] end
+    if (topFlat) topFlat.update();   // [top]
     look.render(V.time);
   }
 
