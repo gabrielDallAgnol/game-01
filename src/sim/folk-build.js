@@ -148,7 +148,7 @@ export function createFolkBuild(G) {
     if (homeless > 0) out.push({ need: 'housing', s: 70 + 3 * homeless, job: () => newBuilding('house') });
     if (deficit > 0) out.push({ need: 'food', s: 60 + 6 * deficit, job: () => newBuilding('farm') });
     if (silent > 0 && cr.need > cr.people) out.push({ need: 'crew', s: 50 + 8 * silent, job: () => newBuilding('house') });
-    const side = S.night >= 3 ? hitSide() : null, risky = side && (side.lost > 0 || (G.forecastStrip ? G.forecastStrip().hall !== 'safe' : false));
+    const side = S.night >= 3 ? hitSide() : null, risky = side && (side.lost > 0 || (G.hordeMarch ? G.hordeMarch(S.night).length > 0 : false));   // a horde marches tonight
     if (risky) for (const k of ['watch', 'sandbags']) if (ok(k)) out.push({ need: 'defence', s: 40 + 4 * side.lost + (k === 'sandbags' ? 1 : count('watch') ? 0 : 2), job: () => newProp(k) });
     out.push({ need: 'beauty', s: 10, job: () => beautyJob() });
     return out.sort((a, b) => b.s - a.s);
