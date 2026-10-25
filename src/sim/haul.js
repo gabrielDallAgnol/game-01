@@ -15,7 +15,7 @@ export function createHaul(G) {
   const { S, map, c, keep, ev, toast, fail, seed } = G;
   const E = () => S.econ || (S.econ = {});
   const mods = () => E().mods || (E().mods = {});
-  const on = () => ECON.carts;
+  const on = () => ECON.carts && !G.v2;   // [v2] no carts: the full trickle pays (income.js)
 
   // ---------- nodes ----------
   function genNodes() {

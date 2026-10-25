@@ -27,7 +27,7 @@ export function createCore(G) {
   const near = (b, type, r) => S.buildings.some(o => o !== b && o.type === type && !o.ruined && Math.hypot(o.x - b.x, o.y - b.y) <= r);
   const hasTech = t => !S.blackout && S.buildings.some(b => b.type === t && !b.ruined && b.built >= 1);
   const claimedCount = () => S.claimed.size;
-  const isBloodMoon = n => n % WAVES.bloodMoonEvery === 0;
+  const isBloodMoon = n => !G.v2 && n % WAVES.bloodMoonEvery === 0;   // [v2] no Flare Nights (their bosses ride the waves)
   let liveCache = null, liveTick = -1;
   const dropLive = () => { liveTick = -1; };   // buildings changed: live() re-reads them
   const live = () => { if (liveTick !== S.time) { liveCache = S.buildings.filter(b => !b.ruined); liveTick = S.time; } return liveCache; };

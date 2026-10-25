@@ -23,6 +23,7 @@ export function createSeasons(G) {
 
   // ---------- pacing: the systems arrive one at a time, each with its own System window ----------
   function checkFeatures() {
+    if (G.v2) return;   // [v2] no power, no noise meter, no expeditions
     for (const [k, F] of Object.entries(FEATURES)) if (!S.feat[k] && !(k === 'power' && CUT.power) && F.when(S, G.api)) { S.feat[k] = true; ev('window', { ...F.win, feat: k }); }
   }
   // CUT.titleStats: titles stay as flavour; their stat effects (applied by the story) are undone here

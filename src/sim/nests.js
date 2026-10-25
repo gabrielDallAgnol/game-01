@@ -51,6 +51,7 @@ export function createNests(G) {
   }
   /** the living hive whose edge is within reach of a point (the nearest edge) and in clear sight of it, or null */
   function hiveInReach(x, y, reach) {
+    if (G.v2) return null;   // [v2] no nest sieges: the hero never strikes a hive
     let best = null, bd = reach;
     for (const r of map.regions) { if (!r.nest || !S.nestAlive[r.id]) continue; const d = nestEdge(r, x, y); if (d < bd && hiveInSight(r, x, y)) { bd = d; best = r; } }
     return best;
@@ -58,7 +59,7 @@ export function createNests(G) {
   /** is a point within d of a living hive's body (centre to point)? (the hero rests nowhere near one) */
   const nearHive = (x, y, d) => map.regions.some(r => r.nest && S.nestAlive[r.id] && !S.sealed[r.id] && Math.hypot(x - nestBody(r).x, y - nestBody(r).y) < d);
   /** the living hive that keeps a site locked (-1 when the site is free to claim) */
-  const lockedBy = l => (l && !l.owned && !S.sealed[l.region] && map.regions[l.region] && map.regions[l.region].nest && S.nestAlive[l.region] ? l.region : -1);
+  const lockedBy = l => (!G.v2 /* [v2] no hive locks a site */ && l && !l.owned && !S.sealed[l.region] && map.regions[l.region] && map.regions[l.region].nest && S.nestAlive[l.region] ? l.region : -1);
   const siteLocked = l => lockedBy(l) >= 0;
 
   function raise(r, kind, hpK) {
@@ -92,7 +93,7 @@ export function createNests(G) {
   }
   /** once a step: the guard wakes, the rage climbs while you stay close and cools when you leave */
   function stepNests(dt) {
-    if (!S.clock || S.over) return;
+    if (!S.clock || S.over || G.v2) return;   // [v2] no guard packs, no rage
     const h = S.hero;
     for (const reg of map.regions) {
       const r = reg.id; if (!reg.nest || !S.nestAlive[r] || S.sealed[r]) { if (S.nestRage[r]) delete S.nestRage[r]; continue; }

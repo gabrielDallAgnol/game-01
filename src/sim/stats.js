@@ -31,7 +31,7 @@ export function titleOf(a) {
 
 export function createStats(G) {
   const { S, ev, toast } = G;
-  const on = () => STATS_FLAG.on;
+  const on = () => STATS_FLAG.on && !G.v2;   // [v2] the V2 core has no stat points
   const fresh = () => ({ str: 0, agi: 0, int: 0, gov: 0, pts: on() ? POINTS.start : 0, lvlSeen: S.lvl || 1, tomes: 0, dodge: 0, auto: false, told: [], title: TITLE_START, incAcc: 0, buildAcc: 0 });
   S.attr = fresh();
   const A = () => S.attr;
@@ -114,7 +114,7 @@ export function createStats(G) {
   const abilityPower = () => 1 + (on() ? per('int', 'power') : 0);
   const cdCut = () => 1 - (on() ? Math.min(STATS.int.cdMax, per('int', 'cd')) : 0);
   /** class picks are off while the stats are on (hero.js checkEvolution asks) */
-  const classPicksOff = () => on();
+  const classPicksOff = () => on() || !!G.v2;   // [v2] nor class picks
 
   /** what the Status window shows */
   function statsInfo() {

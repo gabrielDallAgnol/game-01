@@ -92,6 +92,7 @@ export function createWaves(G) {
   }
   const sourceDirs = srcs => srcs.map(r => { const p = srcPos(r); return G.compass(p.x, p.y); });
   function makeWave(n) {
+    if (G.v2) return G.v2Wave ? G.v2Wave(n) : [];   // [v2] no night waves from nests (the hordes hook in here: G.v2Wave)
     const first = n === 1 && S.purge === null ? marchNests(n) : null;
     if (first && !first.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id)).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) first.push(any[0].id); }
     if (first && first.length) { const N1 = TIDE.night1, b = n1Edge(first[0]);   // hand-authored: the first dead, its pack, then a pack from the far woods
@@ -156,16 +157,16 @@ export function createWaves(G) {
       ratio: +G.threatRatio(S.night, purgeReg).toFixed(2), forecast: G.forecastStrip(), noise: Math.round(S.noise || 0), standing: S.buildings.filter(b => !b.ruined).length, purge: purgeReg, nests: activeNests().length, claimed: claimedCount(), bloodMoon: isBloodMoon(S.night),
     });
     if (!CUT.crew) G.sc.nightfall(keep);
-    { const rt = G.ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight beats your towers. Stay near the homes.`, 'bad'); }
+    if (!G.v2) { const rt = G.ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight beats your towers. Stay near the homes.`, 'bad'); }
     ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
-    toast(isBloodMoon(S.night) ? `Flare Night. Night ${S.night} begins.` : `Dusk. Night ${S.night}: the Ash-Born come in force.`, isBloodMoon(S.night) ? 'bad' : undefined);
+    toast(G.v2 ? `Dusk. Night ${S.night}.` : isBloodMoon(S.night) ? `Flare Night. Night ${S.night} begins.` : `Dusk. Night ${S.night}: the Ash-Born come in force.`, isBloodMoon(S.night) ? 'bad' : undefined);   // [v2] no forecast in the dusk line
     return true;
   }
 
   // ---------- the low tide: stragglers by day, roaming dead in the wild ----------
   function planDay(n) {
     S.dayT = 0; S.dayQueue = [];
-    if (!S.clock) return;
+    if (!S.clock || G.v2) return;   // [v2] no day stragglers from nests
     const share = TIDE.dayShare(n), nests = activeNests(n); if (!share || !nests.length) return;
     const u = unlocked(Math.max(1, n - 2)); let budget = nightBudget(n) * share;
     while (budget > 0.5) {

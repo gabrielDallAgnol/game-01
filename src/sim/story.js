@@ -34,6 +34,7 @@ export function createStory(ctx) {
   const ST = S.story = { spots: [], day: 1, encounters: [], later: [], threads: {}, npcs: [], titles: [], chronicle: [], flags: {}, quests: [], power: 0, hands: 0, visited: {}, nextId: 1, lastOpen: 0, rules: [], n1: {} };
   const LM = ctx.LANDMARKS;
   const api = () => (ctx.api ? ctx.api() : null);
+  const v2 = () => { const a = api(); return !!(a && a.v2 && a.v2()); };   // [v2] the V2 core: no contracts, no difficulty card
   const noiseOn = () => S.noise !== undefined || !!S.feat.heat;
   // the daily quest: offered when calm, Accept / Not now, settled at dawn (sim/daily.js)
   const daily = createDaily({ S, map, rng, toast, ev, apply: (f, e) => apply(f, e), chron: (...a) => chron(...a), grant: id => grant(id), push: e => push(e), roomForQuest: () => roomForQuest() });
@@ -384,7 +385,7 @@ export function createStory(ctx) {
     offerContract(n);
   }
   function offerContract(n) {
-    if (queued(e => e.kind === 'contract')) return;
+    if (v2() || queued(e => e.kind === 'contract')) return;   // [v2] no contracts
     const k = contracts.encounter(n, hooks());
     offer(k, 10, 30);
   }
@@ -442,7 +443,8 @@ export function createStory(ctx) {
     // threads that waited too long close, with a card
     for (const [tid, th] of Object.entries(ST.threads)) if (th.status === 'waiting' && S.night >= th.failAt) endThread(tid, 'too late');
     // the System measures you after the first night, then offers season 1's contract
-    if (S.night === 2 && !ST.diffOffered) { ST.diffOffered = true; offer({ kind: 'difficulty', eyebrow: '[The System has measured you]', title: 'How hard should it be?', scene: 'One night survived. The System can **change how many Ash-Born** it sends. You can ask again later on the status window.', choices: DIFF_OFFER.map(d => ({ id: d.id, label: d.label, hint: d.hint, fx: [{ op: 'difficulty', key: d.id }] })) }, 9, 3); }
+    if (S.night === 2 && !ST.diffOffered && !v2()) {   // [v2] no waves to scale: no difficulty card
+      ST.diffOffered = true; offer({ kind: 'difficulty', eyebrow: '[The System has measured you]', title: 'How hard should it be?', scene: 'One night survived. The System can **change how many Ash-Born** it sends. You can ask again later on the status window.', choices: DIFF_OFFER.map(d => ({ id: d.id, label: d.label, hint: d.hint, fx: [{ op: 'difficulty', key: d.id }] })) }, 9, 3); }
     if (S.night >= contracts.firstSeasonDay && !ST.contract && !ST.contractOffered && (!S.season || S.season.n === 1)) { ST.contractOffered = true; offerContract(1); }
     { const k = contracts.current(); if (k && k.won && !k.told) { k.told = true; victoryCard(k); } }
     contracts.armFinale();

@@ -14,14 +14,15 @@ export function createHero(G) {
     if (S.lvl >= LEVEL.max) return; S.xp += n;
     while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] +${Math.round(LEVEL.dmg * 100)}% damage, +${Math.round(LEVEL.hp)} health.`, 'good'); }
     checkEvolution();
-    if (S.lvl % LEVEL.blessEvery === 0 && S.lvl > (S.blessLvl || 0)) { S.blessLvl = S.lvl; S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); toast(`[Level ${S.lvl}] The System grants a blessing.`, 'good'); }
+    if (S.lvl % LEVEL.blessEvery === 0 && S.lvl > (S.blessLvl || 0) && !G.v2) {   // [v2] level-ups give XP, no blessings
+      S.blessLvl = S.lvl; S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); toast(`[Level ${S.lvl}] The System grants a blessing.`, 'good'); }
   }
 
   // ---------- abilities ----------
   function abilityCost() { const A = G.HC.ability; return A.cost ? Math.max(1, A.cost + A.costStep * S.ability.hires - S.P.hireDiscount) : 0; }
   function useAbility(x, y) {
     const A = G.HC.ability, h = S.hero;
-    if (!A || S.over) return false;
+    if (!A || S.over || G.v2) return false;   // [v2] no class ability (the v2combat dash stays)
     if (A.id !== 'patch' && !S.mobs.some(m => !m.roam || Math.hypot(m.x - h.x, m.y - h.y) < 10)) return fail('No Ash-Born nearby.');
     if (S.ability.cd > 0 || h.dead) return false;
     if (A.id === 'warcry') {

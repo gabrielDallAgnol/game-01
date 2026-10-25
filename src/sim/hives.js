@@ -24,6 +24,7 @@ export function createHives(G) {
   const hiveBase = r => Math.round(STREAM.hiveHp * (map.regions[r].ring <= 1 ? 1.8 : 1 + 0.6 * (map.regions[r].ring - 1)) * G.hpS(S.night));
   const hiveMax = r => (G.inferno ? G.inferno.maxOf(r, hiveBase(r)) : hiveBase(r));   // [nest3] a struck nest keeps the hp it was struck at
   function stepStream(dt) {
+    if (G.v2) return;   // [v2] the hives send no stream of dead (the hordes come next)
     if (!S.clock || S.night < 2 && !(S.phase === 'night' && S.qT > 15) && !(G.dayDeadOk && G.dayDeadOk())) return;   // [gemini3] the dead by day from day 1
     if (S.phase === 'night' && S.qT > WAVES.duration(S.night) + NIGHT_TAIL && !Object.values(rage).some(v => v > 0)) return;   // the hour before dawn is quiet: the hives rest (nights are longer than the old surge + tail)
     const n = S.night, every = Math.max(STREAM.min, STREAM.every - STREAM.drop * n) / G.DIFF.threat, mult = (S.phase === 'night' ? STREAM.nightMult : TIDE.dayRef / TIDE.dayLen) * (G.dayDeadK ? G.dayDeadK() : 1);   // [pacing] a longer day, the same dead by day · [gemini3] the early days at a share
@@ -43,6 +44,7 @@ export function createHives(G) {
   }
   /** the hero hits a hive: it bleeds, it rages (pours out the dead), and at zero it burns */
   function hitHive(r, d) {
+    if (G.v2) return false;   // [v2] no nest sieges
     const reg = map.regions[r];
     if (keep.level < G.keepForRing(reg.ring)) { if (!S.nightFlags.keepWarn) { S.nightFlags.keepWarn = true; fail(`This Inferno Nest is too strong: raise the Haven Rig to level ${G.keepForRing(reg.ring)} first.`); } return false; }
     if (!hiveDmg[r]) { toast('You strike the Inferno Nest. It wakes and pours out its Ash-Born!', 'bad'); if (S.wake[r] > S.night) S.wake[r] = S.night; }
@@ -62,6 +64,7 @@ export function createHives(G) {
   const hiveHealth = r => (S.nestAlive[r] ? Math.max(0, 1 - (hiveDmg[r] || 0) / hiveMax(r)) : 0);
   // ---------- too loud: at HEAT.erupt the nearest awake hive warns, then bursts toward the noise ----------
   function warnEruption() {
+    if (G.v2) return;   // [v2] no eruptions
     const cands = G.activeNests().map(r => map.regions[r]);
     if (!cands.length) { S.heatCool = 30; return; }
     cands.sort((a, b) => Math.hypot(a.nest.x - c, a.nest.y - c) - Math.hypot(b.nest.x - c, b.nest.y - c));

@@ -15,6 +15,7 @@ const freshRig = () => ({ v: RIG.v, leg: 1, mode: 'anchored', ups: { plating: 0,
 
 export function createRig(G) {
   const { S, keep, ev, toast } = G;
+  const rigOn = () => RIG.on && !G.v2;   // [v2] the V2 core has no Haven Rig
   S.rig = freshRig();
   let tickT = 0;
 
@@ -33,7 +34,7 @@ export function createRig(G) {
   const levelFor = (sys, score) => RIG.ups[sys].at.filter(a => score >= a).length;
   /** what a system does now: hp and dmg are multipliers, shots is extra shots */
   function rigK(kind) {
-    if (!RIG.on || !S.rig) return kind === 'shots' ? 0 : 1;
+    if (!rigOn() || !S.rig) return kind === 'shots' ? 0 : 1;
     const u = S.rig.ups;
     if (kind === 'hp') return 1 + RIG.hpPer * u.plating;
     if (kind === 'dmg') return 1 + RIG.dmgPer * u.guns;
@@ -89,7 +90,7 @@ export function createRig(G) {
   // ---------- packing up ----------
   /** '' when the Rig may roll now, else why not */
   function rigBlock() {
-    if (!RIG.on) return 'The Rig is off.';
+    if (!rigOn()) return 'The Rig is off.';
     if (S.over) return 'The run is over.';
     if (S.rig.mode !== 'anchored') return 'The Rig is already moving.';
     if (S.phase !== 'day') return 'Not at night: the Rig rolls by day.';
@@ -148,7 +149,7 @@ export function createRig(G) {
 
   // ---------- the clock ----------
   function stepRig(dt) {
-    if (!RIG.on) return;
+    if (!rigOn()) return;
     if (S.rig.mode === 'arriving') { S.rig.unpackT = (S.rig.unpackT || 0) + dt; if (S.rig.unpackT >= RIG.anim.unpack) { S.rig.mode = 'anchored'; delete S.rig.unpackT; } }
     if ((tickT -= dt) > 0) return; tickT = 1;
     refreshUps(false);
@@ -161,7 +162,7 @@ export function createRig(G) {
 
   function rigInfo() {
     const t = tally(), next = legOf(S.rig.leg + 1);
-    return { on: RIG.on, leg: S.rig.leg, name: legOf(S.rig.leg).name, next: next.name, nextLeg: S.rig.leg + 1, mode: S.rig.mode, block: rigBlock(), cargo: cargoNow(), gov: gov(),
+    return { on: rigOn(), leg: S.rig.leg, name: legOf(S.rig.leg).name, next: next.name, nextLeg: S.rig.leg + 1, mode: S.rig.mode, block: rigBlock(), cargo: cargoNow(), gov: gov(),
       ups: SYS.map(sys => { const u = RIG.ups[sys], score = u.score(t), lvl = S.rig.ups[sys]; return { id: sys, name: u.name, lvl, max: u.at.length, score, next: u.at[lvl] ?? null, src: u.src, fx: u.fx }; }),
       hp: rigK('hp'), dmg: rigK('dmg'), shots: rigK('shots'), arrive: RIG.arrive[Math.min(RIG.arrive.length - 1, S.rig.ups.speed)] };
   }

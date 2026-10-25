@@ -20,7 +20,7 @@ export const INF = {
 
 export function createInferno(G) {
   const { S, map, ev, toast, seed } = G;
-  const on = () => CUT.inferno !== false;
+  const on = () => CUT.inferno !== false && !G.v2;   // [v2] no Inferno Nest segments or counter-surges
   const irng = new Rng(hashSeed(seed, 'inferno'));
   S.hiveDmg = S.hiveDmg || {}; S.inferno = S.inferno || {};
   // ---------- what each nest is: a heat source with a building for a body ----------

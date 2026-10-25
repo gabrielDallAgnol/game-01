@@ -22,12 +22,13 @@ export function createActs(G) {
   /** start of the run: act 1, unless acts are cut or this map has no hollows */
   function actSetup() {
     S.act = 2; S.actGate = [];
+    if (G.v2) return;   // [v2] no acts, no fence
     if (!CUT.earlyRoad || !hollows().length || !left().length) return;
     S.act = 1; seal();
   }
   /** a restored save: the act follows from what burned (an old save without acts is re-fenced if hollows still stand) */
   function actRestore() {
-    if (!CUT.earlyRoad || !hollows().length) { S.act = 2; S.actGate = []; return; }
+    if (!CUT.earlyRoad || !hollows().length || G.v2) { S.act = 2; S.actGate = []; return; }   // [v2] no acts
     if (!left().length) { S.act = 2; S.actGate = []; S.actOpened = S.actOpened || S.night; return; }
     S.act = 1; seal();
   }

@@ -190,7 +190,7 @@ export function createPacify(G) {
   function stepPacify(dt) {
     if (S.over) return;
     stepHome(dt);
-    if ((watchT -= dt) <= 0) { watchT = 0.25; watch(); duskWarn(); }
+    if ((watchT -= dt) <= 0) { watchT = 0.25; if (!G.v2) watch(); duskWarn(); }   // [v2] no hive wakes on the map, no pacified-land lines
   }
   return { pacifyMap, pacifiedAt, smothered, regionPacified, homeNight, homeK, threatInfo, homeInfo, returnHome, cancelReturn, stepPacify };
 }
