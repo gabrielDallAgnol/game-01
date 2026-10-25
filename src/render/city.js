@@ -25,6 +25,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   const lin = K.lin;
   const at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? T.VOID : map.terrain[idx(x, y)]);
   const wildAt = i => !!(map.wild && map.wild[i]);
+  const inArea = i => !!(map.area && map.area.mask[i]);   // [area] the engine town draws itself there (view/atoms.js)
 
   // ---------- ground: shared-vertex chunks; plateaus rise, stream beds sink with soft banks ----------
   const isHigh = (x, y) => x >= 0 && y >= 0 && x < N && y < N && map.high[idx(x, y)] === 1;
@@ -146,7 +147,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   // ---------- ruins: every rock cell is one bay of a ruined block ----------
   const cluster = new Int32Array(N * N).fill(-1), clusters = [];
   for (let i = 0; i < N * N; i++) {
-    if (map.terrain[i] !== T.ROCK || cluster[i] >= 0 || map.lm[i] >= 0) continue;
+    if (map.terrain[i] !== T.ROCK || cluster[i] >= 0 || map.lm[i] >= 0 || inArea(i)) continue;   // [area] inArea
     const id = clusters.length, q = [i], cells = []; cluster[i] = id;
     while (q.length) { const j = q.pop(); cells.push(j); const x = j % N, y = (j / N) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= N || yy >= N) continue; const k = idx(xx, yy); if (map.terrain[k] === T.ROCK && cluster[k] < 0 && map.lm[k] < 0) { cluster[k] = id; q.push(k); } } }
     clusters.push(cells);
@@ -238,7 +239,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
     }
   }
   const cellPos = (i, d, j = 0.3) => d.position.set((i % N) - C + 0.5 + (rand() - 0.5) * j, 0, ((i / N) | 0) - C + 0.5 + (rand() - 0.5) * j);
-  const forest = []; for (let i = 0; i < N * N; i++) if (map.terrain[i] === T.FOREST) forest.push(i);
+  const forest = []; for (let i = 0; i < N * N; i++) if (map.terrain[i] === T.FOREST && !inArea(i)) forest.push(i);   // [area] inArea
   // a forest hollow's mound clears its own glade: no trees grow through it
   const hollows = map.regions.filter(r => r.nest && r.ring === 1).map(r => r.nest.body || r.nest);   // a hollow in a building clears the glade round the building
   const inHollow = i => { const x = (i % N) + 0.5, y = ((i / N) | 0) + 0.5; return hollows.some(n => Math.abs(n.x - x) < 3.6 && Math.abs(n.y - y) < 3.6 && Math.hypot(n.x - x, n.y - y) < 3.6); };
@@ -297,7 +298,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
   }
 
   // ---------- water: streams with soft banks in the woods, canals with concrete banks in the city ----------
-  const waterCells = []; for (let i = 0; i < N * N; i++) if (map.terrain[i] === T.WATER || map.terrain[i] === T.FORD) waterCells.push(i);
+  const waterCells = []; for (let i = 0; i < N * N; i++) if ((map.terrain[i] === T.WATER || map.terrain[i] === T.FORD) && !inArea(i)) waterCells.push(i);   // [area] inArea
   if (waterCells.length) {
     const wp = [];
     for (const i of waterCells) { const x0 = (i % N) - C, z0 = ((i / N) | 0) - C, h = -0.2; wp.push(x0 - 0.3, h, z0 - 0.3, x0 - 0.3, h, z0 + 1.3, x0 + 1.3, h, z0 - 0.3, x0 + 1.3, h, z0 - 0.3, x0 - 0.3, h, z0 + 1.3, x0 + 1.3, h, z0 + 1.3); }

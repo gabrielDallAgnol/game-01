@@ -54,6 +54,8 @@ import { TOP } from './top.js';
 import { createTopCamera } from './view/topdown.js';
 import { createTopFlat } from './view/topflat.js';
 import { createTopMarks } from './view/topmarks.js';
+// [area] next line
+import { createAtoms } from './view/atoms.js';
 // [top] end
 // [road] begin
 import { createRoadView } from './road-view.js';
@@ -118,6 +120,7 @@ export function createView(canvas, game, opts = {}) {
   const hero3fx = createHero3Fx(V);   // [hero3] the stat abilities' feedback
   const topFlat = createTopFlat(V);   // [top] the flat look's light (null without ?top=1)
   V.topMarks = createTopMarks(V);   // [top] bars and tags toward screen-up (null without ?top=1)
+  V.atoms = createAtoms(V);   // [area] the engine-built town in its own flat looks (null without an area)
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -170,6 +173,7 @@ export function createView(canvas, game, opts = {}) {
     // [road] end
     if (topFlat) topFlat.update();   // [top]
     if (V.topMarks) V.topMarks.update();   // [top]
+    if (V.atoms) V.atoms.update(cam.camTarget);   // [area]
     look.render(V.time);
   }
 
