@@ -7,8 +7,8 @@
 export const ABILITIES = {
   // ---------- STR: Heavy Cleave → Shockwave → Unbreakable ----------
   cleave: { name: 'Heavy Cleave', stat: 'str', at: 10, kind: 'active', icon: 'fist', cd: 14,
-    r: 3.2, dmg: 2.4, push: 1.6, stun: 0.6,
-    rank2: { name: 'Shockwave Cleave', r: 4.4, dmg: 3, push: 2.8, stun: 1, cd: 12 },
+    r: 3.2, dmg: 1.8, push: 1.6, stun: 0.6,
+    rank2: { name: 'Shockwave Cleave', r: 4.4, dmg: 2.4, push: 2.8, stun: 1, cd: 12 },
     how: 'A two-handed swing round you: every dead in reach is hit hard and thrown back.', how2: 'Rank 2: wider, harder, the dead fly further and lose their next bite.' },
   unbreak: { name: 'Unbreakable', stat: 'str', at: 30, kind: 'passive', icon: 'shield',
     below: 0.3, dur: 8, dmgK: 1.5, rate: 1.3, every: 60,

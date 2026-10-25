@@ -11,14 +11,15 @@ export const THRESHOLDS = [10, 20, 30];   // a stat's own ability (10), its seco
 export const HYBRID_AT = 15;              // two stats at 15 or more each unlock their combination
 
 // per point. Kept modest: the old Calling (+47% damage a second at Lv 15) and advanced class (×1.5 at Lv 30) are
-// what a spread build of ~45 / ~90 points must roughly match, never beat by much.
+// what a spread build of ~45 / ~90 points must roughly match, never beat by much. Tuned down after the first sweep
+// (Oct 25: 2%/1.5% a point took the bot from a median of 12–13 nights to the 16-night cap).
 export const STATS = {
   str: { name: 'STR', long: 'Strength', color: '#ff8a5c', icon: 'fist',
-    per: { dmg: 0.02, hp: 0.6, hive: 0.02 },
-    lines: p => [`+${Math.round(p * 2)}% damage`, `+${Math.round(p * 0.6)} health`, `+${Math.round(p * 2)}% damage to hives`] },
+    per: { dmg: 0.012, hp: 0.4, hive: 0.02 },
+    lines: p => [`+${Math.round(p * 1.2)}% damage`, `+${Math.round(p * 0.4)} health`, `+${Math.round(p * 2)}% damage to hives`] },
   agi: { name: 'AGI', long: 'Agility', color: '#7dff9e', icon: 'run',
-    per: { speed: 0.01, rate: 0.015, dodge: 0.006 }, dodgeMax: 0.3,
-    lines: p => [`+${Math.round(p * 1)}% move speed`, `+${(p * 1.5).toFixed(0)}% attack speed`, `${Math.round(Math.min(0.3, p * 0.006) * 100)}% dodge`] },
+    per: { speed: 0.008, rate: 0.01, dodge: 0.004 }, dodgeMax: 0.25,
+    lines: p => [`+${(p * 0.8).toFixed(0)}% move speed`, `+${Math.round(p * 1)}% attack speed`, `${Math.round(Math.min(0.25, p * 0.004) * 100)}% dodge`] },
   int: { name: 'INT', long: 'Intellect', color: '#7fc8ff', icon: 'skill',
     per: { power: 0.03, cd: 0.01, tower: 0.01 }, cdMax: 0.35,
     lines: p => [`+${Math.round(p * 3)}% ability power`, `-${Math.round(Math.min(0.35, p * 0.01) * 100)}% cooldowns`, `+${Math.round(p * 1)}% fire rate, towers near you`] },
