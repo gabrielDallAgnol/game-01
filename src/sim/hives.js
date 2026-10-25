@@ -11,7 +11,6 @@ export function createHives(G) {
     G.clearRoamers(r); S.claimed.add(r); revealRegion(r); S.nestAlive[r] = false; S.stats.regionsClaimed++;
     for (const nb of map.regions[r].neighbors) if (map.regions[nb].nest && !S.claimed.has(nb) && S.wake[nb] > S.night + 1) S.wake[nb] = S.night + 1;
     const loot = WAVES.plunder(map.regions[r].ring); earn(loot);
-    if (S.season && S.season.finaleHive === r && S.night <= S.season.end) G.finale(true);
     for (const m of S.mobs) if (m.stream === r) m.stream = -1;
     if (G.nestBurned) G.nestBurned(r);   // [nests] its guards run with the horde, its sites unlock
     ev('claim', { region: r }); toast(`Inferno Nest burned: +${loot} scrap and a rare blessing.`, 'good');

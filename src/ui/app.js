@@ -7,7 +7,7 @@
 // (createX(ui) factories, see CLAUDE.md for the map), and runs the frame loop. Context slots that change while the
 // page runs (ui.game, ui.view, ui.card, ui.paused, ui.selected, ui.placing, …) are always read as ui.x;
 // everything else (functions, the strip, callouts, keys) is fixed once created and modules destructure it.
-import { DIFFICULTY, STEP } from '../sim/game.js';
+import { STEP } from '../sim/game.js';
 import { MOBS } from '../content/mobs.js';
 import { fameOf } from '../content/legacy.js';
 import { $, store, audio, saves, DAWN_DELAY, FLAGS } from './shared.js';
@@ -107,7 +107,6 @@ export function startApp() {
       if (e.t === 'scene') showDusk(e);
       if (e.t === 'tip') callouts.show(e);
       if (e.t === 'ruin') noteLoss(e.id);
-      if (e.t === 'difficulty' && typeof ui.game.setDifficulty !== 'function') { const D = ui.game.difficulty && ui.game.difficulty(); if (D && DIFFICULTY[e.key]) Object.assign(D, DIFFICULTY[e.key]); }   // one game per page: the shared table is safe to retune
       if (e.t === 'claim' && ui.selected && ui.selected.type === 'region') closePanel();
       if (e.t === 'dawn') { holdCards(DAWN_DELAY); endJoy(); const ll = lossLine(); ui.pendingLedger = null; if (ll) setTimeout(() => ctoast.show(ll, 'bad', 'skull'), 400); const snap = ui.game.snapshot(); if (snap) saves.save(snap).then(w => { ui.lastSave = { day: snap.night, where: w }; }); }
       if (e.t === 'over') { saves.clear(); { const L = store.get('legacy', { fame: 0, owned: {} }); S.fameEarned = fameOf(S); L.fame += S.fameEarned; store.set('legacy', L); } endT = now + 2600; ui.paused = false; closePanel(); stopPlacing(); hideCard(); if (ui.view.startOrbit) ui.view.startOrbit(); }

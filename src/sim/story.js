@@ -2,7 +2,7 @@
 // The words are the written story (content/story.js); the effects are the engine's.
 //
 // S.story = { day, encounters (the cards on screen now), later (cards waiting for a dawn), threads {id: {stage, status,
-//   cast, region, site, spot, failAt}}, npcs [], titles [], chronicle [], flags {}, quests [], daily {}, contract {}, … }
+//   cast, region, site, spot, failAt}}, npcs [], titles [], chronicle [], flags {}, quests [], daily {}, … }
 //
 // The dawn budget: at most ONE story card and ONE System window a dawn. Everything else waits in `later` for a
 // later dawn (cards that only make sense today expire). Nothing opens at night unless it is about the night.
@@ -10,7 +10,6 @@ import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TI
 import { RARITY, KITS } from '../content/districts.js';
 import { EPISODES, seasonEnd } from '../content/season.js';
 import { TIDE } from '../content/mobs.js';
-import { createContracts } from './contracts.js';
 import { siteOk } from './spots.js';
 import { createDaily } from './daily.js';
 
@@ -19,11 +18,6 @@ export const DAY_ONE = TIDE.dayOne;   // seconds: day 1 is short (TIDE.dayLen st
 export const SLOT = { thread: 'story', ambient: 'story', district: 'story', street: 'story', site: 'story', chapter: 'sys', season: 'sys', contract: 'sys', evolve: 'sys', skill: 'sys', window: 'sys', daily: 'sys', difficulty: 'sys', victory: 'sys', gift: 'sys', arrival: 'sys' };
 // what may open at night: only what is about the night
 const NIGHT_OK = new Set(['arrival']);
-const DIFF_OFFER = [
-  { id: 'keep', label: 'Keep it as it is', hint: 'Fair but hard. The way it is meant to be played.' },
-  { id: 'story', label: 'Gentler', hint: 'Fewer Ash-Born, richer homes. For the story.' },
-  { id: 'veteran', label: 'Harder', hint: 'More Ash-Born, thinner supplies. Mistakes cost buildings.' },
-];
 const DIRS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
 
 export function createStory(ctx) {
@@ -31,7 +25,6 @@ export function createStory(ctx) {
   const ST = S.story = { spots: [], day: 1, encounters: [], later: [], threads: {}, npcs: [], titles: [], chronicle: [], flags: {}, quests: [], power: 0, hands: 0, visited: {}, nextId: 1, lastOpen: 0, rules: [], n1: {} };
   const LM = ctx.LANDMARKS;
   const api = () => (ctx.api ? ctx.api() : null);
-  const v2 = () => { const a = api(); return !!(a && a.v2 && a.v2()); };   // [v2] the V2 core: no contracts, no difficulty card
   const noiseOn = () => S.noise !== undefined || !!S.feat.heat;
   // the daily quest: offered when calm, Accept / Not now, settled at dawn (sim/daily.js)
   const daily = createDaily({ S, map, rng, toast, ev, apply: (f, e) => apply(f, e), chron: (...a) => chron(...a), grant: id => grant(id), push: e => push(e), roomForQuest: () => roomForQuest() });
@@ -83,9 +76,6 @@ export function createStory(ctx) {
       case 'perk': if (f.mul) S.P[f.key] *= f.mul; else S.P[f.key] += f.add; ctx.refreshMax(); break;
       case 'flag': if (f.key === 'garden') ST.garden = (ST.garden || 0) + 1; else if (f.key === 'beacon') ST.beacon = (ST.beacon || 0) + 1; else ST.flags[f.key] = true; break;
       case 'title': grant(f.id); break;
-      case 'difficulty': setDifficulty(f.key); break;
-      case 'contract': contracts.sign(enc, f.id); break;
-      case 'reward': contracts.pay(); break;
       case 'openFor': { if (!th) break; const p = placeFor(f.kit, enc.thread); if (!p) { enc.noRegion = true; break; } pointThread(enc.thread, p); break; }
       case 'open': ctx.openDistrict(f.region, f.why); ST.lastOpen = S.night; { const l = ctx.siteOf(f.region); if (l && !l.owned) addQuest(l, null); } break;
       case 'recruit': { const n = castFor(enc.thread, f.role); n.joined = true; toast(`[${n.name} joined] ${ROLES[n.role].post}: ${ROLES[n.role].bonus}.`, 'sys'); chron(`${n.name} joined the Haven as its ${ROLES[n.role].post.toLowerCase()}.`, 4, [n.id]); ev('recruit', { id: n.id }); break; }
@@ -96,7 +86,7 @@ export function createStory(ctx) {
       case 'risen': ctx.risen(f.n); break;
       case 'gamble': if (rng.next() >= f.p) { for (const b of f.bad) apply(b, enc); } else if (f.good) { for (const b of f.good) apply(b, enc); } else toast('The fever broke at dawn. He lives.', 'good'); break;
       case 'hurt': ctx.hurtHero(f.n); break;
-      case 'unique': S.unique = { name: f.name, mult: f.mult, night: f.later ? nextMoon(S.night + 1) : nextMoon(S.night), thread: enc && enc.thread }; contracts.armFinale(); break;
+      case 'unique': S.unique = { name: f.name, mult: f.mult, night: f.later ? nextMoon(S.night + 1) : nextMoon(S.night), thread: enc && enc.thread }; break;
       case 'advance': if (th) { if (enc && enc.noRegion) endThread(enc.thread, 'no way through'); else { th.stage++; th.since = S.night; } } break;
       case 'resolve': if (th) { th.status = 'done'; } break;
       case 'dailyAccept': daily.accept(); break;
@@ -180,7 +170,7 @@ export function createStory(ctx) {
 
   // ---------- the quest gate: one quest at a time on days 1-5, two after; the next one shows when one is done ----------
   // Counted: a thread pointing at a place (or a story card about to), a blue beacon, today's daily quest.
-  // Not counted: a site you opened yourself (shown only when there is room) and the season's contract (on the strip).
+  // Not counted: a site you opened yourself (shown only when there is room).
   const questCap = () => (S.night <= 5 ? 1 : 2);
   const pointsOut = e => e && e.kind === 'thread' && !e.ended && (e.choices || []).some(c => (c.fx || []).some(f => f.op === 'openFor'));
   const threadAtSite = tid => { const th = ST.threads[tid], st = th && THREADS[tid] && THREADS[tid].stages[th.stage]; return !!(th && th.status === 'open' && st && st.at === 'site'); };
@@ -201,13 +191,10 @@ export function createStory(ctx) {
     return out;
   }
   /** every objective the player can see, for the HUD, the maps and the quest list (read-only; the gate above still
-   *  decides what counts). priority 'main' = the System requires it (the contract, a story quest's step,
+   *  decides what counts). priority 'main' = the System requires it (a story quest's step,
    *  today's daily quest); 'optional' = beacons, sites you opened, supply drops. Main first, nearest first within. */
   function objectives() {
     const out = [], h = S.hero, far = (x, y) => (x === undefined ? 0 : Math.round(Math.hypot(x - h.x, y - h.y)));
-    const K = contracts.stripLine();
-    if (K) out.push({ key: 'contract', kind: 'contract', priority: 'main', label: 'Contract', x: K.place ? K.place.x : undefined, y: K.place ? K.place.y : undefined,
-      title: K.kind === 'hive' ? `Burn ${K.name}` : `Survive ${K.name}`, sub: `${K.left ? `${K.left} night${K.left === 1 ? '' : 's'} left` : 'Tonight'}${K.place ? ` · ${K.place.dir}` : ''}` });
     for (const q of ST.quests) if (q.thread && threadAtSite(q.thread)) { const T = THREADS[q.thread]; out.push({ key: `q${q.site}`, kind: 'thread', priority: 'main', label: 'Quest', site: q.site, x: q.x, y: q.y, title: T ? T.title : 'Story', sub: `Go to the ${LM[S.landmarks[q.site].kind].name} · ${dirOf(q.x, q.y)}` }); }
     for (const sp of ST.spots) if (sp.thread) { const T = THREADS[sp.thread]; out.push({ key: `s${sp.id}`, kind: 'thread', priority: 'main', label: 'Quest', spot: sp.id, x: sp.x, y: sp.y, title: T ? T.title : 'Story', sub: `Go ${dirOf(sp.x, sp.y)}` }); }
     const d = dailyProgress(); if (d) out.push({ key: 'daily', kind: 'daily', priority: d.done ? 'optional' : 'main', label: 'Daily', title: d.title, sub: d.done ? `${d.goal} · done` : `${d.goal} · ${d.have}/${d.n} · ${d.ends}`, have: d.have, n: d.n, ends: d.ends, done: d.done });
@@ -279,8 +266,7 @@ export function createStory(ctx) {
     if (ctx.gainXp && !sysKind) ctx.gainXp(enc.kind === 'thread' ? 25 : enc.kind === 'street' ? 12 : enc.kind === 'site' ? 0 : 5);
     if (!['skill', 'window', 'difficulty'].includes(enc.kind) && !enc.ended) {
       const line = enc.aiChron || `${enc.title}: "${String(c.label || '').replace(/[[\]]/g, '')}"`;
-      chron(line, enc.kind === 'thread' ? 4 : enc.kind === 'contract' ? 0 : 2, enc.thread ? [enc.thread] : []);
-      if (enc.kind === 'contract') ST.chronicle.pop();
+      chron(line, enc.kind === 'thread' ? 4 : 2, enc.thread ? [enc.thread] : []);
     }
     ST.encounters.shift(); ev('chosen', { enc: enc.id, choice: choiceId, kind: enc.kind });
     return true;
@@ -299,44 +285,6 @@ export function createStory(ctx) {
     return { mode: 'now', icon: ARRIVE.join.icon, tag: ARRIVE.join.tag, text: ARRIVE.join.text.replace('{who}', (c.npcName || 'They').replace(/ joins$/, '')) };
   }
 
-  // ---------- seasons are contracts ----------
-  const contracts = createContracts({ S, map, rng, toast, ev, chron, grant, earn: ctx.earn, syncPicks: ctx.syncPicks, api });
-  function seasonCard(def, n) {
-    ST.seasons = ST.seasons || []; ST.seasons.push({ n, name: def.name, day: S.night });
-    // the season that just ended: was its contract won?
-    const lost = contracts.settle();
-    if (lost) { loseRun(lost); return; }
-    chron(`Season ${n} began: ${def.name}.`, 4, ['season']);
-    { const a = api(); if (a && a.setSeasonRules) a.setSeasonRules(ST.rules || []); }   // only the rules the player signed stack
-    offerContract(n);
-  }
-  function offerContract(n) {
-    if (v2() || queued(e => e.kind === 'contract')) return;   // [v2] no contracts
-    const k = contracts.encounter(n, hooks());
-    offer(k, 10, 30);
-  }
-  /** a lost contract ends the run with its name */
-  function loseRun(k) {
-    ST.lostContract = { name: k.name, finale: k.finale.name, night: k.finale.night };
-    const a = api();
-    a.endRun(false, k.name);
-  }
-  function victoryCard(k) {
-    const C = { name: k.name, n: k.n };
-    offer({ kind: 'victory', season: k.n, contract: k.name, eyebrow: `[Contract complete: ${k.name}]`, title: `Season ${k.n} is yours`,
-      scene: 'The boss is down. From tonight, **the nights get easier**.',
-      next: 'Next: a new challenge. The Ash-Born remember who won.',
-      reward: k.reward, choices: [{ id: 'take', label: 'Take the reward', hint: `+${k.reward.scrap} scrap · a rare blessing · easier nights · +${k.reward.fame} Legacy (kept after this run).`, fx: [{ op: 'reward' }] }], ...C }, 11, 30);
-  }
-
-  function setDifficulty(key) {
-    if (!key || key === 'keep') return;
-    const a = api();
-    if (a && typeof a.setDifficulty === 'function') { a.setDifficulty(key); return; }
-    S.difficulty = key; S.difficultyWanted = key; ev('difficulty', { key });   // without api.setDifficulty the page applies it (one game per page)
-    toast(`[Difficulty set: ${DIFF_OFFER.find(d => d.id === key).label}] The System adjusts the Ash-Born.`, 'sys');
-  }
-
   // ---------- the director: what comes at dawn ----------
   function dawn() {
     ST.day = S.night; deeds();
@@ -348,12 +296,6 @@ export function createStory(ctx) {
     if (ST.uniqueLater && (!S.unique || S.unique.slain || S.unique.escaped)) { S.unique = { ...ST.uniqueLater, night: nextMoon(S.night + 1) }; ST.uniqueLater = null; }
     // threads that waited too long close, with a card
     for (const [tid, th] of Object.entries(ST.threads)) if (th.status === 'waiting' && S.night >= th.failAt) endThread(tid, 'too late');
-    // the System measures you after the first night, then offers season 1's contract
-    if (S.night === 2 && !ST.diffOffered && !v2()) {   // [v2] no waves to scale: no difficulty card
-      ST.diffOffered = true; offer({ kind: 'difficulty', eyebrow: '[The System has measured you]', title: 'How hard should it be?', scene: 'One night survived. The System can **change how many Ash-Born** it sends. You can ask again later on the status window.', choices: DIFF_OFFER.map(d => ({ id: d.id, label: d.label, hint: d.hint, fx: [{ op: 'difficulty', key: d.id }] })) }, 9, 3); }
-    if (S.night >= contracts.firstSeasonDay && !ST.contract && !ST.contractOffered && (!S.season || S.season.n === 1)) { ST.contractOffered = true; offerContract(1); }
-    { const k = contracts.current(); if (k && k.won && !k.told) { k.told = true; victoryCard(k); } }
-    contracts.armFinale();
     // after each Flare Night: the chapter closes, told back to you (only when nothing bigger wants the window)
     if (S.night > 2 && (S.night - 1) % 5 === 0) {
       const ch = (S.night - 1) / 5, lines = ST.chronicle.filter(c => c.day > S.night - 6 && c.imp >= 3).map(c => `Day ${c.day}: ${c.text}`);
@@ -404,17 +346,15 @@ export function createStory(ctx) {
   function questLine() {
     const qs = activeQuests(), d = dailyProgress();
     const th = qs.find(q => q.kind === 'thread');
-    if (th) { const tid = th.site !== undefined ? (ST.quests.find(q => q.site === th.site) || {}).thread : (ST.spots.find(sp => sp.id === th.spot) || {}).thread; const T = tid && THREADS[tid]; return withContract({ tag: '[Quest]', text: `${T ? T.title : 'Story'}: go ${dirOf(th.x, th.y)}` }); }
-    if (d && !d.done) return withContract({ tag: '[Daily]', have: d.have, n: d.n, text: `${d.goal} · ${d.ends}` });
+    if (th) { const tid = th.site !== undefined ? (ST.quests.find(q => q.site === th.site) || {}).thread : (ST.spots.find(sp => sp.id === th.spot) || {}).thread; const T = tid && THREADS[tid]; return withDaily({ tag: '[Quest]', text: `${T ? T.title : 'Story'}: go ${dirOf(th.x, th.y)}` }); }
+    if (d && !d.done) return withDaily({ tag: '[Daily]', have: d.have, n: d.n, text: `${d.goal} · ${d.ends}` });
     const b = qs.find(q => q.kind === 'beacon');
-    if (b) return withContract({ tag: '[Quest]', text: `Reach the blue beacon · ${dirOf(b.x, b.y)}` });
-    if (d && d.done) return withContract({ tag: '[Daily]', done: true, text: d.goal });
-    const K = contracts.stripLine(); if (K) return { ...K, extra: K.left ? `${K.left} night${K.left === 1 ? '' : 's'} left` : 'Tonight' };
+    if (b) return withDaily({ tag: '[Quest]', text: `Reach the blue beacon · ${dirOf(b.x, b.y)}` });
+    if (d && d.done) return withDaily({ tag: '[Daily]', done: true, text: d.goal });
     return null;
   }
-  /** the contract's countdown rides along every quest line: "Cinder Lord: 7 nights" */
-  // (an accepted daily quest under another main line takes the second line instead: it ends at dawn, the contract in nights)
-  function withContract(q) { const d = dailyProgress(); if (d && !d.done && q.tag !== '[Daily]') return { ...q, extra: `Daily ${d.have}/${d.n}: ${d.goal}` }; const K = contracts.stripLine(); return K ? { ...q, extra: K.extra } : q; }
+  /** an accepted daily quest under another main line takes the second line */
+  function withDaily(q) { const d = dailyProgress(); if (d && !d.done && q.tag !== '[Daily]') return { ...q, extra: `Daily ${d.have}/${d.n}: ${d.goal}` }; return q; }
   // ---------- the night: one line that scales with the wave, the System's arrival on night 1 ----------
   const dirOf = (x, y) => DIRS[((Math.round(Math.atan2(y - map.town.y, x - map.town.x) / (Math.PI / 4)) % 8) + 8) % 8];
   const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'], TEEN = ['Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -524,7 +464,6 @@ export function createStory(ctx) {
   }
   function tick(dt = 1 / 60) {
     tips(); nightTick(); daily.tick(dt); gateTick(dt);
-    contracts.check();
     if (ST.encounters.length || S.hero.dead || S.phase !== 'day') return;   // places speak by day: at night they wait for you
     if (spotTick()) return;
     for (const l of S.landmarks) if (typeof ST.visited[l.id] === 'number' && ST.visited[l.id] < S.night && !ctx.landmarkReach(l)) ST.visited[l.id] = false;   // left yesterday: it can ask again
@@ -565,22 +504,10 @@ export function createStory(ctx) {
     }
     return out.length ? `${out.join(', ')}.` : 'Nothing changes.';
   }
-  /** the things a twist may hang on: real people, places and threads of this run (most recent first) */
-  function hooks() {
-    const comps = ST.npcs.filter(n => n.alive && n.joined).sort((a, b) => b.bond - a.bond);
-    const met = ST.npcs.filter(n => !n.joined || !n.alive);
-    const places = S.landmarks.filter(l => l.owned).map(l => LM[l.kind].name);
-    const threads = Object.entries(ST.threads).filter(([, t]) => t.status !== 'open').map(([id]) => THREADS[id].title);
-    return {
-      companion: comps[0] ? comps[0].name : met[0] ? met[0].name : null, place: places[places.length - 1] || null, thread: threads[threads.length - 1] || null,
-      marked: !!ST.threads.lantern, all: [...new Set([...comps.map(n => n.name), ...met.map(n => n.name), ...places, ...Object.keys(ST.threads).map(id => THREADS[id].title), ...(S.unique ? [S.unique.name] : []),
-        ...ST.chronicle.map(c => /^(.+?): "/.exec(c.text)).filter(Boolean).map(m => m[1]).filter(t => !/window only you|System|Contract/i.test(t)).slice(-8)])].filter(Boolean),
-    };
-  }
-  return { activeQuests, shownQuests, objectives, questCap, roomForQuest, hooks, seasonCard, start, dawn, tick, choose, can, bonus, chron, npc, grant,
+  return { activeQuests, shownQuests, objectives, questCap, roomForQuest, start, dawn, tick, choose, can, bonus, chron, npc, grant,
     offerWin: w => offer({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: 'Got it', hint: '', fx: [] }] }, w.pri || 6, 30),
     // [acts] a System window now (by day; at night it waits for the dawn like any card)
     windowNow: w => push({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: w.ok || 'Got it', hint: '', fx: [] }] }),
-    release, flush, dailyProgress, arrivalOf, questLine, nightLine, contracts, endThread,
+    release, flush, dailyProgress, arrivalOf, questLine, nightLine, endThread,
     rarityColor: r => (RARITY[r] || RARITY.common).color };
 }

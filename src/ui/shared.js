@@ -19,11 +19,7 @@ for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => aud
 // the start screen's "What's new" (under More): short, for players
 export const WHATS_NEW = [
   '**The Solar Flare.** The sky blinked, about four in ten people turned into the **Ash-Born**, and you absorbed the charge. A blue **Thermal Pioneer System** woke in your head.',
-  '**The Haven Rig.** A caution-yellow flatbed is home. Build the **Haven** around it; when the suburbs run dry, the Rig rolls on toward cooler ground.',
-  '**Inferno Nests.** The Ash-Born gather where it is hot (gas stations, substations, boilers). Snuff the core and the road opens.',
   '**Your crew.** Dee the mechanic, Juno the track star and Gloria the manager keep the Haven talking.',
-  '**Seasons are contracts.** The System offers a rule and a finale. Win it and the city eases off; lose it and the run ends with its name.',
-  '**One Noise meter.** The louder the Haven, the more Ash-Born come and the farther the Inferno Nests hear you (the ring on the map).',
   '**Ruins stay ruins** until you rebuild them: tap one, or **Rebuild all** at dawn.',
 ];
 export const FLAGS = { trader: false, crew: false, legacyAll: false, foremanFirstRun: false, runLog: false, perkShop: false, changelog: false, startDifficulty: false };

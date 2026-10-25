@@ -1,7 +1,7 @@
-// Seasons and contracts (engine side): rules, weather from rules, the finale, a won contract's step back,
-// the features that arrive one at a time (System windows), titles' stat effects undone, difficulty changes.
+// The season's rules (season 1's, in S.season), weather from rules, the features that arrive one at a time (System
+// windows), titles' stat effects undone, difficulty changes. (Contracts, finales and later seasons were cut on Oct 25.)
 import { CUT, DIFFICULTY, RULE_FX } from './state.js';
-import { FEATURES, PARTY, RULES, SEASONS, SEASON_POOL, seasonEnd } from '../content/season.js';
+import { FEATURES, PARTY } from '../content/season.js';
 import { PASSABLE, idx, inside } from './mapgen.js';
 import { Rng, hashSeed } from './rng.js';
 import { TITLES } from '../content/story.js';
@@ -40,47 +40,6 @@ export function createSeasons(G) {
     }
     if (changed) G.refreshMax();
   }
-  const ADJ = ['Hollow', 'Weeping', 'Iron', 'Burning', 'Silent', 'Thousand-Handed', 'Pale', 'Drowned'], NOUN = ['Choir', 'Shepherd', 'Matron', 'Engine', 'Bride', 'Tide', 'Bellringer', 'Warden'];
-  function startSeason(n) {
-    const seasonRng = new Rng(hashSeed(seed, 'season', n));
-    const def = SEASONS[n - 1] || { id: `gen${n}`, name: SEASON_POOL.names[seasonRng.int(SEASON_POOL.names.length)], blurb: 'The city changes again. Something new learned your name.', rule: SEASON_POOL.rules[seasonRng.int(SEASON_POOL.rules.length)], finale: `The ${ADJ[seasonRng.int(ADJ.length)]} ${NOUN[seasonRng.int(NOUN.length)]}` };
-    const kept = S.season && S.season.won ? (S.season.rules || []) : [];   // a won contract's rules stay with you
-    const rules = [...new Set([...kept, ...(def.rule ? [def.rule] : [])])];
-    S.season = { n, id: def.id, name: def.name, rule: def.rule || null, rules, finale: def.finale, end: seasonEnd(n), start: S.night, won: false };
-    if (n >= 2 && !(S.unique && !S.unique.slain && !S.unique.escaped)) S.unique = { name: def.finale, mult: 1.5 + 0.25 * (n - 1), night: seasonEnd(n), season: n };
-    S.weather = rollWeather(S.night);
-    if (G.story) G.story.seasonCard(def, n, def.rule ? RULES[def.rule] : null);
-  }
-  // ---------- contracts (engine side; the offer, card and words live in sim/contracts.js) ----------
-  /** the season's finale is decided: its unique died (or its finale hive burned) in time, or the season ran out */
-  function finale(won) {
-    if (!S.season || S.season.finaleDone) return;
-    S.season.finaleDone = true; S.season.won = !!won;
-    ev('finale', { won: !!won, season: S.season.n, name: S.season.finale, night: S.night });
-    if (won) contractWon();
-  }
-  /** a won contract: the difficulty curve steps back ~40% of the nights this season ran (night N then plays like
-   *  N − 0.4×(N − season start)); the rules you chose stay. Idempotent per season. */
-  function contractWon(share = 0.4) {
-    if (!S.season || S.season.contractWon) return false;
-    S.season.contractWon = true; S.season.won = true;
-    const back = +(Math.max(0, Math.min(1, +share || 0)) * Math.max(0, S.night - (S.season.start || 1))).toFixed(2);
-    S.diffNight = +((S.diffNight || 0) + back).toFixed(2);
-    ev('contractWon', { season: S.season.n, back, diffNight: S.diffNight });
-    return true;
-  }
-  /** contracts.js sets the rules it offered (and the player chose); they stack with the ones a won contract kept */
-  function setSeasonRules(rules = []) {
-    const list = [...new Set(rules.filter(Boolean))];
-    S.season.rules = list; S.season.rule = list[list.length - 1] || null; S.weather = rollWeather(S.night); G.dropFloor();
-    return list;
-  }
-  /** contracts.js names the finale: { kind: 'unique', name, mult } (the season's last Flare Night) or { kind: 'hive', region } */
-  function setFinale(f = {}) {
-    if (f.kind === 'hive' && map.regions[f.region] && map.regions[f.region].nest) { S.season.finaleHive = f.region; if (f.name) S.season.finale = f.name; return true; }
-    if (f.kind === 'unique') { S.season.finaleHive = undefined; S.season.finale = f.name || S.season.finale; S.unique = { name: S.season.finale, mult: f.mult || (S.unique && S.unique.mult) || 1.5, night: f.night || S.season.end, season: S.season.n }; return true; }
-    return false;
-  }
   function metroSpot() {
     for (let t = 0; t < 30; t++) { const a = rng.range(0, Math.PI * 2), d = rng.range(6.5, 10), x = c + Math.cos(a) * d, y = c + Math.sin(a) * d, cx = Math.floor(x), cy = Math.floor(y); if (inside(cx, cy) && PASSABLE[map.terrain[idx(cx, cy)]] && map.reach[idx(cx, cy)] && S.occ[idx(cx, cy)] < 0) return { x: cx + 0.5, y: cy + 0.5 }; }
     return null;
@@ -91,5 +50,5 @@ export function createSeasons(G) {
     if (!DIFFICULTY[key]) return false;
     G.DIFF = DIFFICULTY[key]; S.difficulty = key; G.dropFloor(); return true;
   }
-  return { W8, weatherFor, rollWeather, checkFeatures, titlesRead, untitle, startSeason, finale, contractWon, setSeasonRules, setFinale, metroSpot, partySize, setDifficulty };
+  return { W8, weatherFor, rollWeather, checkFeatures, titlesRead, untitle, metroSpot, partySize, setDifficulty };
 }

@@ -9,13 +9,13 @@ import { LANDMARKS, idx } from './mapgen.js';
 export function createApi(G) {
   const {
     S, W8, activeNests, addHeat, baseDist, build, buildLine, buildingAt, buyCost, canPlace, canPurge,
-    choosePack, claimLandmark, clearRubble, companionFollow, contractWon, costOf, crewing, damageBuilding,
+    choosePack, claimLandmark, clearRubble, companionFollow, costOf, crewing, damageBuilding,
     defenceDps, demolish, districtOffer, dropSupply, effN, endRun, escape, foodNeed, foodPerDawn, forecast, forecastStrip,
     frontier, gainXp, handsFree, handsMax, has, hasTech, hearR, heatFloor, heroDps, heroPath, hitHive, hiveHealth, houseGold, hurtHero,
     inZone, isBloodMoon, keep, keepForRing, keepMaxHp, keepNeeds, killMob, kitFor, landmarkReach, lineCells, manned, map, mastered,
     mastery, maxHpOf, newCost, nightLen, noise, noiseCalm, noiseFloor, openDistrict, owns, partySize, planPurge, pop, powerIn,
     powerOut, powered, prosper, raiseBlock, ratingOf, rebuild, rebuildAll, rebuildCost, regionInfo, rerollPacks, reveal,
-    rubbleAt, ruins, rule, setDifficulty, setFinale, setHeroInput, setSeasonRules, siteOf, snapshot, spawnMob, startNight, step,
+    rubbleAt, ruins, rule, setDifficulty, setHeroInput, siteOf, snapshot, spawnMob, startNight, step,
     threatRatio, timeOfDay, toolsInfo, towerStats, townDraw, trade, upCostOf, upgrade, upgradeKeep, upgradeWall, upkeep,
     useFlare, useSmoke, wallBudget, wallRun, zone
   } = G;
@@ -48,8 +48,8 @@ export function createApi(G) {
     rebuild, rebuildAll, rebuildCost: id => { const b = S.byId.get(id); return b && b.ruined ? rebuildCost(b) : 0; }, ruins: () => ruins().map(b => ({ id: b.id, type: b.type, level: b.level, x: b.x, y: b.y, cost: rebuildCost(b) })),
     forecastStrip: () => forecastStrip(), ledger: () => S.ledger || null,
     keepCost: () => { const n = KEEP.need[keep.level]; return keep.level >= 3 ? null : { scrap: KEEP.cost[keep.level], food: (n && n.food) || 0, needs: keepNeeds() }; },
-    // contracts (sim/contracts.js builds the offer): stacked rules, the finale, the difficulty step back
-    rule: id => rule(id), contractWon, setSeasonRules, setDifficulty, endRun, setFinale, season: () => S.season, effNight: (n = S.night) => effN(n),
+    // the season's rules, the difficulty, the end of the run
+    rule: id => rule(id), setDifficulty, endRun, season: () => S.season, effNight: (n = S.night) => effN(n),
     cut: CUT, raiseBlock: id => raiseBlock(S.byId.get(id)),
     hitBuilding: (id, d) => { const b = S.byId.get(id); if (b) damageBuilding(b, d); return b ? b.hp : 0; }, hurtHero: n => hurtHero(n),   // scripted events and tests
     spawnMob: (kind, x, y, o) => { const m = spawnMob(kind, x, y); if (m && o) Object.assign(m, o); return m; }, killMob: (m, src = 'hero') => killMob(m, src),

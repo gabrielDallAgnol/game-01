@@ -1,8 +1,7 @@
 // Cards: the one modal at a time (showCard / hideCard, arming against stray taps), and the story's windows:
-// encounters and their choice chips, the arrival, System windows, contracts, victory.
+// encounters and their choice chips, the arrival, System windows.
 // The engine decides effects and words (the written story in content/story.js).
 import { $, $$, ARM_MS, audio, chronLine, esc, rich, store } from './shared.js';
-import { CONTRACT_COPY } from '../content/contracts.js';
 import { RARITY } from '../content/districts.js';
 import { SYSTEM } from '../content/story.js';
 import { icon } from './icons.js';
@@ -77,8 +76,6 @@ export function createCards(ui) {
     let st = encState.get(enc.id); if (!st) { st = { page: 0, touched: false, shownAt: performance.now() }; encState.set(enc.id, st); }
     const isNew = !st.opened; st.opened = true;
     if (enc.kind === 'arrival') return showArrival(enc);
-    if (enc.kind === 'contract') return showContract(enc, st, swap || !isNew);
-    if (enc.kind === 'victory') return showVictory(enc, st);
     if (enc.kind === 'window' || enc.kind === 'chapter') return showWindow(enc);
     const title = enc.title, line = enc.speaker && enc.speaker.line;
     const pages = [enc.scene];   // the written story opens on the choice page (one paragraph)
@@ -143,44 +140,6 @@ export function createCards(ui) {
     showCard('info', `<div class="eyebrow"><span id="iEb"></span></div>${w.title ? `<h1 class="sm">${esc(w.title)}</h1>` : ''}<ul class="lines">${w.lines.map(l => `<li>${rich(l)}</li>`).join('')}</ul><div class="cardrow foot end"><button class="btn big" id="iOk">Go on</button></div>`, { sys: true });
     typeOn($('#iEb'), w.eyebrow, 60);
     $('#iOk').onclick = onArmed(() => { hideCard(); ui.paused = false; });
-  }
-  // ---------- seasons as contracts ----------
-  function showContract(enc, st, swap) {
-    const P = null, sel = st.sel || null;
-    const pick = id => enc.offers.find(o => o.id === id);
-    const pips = n => `<span class="pips" aria-hidden="true">${[1, 2, 3].map(k => `<i class="${k <= n ? 'on' : ''}"></i>`).join('')}</span>`;
-    const card1 = o => { const nm = (P && P.names && P.names[o.id]) || o.name, tw = (P && P.twists && P.twists[o.id]) || o.twist, T = o.terms, tier = T.tier || { tag: 'Risky', pips: 2 };
-      return `<button class="contract t${tier.pips}" data-k="${o.id}" aria-pressed="${sel === o.id}">
-        <span class="ktop"><span class="ktag">${pips(tier.pips)}${esc(tier.tag)}</span><span class="kname">${esc(nm)}</span></span>
-        <span class="kgoal">${icon(o.finale.kind === 'unique' ? 'skull' : 'flame')}<span>${esc(T.goal)}</span></span>
-        <span class="kwhere">${esc(T.where)}</span>
-        <span class="kline catch"><b>Catch</b>${esc(T.catch)}</span>
-        <span class="kline gain"><b>Reward</b>${esc(T.gain)} <em>${esc(T.legacy)}</em></span>
-        ${tw ? `<span class="tw">${esc(tw)}</span>` : ''}</button>`; };
-    const selGoal = sel ? pick(sel).terms.goal.replace(/^\w/, c => c.toLowerCase()) : '';
-    showCard('enc', `<div class="eyebrow"><span id="kEb"></span></div>
-      <h1 class="sm">${esc(enc.title)}</h1><p class="scene kscene">${rich(enc.scene)}</p>
-      <div class="contracts">${enc.offers.map(card1).join('')}</div>
-      <p class="note">${rich(CONTRACT_COPY.legacyNote)}</p>
-      <div class="cardrow foot end"><button class="btn big" id="kSign" ${sel ? '' : 'disabled'}>${sel ? esc(CONTRACT_COPY.sign.replace('{goal}', selGoal)) : CONTRACT_COPY.pick}</button></div>`, { sys: true, arm: !swap, anim: !swap });
-    const eb = $('#kEb'); if (swap || st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; typeOn(eb, enc.eyebrow, 60); }
-    $$('[data-k]').forEach(b => b.onclick = onArmed(() => { st.touched = true; st.sel = b.dataset.k; const y = $('#card').scrollTop; showContract(enc, st, true); $('#card').scrollTop = y; }));
-    $('#kSign').onclick = onArmed(() => { if (!st.sel) return; if (ui.game.choose(st.sel)) { audio.play('claim'); encState.delete(enc.id); afterEncounter(); } });
-  }
-  function seasonLines(n) {
-    const S = ui.game.state, from = n > 1 ? (S.story.seasons || []).find(s => s.n === n) : null, d0 = from ? from.day : 1;
-    const L = S.story.chronicle.filter(c => c.day >= d0 && c.imp >= 4 && !/contract|status window/i.test(c.text));
-    return [...L.filter(c => !/: "/.test(c.text)), ...L.filter(c => /: "/.test(c.text))].slice(0, 3).sort((a, b) => a.day - b.day).map(c => chronLine(c.text));
-  }
-  function showVictory(enc, st) {
-    const P = null, beats = P && P.beats ? P.beats : (seasonLines(enc.season).length ? seasonLines(enc.season) : ['You held the Haven through a whole season.']), next = (P && P.next) || enc.next;
-    showCard('enc', `<div class="eyebrow"><span id="vEb"></span></div>
-      <h1 class="big">${esc(enc.title)}</h1><p class="scene">${rich(enc.scene)}</p>
-      <ul class="obit">${beats.map(b => `<li>${rich(b)}</li>`).join('')}</ul><div class="nexton">${esc(next)}</div>
-      <div class="chips" style="margin:12px 0 4px"><span class="chip info">${icon('level')}easier nights</span><span class="chip pos">${icon('scrap')}+${enc.reward.scrap}</span><span class="chip pos">${icon('skill')}a rare blessing</span><span class="chip pos">${icon('star')}+${enc.reward.fame} Legacy</span></div>
-      <div class="cardrow foot end"><button class="btn big" id="vOk">${esc(enc.choices[0].label)}</button></div>`, { sys: true, anim: !st.ebDone });
-    const eb = $('#vEb'); if (st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; typeOn(eb, enc.eyebrow, 60); }
-    $('#vOk').onclick = onArmed(() => { st.touched = true; if (ui.game.choose('take')) { const L = store.get('legacy', { fame: 0, owned: {} }); L.fame += enc.reward.fame; store.set('legacy', L); audio.play('claim'); afterEncounter(); } });
   }
   return { showCard, onArmed, hideCard, showEncounter, showInfo };
 }

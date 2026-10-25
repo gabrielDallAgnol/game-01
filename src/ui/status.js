@@ -9,14 +9,13 @@ export function createStatus(ui) {
   const {  } = ui;
 
   function showStatus() {
-    const S = ui.game.state, ST = S.story, comp = ST.npcs.filter(n => n.joined && n.alive), K = ST.contract;
+    const S = ui.game.state, ST = S.story, comp = ST.npcs.filter(n => n.joined && n.alive);
     ui.paused = true; if (ui.placing) ui.stopPlacing(); ui.closePanel();
     const hero = ui.game.heroDef;
     ui.showCard('status', `<button class="closex" id="stX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Status]</div>
       <h1 class="sm">${esc(hero.name)} · Lv ${S.lvl}</h1>
       ${questsHtml()}
       <div class="statgrid"><span>Health<b>${Math.ceil(S.hero.hp)}/${S.hero.maxHp}</b></span><span>Xp<b>${S.xp}/${ui.game.xpNext()}</b></span><span>Day<b>${S.night}</b></span><span>Dead put down<b>${S.kills}</b></span><span>People<b>${ui.game.pop()}</b></span><span>Season<b>${S.season.n}</b></span></div>
-      ${K ? `<h2>Contract terms</h2><div class="kontrakt"><b>${esc(K.name)}${K.won ? ' · won' : ''}</b><span>${K.finale.kind === 'unique' ? `${esc(K.finale.name)} walks on night ${K.finale.night}.` : `Burn ${esc(K.finale.name)} by night ${K.finale.night}.`}${S.season.rules && S.season.rules.length ? ` Rules: ${S.season.rules.map(r => esc(RULES[r] ? RULES[r].name : r)).join(', ')}.` : ''}</span>${K.twist ? `<span style="color:#c6b8ff;font-style:italic">${esc(K.twist)}</span>` : ''}</div>` : ''}
       <h2>Titles</h2><div class="titles">${ST.titles.length ? ST.titles.map(t => `<span class="title" title="${esc(TITLES[t].desc)}">${icon('title')}${esc(TITLES[t].name)}</span>`).join('') : '<span class="note">None yet. The System is watching.</span>'}</div>
       <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<div class="comp"><b>${esc(n.name)}</b><span>${n.withHero ? 'Travels with you · their post stands empty' : `${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}`}</span><span class="bond">${Array.from({ length: 5 }, (_, k) => icon(k < n.bond ? 'heartFill' : 'heart')).join('')}</span><span class="acts"><button class="btn sm sys" data-chat="${n.id}">Talk</button><button class="btn sm sys ghost" data-follow="${n.id}" data-on="${n.withHero ? 0 : 1}">${n.withHero ? 'Back to post' : 'With me'}</button></span></div>`).join('') : '<span class="note">Nobody yet. Answer the calls: people are out there.</span>'}</div>
       <h2>Chronicle</h2><ol class="chron">${ST.chronicle.slice().reverse().slice(0, 14).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
@@ -93,15 +92,14 @@ export function createStatus(ui) {
     ui.showCard('log', `<button class="closex" id="logX" aria-label="Close">${icon('close')}</button><div class="eyebrow">Run log · night ${ui.game.state.night}</div><h1 class="sm">The ledger</h1>${logTable()}<div class="cardrow foot"><button class="btn ghost" id="logClose">Back</button></div>`, { arm: false });
     $('#logClose').onclick = $('#logX').onclick = () => { ui.hideCard(); ui.paused = false; };
   }
-  /** the obituary the script writes when the Chronicler is off or slow */
+  /** the obituary: three lines from the run's chronicle */
   function obituaryScript() {
     const S = ui.game.state, ST = S.story, comps = ST.npcs.filter(n => n.joined && n.alive).map(n => n.name.split(' ')[0]);
     const big = ST.chronicle.filter(c => c.imp >= 4 && !/^Woke up|contract|title/i.test(c.text)).slice(-1)[0];
-    const L = ST.lostContract;
     return [
       `A flash in the sky, a blue window only you could see, and a flatbed full of coworkers who chose to follow you.`,
       big ? `Day ${big.day}. ${chronLine(big.text)}` : `You held the Haven for ${S.night - 1} ${S.night - 1 === 1 ? 'night' : 'nights'}${comps.length ? `, with ${comps.slice(0, 2).join(' and ')} beside you` : ''}.`,
-      L ? `The contract "${L.name}" ran out on night ${L.night}. ${L.finale} was still out there.` : `On night ${S.night} the Haven fell, and the window closed.`,
+      `On night ${S.night} the Haven fell, and the window closed.`,
     ];
   }
   function showEnd() {
@@ -110,11 +108,11 @@ export function createStatus(ui) {
     const kills = Object.values(st.killsByKind || {}).reduce((a, b) => a + b, 0), by = st.killsBy || {};
     const stats = [['Dead put down', kills], ['Your kills', by.hero || 0], ['Scrap earned', st.goldEarned], ['Buildings raised', st.built], ['Sites claimed', st.sites || 0], ['Companions', ST.npcs.filter(n => n.joined).length], ['Titles', ST.titles.length], ['Most people', st.peakPop], ['Inferno Nests burned', st.regionsClaimed], ['Buildings lost', st.buildingsLost], ['Times you fell', st.heroDeaths], ['Contracts won', ST.wins || 0]];
     const lastPages = ST.chronicle.filter(c => c.imp >= 3).slice(-3);
-    const L = ST.lostContract, survived = Math.max(0, S.night - 1);
+    const survived = Math.max(0, S.night - 1);
     const beats = obituaryScript();
     const render = () => {
-      ui.showCard('end', `<div class="eyebrow"><span>${L ? `[Contract failed: ${esc(L.name)}]` : '[The window closes]'}</span></div>
-        <h1 class="big">${L ? 'The season ends without you' : 'The Haven has fallen'}</h1>
+      ui.showCard('end', `<div class="eyebrow"><span>[The window closes]</span></div>
+        <h1 class="big">The Haven has fallen</h1>
         <div class="bignum"><b>${survived}</b><span>${survived === 1 ? 'night' : 'nights'} survived${S.night > prev ? ' · a new best' : ` · best ${best}`}</span></div>
         <ul class="obit">${beats.map(b => `<li>${rich(b)}</li>`).join('')}</ul>
         <h2>The last pages</h2><ol class="lastpages">${lastPages.map(c => `<li><span>Day ${c.day}</span>${esc(chronLine(c.text))}</li>`).join('')}</ol>

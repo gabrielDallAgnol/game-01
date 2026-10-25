@@ -5,7 +5,6 @@ import { CUT, FOREMAN, NOISE, PICKS_PER_DAWN } from './state.js';
 import { LANDMARKS } from './mapgen.js';
 import { PACKS, PACK_RULES } from '../content/packs.js';
 import { TRADES } from '../content/heroes.js';
-import { seasonEnd } from '../content/season.js';
 // [econ3] a flat tower price
 import { ECON } from '../content/econ.js';
 
@@ -119,7 +118,6 @@ export function createEconomy(G) {
     rollPacks();
     if (S.sawBlackout && !S.blackout) G.story.grant('ironGrid');
     G.checkFeatures();
-    if (S.night - 1 === seasonEnd(S.season.n)) { if (!S.season.won) G.finale(false); G.startSeason(S.season.n + 1); }
     G.story.dawn();
     if (G.inferno) G.inferno.dawn();   // [nest3] hotter nests, embers before a nest wakes
     if (G.HC.trader && !CUT.trader) S.trade = { deals: rng.shuffle([...TRADES]).slice(0, 3).map(t => t.id), done: false };
@@ -130,7 +128,7 @@ export function createEconomy(G) {
     if (isBloodMoon(S.night + 1)) toast(`[Warning: red sky] The sky is turning red. **Tomorrow night is a Flare Night**${S.unique && !S.unique.slain && S.unique.night === S.night + 1 ? `, and ${S.unique.name} comes with it` : ''}. Build up today and tomorrow.`, 'win');
   }
 
-  /** the run ends: the hall fell, or (contracts.js) a lost contract ends it with a name. Closes the run log. */
+  /** the run ends: the hall fell. Closes the run log. */
   function endRun(won, reason) {
     if (S.over) return false;
     S.over = true; S.won = !!won; S.phase = 'over'; if (reason) S.endReason = reason; closeLog({ result: won ? 'won' : 'lost', reason: reason || (won ? 'won' : 'hall') });

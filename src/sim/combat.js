@@ -119,7 +119,6 @@ export function createCombat(G) {
     S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: src || null, dmg: +(m.lastHit || 0).toFixed(2) }); G.addSpike(HEAT.kill); S.salvage = (S.salvage || 0) + START.salvage * (MOBS[m.kind].size >= BIG ? 4 : 1);
     S.stats.killsByKind[m.kind] = (S.stats.killsByKind[m.kind] || 0) + 1;
     if (m.kind === 'guardian' || m.kind === 'gravelord') S.stats.bosses++;
-    if (m.finale === S.season.n || (m.unique && S.unique && S.unique.season === S.season.n && S.night <= S.season.end)) G.finale(true);   // the season's finale monster
     if (m.unique && S.unique) { S.unique.slain = true; S.picks.push('nest'); syncPicks(); toast(`[Unique Monster slain: ${m.unique}] A legendary blessing waits at dawn.`, 'good'); if (G.story) { G.story.chron(`Killed ${m.unique}, the unique monster.`, 5, ['unique']); G.story.grant('uniqueSlayer'); } }
     const D = MOBS[m.kind];
     if (S.P.lifesteal && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 6) S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + S.P.lifesteal);
