@@ -3,7 +3,6 @@
 // Created first: every other module destructures these from G. Part of createGame (see game.js).
 import { BUILDINGS } from '../content/buildings.js';
 import { N, idx } from './mapgen.js';
-import { WAVES } from '../content/mobs.js';
 
 export function createCore(G) {
   const { S, c, map } = G;
@@ -27,7 +26,6 @@ export function createCore(G) {
   const near = (b, type, r) => S.buildings.some(o => o !== b && o.type === type && !o.ruined && Math.hypot(o.x - b.x, o.y - b.y) <= r);
   const hasTech = t => S.buildings.some(b => b.type === t && !b.ruined && b.built >= 1);
   const claimedCount = () => S.claimed.size;
-  const isBloodMoon = n => !G.v2 && n % WAVES.bloodMoonEvery === 0;   // [v2] no Flare Nights (their bosses ride the waves)
   let liveCache = null, liveTick = -1;
   const dropLive = () => { liveTick = -1; };   // buildings changed: live() re-reads them
   const live = () => { if (liveTick !== S.time) { liveCache = S.buildings.filter(b => !b.ruined); liveTick = S.time; } return liveCache; };
@@ -55,5 +53,5 @@ export function createCore(G) {
   // a season's rules live in S.season.rules (a won contract's rules stack); S.season.rule is the newest, for old readers
   const RULE_ALIAS = {};
   const rule = id => { if (!S.season) return false; const list = S.season.rules || [], a = RULE_ALIAS[id] || id; return list.some(r => (RULE_ALIAS[r] || r) === a) || (RULE_ALIAS[S.season.rule] || S.season.rule) === a; };
-  return { ev, toast, has, combo, mastery, syncMastery, mastered, isDef, earn, houseCap, pop, near, hasTech, claimedCount, isBloodMoon, dropLive, live, owns, syncPicks, rollOffer, reveal, revealRegion, fail, compass, rule };
+  return { ev, toast, has, combo, mastery, syncMastery, mastered, isDef, earn, houseCap, pop, near, hasTech, claimedCount, dropLive, live, owns, syncPicks, rollOffer, reveal, revealRegion, fail, compass, rule };
 }

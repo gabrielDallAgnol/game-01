@@ -84,7 +84,6 @@ export function createStory(ctx) {
       case 'risen': ctx.risen(f.n); break;
       case 'gamble': if (rng.next() >= f.p) { for (const b of f.bad) apply(b, enc); } else if (f.good) { for (const b of f.good) apply(b, enc); } else toast('The fever broke at dawn. He lives.', 'good'); break;
       case 'hurt': ctx.hurtHero(f.n); break;
-      case 'unique': S.unique = { name: f.name, mult: f.mult, night: f.later ? nextMoon(S.night + 1) : nextMoon(S.night), thread: enc && enc.thread }; break;
       case 'advance': if (th) { if (enc && enc.noRegion) endThread(enc.thread, 'no way through'); else { th.stage++; th.since = S.night; } } break;
       case 'resolve': if (th) { th.status = 'done'; } break;
       case 'dailyAccept': daily.accept(); break;
@@ -93,7 +92,6 @@ export function createStory(ctx) {
     }
   }
   const hasRule = id => { const a = api(); return a && a.rule ? a.rule(id) : !!(S.season && (S.season.rules || []).includes(id)); };
-  const nextMoon = n => { let k = n; while (k % 5) k++; return k; };
 
   // ---------- where a thread happens: reuse a site that is already open, else open one, else mark the place ----------
   // (the frontier map has the substation and the school in open districts: opening a new district for them made a
@@ -291,7 +289,6 @@ export function createStory(ctx) {
     for (const n of ST.npcs) n.chatToday = 0;
     if (ST.threads.hummer && ST.threads.hummer.status === 'open' && ST.threads.hummer.stage === 1) S.food = Math.max(0, S.food - 1);   // the caged one eats
     // [income] the garden's food and companions' scrap and food trickle in all day now (sim/income.js)
-    if (ST.uniqueLater && (!S.unique || S.unique.slain || S.unique.escaped)) { S.unique = { ...ST.uniqueLater, night: nextMoon(S.night + 1) }; ST.uniqueLater = null; }
     // threads that waited too long close, with a card
     for (const [tid, th] of Object.entries(ST.threads)) if (th.status === 'waiting' && S.night >= th.failAt) endThread(tid, 'too late');
     // after each Flare Night: the chapter closes, told back to you (only when nothing bigger wants the window)
@@ -312,10 +309,8 @@ export function createStory(ctx) {
       if (th.status !== 'open' || queued(e => e.thread === tid)) continue;
       const st = THREADS[tid].stages[th.stage]; if (!st || st.at !== 'dawn' || th.stage === 0) continue;
       if (S.night - th.since < (st.after || 0)) continue;
-      if (st.needs === 'uniqueDone' && !(S.unique && S.unique.slain)) { if (S.unique && S.unique.escaped && !S.unique.contract) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[${S.unique.name}] It got away. Back on the next Flare Night.`, 'bad'); } continue; }
       offer(threadEncounter(tid, th.stage), 7, 9);
     }
-    if (S.unique && S.unique.season && !S.unique.contract && S.unique.escaped && !S.unique.slain) { S.unique.escaped = false; S.unique.night = nextMoon(S.night); toast(`[${S.unique.name}] It got away. Back on the next Flare Night.`, 'bad'); }
     if (ST.beacon || ST.flags.beacon) { const n = (ST.beacon || 0) + (ST.flags.beacon ? 1 : 0); ST.beacon = 0; ST.flags.beacon = false; S.survivors += n; toast(`Strangers walked in under your flag. +${n} ${n === 1 ? 'person' : 'people'}.`, 'good'); }
     // a new dawn: yesterday's beacons fade first if the story needs the room (the story outranks a beacon)
     ST.spots = ST.spots.filter(sp => sp.thread || S.night - sp.day < 2);
@@ -359,11 +354,11 @@ export function createStory(ctx) {
   const word = n => (n < NUMBER.length ? NUMBER[n] : n < 20 ? TEEN[n - 13] : n < 100 ? TENS[Math.floor(n / 10)] + (n % 10 ? `-${NUMBER[n % 10].toLowerCase()}` : '') : String(n));
   /** "One of them." / "Nine, from the east." — from the dead actually queued for tonight */
   function nightLine(q = S.queue || []) {
-    const sides = new Map(); let brutes = 0, total = 0, unique = null;
+    const sides = new Map(); let brutes = 0, total = 0;
     for (const e of q) {
       const reg = map.regions[e.nest], p = e.nest < 0 && S.edgeSpawns && S.edgeSpawns[-1 - e.nest] ? S.edgeSpawns[-1 - e.nest] : reg && reg.nest ? reg.nest : map.town; const d = dirOf(p.x, p.y);   // a pack out of the deep woods: its edge
       sides.set(d, (sides.get(d) || 0) + 1); total++;
-      if (e.kind === 'brute') brutes++; if (e.unique && S.unique) unique = S.unique.name;
+      if (e.kind === 'brute') brutes++;
     }
     const T = NIGHT_TEXT, ord = [...sides.entries()].sort((a, b) => b[1] - a[1]);
     let line;
@@ -373,8 +368,6 @@ export function createStory(ctx) {
     else if (ord.length === 3 && T.three) line = T.three.replace('{N}', word(total)).replace('{dir}', ord[0][0]).replace('{dir2}', ord[1][0]).replace('{dir3}', ord[2][0]);
     else line = T.many.replace('{N}', word(total));
     if (brutes === 1) line += T.brute; else if (brutes > 1) line += T.brutes.replace('{B}', word(brutes));
-    if (unique) line += T.unique.replace('{name}', unique);
-    if (S.night % 5 === 0) line = T.blood + line;
     return { line, total, brutes, sides: ord.map(([dir, n]) => ({ dir, n })) };
   }
   function nightTick() {

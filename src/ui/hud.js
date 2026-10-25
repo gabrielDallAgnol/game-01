@@ -91,13 +91,13 @@ export function createHud(ui) {
   function updateHud() {
     dockH();
     if (!ui.game) return;
-    const S = ui.game.state, night = S.phase === 'night', bm = ui.game.isBloodMoon(S.night);
+    const S = ui.game.state, night = S.phase === 'night';
     // the System strip
     strip.update({ show: systemHere() && !S.over, hp: S.hero.hp, maxHp: S.hero.maxHp, lv: S.lvl, quest: ui.game.story().questLine() });
     // the Camp bar
     $('#nightNum').textContent = S.night;
     $('#dayIc').setAttribute('href', night ? '#i-moon' : '#i-sun');
-    $('#dayPill').classList.toggle('night', night); $('#dayPill').classList.toggle('blood', bm);
+    $('#dayPill').classList.toggle('night', night);
     const kp = Math.max(0, S.keep.hp) / S.keep.maxHp;
     $('#keepFill').style.width = `${kp * 100}%`; $('#campHp').classList.toggle('hurt', kp < 0.7); $('#campHp').classList.toggle('low', kp < 0.35);
     if (S.keep.hp < lastKeep - 0.5) keepHitT = 2; lastKeep = S.keep.hp; keepHitT = Math.max(0, keepHitT - 0.2);

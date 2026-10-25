@@ -8,7 +8,7 @@ import { TITLES } from '../content/story.js';
 import { WEATHER } from '../content/weather.js';
 
 export function createSeasons(G) {
-  const { S, c, ev, isBloodMoon, keep, map, rng, rule, seed } = G;
+  const { S, c, ev, keep, map, rng, rule, seed } = G;
   // weather for tonight, rolled at dawn on its own random stream (never on Flare Nights)
   const weatherRng = new Rng(hashSeed(seed, 'weather'));
   const W8 = () => WEATHER[S.weather] || WEATHER.clear;
@@ -17,7 +17,7 @@ export function createSeasons(G) {
   const ruleWeather = () => { for (const id of Object.keys(RULE_FX)) if (RULE_FX[id].weather && rule(id)) return RULE_FX[id].weather; return 'clear'; };
   function rollWeather(n) {
     if (CUT.weather) return ruleWeather();
-    if (n < 3 || isBloodMoon(n)) return 'clear';
+    if (n < 3) return 'clear';
     const ids = Object.keys(WEATHER); return ids[weatherRng.weighted(ids.map(k => WEATHER[k].odds))];
   }
 

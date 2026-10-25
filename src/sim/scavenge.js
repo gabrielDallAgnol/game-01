@@ -7,7 +7,7 @@ import { CREW, TRAITS, START_TRAITS, NAMES, RUN, RISK, TREAT } from '../content/
 
 const WALK = new Set([T.GRASS, T.DIRT, T.FOREST, T.FORD]);
 
-export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, isBloodMoon, spawnMob, fail }) {
+export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, spawnMob, fail }) {
   const rng = new Rng(hashSeed(seed, 'scavenge'));
   const at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? T.VOID : map.terrain[idx(x, y)]);
 
@@ -72,7 +72,7 @@ export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, isB
     const run = runs.find(r => r.site === id);
     const left = R ? R.uses - s.used : 0;
     const reachable = hops <= 2;
-    const die = R ? Math.min(0.6, R.die + (awake ? RISK.awakeHive : 0) + (isBloodMoon(S.night) && hops > 0 ? RISK.bloodMoon : 0)) : 0;
+    const die = R ? Math.min(0.6, R.die + (awake ? RISK.awakeHive : 0)) : 0;
     return { site: s, hops, R, awake, run, left, reachable, visible: reachable && left > 0, die, bite: R ? R.bite : 0, kit: R ? R.kit * n : 0, label: R ? R.label : 'Too far' };
   }
 
@@ -127,14 +127,14 @@ export function createScavenge({ S, map, seed, ev, toast, earn, activeNests, isB
 
   /** dawn: cooks feed the town; crews come home with what they found. Returns food from cooks. */
   function dawnFood() { return homeCount('cook') * 2; }
-  function dawn(bloodMoonNight) {
+  function dawn() {
     const report = [];
     for (const r of runs.splice(0)) {
       const s = sites[r.site], R = RUN[Math.min(2, r.hops)];
       const team = r.ids.map(byId).filter(Boolean);
       const scout = team.some(c => c.trait === 'scout'), medic = team.some(c => c.trait === 'medic'), tinker = team.some(c => c.trait === 'tinker');
       const awake = activeNests(S.night).includes(s.region) && S.nestAlive[s.region];
-      const pDie = Math.min(0.6, R.die + (awake ? RISK.awakeHive : 0) + (bloodMoonNight && r.hops > 0 ? RISK.bloodMoon : 0)) * (scout ? 0.5 : 1);
+      const pDie = Math.min(0.6, R.die + (awake ? RISK.awakeHive : 0)) * (scout ? 0.5 : 1);
       let gold = 0, food = 0; const dead = [], bitten = [], extras = [];
       for (const c of team) {
         c.out = null;

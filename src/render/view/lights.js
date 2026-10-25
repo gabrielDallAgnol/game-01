@@ -9,7 +9,7 @@ import { TOP } from '../top.js';
 
 export function createLights(V) {
   const { S, map, C, game, fx2, Wv, heroLight, opts } = V;
-  let todV = -1, bloodK = 0, snapT = 0;
+  let todV = -1, snapT = 0;
   // ---------- the night's light pools: every warm (and rot-green) source near the camera paints the light texture ----------
   const AMBER = lc('#ffa64d'), WARM = lc('#ffc070'), ROT = lc('#9dff4a'), REDL = lc('#ff5a3a'), FLARE = lc('#ff7a3a'), SIEGE = lc('#e3a54a'), LANT = lc('#ffc890');
   function paintLights(k, lit) {
@@ -47,13 +47,12 @@ export function createLights(V) {
   function clock(dt, dayT) {
     { const goal = game.timeOfDay(); if (todV < 0) todV = goal; let d = goal - todV; if (d > 0.5) d -= 1; else if (d < -0.5) d += 1;
       todV = (todV + (Math.abs(d) > 0.25 ? d : d * Math.min(1, dt * 2.5)) + 1) % 1; }
-    const blood = game.isBloodMoon(S.night) ? 1 : 0; bloodK += (blood - bloodK) * Math.min(1, dt * 0.6);
-    if (snapT > 0) { snapT--; todV = game.timeOfDay(); bloodK = blood; V.cam.snapDolly(dayT); }
+    if (snapT > 0) { snapT--; todV = game.timeOfDay(); V.cam.snapDolly(dayT); }
     const skyNow = skyAt(todV, game.dayShare()); V.dark = skyNow.dark;
     return skyNow;
   }
   /** the sky, sun and fog for this moment (after the camera has moved) */
-  function cycle(R) { V.look.cycle(todV, game.dayShare(), bloodK, V.camTarget, TOP.on ? R + 3 : Math.max(22, R * 1.7)); }   // [top] from above R already covers the screen
+  function cycle(R) { V.look.cycle(todV, game.dayShare(), 0, V.camTarget, TOP.on ? R + 3 : Math.max(22, R * 1.7)); }   // [top] from above R already covers the screen
 
   /** night: windows, lenses, the light pool, the hero's lantern, rim and mist */
   function night(dt, skyNow) {

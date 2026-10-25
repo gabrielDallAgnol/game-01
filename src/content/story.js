@@ -188,36 +188,6 @@ export const THREADS = {
   },
 };
 
-// The unique monsters: each run's Flare Nights bring one with a name and a story. Kill it for a legendary blessing.
-THREADS.lantern = {
-  title: 'The Lantern-Eater',
-  cast: {},
-  start: { day: 3 },
-  stages: [
-    {
-      id: 'mark', at: 'dawn', eyebrow: '[You have been Marked]', title: 'The light that went out',
-      scene: 'Something tall put out the lamps. It **marked you**. It comes back on a **Flare Night**.',
-      choices: [{ id: 'note', label: 'Remember it', hint: 'You keep your distance. Leans you toward **Aim**.', lean: 'ranger', fx: [{ op: 'advance' }] }, { id: 'stare', label: 'Stare into the dark', hint: 'You face it head on. Leans you toward **Brawn**.', lean: 'hero', fx: [{ op: 'advance' }] }],
-    },
-    {
-      id: 'sighting', at: 'dawn', after: 7, eyebrow: '[Unique Monster: The Lantern-Eater]', title: 'Something eats the light',
-      scene: '**The Lantern-Eater** comes on the Flare Night. Fight it tonight, or hide?',
-      choices: [
-        { id: 'bait', label: 'Light every lamp', hint: 'It comes tonight, tough and slow. Kill it: a legendary blessing. +15 noise.', fx: [{ op: 'heat', n: 15 }, { op: 'unique', name: 'The Lantern-Eater', mult: 1.5 }, { op: 'advance' }] },
-        { id: 'dark', label: 'Douse the lights, hide', hint: 'A normal Flare Night tonight. It returns next time, angrier.', fx: [{ op: 'unique', name: 'The Lantern-Eater', mult: 1.6, later: 5 }, { op: 'advance' }] },
-      ],
-    },
-    {
-      id: 'aftermath', at: 'dawn', after: 1, needs: 'uniqueDone', eyebrow: '[Slain: The Lantern-Eater]', title: 'The thing on the road',
-      scene: 'The Lantern-Eater is **down**. What do you do with it?',
-      choices: [
-        { id: 'skull', label: 'Mount the lamp-skull', hint: 'Towers +10% damage for good. The Ash-Born fear the light.', fx: [{ op: 'perk', key: 'towerDmg', add: 0.1 }, { op: 'resolve' }] },
-        { id: 'burn', label: 'Burn it by the fire', hint: '-25 noise, and +1 food a day: people sleep again.', fx: [{ op: 'heat', n: -25 }, { op: 'flag', key: 'garden' }, { op: 'resolve' }] },
-      ],
-    },
-  ],
-};
-
 // A faction: people are dangerous too
 THREADS.toll = {
   title: 'The Bridge Crew',
@@ -402,8 +372,6 @@ export const NIGHT_TEXT = {
   many: '{N}. From every side.',
   brute: ' A Slag Brute walks with them.',
   brutes: ' {B} Slag Brutes walk with them.',
-  blood: 'Flare Night. ',
-  unique: ' {name} comes with them.',
 };
 
 // ---------- how people arrive: every choice that adds people says it plainly (the engine adds this line, never the AI) ----------

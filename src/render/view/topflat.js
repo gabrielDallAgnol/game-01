@@ -8,7 +8,7 @@ import { OUTLINE, OUTLINE_ORTHO } from '../figures.js';
 import { TOP } from '../top.js';
 import { lc } from './shared.js';
 
-const DAY = lc('#ffffff').multiplyScalar(1.12), NIGHT = lc('#8e9fd0'), BLOOD = lc('#c47a6c'), WARM = lc('#ffd6b0');
+const DAY = lc('#ffffff').multiplyScalar(1.12), NIGHT = lc('#8e9fd0'), WARM = lc('#ffd6b0');
 
 export function createTopFlat(V) {
   if (!TOP.on) return null;
@@ -16,7 +16,7 @@ export function createTopFlat(V) {
   V.renderer.shadowMap.enabled = false;   // the flat path never reads the sun's shadow: skip the shadow pass (the blob shadows stay)
   function update() {
     const sky = look.sky(), dark = V.dark;
-    c.copy(DAY).lerp(WARM, 0.5 * (sky.tw || 0) * (1 - dark)).lerp(game.isBloodMoon(S.night) ? BLOOD : NIGHT, dark);
+    c.copy(DAY).lerp(WARM, 0.5 * (sky.tw || 0) * (1 - dark)).lerp(NIGHT, dark);
     K.T.flat.value.copy(c);
     K.T.rim.value.w = 0; K.T.mist.value.w = 0; K.T.ao.value = 0; K.T.dark.value = Math.max(K.T.dark.value, 0.8);   // the wild stays readable at night
     const hPx = canvas.clientHeight || innerHeight;

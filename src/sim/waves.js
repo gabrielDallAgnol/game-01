@@ -7,7 +7,7 @@ import { CUT } from './state.js';
 import { PASSABLE, idx, inside } from './mapgen.js';
 
 export function createWaves(G) {
-  const { S, claimedCount, ev, isBloodMoon, keep, map, mobById, pop, rng, toast } = G;
+  const { S, claimedCount, ev, keep, map, mobById, pop, rng, toast } = G;
 
   // ---------- regions & nests ----------
   const edgeSpawns = [];   // [{ x, y, horde? }]: where a marching horde enters (sim/hordes.js pushes one per horde)
@@ -51,11 +51,11 @@ export function createWaves(G) {
     Object.assign(S.cur, {
       goldAtBell: S.gold, pop: pop(), town: G.townCounts(), defDps: +G.defenceDps().toFixed(1), heroDps: +G.heroDps().toFixed(1),
       wave: S.queue.length, waveHp: Math.round(S.queue.reduce((a, q) => a + (MOBS[q.kind].fixedHp ? MOBS[q.kind].hp : Math.ceil(MOBS[q.kind].hp * hpS(S.night))), 0)),
-      standing: S.buildings.filter(b => !b.ruined).length, nests: activeNests().length, claimed: claimedCount(), bloodMoon: isBloodMoon(S.night),
+      standing: S.buildings.filter(b => !b.ruined).length, nests: activeNests().length, claimed: claimedCount(),
     });
     if (!CUT.crew) G.sc.nightfall(keep);
-    ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
-    toast(`Dusk. Night ${S.night}.`, isBloodMoon(S.night) ? 'bad' : undefined);
+    ev('night', { n: S.night });
+    toast(`Dusk. Night ${S.night}.`);
     return true;
   }
 

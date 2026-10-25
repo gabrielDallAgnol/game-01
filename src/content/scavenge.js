@@ -25,5 +25,5 @@ export const RUN = [
   { label: 'Next door',        kit: 3, gold: [3, 7], food: [2, 4], die: 0.08, bite: 0.1, find: 0.22, blueprint: 0.3, relic: 0.08, uses: 3 },
   { label: 'Deep in the city', kit: 5, gold: [6, 12], food: [3, 6], die: 0.18, bite: 0.15, find: 0.35, blueprint: 0.45, relic: 0.2, uses: 3 },
 ];
-export const RISK = { awakeHive: 0.1, bloodMoon: 0.08 };
+export const RISK = { awakeHive: 0.1 };
 export const TREAT = { food: 4, gold: 6 };

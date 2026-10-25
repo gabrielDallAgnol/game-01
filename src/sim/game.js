@@ -90,7 +90,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   for (const make of MODULES) Object.assign(G, make(G));
   const {
     rng, mobById, PICKUP, activeNests, autoHero, baseDist, checkForeman, compass, dawn, districtOffer,
-    earn, edgeSpawns, ev, fail, frontier, gainXp, heroOk, hitMob, hurtHero, inZone, isBloodMoon, isWall, killMob, kitFor,
+    earn, edgeSpawns, ev, fail, frontier, gainXp, heroOk, hitMob, hurtHero, inZone, isWall, killMob, kitFor,
     landmarkReach, live, mastery, moveToward, newLog, nightLen, occupy, openDistrict, placeBuilding, pop, rankOf,
     refreshFlow, refreshMax, restoreSnap, reveal, revealRegion, rollOffer, rollPacks, rule, scatterPickups, senseMult, siteOf,
     spawnAnimals, spawnAtNest, spawnMob, spawnRoamers, standable, startNight, stepAllies, stepDrops, stepHero, stepMobs,
@@ -119,7 +119,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   if (!restore) scatterPickups(PICKUP.start);
 
   // ---------- scavenging ----------
-  G.sc = createScavenge({ S, map, seed, ev, toast, earn, activeNests, isBloodMoon, spawnMob, fail });
+  G.sc = createScavenge({ S, map, seed, ev, toast, earn, activeNests, spawnMob, fail });
   S.scav = G.sc.scav;
   // ---------- the story: its engine (sim/story.js) reaches the rules only through these hooks ----------
   const REVIVE = ['Hush', 'Echo', 'Lull', 'Old Song', 'Quill', 'Tam', 'Vesper', 'Nocturne'];
@@ -181,7 +181,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
       for (const m of [...S.mobs]) {
         if (m.roam || m.stream !== undefined || m.hunt) continue;
         if (Math.hypot(m.x - c, m.y - c) > 22) { m.roam = { x: m.x, y: m.y, region: -1 }; m.lost = true; continue; }   // out in the woods: they wander
-        if (m.unique && S.unique) S.unique.escaped = true;   // at your walls: the sunrise burns the night's dead (the hives' stream keeps coming)
         S.mobs.splice(S.mobs.indexOf(m), 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: 'sun', dmg: 0 }); burnt++;
       }
       if (burnt) toast(`Sunrise: **${burnt}** of the Ash-Born burn at your walls.`);

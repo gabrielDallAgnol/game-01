@@ -30,33 +30,9 @@ export const BRAIN = {
   ambush: [0, 0, 0, 0.45, 0.8],    // chance a rank-3+ dead waits on your road home instead of marching on the town
   farSpeed: 2,                     // far from you and the town (off screen), the dead walk this much faster
 };
-// Burning a hive: the dead inside pour out after you. Tools buy you time.
-export const ESCAPE = {
-  horde: n => 6 + n,                                   // dead in a hive's death throes
-  flare: { cost: 4, t: 20, name: 'Flare', desc: 'They chase the light for **20 s**.' },
-  smoke: { cost: 3, t: 25, name: 'Smoke', desc: 'They lose your scent unless they bump into you.' },
-  run:   { name: 'Just run', desc: 'They come after you **right away**.' },
-};
-
-// the climb the budget carries now that the dead toughen slowly (hpScale ≈ 1.035ⁿ): night n brings (1 + k(n−1))× the old count
-// Nights LATE.from–LATE.to: the climb rests (only the n² term grows: still ×1.6 from night 15 to 20), so a town that built
-// well and specialised its towers can hold to ~20; after that it climbs hard again (LATE.after a night) and passes the old
-// curve by night 26: endless runs still end. Oct 20 pm: by night 17 the wave's HP had grown ×140 and a well-built town's
-// damage ×17. Night 15 is ×0.9 the old budget, night 17 ×0.83, night 20 ×0.75, night 22 ×0.86, night 26 ×1.04.
-export const BUDGET_CLIMB = 0.075;
-export const LATE = { from: 12, to: 20, climb: 0, after: 0.2 };
-const climb = n => 1 + BUDGET_CLIMB * (Math.min(n, LATE.from) - 1) + LATE.climb * (Math.min(Math.max(n, LATE.from), LATE.to) - LATE.from) + LATE.after * Math.max(0, n - LATE.to);
+// The dead toughen slowly with the nights (the hordes' size carries the climb: content/hordes.js).
 export const WAVES = {
-  budget: n => (5 + 2.2 * n + 0.36 * n * n) * climb(n),   // mob-cost points per night: more dead, not tougher ones
-  hpScale: n => Math.pow(1.035, n - 1),   // the dead toughen slowly: growth has to help (the budget, not the hp, carries the climb)
-  territory: claimed => 1 + 0.12 * (claimed - 1),    // each claimed region beyond the core adds 12%
-  plunder: ring => 6 + 6 * ring,                     // gold found in a burned nest
-  bloodMoonEvery: 5,
-  bloodMoonMult: n => (n < 15 ? 1 : 1.15),      // the first Flare Night is a warning shot: just its guardian
-  surges: n => 2 + Math.floor(n / 3),
-  duration: n => Math.min(40, 14 + 1.4 * n),
-  // a purge siege adds this share of the night's budget, scaled by the nest's ring
-  purgeShare: ring => (ring === 1 ? 0.55 : 0.85),
+  hpScale: n => Math.pow(1.035, n - 1),
 };
 
 // Continuous pressure: a clock-driven day with a low tide of stragglers, roaming dead in the wild, and a gentle opening.
@@ -66,14 +42,8 @@ export const TIDE = {
   dayRef: 100,                 // the day length the day's pressure was tuned for: the stream and roamer drift by day run at dayRef/dayLen, so a longer day is not more dead
   nightIncome: 0.5,            // scrap and food trickle in all day; at night at this share of the day's rate (sim/income.js)
   bellGold: 10,                // ringing early pays 1 gold per this many seconds left
-  dayShare: n => 0,                    // replaced by the continuous stream (see STREAM in game.js)    // share of tonight's budget that trickles in by day (day 1 is the calm before)
   drift: 0.012,                        // per second: chance a roamer next to your land wanders in toward the town
   nightLen: 72,                // seconds every night lasts, cleared or not: the moon crosses the whole sky before dawn
-  opening: [0, 0.92, 0.8, 0.9],   // the first nights ramp up: 7 hand-placed walkers, then ~9, ~15, ~24 budget
-  first: { hp: 5, speed: 0.7 },        // the first dead: slow, tough, unforgettable (it walks ahead of night 1)
-  // night 1 (hand-authored): the first dead alone, then its pack from the same hive, then a second pack out of the
-  // woods on the far side while the hero is still busy. A fight the hero wins alone with Shove.
-  night1: { first: 3, packA: [13, 15, 17], packB: [29, 31, 33, 35] },
   roam: { perRing: [0, 3, 12], hiveGap: 7, radius: 4.5, sight: 6, leash: 10, lose: 16, cap: 150, animals: { deer: { cap: 20, start: 14, herd: [2, 4], regrow: 1 }, boar: { cap: 6, start: 2, herd: [2, 2], regrow: 1 }, wolf: { cap: 6, start: 0, herd: [2, 3], regrow: 1, from: 2 } }, chase: { walker: 1.35, runner: 1.1, brute: 1.25, crawler: 1.2 } },   // a hunting roamer moves this much faster than it wanders
 };
 

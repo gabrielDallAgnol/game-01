@@ -9,7 +9,7 @@ import { TRADES } from '../content/heroes.js';
 import { ECON } from '../content/econ.js';
 
 export function createEconomy(G) {
-  const { S, combo, dropLive, earn, ev, fail, has, hasTech, isBloodMoon, isDef, keep, mastery, near, owns, pop, rng, rule, syncPicks, toast } = G;
+  const { S, combo, dropLive, earn, ev, fail, has, hasTech, isDef, keep, mastery, near, owns, pop, rng, rule, syncPicks, toast } = G;
   const costOf = (type, level = 1) => Math.max(1, Math.floor(BUILDINGS[type].cost[level - 1] * (1 - (G.HC.discount || 0))) - (isDef(type) ? S.P.defDiscount : S.P.ecoDiscount));
   // a new building costs more for every one of its kind you already have
   const copies = type => S.buildings.filter(b => b.type === type).length;
@@ -87,12 +87,12 @@ export function createEconomy(G) {
     for (const a of S.allies) if (a.comp) a.hp = a.maxHp;
     if (G.story) for (const n of S.story.npcs) if (n.withHero && n.alive && n.joined && !S.allies.some(a => a.comp === n.id)) G.spawnCompanion(n);
     S.purses = [];
-    if (!CUT.crew) G.sc.dawn(isBloodMoon(S.night));
+    if (!CUT.crew) G.sc.dawn();
     S.night++; newLog();
     S.weather = G.rollWeather(S.night); if (S.weather !== 'clear' && !CUT.weather) toast(`Tonight: ${G.W8().name.toLowerCase()}. ${G.W8().desc}`, G.W8().kind);
     S.dayT = 0; G.spawnRoamers(); G.spawnAnimals(); G.scatterPickups(G.PICKUP.perDawn);
     for (const d of [...S.drops]) if (--d.ttl <= 0) { S.drops.splice(S.drops.indexOf(d), 1); ev('dropGone', { id: d.id }); }
-    { const was = S.night - 1; if (isBloodMoon(was)) G.dropSupply('The Flare Night has set.'); else if (claimedNow !== null) G.dropSupply('With the Inferno Nest burned,'); else if (was >= 3 && rng.next() < 0.2) G.dropSupply('At first light,'); }
+    { const was = S.night - 1; if (was >= 3 && rng.next() < 0.2) G.dropSupply('At first light,'); }
     const want = [];
     if (owns('christ') && S.night % 3 === 0) want.push('chest');   // no dawn blessings: they come from hives (epic loot) and key levels
     if (nestPick) want.push('nest');
@@ -108,7 +108,6 @@ export function createEconomy(G) {
     ev('dawn', { goldIn, foodIn, need, fed });
     toast(`Dawn. ${goldIn >= 0 ? '+' : ''}${goldIn} scrap${salv ? ` (${salv} salvaged from the dead)` : ''}${upk ? ` after ${upk} tower upkeep` : ''}, +${foodIn} food. Citizens ate ${need}.`, 'good');   // (the HUD reads this line: it came in since yesterday)
     if (fed < 0.99) toast(`Not enough food. Houses earned ${Math.round(fed * 100)}% of their scrap.`, 'bad');
-    if (isBloodMoon(S.night + 1)) toast(`[Warning: red sky] The sky is turning red. **Tomorrow night is a Flare Night**${S.unique && !S.unique.slain && S.unique.night === S.night + 1 ? `, and ${S.unique.name} comes with it` : ''}. Build up today and tomorrow.`, 'win');
   }
 
   /** the run ends: the hall fell. Closes the run log. */
