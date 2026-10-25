@@ -6,28 +6,32 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 // Oriented box: centre (x,y), width w along angle rot, depth h across it.
+// The hot paths below allocate nothing; their float operations match the plain forms term for term, so results are
+// identical (the existing recipes' hashes are pinned by a test).
+const SX = [-1, 1, 1, -1], SY = [-1, -1, 1, 1];
 export function obbCorners(o) {
   const c = Math.cos(o.rot), s = Math.sin(o.rot), hw = o.w / 2, hh = o.h / 2;
   return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([x, y]) => ({ x: o.x + x * c - y * s, y: o.y + x * s + y * c }));
 }
 export function obbBox(o, pad = 0) {
-  const p = obbCorners(o); let a = 1e9, b = 1e9, c = -1e9, d = -1e9;
-  p.forEach(q => { a = Math.min(a, q.x); b = Math.min(b, q.y); c = Math.max(c, q.x); d = Math.max(d, q.y); });
-  return [a - pad, b - pad, c + pad, d + pad];
+  const c = Math.cos(o.rot), s = Math.sin(o.rot), hw = o.w / 2, hh = o.h / 2; let a = 1e9, b = 1e9, cc = -1e9, d = -1e9;
+  for (let k = 0; k < 4; k++) { const x = SX[k] * hw, y = SY[k] * hh, qx = o.x + x * c - y * s, qy = o.y + x * s + y * c; a = Math.min(a, qx); b = Math.min(b, qy); cc = Math.max(cc, qx); d = Math.max(d, qy); }
+  return [a - pad, b - pad, cc + pad, d + pad];
 }
 export function toLocal(o, x, y) { const c = Math.cos(-o.rot), s = Math.sin(-o.rot), dx = x - o.x, dy = y - o.y; return { x: dx * c - dy * s, y: dx * s + dy * c }; }
 export function toWorld(o, lx, ly) { const c = Math.cos(o.rot), s = Math.sin(o.rot); return { x: o.x + lx * c - ly * s, y: o.y + lx * s + ly * c }; }
-export function pointInObb(o, x, y, pad = 0) { const l = toLocal(o, x, y); return Math.abs(l.x) <= o.w / 2 + pad && Math.abs(l.y) <= o.h / 2 + pad; }
+export function pointInObb(o, x, y, pad = 0) { const c = Math.cos(-o.rot), s = Math.sin(-o.rot), dx = x - o.x, dy = y - o.y; return Math.abs(dx * c - dy * s) <= o.w / 2 + pad && Math.abs(dx * s + dy * c) <= o.h / 2 + pad; }
 
 // Separating-axis test for two oriented boxes; pad grows both (a gap requirement).
+const PA = new Float64Array(8), PB = new Float64Array(8);
+const fill = (o, w, h, P) => { const c = Math.cos(o.rot), s = Math.sin(o.rot), hw = w / 2, hh = h / 2; for (let k = 0; k < 4; k++) { const x = SX[k] * hw, y = SY[k] * hh; P[2 * k] = o.x + x * c - y * s; P[2 * k + 1] = o.y + x * s + y * c; } };
 export function obbOverlap(a, b, pad = 0) {
-  const A = { ...a, w: a.w + pad, h: a.h + pad }, B = { ...b, w: b.w + pad, h: b.h + pad };
-  const pa = obbCorners(A), pb = obbCorners(B);
-  for (const o of [A, B]) for (const ang of [o.rot, o.rot + Math.PI / 2]) {
-    const ax = Math.cos(ang), ay = Math.sin(ang);
-    const proj = ps => ps.map(p => p.x * ax + p.y * ay);
-    const ra = proj(pa), rb = proj(pb);
-    if (Math.max(...ra) < Math.min(...rb) || Math.max(...rb) < Math.min(...ra)) return false;
+  fill(a, a.w + pad, a.h + pad, PA); fill(b, b.w + pad, b.h + pad, PB);
+  for (let q = 0; q < 4; q++) {
+    const ang = q < 2 ? (q ? a.rot + Math.PI / 2 : a.rot) : (q > 2 ? b.rot + Math.PI / 2 : b.rot), ax = Math.cos(ang), ay = Math.sin(ang);
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (let k = 0; k < 4; k++) { const u = PA[2 * k] * ax + PA[2 * k + 1] * ay, v = PB[2 * k] * ax + PB[2 * k + 1] * ay; if (u < a0) a0 = u; if (u > a1) a1 = u; if (v < b0) b0 = v; if (v > b1) b1 = v; }
+    if (a1 < b0 || b1 < a0) return false;
   }
   return true;
 }

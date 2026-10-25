@@ -3,7 +3,8 @@
 // A run keeps one house type, so a street reads as one build. Near the nest some houses are
 // ruins: the same footprint, no roof, walls as segment atoms with a gap where the door was.
 import { STREET, TERRACE } from '../units.js';
-import { toWorld, segBox, obbOverlap, obbCorners, dist, distToPoly } from '../geom.js';
+import { toWorld, segBox, obbOverlap, obbBox, obbCorners, dist, distToPoly } from '../geom.js';
+import { createHash } from '../spatial.js';
 import { gapFor } from '../sockets.js';
 
 export const terracesStage = {
@@ -15,11 +16,13 @@ export const terracesStage = {
     // a recipe tunes the rows with params.terrace; the lot depth follows the deepest house atom
     const P = { yard: TERRACE.yard, front: TERRACE.front, runMin: 4, runSpan: 6, alleyExtra: 2, ruin: 0.06, swap: 0.12, ...(W.params.terrace || {}) };
     const DEPTH = Math.max(TERRACE.depth, ...houses.map(h => h.size[1])), YD = DEPTH + P.yard;
-    const boxes = []; W.streets.forEach(s => boxes.push({ s, b: segBox(s.pts[0], s.pts[1], s.w + 2 * s.walk + 1) }));
-    W.rails.forEach(r => { for (let i = 0; i < r.pts.length - 1; i++) boxes.push({ s: { id: r.id }, b: segBox(r.pts[i], r.pts[i + 1], 4.6 + 6) }); });
-    const taken = W.lots.slice(), inMap = o => obbCorners(o).every(q => q.x > 2 && q.y > 2 && q.x < W.w - 2 && q.y < W.h - 2);
-    const blocked = (lot, sid) => !inMap(lot) || boxes.some(({ s, b }) => s.id !== sid && obbOverlap(lot, b, -0.05)) || taken.some(o => Math.abs(o.x - lot.x) < 40 && Math.abs(o.y - lot.y) < 40 && obbOverlap(lot, o, -0.05))
-      || (W.camp && dist(lot, W.camp) < W.camp.r + 10 + Math.max(lot.w, lot.h) / 2) || (W.nest && dist(lot, W.nest) < W.nest.r + 14 + lot.h / 2) || (W.plaza && obbOverlap(lot, W.plaza, -0.05)) || W.nodes.some(n => dist(n, lot) < 10) || W.water.some(wt => distToPoly(lot.x, lot.y, wt.pts) < wt.w / 2 + 2 + Math.hypot(lot.w, lot.h) / 2);
+    // streets, rails and taken lots sit in spatial hashes: a lot only tests what is near it (same answers as a full scan)
+    const boxes = createHash(32); W.streets.forEach(s => { const b = segBox(s.pts[0], s.pts[1], s.w + 2 * s.walk + 1); boxes.add({ s, b }, obbBox(b)); });
+    W.rails.forEach(r => { for (let i = 0; i < r.pts.length - 1; i++) { const b = segBox(r.pts[i], r.pts[i + 1], 4.6 + 6); boxes.add({ s: { id: r.id }, b }, obbBox(b)); } });
+    const taken = createHash(32); W.lots.forEach(o => taken.add(o, obbBox(o)));
+    const inMap = o => obbCorners(o).every(q => q.x > 2 && q.y > 2 && q.x < W.w - 2 && q.y < W.h - 2);
+    const blocked = (lot, sid) => { if (!inMap(lot)) return true; const lb = obbBox(lot); return boxes.some(lb, ({ s, b }) => s.id !== sid && obbOverlap(lot, b, -0.05)) || taken.some(lb, o => Math.abs(o.x - lot.x) < 40 && Math.abs(o.y - lot.y) < 40 && obbOverlap(lot, o, -0.05)) || blockedRest(lot); };
+    const blockedRest = lot => (W.camp && dist(lot, W.camp) < W.camp.r + 10 + Math.max(lot.w, lot.h) / 2) || (W.nest && dist(lot, W.nest) < W.nest.r + 14 + lot.h / 2) || (W.plaza && obbOverlap(lot, W.plaza, -0.05)) || W.nodes.some(n => dist(n, lot) < 10) || W.water.some(wt => distToPoly(lot.x, lot.y, wt.pts) < wt.w / 2 + 2 + Math.hypot(lot.w, lot.h) / 2);
     const wall = (def, a, b, lot) => { if (def) W.fences.push({ a, b, atom: def.id, def, lot }); };
     let units = 0, ruins = 0;
     W.streets.filter(s => s.kind === 'local').forEach(s => {
@@ -43,7 +46,7 @@ export const terracesStage = {
           const bc = toWorld(lot, 0, -yd / 2 + def.size[1] / 2), atom = burnt ? ruin : def;
           const p = W.place(reg, atom.id, bc.x, bc.y, rot, { lot: lot.id, w, h: def.size[1], k: rng.float(), embers: burnt && rng.chance(0.4 + heat * 0.4), chimney: rng.chance(0.5), seedPath: `${key}:${units}` });
           p.lotRef = lot; p.door = toWorld(p, 0, -p.h / 2 - 1.2);
-          lot.building = p.uid; W.lots.push(lot); taken.push(lot); run.units.push(p.uid); run.to = u + w; units++;
+          lot.building = p.uid; W.lots.push(lot); taken.add(lot, obbBox(lot)); run.units.push(p.uid); run.to = u + w; units++;
           if (burnt) { ruins++; const q = obbCorners(p), g = 0.7, mid = (A, B, t) => ({ x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t }); // corners: 0 front-left, 1 front-right, 2 back-right, 3 back-left
             wall(ruinWall, q[0], mid(q[0], q[1], 0.5 - g / p.w), lot.id); wall(ruinWall, mid(q[0], q[1], 0.5 + g / p.w), q[1], lot.id); wall(ruinWall, q[1], q[2], lot.id); wall(ruinWall, q[2], mid(q[2], q[3], 0.35), lot.id); wall(ruinWall, mid(q[2], q[3], 0.6), q[3], lot.id); wall(ruinWall, q[3], q[0], lot.id); }
           u += w + JOIN;

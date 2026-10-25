@@ -1,6 +1,7 @@
 // Validators: run after the stages. A fatal failure makes the pipeline retry with the
 // next seed in its own stream, so a bad roll never ships. Each returns {name, ok, fatal, msg}.
-import { obbOverlap, segBox, distToPoly, toLocal } from './geom.js';
+import { obbOverlap, obbBox, segBox, distToPoly, toLocal } from './geom.js';
+import { createHash } from './spatial.js';
 import { gapFor } from './sockets.js';
 import { SPEED, PACE } from './units.js';
 import { reachFrom } from './stages/nav.js';
@@ -10,10 +11,11 @@ const solid = p => p.def.collide === 'box' && (p.def.kind === 'building' || p.de
 export const noOverlap = {
   name: 'no overlaps', fatal: true,
   run(W) {
-    const S = W.placed.filter(solid), bad = [];
-    for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) { const a = S[i], b = S[j]; if (Math.abs(a.x - b.x) > 60 || Math.abs(a.y - b.y) > 60) continue; if (obbOverlap(a, b, -0.05)) bad.push(`${a.id}#${a.uid} × ${b.id}#${b.uid}`); }
-    const streetBoxes = []; W.streets.forEach(s => { for (let i = 0; i < s.pts.length - 1; i++) streetBoxes.push({ s, box: segBox(s.pts[i], s.pts[i + 1], s.w + 2 * s.walk) }); });
-    S.filter(p => p.def.kind === 'building').forEach(p => streetBoxes.forEach(({ s, box }) => { if (Math.abs(p.x - box.x) < box.w / 2 + 40 && Math.abs(p.y - box.y) < box.w / 2 + 40 && obbOverlap(p, box)) bad.push(`${p.id}#${p.uid} × street ${s.id}`); }));
+    const S = W.placed.filter(solid), bad = [], H = createHash(24);
+    S.forEach(p => H.add(p, obbBox(p)));   // the hash only skips pairs whose bounds cannot meet; pairs are still tested in order
+    for (let i = 0; i < S.length; i++) { const a = S[i]; for (const j of H.near(obbBox(a))) { if (j <= i) continue; const b = S[j]; if (obbOverlap(a, b, -0.05)) bad.push(`${a.id}#${a.uid} × ${b.id}#${b.uid}`); } }
+    const SB = createHash(24); W.streets.forEach(s => { for (let i = 0; i < s.pts.length - 1; i++) { const box = segBox(s.pts[i], s.pts[i + 1], s.w + 2 * s.walk); SB.add({ s, box }, obbBox(box)); } });
+    S.filter(p => p.def.kind === 'building').forEach(p => SB.near(obbBox(p)).forEach(n => { const { s, box } = SB.item(n); if (obbOverlap(p, box)) bad.push(`${p.id}#${p.uid} × street ${s.id}`); }));
     S.filter(p => p.def.kind === 'building').forEach(p => W.water.forEach(wt => { if (distToPoly(p.x, p.y, wt.pts) < wt.w / 2 + Math.max(p.w, p.h) / 2) bad.push(`${p.id}#${p.uid} × ${wt.name}`); }));
     return { ok: !bad.length, msg: bad.length ? `${bad.length} overlaps: ${bad.slice(0, 3).join(', ')}` : `${S.length} solid atoms, none overlap`, count: bad.length };
   },
@@ -35,7 +37,8 @@ export const lotsFaceStreets = {
 export const fencesSkipFronts = {
   name: 'no fence crosses a drive', fatal: false,
   run(W) {
-    const drives = W.lots.filter(l => l.drive).map(l => l.drive), bad = W.fences.filter(f => drives.some(d => obbOverlap(d, segBox(f.a, f.b, 0.2))));
+    const D = createHash(24); W.lots.forEach(l => { if (l.drive) D.add(l.drive, obbBox(l.drive)); });
+    const bad = W.fences.filter(f => { const b = segBox(f.a, f.b, 0.2); return D.some(obbBox(b), d => obbOverlap(d, b)); });
     return { ok: !bad.length, msg: bad.length ? `${bad.length} fence runs cross a drive` : `${W.fences.length} fence runs, drives clear`, count: bad.length };
   },
 };
@@ -51,7 +54,8 @@ export const railsClear = {
   run(W) {
     if (!W.rails.length) return { ok: true, msg: 'no rails here', count: 0 };
     const S = W.placed.filter(p => p.def.kind === 'building' && p.def.collide !== 'none'), bad = [];
-    W.rails.forEach(r => S.forEach(p => { if (distToPoly(p.x, p.y, r.pts) < Math.hypot(p.w, p.h) / 2 + 3) { for (let i = 0; i < r.pts.length - 1; i++) if (obbOverlap(p, segBox(r.pts[i], r.pts[i + 1], 4.6))) { bad.push(`${p.id}#${p.uid}`); break; } } }));
+    const H = createHash(24); S.forEach(p => H.add(p, obbBox(p)));
+    W.rails.forEach(r => { const hit = new Set(); for (let i = 0; i < r.pts.length - 1; i++) { const sb = segBox(r.pts[i], r.pts[i + 1], 4.6); H.near(obbBox(sb)).forEach(n => { if (!hit.has(n) && obbOverlap(H.item(n), sb)) hit.add(n); }); } [...hit].sort((a, b) => a - b).forEach(n => { const p = H.item(n); bad.push(`${p.id}#${p.uid}`); }); });
     return { ok: !bad.length, msg: bad.length ? `${bad.length} on the tracks: ${bad.slice(0, 3).join(', ')}` : `${W.rails.length} lines, ${W.crossings.length} level crossings, tracks clear`, count: bad.length };
   },
 };
