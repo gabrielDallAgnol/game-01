@@ -19,7 +19,7 @@ export function createStatus(ui) {
       ${questsHtml()}
       <div class="statgrid"><span>Health<b>${Math.ceil(S.hero.hp)}/${S.hero.maxHp}</b></span><span>Xp<b>${S.xp}/${ui.game.xpNext()}</b></span><span>Day<b>${S.night}</b></span><span>Dead put down<b>${S.kills}</b></span><span>People<b>${ui.game.pop()}</b></span><span>Season<b>${S.season.n}</b></span></div>
       ${K ? `<h2>Contract terms</h2><div class="kontrakt"><b>${esc(K.name)}${K.won ? ' · won' : ''}</b><span>${K.finale.kind === 'unique' ? `${esc(K.finale.name)} walks on night ${K.finale.night}.` : `Burn ${esc(K.finale.name)} by night ${K.finale.night}.`}${S.season.rules && S.season.rules.length ? ` Rules: ${S.season.rules.map(r => esc(RULES[r] ? RULES[r].name : r)).join(', ')}.` : ''}</span>${K.twist ? `<span style="color:#c6b8ff;font-style:italic">${esc(K.twist)}</span>` : ''}</div>` : ''}
-      ${ui.game.statsOn && ui.game.statsOn() ? '' : `<h2>Your path</h2>${pathHtml()}`}
+      <h2>Your path</h2>${pathHtml()}
       <h2>Titles</h2><div class="titles">${ST.titles.length ? ST.titles.map(t => `<span class="title" title="${esc(TITLES[t].desc)}">${icon('title')}${esc(TITLES[t].name)}</span>`).join('') : '<span class="note">None yet. The System is watching.</span>'}</div>
       <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<div class="comp"><b>${esc(n.name)}</b><span>${n.withHero ? 'Travels with you · their post stands empty' : `${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}`}</span><span class="bond">${Array.from({ length: 5 }, (_, k) => icon(k < n.bond ? 'heartFill' : 'heart')).join('')}</span><span class="acts"><button class="btn sm sys" data-chat="${n.id}">Talk</button><button class="btn sm sys ghost" data-follow="${n.id}" data-on="${n.withHero ? 0 : 1}">${n.withHero ? 'Back to post' : 'With me'}</button></span></div>`).join('') : '<span class="note">Nobody yet. Answer the calls: people are out there.</span>'}</div>
       <h2>Chronicle</h2><ol class="chron">${ST.chronicle.slice().reverse().slice(0, 14).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
@@ -78,7 +78,7 @@ export function createStatus(ui) {
       <div class="cardrow foot end"><button class="btn big" id="moOk">Back</button></div>`, { arm: false, narrow: true });
     const back = () => { ui.hideCard(); ui.paused = false; };
     $('#moOk').onclick = $('#moX').onclick = back;
-    $('#moStatus').onclick = () => { ui.hideCard(); ui.showStatus(); };   // [hero3] ui.showStatus: the stats window while the stats are on
+    $('#moStatus').onclick = () => { ui.hideCard(); ui.showStatus(); };
     $('#moMap').onclick = () => { ui.hideCard(); ui.showMap(); };
     $('#moSnd').onclick = () => { audio.setMuted(!audio.muted()); ui.hideCard(); showMore(); };
     $('#moQ').onclick = () => { if (!ui.view) return; const q = QNEXT[ui.view.quality()]; ui.view.setQuality(q); store.set('quality', q); ui.hideCard(); showMore(); };

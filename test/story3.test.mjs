@@ -15,7 +15,7 @@ const here = path.dirname(new URL(import.meta.url).pathname), SRC = path.join(he
 test('the opening: five cards, ends on the System window, shown once per profile, ?intro= overrides', () => {
   assert.equal(INTRO_CARDS.length, 5);
   const last = INTRO_CARDS.at(-1); assert.ok(last.sys);
-  assert.ok(last.lines.includes('[THERMAL PIONEER SYSTEM INITIALIZED]') && last.lines.includes('Unassigned Stat Points: 3'));
+  assert.ok(last.lines.includes('[THERMAL PIONEER SYSTEM INITIALIZED]') && last.lines.includes('Pioneer · Level 1'));
   assert.match(INTRO_CARDS.map(c => c.lines.join(' ')).join(' '), /Solar Zenith Flare|sun blinks/i);
   const st = mem();
   assert.equal(introWanted(st, ''), true, 'a fresh profile sees it');

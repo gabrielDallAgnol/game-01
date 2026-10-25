@@ -61,9 +61,6 @@ import { createPressure } from './pressure.js';
 import { createConstruct } from './construct.js';
 import { createHaul } from './haul.js';
 import { createRelics } from './relics.js';
-// [hero3] stat points, threshold and hybrid abilities
-import { createStats } from './stats.js';
-import { createPowers } from './powers.js';
 // [area] next line
 import { createSearch } from './search.js';
 import { createCombat2 } from './combat2.js';
@@ -79,7 +76,6 @@ export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_
 const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno];   // [nest3] appended   // [pacify] appended
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
 MODULES.push(createConstruct, createHaul, createRelics);   // [econ3] appended
-MODULES.push(createStats, createPowers);   // [hero3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
 MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the dash (does nothing without v2combat)
 MODULES.push(createV2Core);   // [v2] appended: the V2 core switches the old systems off (does nothing without v2)
@@ -230,6 +226,5 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [econ3] begin: the construction queue and the harvester carts (sim/construct.js, sim/haul.js)
     G.stepConstruct(dt); G.stepHaul(dt);
     // [econ3] end
-    G.stepStats(dt);   // [hero3] stat points and abilities
   }
 }

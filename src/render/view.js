@@ -36,8 +36,6 @@ import { createCamera } from './view/camera.js';
 import { createWeather } from './view/weather.js';
 import { createLights } from './view/lights.js';
 import { createEvents } from './view/events.js';
-// [hero3] the stat abilities' feedback
-import { createHero3Fx } from './view/hero3fx.js';
 import { createPicking } from './view/picking.js';
 import { createCinema } from './view/cinema.js';
 // [assets3] the ?gltf=1 test path
@@ -113,7 +111,6 @@ export function createView(canvas, game, opts = {}) {
   const village = V.village = createVillage(V);   // [folk] the folk's props and scaffold
   const birds = V.birds = createBirds(V);   // [woods] birds flushed from the trees
   const haul = V.haul = createHaul(V);   // [econ3] nodes, carts, scaffolds on the queue
-  const hero3fx = createHero3Fx(V);   // [hero3] the stat abilities' feedback
   const topFlat = createTopFlat(V);   // [top] the flat look's light (null without ?top=1)
   V.topMarks = createTopMarks(V);   // [top] bars and tags toward screen-up (null without ?top=1)
   V.atoms = createAtoms(V);   // [area] the engine-built town in its own flat looks (null without an area)
@@ -160,7 +157,6 @@ export function createView(canvas, game, opts = {}) {
     village.update(dt, ui.events);   // [folk]
     birds.update(dt, ui.events);   // [woods]
     haul.update(dt);   // [econ3]
-    hero3fx.update(dt, ui.events);   // [hero3]
     routes.update();
     markers.updateSelection(dt, ui.selected);
     placing.setGhost(ui.ghost || null); placing.setZone(ui.zone || null);

@@ -15,7 +15,7 @@ export const INTRO_CARDS = [
   { id: 'flare', art: 'flare', kick: '[14:52 · Solar Zenith Flare]', lines: ['The sun blinks.', 'Every screen dies at once. Then the heat arrives, and it is not weather. It is the sky.'] },
   { id: 'ash', art: 'ash', kick: '[Sudden Thermal Shock]', lines: ['Some of your coworkers just stand there, glowing.', 'Their skin goes to charcoal and the cracks turn orange. About four in ten people on Earth change that afternoon. They will be called the Ash-Born.'] },
   { id: 'rack', art: 'rack', kick: '[The loading bay]', lines: ['A rack comes down. You end up under it, arms over Dee, Juno and Gloria.', 'The charge that should have burned you goes in instead. You do not burn. You absorb.'] },
-  { id: 'system', art: 'system', kick: '', sys: true, lines: ['[THERMAL PIONEER SYSTEM INITIALIZED]', 'Unassigned Stat Points: 3', 'The Haven Rig is still running. Dee says it is a miracle. Gloria says it is a business opportunity.'], cta: 'Begin' },
+  { id: 'system', art: 'system', kick: '', sys: true, lines: ['[THERMAL PIONEER SYSTEM INITIALIZED]', 'Pioneer · Level 1', 'The Haven Rig is still running. Dee says it is a miracle. Gloria says it is a business opportunity.'], cta: 'Begin' },
 ];
 export const INTRO_UI = { skip: 'Skip', next: 'Tap to continue', replay: 'Replay the opening' };
 

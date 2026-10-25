@@ -68,7 +68,7 @@ export function createStart(ui) {
       <g transform="translate(128 312)"><rect x="0" y="-26" width="116" height="14" rx="2" fill="#f2c230"/><rect x="-26" y="-46" width="34" height="36" rx="4" fill="#f2c230"/><rect x="-20" y="-40" width="18" height="14" fill="#ffe9a0"/><rect x="2" y="-64" width="5" height="20" fill="#3a3430"/><rect x="-6" y="-12" width="130" height="14" rx="7" fill="#1a1214"/><g fill="#6a5a50"><circle cx="8" cy="-5" r="3.5"/><circle cx="40" cy="-5" r="3.5"/><circle cx="72" cy="-5" r="3.5"/><circle cx="104" cy="-5" r="3.5"/></g><path d="M20 -26l14 -20h54l10 20z" fill="#ff8a2a"/><rect x="84" y="-60" width="22" height="14" fill="#2d6fb0"/><rect x="88" y="-46" width="3" height="20" fill="#2a2522"/>
         <path d="M-30 -40l-70 -22v22z" fill="#fff3c0" opacity=".3"/></g>
       <g transform="translate(186 56)" class="win"><rect width="164" height="58" fill="rgba(10,24,40,.6)" stroke="#7fe3ff" stroke-opacity=".7"/><path d="M0 10V0h10M154 0h10v10M164 48v10h-10M10 58H0V48" stroke="#7fe3ff" stroke-width="2" fill="none"/>
-        <text x="10" y="22" fill="#7fe3ff" font-family="IBM Plex Mono, monospace" font-size="9.5" letter-spacing=".3">[THERMAL PIONEER SYSTEM]</text><text x="10" y="41" fill="#d9f4ff" font-family="IBM Plex Mono, monospace" font-size="11">Pioneer · Lv 1${V2.on ? '' : ' · Points 3'}</text></g>
+        <text x="10" y="22" fill="#7fe3ff" font-family="IBM Plex Mono, monospace" font-size="9.5" letter-spacing=".3">[THERMAL PIONEER SYSTEM]</text><text x="10" y="41" fill="#d9f4ff" font-family="IBM Plex Mono, monospace" font-size="11">Pioneer · Lv 1</text></g>
     </svg>`;
   }
   function legacyHtml() {

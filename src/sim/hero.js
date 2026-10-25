@@ -9,7 +9,7 @@ import { N, T, idx, inside } from './mapgen.js';
 
 export function createHero(G) {
   const { S, c, earn, ev, fail, has, keep, live, map, mastery, owns, rng, rule, syncPicks, toast } = G;
-  const heroMax = () => Math.round((G.HC.hp + S.P.heroHp + LEVEL.hp * ((S.lvl || 1) - 1) + (mastery('champion') ? 25 : 0) + (G.attrHp ? G.attrHp() : 0)) * S.P.heroHpMult);   // [hero3] attrHp: STR
+  const heroMax = () => Math.round((G.HC.hp + S.P.heroHp + LEVEL.hp * ((S.lvl || 1) - 1) + (mastery('champion') ? 25 : 0)) * S.P.heroHpMult);
   function gainXp(n) {
     if (S.lvl >= LEVEL.max) return; S.xp += n;
     while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] +${Math.round(LEVEL.dmg * 100)}% damage, +${Math.round(LEVEL.hp)} health.`, 'good'); }
@@ -84,7 +84,7 @@ export function createHero(G) {
   function addPath(fam, n) { if (!PATH_FAMS.includes(fam) || !n) return; S.path[fam] = Math.max(0, +(S.path[fam] + n).toFixed(3)); }
   const pathRank = (skip = []) => PATH_FAMS.filter(f => !skip.includes(FAMILIES[f].hero)).sort((a, b) => S.path[b] - S.path[a]);
   function checkEvolution() {
-    if (G.classPicksOff && G.classPicksOff()) return;   // [hero3] stat points replace the class picks
+    if (G.v2) return;   // [v2] no class picks
     if (!G.story || S.over || S.story.encounters.some(e => e.kind === 'evolve') || (S.story.trial && !S.story.trial.done)) return;
     const cls = S.heroClass;
     if (cls === 'survivor') {
@@ -154,7 +154,6 @@ export function createHero(G) {
     const h = S.hero; if (h.dead || (handT -= dt) > 0 || (autoT -= dt) > 0) return; autoT = 0.3;
     const home = { x: c, y: c + 3.5 };
     const A = G.HC.ability, near = r => S.mobs.filter(m => m.rise >= 1 && !m.roam && Math.hypot(m.x - h.x, m.y - h.y) < r).length;
-    if (G.powersAuto) G.powersAuto();   // [hero3] the stat abilities
     if (A && S.ability.cd <= 0 && near(A.id === 'volley' ? 9 : 5) >= 4 && (A.id !== 'warcry' || h.hp > h.maxHp * 0.5)) useAbility();
     if (h.hp < h.maxHp * 0.35) { G.api.heroTo(home.x, home.y); return; }
     const threats = S.mobs.filter(m => m.rise >= 1 && (!m.roam || Math.hypot(m.x - c, m.y - c) < 12) && Math.hypot(m.x - c, m.y - c) < 15);
@@ -210,7 +209,7 @@ export function createHero(G) {
     }
     if (moving) {
       const ti = idx(Math.floor(h.x), Math.floor(h.y)), ground = map.road[ti] ? 1.4 : map.terrain[ti] === T.FOREST && !G.inZone(ti) ? 0.72 : 1;   // the old road is quick; the woods are slow
-      const sp = G.HC.speed * S.P.heroSpeed * ground * (rule('winter') ? 0.92 : 1) * (G.attrSpeed ? G.attrSpeed() : 1) * dt;   // [hero3] attrSpeed: AGI, Wild Shape
+      const sp = G.HC.speed * S.P.heroSpeed * ground * (rule('winter') ? 0.92 : 1) * dt;
       if (S.P.runHeal) h.hp = Math.min(h.maxHp, h.hp + S.P.runHeal * dt);
       const tryMove = (nx, ny) => { if (!walkable(nx, ny)) return false; h.x = nx; h.y = ny; return true; };
       if (!tryMove(h.x + dx * sp, h.y + dy * sp)) { if (!tryMove(h.x + dx * sp, h.y)) if (!tryMove(h.x, h.y + dy * sp)) { h.target = null; h.path = null; } }
@@ -225,7 +224,7 @@ export function createHero(G) {
       if (!best) {
         // nothing to fight: strike a hive in reach
         const hv = G.hiveInReach(h.x, h.y, reach);   // reach is measured to the hive's edge: you strike it from outside, never from inside the model
-        if (hv && G.hitHive(hv.id, dmg * (G.attrHive ? G.attrHive() : 1)))   /* [hero3] STR */ { const b = G.nestBody(hv); h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.fightT = REGEN.combat; h.face = Math.atan2(b.x - h.x, b.y - h.y); ev(A.kind === 'melee' ? 'swing' : 'shot', { src: 'hero' }); }
+        if (hv && G.hitHive(hv.id, dmg)) { const b = G.nestBody(hv); h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.fightT = REGEN.combat; h.face = Math.atan2(b.x - h.x, b.y - h.y); ev(A.kind === 'melee' ? 'swing' : 'shot', { src: 'hero' }); }
       }
       if (best) {
         h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.noiseT = 3; h.fightT = REGEN.combat; if (!moving) h.face = Math.atan2(best.x - h.x, best.y - h.y);

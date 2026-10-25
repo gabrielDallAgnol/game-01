@@ -50,7 +50,6 @@ test('v2: three nights with none of the old systems', () => {
   assert.deepEqual([...new Set(old.map(e => e.t))], [], 'no event from a switched-off system');
   assert.ok(S.lvl > 2, `levels still come (lvl ${S.lvl})`);
   assert.deepEqual(S.picks, []); assert.deepEqual(S.offer, []);
-  assert.equal(S.attr.pts, 0, 'no stat points'); assert.equal(g.statsOn(), false);
   assert.ok(!g.road, 'no road');
   assert.ok(g.forecast().every(f => S.hordes && S.hordes.spots.some(h => -1 - h.edge === f.nest)), 'the only forecast is a marching horde (the V2 night)');
   assert.equal(g.useAbility(), false, 'no class ability');
