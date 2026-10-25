@@ -123,22 +123,23 @@ export function createLandmarks(V) {
     farmstead: ['#8fe36a', '❀'], lodge: ['#8fe36a', '❀'], lumber: ['#f0a040', '$'], quarry: ['#f0a040', '$'], cabin: ['#ff8ac0', '⌂'] };   // the wild sites (a hollow may have taken one)
   const iconMats = {};
   const iconMat = kind => { const [col, ch] = SITE_LOOK[kind] || SITE_LOOK.unknown; return iconMats[kind] || (iconMats[kind] = new THREE.SpriteMaterial({ map: K.textTex(ch, { w: 96, h: 96, size: 62, bg: '#101418', fg: col }), transparent: true, depthTest: false })); };
-  function siteFrame(size) {
-    const g = new THREE.Group(), h = size / 2 + 0.55, th = 0.2, mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthWrite: false });
-    for (const [x, z, w, d] of [[0, -h, 2 * h + th, th], [0, h, 2 * h + th, th], [-h, 0, th, 2 * h], [h, 0, th, 2 * h]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), mat); m.position.set(x, 0.07, z); g.add(m); }
-    const fill = new THREE.Mesh(new THREE.PlaneGeometry(2 * h, 2 * h), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, depthWrite: false })); fill.rotation.x = -Math.PI / 2; fill.position.y = 0.05; g.add(fill);
+  function siteFrame(size, depth = size) {   // [area] depth: an engine building's frame is its own rectangle
+    const g = new THREE.Group(), h = size / 2 + 0.55, hd = depth / 2 + 0.55, th = 0.2, mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthWrite: false });
+    for (const [x, z, w, d] of [[0, -hd, 2 * h + th, th], [0, hd, 2 * h + th, th], [-h, 0, th, 2 * hd], [h, 0, th, 2 * hd]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), mat); m.position.set(x, 0.07, z); g.add(m); }
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(2 * h, 2 * hd), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, depthWrite: false })); fill.rotation.x = -Math.PI / 2; fill.position.y = 0.05; g.add(fill);
     g.userData = { mat, fill: fill.material }; return g;
   }
   const lmViews = S.landmarks.map(l => {
     const g = new THREE.Group(); g.position.copy(Wv(l.x, l.y)); g.rotation.y = Math.atan2(C - l.x, C - l.y);
     let m;
     if (l.kind === 'eiffel') m = eiffel(); else if (l.kind === 'tvtower') m = tvtower(); else if (l.kind === 'christ') m = christ();
+    else if (l.engine) { m = new THREE.Group(); g.rotation.y = 0; }   // [area] the engine town draws the building itself (view/atoms.js)
     else m = siteModel(l.kind, l.size, l.id * 7);
     g.add(m);
     const pole = new THREE.Group(); pole.add(part(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), LMAT.iron, 0, 0.8, 0)); const flag = new THREE.Mesh(flagGeo, flagMat); flag.position.set(0.36, 1.35, 0); pole.add(flag);
     pole.position.set(l.size / 2 + 0.3, 0, 0); pole.visible = false; g.add(pole);
     const mark = new THREE.Mesh(diaGeoL, diaWhite); mark.position.y = l.kind === 'eiffel' || l.kind === 'tvtower' ? 2.5 : l.kind === 'christ' ? 6 : 3.2; g.add(mark);
-    const frame = siteFrame(l.size); frame.rotation.y = -g.rotation.y; g.add(frame);
+    const frame = l.engine ? siteFrame(l.engine.w, l.engine.h) : siteFrame(l.size); frame.rotation.y = l.engine ? -l.engine.rot : -g.rotation.y; g.add(frame);   // [area] engine sites: their own rectangle
     const icon = new THREE.Sprite(iconMat(l.kind)); icon.scale.set(1.1, 1.1, 1); icon.position.y = mark.position.y + 1.1; icon.renderOrder = 9; g.add(icon);
     world.add(g); return { l, g, pole, flag, mark, m, kind: l.kind, frame, icon };
   });
@@ -148,7 +149,7 @@ export function createLandmarks(V) {
   function updateLandmarks(t) {
     const objs = (S.story && game.story && game.story() && game.story().objectives) ? game.story().objectives() : [];
     for (const v of lmViews) {
-      if (v.kind !== v.l.kind) { v.g.remove(v.m); v.m = siteModel(v.l.kind, v.l.size, v.l.id * 7); v.g.add(v.m); v.kind = v.l.kind; v.icon.material = iconMat(v.l.kind); }
+      if (v.kind !== v.l.kind && !v.l.engine) { v.g.remove(v.m); v.m = siteModel(v.l.kind, v.l.size, v.l.id * 7); v.g.add(v.m); v.kind = v.l.kind; v.icon.material = iconMat(v.l.kind); }
       const locked = game.siteLock && game.siteLock(v.l.id) >= 0;   // [nests] a living hive guards it: a dull red frame, no claim marker
       { const open = !S.sealed[v.l.region] && !v.l.stripped && v.l.kind !== 'unknown', col = v.l.owned ? '#d9843a' : locked ? '#8a3a30' : (SITE_LOOK[v.l.kind] || SITE_LOOK.unknown)[0], U = v.frame.userData;
         v.frame.visible = open; v.icon.visible = open && !v.l.owned;
