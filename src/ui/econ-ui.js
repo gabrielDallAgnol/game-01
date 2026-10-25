@@ -1,7 +1,6 @@
 // [econ3] The Solar Flare economy on screen: the construction queue chip above the build bar ("Building · Home 45% ·
-// +2 queued", tap to open the list: move a job up, to the top, or call it off for a refund), the carts row in the build
-// menu (carts out / yard size, order one), and the dawn's Settlement report, as a camp toast (relic finds and cart
-// alerts come as the System's own toasts). Acts only through the API (queue, queueMove, queueCancel, haul, buyCart).
+// +2 queued", tap to open the list: move a job up, to the top, or call it off for a refund), and the dawn's Settlement
+// report, as a camp toast. Acts only through the API (queue, queueMove, queueCancel).
 import { icon } from './icons.js';
 import { esc } from './shared.js';
 
@@ -22,11 +21,6 @@ const CSS = `
 .eq-row button{min-width:30px;min-height:32px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--bone);font:700 14px/1 var(--body);display:grid;place-items:center;padding:0}
 .eq-row button:disabled{opacity:.3}
 .eq-row button.x{color:#ffb39a}
-.econrow{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:0 2px 2px;font:500 13px/1.2 var(--body);color:var(--muted)}
-.econrow b{font:700 13px/1 var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--bone)}
-.econrow button{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,194,74,.6);background:rgba(255,194,74,.14);color:#ffe2a8;font:600 13px var(--body);display:flex;align-items:center;gap:4px}
-.econrow button[aria-disabled="true"]{opacity:.45}
-.econrow small{flex:1;min-width:0;font:500 12px/1.25 var(--body);color:var(--dim,#8c8578)}
 `;
 
 export function createEconUi(ui) {
@@ -58,14 +52,6 @@ export function createEconUi(ui) {
     if (openList) html += `<div class="eq-list">${q.map((j, k) => `<div class="eq-row"><span class="nm">${k + 1}. ${esc(j.name)}<small class="${j.fled ? 'fled' : ''}">${j.fled ? 'crew fled' : j.active ? `${j.pct}% · working` : j.pct ? `${j.pct}% · waiting` : 'waiting'}</small></span><button data-mv="top" data-id="${j.id}" aria-label="Build first" ${k ? '' : 'disabled'}>⇈</button><button data-mv="-1" data-id="${j.id}" aria-label="Move up" ${k ? '' : 'disabled'}>↑</button><button data-mv="1" data-id="${j.id}" aria-label="Move down" ${k < q.length - 1 ? '' : 'disabled'}>↓</button><button class="x" data-cx="${j.id}" aria-label="Call off: ${j.stock ? 'back in hand' : `${j.paid} scrap back`}">${icon('close')}</button></div>`).join('')}</div>`;
     el.innerHTML = html; el.hidden = false;
   }
-  /** the build menu's row: carts out / the yard's size, and ordering one */
-  function econRow() {
-    const g = ui.game; if (!g || typeof g.haul !== 'function') return '';
-    const H = g.haul(), n = H.carts.length, full = n + H.ordered >= H.max, broke = g.state.gold < H.cost;
-    return `<div class="econrow" role="group" aria-label="Harvester carts"><b>Carts</b><span>${n}${H.ordered ? `+${H.ordered}` : ''} / ${H.max}</span><button data-cart ${full || broke ? 'aria-disabled="true"' : ''}>+ Cart ${icon('scrap')}${H.cost}</button><small>${full ? 'Raise the Camp for a bigger yard.' : `${H.left} scrap and timber left out there.`}</small></div>`;
-  }
-  const econSig = () => { const g = ui.game; if (!g || typeof g.haul !== 'function') return ''; const H = g.haul(); return `${H.carts.length}|${H.ordered}|${H.max}|${g.state.gold >= H.cost}`; };
-  function cartTap() { const g = ui.game; if (!g) return; if (g.buyCart()) ui.toast('A cart is in the work queue.'); }
   function econTick(dt, events) {
     if (!ui.game) return;
     for (const e of events || []) {
@@ -78,5 +64,5 @@ export function createEconUi(ui) {
     const q = ui.game.queue(), k = q.findIndex(j => j.kind === 'build' && j.bid === b.id), j = q[k]; if (!j) return '';
     return `<div class="stat"><span>Under construction <b>${j.pct}%</b> · ${j.fled ? '<b class="bad">its crew fled the dead</b>' : j.active ? `${j.left}s of work left` : `waiting · ${k + 1} in the queue`}</span><span>It does nothing until the roof is on.</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Call it off', null, `<b class="good">${j.stock ? 'Back in hand' : `+${j.paid} scrap back`}</b>.`, false)}</div>`;
   }
-  return { econRow, econSig, cartTap, econTick, econPanel };
+  return { econTick, econPanel };
 }

@@ -42,8 +42,8 @@ import { createCinema } from './view/cinema.js';
 import { createGltf } from './view/gltf.js';
 // [folk] the village the folk raise by themselves
 import { createVillage } from './view/village.js';
-// [econ3] nodes, carts, scaffolds on the queue
-import { createHaul } from './view/haul.js';
+// [econ3] scaffolds on the construction queue
+import { createScaffolds } from './view/scaffolds.js';
 // [top] begin
 import { TOP } from './top.js';
 import { createTopCamera } from './view/topdown.js';
@@ -110,7 +110,7 @@ export function createView(canvas, game, opts = {}) {
   const rest = createRest(V);   // [nests] the "+ resting" tag at the Camp
   const village = V.village = createVillage(V);   // [folk] the folk's props and scaffold
   const birds = V.birds = createBirds(V);   // [woods] birds flushed from the trees
-  const haul = V.haul = createHaul(V);   // [econ3] nodes, carts, scaffolds on the queue
+  const scaffolds = V.scaffolds = createScaffolds(V);   // [econ3] scaffolds on the construction queue
   const topFlat = createTopFlat(V);   // [top] the flat look's light (null without ?top=1)
   V.topMarks = createTopMarks(V);   // [top] bars and tags toward screen-up (null without ?top=1)
   V.atoms = createAtoms(V);   // [area] the engine-built town in its own flat looks (null without an area)
@@ -156,7 +156,7 @@ export function createView(canvas, game, opts = {}) {
     rest.update(dt);
     village.update(dt, ui.events);   // [folk]
     birds.update(dt, ui.events);   // [woods]
-    haul.update(dt);   // [econ3]
+    scaffolds.update(dt);   // [econ3]
     routes.update();
     markers.updateSelection(dt, ui.selected);
     placing.setGhost(ui.ghost || null); placing.setZone(ui.zone || null);

@@ -1,24 +1,24 @@
 // [econ3] The construction queue: building takes time. A placed building is a blueprint on its lot (a scaffold that
-// holds the ground and can be attacked); upgrades and new carts are jobs too. Crews (1 + one per 5 people) work the
+// holds the ground and can be attacked); upgrades are jobs too. Crews (1 + one per 5 people) work the
 // queue top down; a job whose site has the dead close by waits (its crew runs) and the crew takes the next one. Night
 // does not stop the queue. A building under construction does not work: no shots, no pay, no food, no family yet.
 // The player reorders and cancels jobs (a cancel refunds what was paid); a scaffold torn down by the dead is lost.
-// S.econ.q: [{ id, kind: 'build'|'up'|'cart', bid, type, level, paid, stock, work, need, x, y, fled }]
+// S.econ.q: [{ id, kind: 'build'|'up', bid, type, level, paid, stock, work, need, x, y, fled }]
 import { BUILDINGS } from '../content/buildings.js';
 import { CONSTRUCT, ECON } from '../content/econ.js';
 import { MOBS } from '../content/mobs.js';
 
 export function createConstruct(G) {
-  const { S, ev, fail, toast, keep } = G;
+  const { S, ev, fail, toast } = G;
   const E = () => S.econ || (S.econ = {});
   const Q = () => E().q || (E().q = []);
   const on = () => ECON.queue && !S.instantBuild;
   const timeOf = (type, level) => { const t = CONSTRUCT.time[type]; return (Array.isArray(t) ? t[level - 1] ?? t[t.length - 1] : t) || 8; };
   const speed = () => ((E().mods && E().mods.buildSpeed) || 1) * (1 + (G.govBuild ? G.govBuild() : 0));   // [v56] GOV's builders work the queue faster
   const crews = () => CONSTRUCT.crews(G.pop()) + ((E().mods && E().mods.crews) || 0);
-  const nameOf = j => (j.kind === 'cart' ? 'Harvester cart' : `${(BUILDINGS[j.type] || {}).name || j.type}${j.kind === 'up' ? ` → level ${j.level}` : ''}`);
+  const nameOf = j => `${(BUILDINGS[j.type] || {}).name || j.type}${j.kind === 'up' ? ` → level ${j.level}` : ''}`;
   const full = () => Q().length >= CONSTRUCT.maxJobs;
-  function add(j) { j.id = E().nextJob = (E().nextJob || 0) + 1; j.work = 0; j.need = j.kind === 'cart' ? timeOf('cart') : timeOf(j.type, j.level); j.fled = false; Q().push(j); ev('queue', { id: j.id }); return j; }
+  function add(j) { j.id = E().nextJob = (E().nextJob || 0) + 1; j.work = 0; j.need = timeOf(j.type, j.level); j.fled = false; Q().push(j); ev('queue', { id: j.id }); return j; }
 
   /** a new building just placed (build.js): it becomes a blueprint in the queue */
   function queueNew(b, paid, stock) {
@@ -34,12 +34,6 @@ export function createConstruct(G) {
     return true;
   }
   const upQueued = id => Q().some(j => j.kind === 'up' && j.bid === id);
-  /** a new harvester cart (haul.js decides whether one may be ordered) */
-  function queueCart(paid) {
-    if (full()) return fail('The work queue is full.');
-    const d = G.cartDock ? G.cartDock() : { x: keep.x, y: keep.y + 3 };
-    return add({ kind: 'cart', type: 'cart', level: 1, paid, x: d.x, y: d.y });
-  }
 
   // ---------- the work ----------
   const danger = (x, y) => S.mobs.some(m => m.rise >= 1 && !m.dying && !MOBS[m.kind].animal && !m.roam && Math.hypot(m.x - x, m.y - y) < CONSTRUCT.flee)
@@ -47,7 +41,6 @@ export function createConstruct(G) {
   function finish(j) {
     Q().splice(Q().indexOf(j), 1);
     E().done = (E().done || 0) + 1;
-    if (j.kind === 'cart') { if (G.addCart) G.addCart(); toast('A new **harvester cart** rolls out of the yard.', 'good'); ev('built', { id: 0, cart: true }); return; }
     const b = S.byId.get(j.bid); if (!b) return;
     if (j.kind === 'up') {
       const nb = G.raise(b); ev('built', { id: nb.id, up: true });
@@ -65,7 +58,7 @@ export function createConstruct(G) {
     for (const j of [...q]) {
       if (free <= 0) { j.active = false; continue; }
       const b = j.bid !== undefined ? S.byId.get(j.bid) : null;
-      if (j.kind !== 'cart' && (!b || (b.ruined && j.kind === 'up'))) { q.splice(q.indexOf(j), 1); if (j.kind === 'up') { G.earn(j.paid); toast(`The upgrade was called off: ${j.paid} scrap back.`); } continue; }
+      if (!b || (b.ruined && j.kind === 'up')) { q.splice(q.indexOf(j), 1); if (j.kind === 'up') { G.earn(j.paid); toast(`The upgrade was called off: ${j.paid} scrap back.`); } continue; }
       if (j.kind === 'build' && b.built >= 1) { j.work = 1; finish(j); continue; }   // finished by other hands (a story gift, a test)
       j.fled = danger(j.x, j.y); j.active = !j.fled;
       if (j.fled) continue;
@@ -108,5 +101,5 @@ export function createConstruct(G) {
   function constructRestore() {
     for (const j of Q()) if (j.kind === 'build') { const b = S.byId.get(j.bid); if (b) { b.built = Math.min(0.999, j.work); b.cq = 1; if (b.type === 'house') { b.folkDue = b.folkDue || b.folk || G.houseCap(b); b.folk = 0; } } }
   }
-  return { cancelFor, queueNew, queueUp, upQueued, queueCart, stepConstruct, queueMove, queueCancel, queueInfo, scaffoldFell, constructRestore, queueOn: on, queueFull: full, crews };
+  return { cancelFor, queueNew, queueUp, upQueued, stepConstruct, queueMove, queueCancel, queueInfo, scaffoldFell, constructRestore, queueOn: on, queueFull: full, crews };
 }

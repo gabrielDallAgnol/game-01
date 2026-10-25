@@ -53,7 +53,6 @@ export function createBuildings(G) {
       if (map.ramp[i] && type !== 'wall') { out.reason = 'Keep the ramp clear (a barricade can close it).'; return out; }
     }
     for (const reg of map.regions) if (nestAlive(reg.id) && Math.hypot(reg.nest.x - cx, reg.nest.y - cy) < 4) { out.reason = 'Too close to an Inferno Nest.'; return out; }
-    { const why = G.nodeBlock && G.nodeBlock(out.cells); if (why) { out.reason = why; return out; } }   // [econ3] the carts' timber stands and scrap heaps
     if (opts.deep && type !== 'wall' && sealsOff(out.cells)) { out.reason = 'That would close off a space you could not walk out of.'; return out; }
     out.ok = true; return out;
   }

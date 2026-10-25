@@ -55,9 +55,8 @@ import { createLogging } from './logging.js';
 import { createStronghold } from './stronghold.js';
 import { createPressure } from './pressure.js';
 // [gemini3] end
-// [econ3] the construction queue, harvester carts on resource nodes, relics instead of blessings, the dawn Settlement
+// [econ3] the construction queue and the dawn Settlement
 import { createConstruct } from './construct.js';
-import { createHaul } from './haul.js';
 import { createSettle } from './settle.js';
 // [area] next line
 import { createSearch } from './search.js';
@@ -73,7 +72,7 @@ export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_
 // the rule modules, in creation order (core first: the others destructure its helpers)
 const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createSave, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno];   // [nest3] appended   // [pacify] appended
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
-MODULES.push(createConstruct, createHaul, createSettle);   // [econ3] appended
+MODULES.push(createConstruct, createSettle);   // [econ3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
 MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the dash (does nothing without v2combat)
 MODULES.push(createV2Core);   // [v2] appended: the V2 core switches the old systems off (does nothing without v2)
@@ -207,8 +206,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [income] end
     G.stepSearch(dt);   // [area] houses to search (only in an engine-built area)
     if (G.stepHordes) G.stepHordes(dt);   // [v2] hordes wake, break, sleep
-    // [econ3] begin: the construction queue and the harvester carts (sim/construct.js, sim/haul.js)
-    G.stepConstruct(dt); G.stepHaul(dt);
+    // [econ3] begin: the construction queue (sim/construct.js)
+    G.stepConstruct(dt);
     // [econ3] end
   }
 }

@@ -54,7 +54,7 @@ export function createSave(G) {
     for (const m of S.mobs) mobById.delete(m.id); S.mobs.length = 0; S.animalsInit = false; S.projectiles.length = 0; S.drops = []; S.chests = []; S.purses = [];
     S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; dropLive(); G.dropCrew();
     for (const n of S.story.npcs) if (n.withHero && n.alive && n.joined) G.spawnCompanion(n);   // a travelling companion comes back with you
-    if (R.econ) { S.econ = R.econ; G.constructRestore(); G.haulRestore(); }   // [econ3]
+    if (R.econ) { S.econ = R.econ; G.constructRestore(); }   // [econ3]
     G.spawnRoamers(); G.spawnAnimals(); syncPicks(); G.rollOffer(); G.newLog(); S.events.length = 0; S.restored = true;
   }
   return { snapshot, restoreSnap };

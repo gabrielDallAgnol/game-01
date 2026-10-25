@@ -17,10 +17,10 @@ export function createPlacing(ui) {
     tray.hidden = !!ui.card;
     if (tray.hidden) { trayKey = ''; return; }
     const hands = handsLeft(), showForeman = (S.foreman || S.autopilot) && (FLAGS.foremanFirstRun || !firstRun());
-    const sig = [S.gold, JSON.stringify(S.stock), ui.placing && ui.placing.type, S.builders, showForeman, S.feat.power, ui.game.keepLevel(), S.buildings.length, hands > 0, ui.folkSig ? ui.folkSig() : '', ui.econSig ? ui.econSig() : ''].join('|');   // [econ3] the carts row   // [folk] the row's state if (sig === trayKey) return; trayKey = sig;
+    const sig = [S.gold, JSON.stringify(S.stock), ui.placing && ui.placing.type, S.builders, showForeman, S.feat.power, ui.game.keepLevel(), S.buildings.length, hands > 0, ui.folkSig ? ui.folkSig() : ''].join('|');   // [econ3] the carts row   // [folk] the row's state if (sig === trayKey) return; trayKey = sig;
     const FOCUS = { defence: 'Defence', balanced: 'Balanced', growth: 'Growth', off: 'Off' };
     const bRow = showForeman ? `<div class="builders" role="group" aria-label="What your builders focus on"><span>Foreman</span>${Object.entries(FOCUS).map(([k, v]) => `<button data-focus="${k}" aria-pressed="${(S.builders || 'off') === k}">${v}</button>`).join('')}</div>` : '';
-    tray.innerHTML = bRow + (ui.folkRow ? ui.folkRow() : '') /* [folk] Let them build */ + (ui.econRow ? ui.econRow() : '') /* [econ3] carts */ + BUILD_ORDER.filter(t => t !== 'generator' || S.feat.power).map(t => {
+    tray.innerHTML = bRow + (ui.folkRow ? ui.folkRow() : '') /* [folk] Let them build */ + BUILD_ORDER.filter(t => t !== 'generator' || S.feat.power).map(t => {
       const n = S.stock[t] || 0, cost = n ? 0 : ui.game.buyCost(t), on = ui.placing && ui.placing.type === t;
       const crew = t === 'tower' ? ui.game.crewing() : null, silent = crew && crew.free < CREW_NEED[0];   // [towers] a tower needs a crew: show it on the card
       return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${(!n && S.gold < cost) || hands < 1 ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost">${icon('scrap')}${cost}</span>`}${crew ? `<span class="tcrew${silent ? ' bad' : ''}">${icon('people')}${CREW_NEED[0]} crew${silent ? ' · none free' : ''}</span>` : ''}</button>`;
@@ -35,7 +35,6 @@ export function createPlacing(ui) {
   $('#tray').addEventListener('click', e => {
     const f = e.target.closest('[data-focus]'); if (f && ui.game) { ui.game.setBuilders(f.dataset.focus); trayKey = ''; renderTray(); ui.toast(f.dataset.focus === 'off' ? 'The Foreman stands down. You build by hand.' : `The Foreman builds by himself now: ${f.dataset.focus}.`); return; }
     if (e.target.closest('[data-folk]') && ui.game) { ui.folkToggle(); trayKey = ''; renderTray(); return; }   // [folk]
-    if (e.target.closest('[data-cart]') && ui.game) { ui.cartTap(); trayKey = ''; renderTray(); return; }   // [econ3]
     const b = e.target.closest('[data-tray]'); if (!b || !ui.game || ui.paused) return;
     const t = b.dataset.tray;
     if (ui.placing && ui.placing.type === t) { stopPlacing(); return; }

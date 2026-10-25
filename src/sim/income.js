@@ -28,7 +28,7 @@ export function createIncome(G) {
       if (b.type === 'farm') made += G.farmFood(b); if (b.type === 'house') hg += G.houseGold(b); }
     made = Math.round(made * pr * G.W8().food) + S.landmarks.reduce((a, l) => a + (l.owned ? LANDMARKS[l.kind].food || 0 : 0), 0) + (G.HC.quarter ? 2 : 0) + storyFood();
     const need = G.foodNeed(), fed = S.food > 0 || made >= need || need === 0 ? 1 : made / need;
-    const tk = G.trickleK ? G.trickleK() : { base: 1, house: 1 };   // [econ3] the carts haul most of the scrap now
+    const tk = { base: 1, house: 1 };   // the full trickle pays (the carts' share went with the carts, Oct 25)
     let gold = Math.round((START.baseIncome * G.DIFF.eco * tk.base + S.P.tax + hg * tk.house * fed) * pr) - G.upkeep() + storyGold();
     if (has('granary')) gold += Math.floor(S.food / 5);
     for (const l of S.landmarks) if (l.owned) gold += LANDMARKS[l.kind].gold || 0;
@@ -83,7 +83,7 @@ export function createIncome(G) {
   /** the HUD: per second right now (day or night), and per whole day for the forecast */
   function incomeRate() {
     const r = rates(), k = S.phase === 'night' ? NIGHT_W : 1;
-    return { gold: r.gold * k + (G.cartRate ? G.cartRate() : 0) /* [econ3] the carts' haul */, food: r.food * k, made: r.made * k, ate: r.ate * k, perDay: { gold: r.cycle.gold, food: r.cycle.made - r.cycle.need }, night: S.phase === 'night' };
+    return { gold: r.gold * k, food: r.food * k, made: r.made * k, ate: r.ate * k, perDay: { gold: r.cycle.gold, food: r.cycle.made - r.cycle.need }, night: S.phase === 'night' };
   }
   return { stepIncome, incomeDawn, incomeRate, incomePerCycle: perCycle };
 }

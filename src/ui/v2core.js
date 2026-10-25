@@ -17,10 +17,9 @@ export function createV2CoreUi(ui) {
     document.body.classList.toggle('v2', on);
   }
   sync();
-  const infTick0 = ui.infernoTick, econRow0 = ui.econRow;
+  const infTick0 = ui.infernoTick;
   return {
     v2coreTick: () => sync(),
     infernoTick: dt => (v2() ? undefined : infTick0 && infTick0(dt)),
-    econRow: () => (v2() ? '' : econRow0 ? econRow0() : ''),
   };
 }

@@ -16,7 +16,7 @@ export function createSettle(G) {
     if ((l.foodIn || 0) > (l.foodNeed || 0)) lines.push({ id: 'fed', name: SETTLE.fed.name, xp: Math.round(SETTLE.fed.base + SETTLE.fed.per * n), n: l.foodIn - l.foodNeed });
     const done = E().done || 0; E().done = 0;
     if (done) lines.push({ id: 'built', name: SETTLE.built.name, xp: Math.min(SETTLE.built.max, done * SETTLE.built.each), n: done });
-    const hauled = G.haulDawn ? G.haulDawn() : 0;
+    const hauled = 0;   // (the carts' haul: carts were cut on Oct 25; the field stays for the report's shape)
     const xp = lines.reduce((a, x) => a + x.xp, 0);
     if (xp > 0) G.gainXp(xp);
     S.stats.settleXp = (S.stats.settleXp || 0) + xp;
