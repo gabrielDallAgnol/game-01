@@ -2,6 +2,8 @@
 // and the ambient particles (embers and smoke off the camp fire, fireflies by night, pollen by day).
 /* global THREE */
 import { K } from '../kit.js';
+// [top]
+import { TOP } from '../top.js';
 
 export function createWeather(V) {
   const { S, fx, fx2, scene, look, vis, opts, camTarget } = V;
@@ -30,6 +32,7 @@ export function createWeather(V) {
     const dark = V.dark;
     const wx = S.weather, fogK = (wx === 'fog' ? 1 : 0) * dark; wxFog += (fogK - wxFog) * Math.min(1, dt * 0.8);
     scene.fog.near = dist + 14 - wxFog * (dist + 8); scene.fog.far = dist + 95 - wxFog * 70;
+    if (TOP.on) { scene.fog.near = 1e4; scene.fog.far = 2e4; }   // [top] no fog seen from above (every pixel is the same depth)
   }
   /** after the sky has set the light: fog colour, and a storm throws lightning */
   function storm(dt) {

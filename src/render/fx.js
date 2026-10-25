@@ -10,6 +10,8 @@
 //               hives, flares, the lantern), sampled by every lit material in K.territory()
 /* global THREE */
 import { K } from './kit.js';
+// [top]
+import { TOP } from './top.js';
 
 const lin = hex => new THREE.Color(hex).convertSRGBToLinear();
 
@@ -109,20 +111,20 @@ export function createFx({ renderer, scene }) {
   { const x = atlas.getContext('2d'); x.font = `800 ${GH * 0.72}px "Barlow Condensed", "Arial Narrow", Arial, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
     for (let k = 0; k < CH.length; k++) { const cx = (k % COLS) * GW + GW / 2, cy = Math.floor(k / COLS) * GH + GH / 2 + 2; x.lineWidth = 7; x.strokeStyle = 'rgba(12,10,14,0.92)'; x.strokeText(CH[k], cx, cy); x.fillStyle = '#ffffff'; x.fillText(CH[k], cx, cy); } }
   const atlasTex = new THREE.CanvasTexture(atlas); atlasTex.minFilter = THREE.LinearFilter; atlasTex.generateMipmaps = false;
-  const LN = 512;
+  const LN = 512, labelK = { value: 1 };   // [top] labelK
   const Lq = quadGeo(LN, { aP: 3, aG: 4, aT: 4, aC: 3 });   // anchor; glyph col,row, x offset, size; birth, life, rise, pop
   const lMat = new THREE.ShaderMaterial({
-    uniforms: { uTime: time, tAtlas: { value: atlasTex }, uCell: { value: new THREE.Vector2(1 / COLS, 1 / ROWS) } },
+    uniforms: { uTime: time, tAtlas: { value: atlasTex }, uCell: { value: new THREE.Vector2(1 / COLS, 1 / ROWS) }, uTopK: labelK },   // [top] uTopK: labels grow as the ortho view pulls back
     vertexShader: `
-      attribute vec3 aP, aC; attribute vec4 aG, aT; uniform float uTime; uniform vec2 uCell;
+      attribute vec3 aP, aC; attribute vec4 aG, aT; uniform float uTime; uniform vec2 uCell;${TOP.on ? ' uniform float uTopK;' : ''}
       varying vec2 vUv; varying vec3 vC; varying float vA;
       void main(){
         float age = uTime - aT.x, t = age / aT.y;
         if (aT.y <= 0.0 || t < 0.0 || t > 1.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
         vec3 p = aP + vec3(0.0, aT.z * (1.0 - pow(1.0 - min(1.0, t * 1.4), 2.0)), 0.0);
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        float pop = 1.0 + aT.w * max(0.0, 1.0 - age / 0.14);
-        float s = aG.w * pop;
+${TOP.on ? '        mv.y += (p.y - aP.y) + 0.6 + aP.y * 0.3; // [top] rise on screen, not in the air (edge-on from above)\n' : ''}        float pop = 1.0 + aT.w * max(0.0, 1.0 - age / 0.14);
+        float s = aG.w * pop${TOP.on ? ' * uTopK' : ''};
         mv.xy += (position.xy * vec2(0.5, 0.75) + vec2(aG.z * 0.62, 0.0)) * s;
         gl_Position = projectionMatrix * mv;
         vec2 q = position.xy * 0.5 + 0.5; vUv = vec2((aG.x + q.x) * uCell.x, 1.0 - (aG.y + 1.0 - q.y) * uCell.y);
@@ -248,7 +250,7 @@ export function createFx({ renderer, scene }) {
   };
 
   return {
-    time, emit, label, ring, stain, pools,
+    time, emit, label, ring, stain, pools, labelK,
     blobs: { begin() { bn = 0; }, add: blob, end(k) { blobs.count = bn; blobs.instanceMatrix.needsUpdate = true; blobMat.uniforms.uK.value = k; } },
     /** per frame: advance the clock and upload what changed */
     /** lit: how much daylight the unlit particles (dust, smoke, blood) catch: 1 day … ~0.2 night */

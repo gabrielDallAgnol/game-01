@@ -54,6 +54,7 @@ export function createMarkers(V) {
       const s = v.big ? 1.5 : 1, ph = (time * 0.6) % 1;
       v.g.position.copy(Wv(o.x, o.y, 0)); v.ring.scale.setScalar(s * (1 + ph * 0.6)); v.ring.material.opacity = 0.85 * (1 - ph);
       v.tag.position.y = (v.big ? 6.4 : 5.4) + Math.sin(time * 2) * 0.12;
+      if (V.topMarks) V.topMarks.main(v);   // [top] no beam from above; the tag sits above the ring on screen
     }
     for (const [k, v] of mainViews) if (!seen.has(k)) { fx.remove(v.g); mainViews.delete(k); }
   }

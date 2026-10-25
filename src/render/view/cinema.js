@@ -65,6 +65,7 @@ export function createCinema(V) {
     ring.position.copy(p); ring.material.opacity = a * (0.6 + 0.4 * pulse); ring.scale.setScalar(1 + 0.12 * pulse);
     glow.position.copy(Wv(shot.x, shot.y, 1.2)); glow.material.opacity = a * 0.7;
     if (tag) { tag.visible = shot.tagOn && a > 0.01; tag.position.copy(Wv(shot.x, shot.y, 5.4)); tag.material.opacity = a; }
+    if (V.topMarks) V.topMarks.cinema(beam, tag);   // [top]
     if (T >= end) { shot = null; beam.visible = ring.visible = glow.visible = false; if (tag) tag.visible = false; }
   }
   return { look, skip, blend, zoomK, update, target: () => shot && { x: shot.x, y: shot.y }, active: () => !!shot };

@@ -6,7 +6,8 @@ import path from 'node:path';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2), withGltf = args.includes('--gltf');   // [assets3] --gltf: also embed the GLTF loader and the test GLBs (only then; the default build is unchanged)
-const out = args.find(a => !a.startsWith('--')) || path.join(root, withGltf ? 'dist/index-gltf.html' : 'dist/index.html');
+const withTop = args.includes('--top');   // [top] --top: the top-down view on by default (dist/top.html; ?top=0 turns it off)
+const out = args.find(a => !a.startsWith('--')) || path.join(root, withGltf ? 'dist/index-gltf.html' : withTop ? 'dist/top.html' : 'dist/index.html');
 const mods = new Map(), order = [];
 
 function visit(file) {
@@ -15,6 +16,9 @@ function visit(file) {
   let code = fs.readFileSync(file, 'utf8');
   // [gemini3] the build time on the start screen (src/version.js keeps 'dev'; only the bundle gets the stamp)
   if (rel(file) === 'src/version.js') code = code.replace("time: 'dev'", () => `time: '${new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).slice(0, 16)}'`);
+  // [top] begin
+  if (withTop && rel(file) === 'src/render/top.js') { const c0 = code; code = code.replace('export const TOP_FLAG = false;', 'export const TOP_FLAG = true;'); if (c0 === code) throw new Error('--top: TOP_FLAG not found'); }
+  // [top] end
   const exportsList = [];
   code = code.replace(/^import\s+\{([^}]*)\}\s+from\s+'([^']+)';?[ \t]*$/gm, (_, names, spec) => {
     const dep = path.resolve(path.dirname(file), spec); visit(dep);

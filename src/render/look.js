@@ -9,6 +9,8 @@
 /* global THREE */
 import { K } from './kit.js';
 import { PAL } from './palette.js';
+// [top]
+import { TOP } from './top.js';
 
 const L = K.lin;
 export const PRESETS = {
@@ -145,6 +147,7 @@ const FinalShader = q => ({
         vec3 b = a * 0.5 + 0.25 * (texture2D(tScene, vUv - dir * 0.5).rgb + texture2D(tScene, vUv + dir * 0.5).rgb);
         float lb = luma(b); c = (lb < lMin || lb > lMax) ? a : b;
       }
+    #ifndef FLAT
       // tilt-shift: the miniature look — a soft blur toward the top and bottom of the frame
       float tb = tilt * smoothstep(0.26, 0.5, abs(vUv.y - 0.47)) * 2.2;
       if (tb > 0.05) {
@@ -161,12 +164,17 @@ const FinalShader = q => ({
       c = mix(c, c * outlineCol * 4.0, edge * outline);
       // haze: the far ground softens toward the air colour (aerial perspective)
       c = mix(c, hazeCol, haze * smoothstep(focus * 0.85, focus * 2.4, dc));
+    #endif
       // bloom (night only)
       if (bloom > 0.001) c += (bl(tB0, vUv, px * 2.0) * 0.55 + bl(tB1, vUv, px * 4.0) * 0.8 + bl(tB2, vUv, px * 8.0) * 1.1) * bloom;
     #endif
+    #ifdef FLAT
+      c = pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2));   // [top] flat: the colours as painted, no tone curve, no grade
+    #else
       c = aces(c * exposure);
       c = pow(c, vec3(1.0 / 2.2));
       c = mix(lut(c, lutA), lut(c, lutB), lutMix);
+    #endif
       vec2 d = vUv - 0.5; d.x *= res.x / res.y; float r = length(d);
       c *= 1.0 - vignette * smoothstep(0.32, 1.0, r);
       // taking a hit: a red pulse from the edges
@@ -253,6 +261,7 @@ export function createLook({ renderer, scene, camera, canvas }) {
     if (rt) { rt.dispose(); bl.forEach(t => t.dispose()); }
     const q = quality === 'low' ? 0 : quality === 'medium' ? 1 : 2;
     final = new THREE.ShaderMaterial(FinalShader(q)); final.depthTest = final.depthWrite = false;
+    if (TOP.on) final.defines.FLAT = 1;   // [top] FXAA, bloom, vignette, hit and fade only: no depth edges, haze, tilt-shift, tone curve or grade
     final.uniforms.tLUT.value = lutTex;
     downs = [new THREE.ShaderMaterial(DownShader(true)), new THREE.ShaderMaterial(DownShader(false)), new THREE.ShaderMaterial(DownShader(false))];
     built = true; resize(w, h);

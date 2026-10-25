@@ -2,6 +2,8 @@
 /* global THREE */
 import { CFG } from './config.js';
 import { VCM, EMITW, M } from './materials.js';
+// [top]
+import { TOP } from '../top.js';
 
 // ---------- geometry builder: collects pieces per material, merges at the end ----------
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3();
@@ -54,7 +56,8 @@ class B {
           const pa = gg.attributes.position, na = gg.attributes.normal, n = pa.count, a = new Float32Array(n * 3), e = new Float32Array(n);
           for (let i = 0; i < n; i++) {
             let k = 1;
-            if (!em) { const y = pa.getY(i), t = Math.min(1, Math.max(0, y / aoH)); k = aoMin + (1 - aoMin) * t * t * (3 - 2 * t); const ny = na.getY(i); if (ny < -0.3) k *= 0.78; else if (ny > 0.6) k *= 1.04; }
+            // [top] no grounding bake from above (the flat look)
+            if (!em && !TOP.on) { const y = pa.getY(i), t = Math.min(1, Math.max(0, y / aoH)); k = aoMin + (1 - aoMin) * t * t * (3 - 2 * t); const ny = na.getY(i); if (ny < -0.3) k *= 0.78; else if (ny > 0.6) k *= 1.04; }
             a[i * 3] = c.r * k; a[i * 3 + 1] = c.g * k; a[i * 3 + 2] = c.b * k; e[i] = em;
           }
           gg.setAttribute('color', new THREE.BufferAttribute(a, 3)); gg.setAttribute('aEmit', new THREE.BufferAttribute(e, 1));

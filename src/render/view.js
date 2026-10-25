@@ -49,6 +49,12 @@ import { createHaven } from './view/haven.js';
 import { createLegs } from './view/legs.js';
 // [econ3] nodes, carts, scaffolds on the queue
 import { createHaul } from './view/haul.js';
+// [top] begin
+import { TOP } from './top.js';
+import { createTopCamera } from './view/topdown.js';
+import { createTopFlat } from './view/topflat.js';
+import { createTopMarks } from './view/topmarks.js';
+// [top] end
 // [road] begin
 import { createRoadView } from './road-view.js';
 // [road] end
@@ -59,7 +65,9 @@ export function createView(canvas, game, opts = {}) {
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(28, 1, 0.5, 300);
+  // [top] begin: ?top=1 looks straight down through an orthographic camera (view/topdown.js)
+  const camera = TOP.on ? new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 300) : new THREE.PerspectiveCamera(28, 1, 0.5, 300);
+  // [top] end
   const world = new THREE.Group(), fx = new THREE.Group(); scene.add(world, fx);
   const look = createLook({ renderer, scene, camera, canvas });
   const fx2 = createFx({ renderer, scene });
@@ -95,7 +103,7 @@ export function createView(canvas, game, opts = {}) {
   // [road] begin: stations, fires, the convoy, ambush marks (src/render/road-view.js)
   const roadView = V.roadView = createRoadView({ world, fx, game, W: V.W, K, lc, makeBar: bars.makeBar, setBar: bars.setBar, burst: feel.burst, floatLabel: feel.floatLabel, heroLight, bakedWalker, camera });
   // [road] end
-  const cam = V.cam = createCamera(V);
+  const cam = V.cam = TOP.on ? createTopCamera(V) : createCamera(V);   // [top]
   const weather = createWeather(V);
   const lights = createLights(V);
   const events = createEvents(V);
@@ -108,6 +116,8 @@ export function createView(canvas, game, opts = {}) {
   const legs = V.legs = createLegs(V);   // [rig3] the act's ground colours and props
   const haul = V.haul = createHaul(V);   // [econ3] nodes, carts, scaffolds on the queue
   const hero3fx = createHero3Fx(V);   // [hero3] the stat abilities' feedback
+  const topFlat = createTopFlat(V);   // [top] the flat look's light (null without ?top=1)
+  V.topMarks = createTopMarks(V);   // [top] bars and tags toward screen-up (null without ?top=1)
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -122,7 +132,10 @@ export function createView(canvas, game, opts = {}) {
     cinema.update(dt);
     const { R, dist } = cam.update(dt, dayT);
     weather.fog(dt, dist);
-    city.stream(cam.camTarget.x, cam.camTarget.z, R * Math.max(1.7, camera.aspect * 1.4) + 4, R * 4.2 + 5, R * 2.3 + 4);
+    // [top] begin: from above the window is the frustum, the same on every side
+    if (TOP.on) city.stream(cam.camTarget.x, cam.camTarget.z, cam.half.w + 4, cam.half.h + 4, cam.half.h + 4);
+    // [top] end
+    if (!TOP.on) city.stream(cam.camTarget.x, cam.camTarget.z, R * Math.max(1.7, camera.aspect * 1.4) + 4, R * 4.2 + 5, R * 2.3 + 4);
     lights.cycle(R);
     weather.storm(dt);
     lights.night(dt, skyNow);
@@ -155,6 +168,8 @@ export function createView(canvas, game, opts = {}) {
     // [road] begin
     if (roadView) roadView.frame(dt, V.time, V.dark, ui.events);
     // [road] end
+    if (topFlat) topFlat.update();   // [top]
+    if (V.topMarks) V.topMarks.update();   // [top]
     look.render(V.time);
   }
 

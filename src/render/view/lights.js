@@ -4,6 +4,8 @@
 import { K } from '../kit.js';
 import { skyAt } from '../look.js';
 import { lc } from './shared.js';
+// [top]
+import { TOP } from '../top.js';
 
 export function createLights(V) {
   const { S, map, C, game, fx2, Wv, heroLight, opts } = V;
@@ -12,7 +14,10 @@ export function createLights(V) {
   const AMBER = lc('#ffa64d'), WARM = lc('#ffc070'), ROT = lc('#9dff4a'), REDL = lc('#ff5a3a'), FLARE = lc('#ff7a3a'), SIEGE = lc('#e3a54a'), LANT = lc('#ffc890');
   function paintLights(k, lit) {
     const time = V.time, camTarget = V.camTarget, keepFires = V.keep.fires, hives = V.hives.hives, flares = V.flares, roadView = V.roadView;
-    fx2.pools.begin(camTarget.x, camTarget.z - 6, 76);
+    // [top] begin: from above the pool texture is centred on the camera and covers the whole frustum
+    if (TOP.on) fx2.pools.begin(camTarget.x, camTarget.z, Math.max(76, 2 * Math.max(V.cam.half.w, V.cam.half.h) + 8));
+    // [top] end
+    if (!TOP.on) fx2.pools.begin(camTarget.x, camTarget.z - 6, 76);
     if (k > 0.001) {
       const fl = id => 0.88 + 0.12 * Math.sin(time * 11 + id * 1.7) * Math.sin(time * 7.3 + id);
       if (!S.keep.ruined) for (const [fx0, fz0, r0] of keepFires) fx2.pools.light(fx0, fz0, r0, AMBER, 1.5 * fl(1), 0.6);
@@ -53,7 +58,7 @@ export function createLights(V) {
     return skyNow;
   }
   /** the sky, sun and fog for this moment (after the camera has moved) */
-  function cycle(R) { V.look.cycle(todV, game.dayShare(), bloodK, V.camTarget, Math.max(22, R * 1.7)); }
+  function cycle(R) { V.look.cycle(todV, game.dayShare(), bloodK, V.camTarget, TOP.on ? R + 3 : Math.max(22, R * 1.7)); }   // [top] from above R already covers the screen
 
   /** night: windows, lenses, the light pool, the hero's lantern, rim and mist */
   function night(dt, skyNow) {
