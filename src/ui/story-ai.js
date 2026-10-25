@@ -131,10 +131,11 @@ export const parseObituary = p => { const b = p && Array.isArray(p.beats) ? p.be
 
 export function createChronicler(store) {
   let sample = null, enabled = store.get('ai', true), state = 'off';   // off | ready | denied
+  let blocked = false;   // [v2] the V2 core: the Chronicler writes nothing (setBlocked)
   const ready = (async () => {
     try { if (window.claude && window.claude.use) { sample = await window.claude.use('sample'); if (sample) state = 'ready'; } } catch { sample = null; }
   })();
-  const on = () => enabled && sample && state === 'ready';
+  const on = () => enabled && sample && state === 'ready' && !blocked;
   function fail(e) { if (e && (e.code === 'not_granted' || e.code === 'unavailable')) state = 'denied'; }
   async function ask(prompt, parse) {
     await ready; if (!on()) return null;
@@ -181,5 +182,6 @@ Reply with ONLY JSON: {"say":"≤30 words, what you say, in character, plain spo
     status: () => (!enabled ? 'off' : state === 'denied' ? 'denied' : sample ? 'on' : 'absent'),
     setEnabled: v => { enabled = v; store.set('ai', v); },
     enabled: () => enabled,
+    setBlocked: v => { blocked = !!v; },   // [v2]
   };
 }
