@@ -7,16 +7,18 @@ const DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -
 export { DIRS };
 
 class Heap {
+  // the same binary heap as before, swapping through temporaries (the old [a, b] = [b, a] swaps made two arrays per
+  // step: fine on the frontier's small open ground, ten seconds a field on an engine town). Same order, same fields.
   constructor() { this.k = []; this.v = []; }
   push(key, val) {
     const k = this.k, v = this.v; let i = k.length; k.push(key); v.push(val);
-    while (i > 0) { const p = (i - 1) >> 1; if (k[p] <= k[i]) break; [k[p], k[i]] = [k[i], k[p]]; [v[p], v[i]] = [v[i], v[p]]; i = p; }
+    while (i > 0) { const p = (i - 1) >> 1; if (k[p] <= k[i]) break; const tk = k[p]; k[p] = k[i]; k[i] = tk; const tv = v[p]; v[p] = v[i]; v[i] = tv; i = p; }
   }
   pop() {
     const k = this.k, v = this.v, top = v[0]; this.topKey = k[0]; const lk = k.pop(), lv = v.pop();
     if (k.length) {
-      k[0] = lk; v[0] = lv; let i = 0;
-      for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < k.length && k[l] < k[m]) m = l; if (r < k.length && k[r] < k[m]) m = r; if (m === i) break; [k[m], k[i]] = [k[i], k[m]]; [v[m], v[i]] = [v[i], v[m]]; i = m; }
+      k[0] = lk; v[0] = lv; let i = 0; const n = k.length;
+      for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < n && k[l] < k[m]) m = l; if (r < n && k[r] < k[m]) m = r; if (m === i) break; const tk = k[m]; k[m] = k[i]; k[i] = tk; const tv = v[m]; v[m] = v[i]; v[i] = tv; i = m; }
     }
     return top;
   }
@@ -54,7 +56,8 @@ export function computeFlow(terrain, occ, isWall, wallCost) {
       if (blocked(j)) continue;
       if (dx && dy && (occ[idx(x + dx, y)] >= 0 || occ[idx(x, y + dy)] >= 0 || blocked(idx(x + dx, y)) || blocked(idx(x, y + dy)))) continue; // no corner cutting, not even between two palisade posts
       const step = len * MOVE_COST[terrain[j]] + (occ[j] >= 0 ? wallCost : 0);
-      if (d + step < dist[j]) { dist[j] = d + step; heap.push(dist[j], j); }
+      const nd = Math.fround(d + step);   // compare as stored (float32): an equal value read as 'shorter' re-queued a cell forever on big open ground
+      if (nd < dist[j]) { dist[j] = nd; heap.push(nd, j); }
     }
   }
   return dist;
