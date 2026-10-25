@@ -3,7 +3,7 @@
 import { $, $$, FLAGS, LEGACY_KEEP, WHATS_NEW, audio, esc, rich, saves, store } from './shared.js';
 import { BIOMES, generateMap, mapChoices } from '../sim/mapgen.js';
 // [area] next line
-import { AREA, AREA_FLAG, areaOpts } from './area-flag.js';
+import { AREA, areaOpts } from './area-flag.js';
 import { COMBAT2 } from './combat2-flag.js';
 // [v2] next line
 import { V2 } from './v2-flag.js';
@@ -33,7 +33,7 @@ export function createStart(ui) {
       <details id="startMore"><summary>More</summary>
         <div class="worlds">${opts.map((o, k) => `<canvas id="mm${k}" aria-hidden="true"></canvas><div><b>${esc(o.name)}</b><div class="note">${esc(BIOMES[o.biome].blurb)} · seed ${o.seed}</div><button class="btn ghost sm" id="reroll" style="margin-top:8px">Another world</button></div>`).join('')}</div>
         ${FLAGS.startDifficulty ? `<div class="opts one" style="margin-top:12px">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="opt" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><span class="nm">${d.name}</span><span class="ds">${d.blurb}</span></button>`).join('')}</div>` : '<p class="note" style="margin-top:12px">The System asks how hard it should be after your first night.</p>'}
-        ${AREA_FLAG || AREA.id ? `<div class="opts one" style="margin-top:12px">${[...AREAS, ''].map(k => `<button class="opt" data-area="${k}" aria-pressed="${(AREA.id || '') === k}"><span class="nm">${k ? RECIPES[k].name : 'the frontier'}</span><span class="ds">${k ? esc(RECIPES[k].blurb) : 'The old map: a camp in the woods, the city far away.'}</span></button>`).join('')}</div>` : ''}   <!-- [area] -->
+        <div class="opts one" style="margin-top:12px">${AREAS.map(k => `<button class="opt" data-area="${k}" aria-pressed="${AREA.id === k}"><span class="nm">${RECIPES[k].name}</span><span class="ds">${esc(RECIPES[k].blurb)}</span></button>`).join('')}</div>   <!-- [area] the town -->
         <button class="btn ghost sm" id="replayIntro" style="margin-top:14px">Replay the opening</button>   <!-- [story3] -->
         ${legacyHtml()}
         <div class="news"><b>What's new tonight</b><ul>${WHATS_NEW.map(t => `<li>${rich(t)}</li>`).join('')}</ul></div>
@@ -41,7 +41,7 @@ export function createStart(ui) {
       <div class="foot">${best ? `Your best: night ${best} · ` : ''}Drag to walk · tap to go somewhere</div>`, { cls: 'titlecard', arm: false });
     opts.forEach((o, k) => ui.drawMinimap($(`#mm${k}`), generateMap(o.seed, o.biome, areaOpts())));
     $$('[data-diff]').forEach(b => b.onclick = () => { setup.difficulty = b.dataset.diff; store.set('difficulty', setup.difficulty); $$('[data-diff]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
-    $$('[data-area]').forEach(b => b.onclick = () => { AREA.id = b.dataset.area || null; showStart(); $('#startMore').open = true; });   // [area]
+    $$('[data-area]').forEach(b => b.onclick = () => { AREA.id = b.dataset.area; showStart(); $('#startMore').open = true; });   // [area]
     $$('[data-legacy]').forEach(b => b.onclick = () => { const L = store.get('legacy', { fame: 0, owned: {} }), up = LEGACY.find(x => x.id === b.dataset.legacy), n = L.owned[up.id] || 0; if (n >= up.max || L.fame < up.cost) return; L.fame -= up.cost; L.owned[up.id] = n + 1; store.set('legacy', L); audio.play('claim'); showStart(); $('#startMore').open = true; });
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); $('#startMore').open = true; };
     // [story3] the opening plays once (skippable); headless drivers skip it unless ?intro=1

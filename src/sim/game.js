@@ -41,7 +41,6 @@ import { createPacify } from './pacify.js';
 // [folk] the folk build by themselves
 import { createFolkBuild } from './folk-build.js';
 import { createSteer } from './steer.js';
-import { spotOk } from './spots.js';
 import { createWoods } from './woods.js';
 import { createTowers } from './towers.js';
 // [income] scrap and food by the second
@@ -100,15 +99,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- start of the run (order matters: it draws from the seeded streams) ----------
   let planner = null;
   occupy(keep);
-  // the deep woods at the edge, where the dead come from once every hive is burned 
-  for (let k = 0; k < 8; k++) {
-    const a = k * Math.PI / 4;
-    let at = null;   // the deep woods: open ground the camp can reach, clear of the void round the world (spotOk), else any reachable cell
-    for (let r = 58; r > 36 && !at; r -= 0.5) { const x = c + Math.cos(a) * r, y = c + Math.sin(a) * r; if (spotOk(map, false, x, y)) at = { x, y }; }
-    for (let r = 58; r > 36 && !at; r -= 0.5) { const x = c + Math.cos(a) * r, y = c + Math.sin(a) * r; if (map.reach[idx(Math.floor(x), Math.floor(y))]) at = { x, y }; }
-    if (at) edgeSpawns.push(at);
-  }
-  S.edgeSpawns = edgeSpawns;
+  S.edgeSpawns = edgeSpawns;   // the hordes' entries into the night queue (sim/hordes.js fills it)
   // districts: the signature site's district, then the home ward's kits (draws from the districts stream)
   for (const l of S.landmarks) if (LANDMARKS[l.kind].signature) S.kits[l.region] = 'signature';
   // the home ward: the near districts with no hive are open from day 1 (common finds: a place to look around)

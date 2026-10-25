@@ -66,7 +66,6 @@ export function createMap(ui) {
       ctx.beginPath(); ctx.arc(X, Y, big ? 13 : 12, 0, 7); ctx.fillStyle = 'rgba(255,211,106,.25)'; ctx.fill();
       dot(o.x, o.y, big ? 12 : 11, '#ffd36a', true); dot(o.x, o.y, big ? 5 : 5, '#ffd36a');
     }
-    if (big && ui.game.hearRadius) { const r = ui.game.hearRadius() * s; ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = 'rgba(240,166,73,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc((m.town.x - ox) * s, (m.town.y - oy) * s, r, 0, 7); ctx.stroke(); ctx.restore();
     }
     dot(m.town.x, m.town.y, big ? 7 : 4, '#f0a649');
     const h = S.hero; dot(h.x, h.y, big ? 6 : 4, '#ffffff'); dot(h.x, h.y, big ? 9 : 6, 'rgba(255,255,255,.5)', true);
@@ -79,7 +78,6 @@ export function createMap(ui) {
     const s = cv.width / (R * 2); ctx.imageSmoothingEnabled = false; ctx.fillStyle = '#0b0d0e'; ctx.fillRect(0, 0, cv.width, cv.width);
     ctx.drawImage(src, h.x - R, h.y - R, R * 2, R * 2, 0, 0, cv.width, cv.width);
     marks(ctx, h.x - R, h.y - R, s, false);
-    const c = !hidden() && ui.game.map.city; if (c) { const a = Math.atan2(c.y - h.y, c.x - h.x), dd = Math.hypot(c.x - h.x, c.y - h.y); if (dd > R + c.r * 0.3) { const r0 = cv.width / 2 - 9, x = cv.width / 2 + Math.cos(a) * r0, y = cv.width / 2 + Math.sin(a) * r0; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-6, -6); ctx.lineTo(-6, 6); ctx.fill(); ctx.restore(); } }
   }
   /** the big map's "MAIN · what" tags, drawn last so nothing covers them; each takes the first free slot around its ring */
   function mainTags(ctx, ox, oy, s, campAt) {
@@ -105,21 +103,21 @@ export function createMap(ui) {
     const objs = ui.game.story().objectives(), main = objs.filter(o => o.priority === 'main' && o.x !== undefined);
     const mainRow = main.length ? `<div class="lg-main"><b>Main</b>${main.map(o => `<span><i class="o" style="border-color:#ffd36a;box-shadow:0 0 6px rgba(255,211,106,.6)"></i>${esc(o.label)}: ${esc(o.title)}</span>`).join('')}</div>` : '';
     return `${mainRow}<div class="legend"><span class="lg-h">Optional</span><span><i class="o" style="border-color:rgba(214,222,226,.7)"></i>Place to claim</span><span><i style="background:#a9c6d6"></i>Beacon</span><span><i style="background:#e0886a"></i>Supply drop</span></div>
-      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Haven</span><span><i style="background:#c2a46e"></i>The old road</span><span><i style="background:#ff7a1c"></i>Inferno nest</span><span><i class="o" style="border-color:#f0a649;border-style:dashed"></i>How far the Inferno Nests hear you</span><span><i style="background:rgba(255,196,120,.45);box-shadow:inset 0 0 0 1px #ffc478"></i>Pacified: no Inferno Nest wakes</span></div>`;
+      <div class="legend"><span><i style="background:#ffffff"></i>You</span><span><i style="background:#f0a649"></i>The Haven</span><span><i style="background:#c2a46e"></i>Streets</span><span><i style="background:#ff7a1c"></i>Inferno nest</span><span><i style="background:rgba(255,196,120,.45);box-shadow:inset 0 0 0 1px #ffc478"></i>Your quiet ground</span></div>`;
   }
   function showMap() {
-    const S = ui.game.state, src = worldNow(), b = worldB, w = b.x1 - b.x0 + 1, hh = b.y1 - b.y0 + 1, s = 2, act1 = !!hidden();
+    const S = ui.game.state, src = worldNow(), b = worldB, w = b.x1 - b.x0 + 1, hh = b.y1 - b.y0 + 1, s = 2;
     ui.paused = true; if (ui.placing) ui.stopPlacing(); ui.closePanel();
-    ui.showCard('map', `<button class="closex" id="mapX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Map] ${esc(ui.game.map.name)} · day ${S.night}</div><h1 class="sm">${act1 ? 'The woods' : 'The woods and the city'}</h1>
-      <div class="mapwrap"><canvas id="bigMap" aria-label="${act1 ? 'Map of the woods' : 'Map of the woods and the city'}"></canvas></div>
+    ui.showCard('map', `<button class="closex" id="mapX" aria-label="Close">${icon('close')}</button><div class="eyebrow">[Map] ${esc(ui.game.map.name)} · day ${S.night}</div><h1 class="sm">The town</h1>
+      <div class="mapwrap"><canvas id="bigMap" aria-label="Map of the town"></canvas></div>
       ${legend()}
-      <p class="note">${act1 ? 'Burn the hollows: the fence opens and the road with it.' : 'Dark ground is unexplored. Tap a place to plan a trip.'}</p>
+      <p class="note">Dark ground is unexplored.</p>
       <div class="cardrow foot"><button class="btn big" id="mapOk">Back</button></div>`, { sys: true, arm: false });
     const cv = $('#bigMap'); cv.width = w * s; cv.height = hh * s; const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
     ctx.drawImage(src, b.x0, b.y0, w, hh, 0, 0, w * s, hh * s);
     marks(ctx, b.x0, b.y0, s, true);
     const lbl = (x, y, t) => { ctx.font = 'bold 22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(t, (x - b.x0) * s, (y - b.y0) * s); ctx.fillStyle = '#fff1d6'; ctx.fillText(t, (x - b.x0) * s, (y - b.y0) * s); };
-    lbl(ui.game.map.town.x, ui.game.map.town.y - 8, 'CAMP'); const c = !act1 && ui.game.map.city; if (c) lbl(c.x, c.y + 4, 'THE CITY');
+    lbl(ui.game.map.town.x, ui.game.map.town.y - 8, 'CAMP');
     mainTags(ctx, b.x0, b.y0, s, [ui.game.map.town.x, ui.game.map.town.y - 8]);
     $('#mapOk').onclick = $('#mapX').onclick = () => { ui.hideCard(); ui.paused = false; };
   }

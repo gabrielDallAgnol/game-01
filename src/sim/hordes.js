@@ -1,5 +1,5 @@
-// [v2] Hordes: the V2 night. Groups of the dead sleep at key places round the town (an engine town's sites, its nest,
-// far doors; on the frontier the old nest spots) and wake at dusk as roamers round their spot: break one at night for
+// [v2] Hordes: the V2 night. Groups of the dead sleep at key places round the town (the town's sites, its nest,
+// far doors) and wake at dusk as roamers round their spot: break one at night for
 // its scrap. Now and then one marches on the camp instead: chosen at dawn (so the red route arrows show it all day)
 // and sent through the night queue like the old waves. At dawn the survivors go back to sleep, and every horde regrows
 // a little. Deterministic: its own Rng streams (the spot pick, each dawn's march roll). Nothing without G.v2.
@@ -14,8 +14,7 @@ export function createHordes(G) {
   const ok = (x, y) => { const i = idx(Math.floor(x), Math.floor(y)); return inside(Math.floor(x), Math.floor(y)) && PASSABLE[map.terrain[i]] && map.reach[i] && S.occ[i] < 0; };
   function pickSpots() {
     const rng = new Rng(hashSeed(seed, map.seed, 'hordes')), cand = [], A = map.area;
-    if (A) { for (const s of A.sites) cand.push({ x: s.door ? s.door.x : s.x, y: s.door ? s.door.y : s.y, why: 'site', name: s.kind }); if (A.nest) cand.push({ ...A.nest, why: 'nest', name: 'the nest' }); rng.shuffle(A.homes.slice()).slice(0, 40).forEach(h => cand.push({ x: h.x, y: h.y, why: 'street', name: h.name.replace(/^an? (house|shop|burnt-out house) on /, '') })); }
-    else for (const r of map.regions) if (r.nest) cand.push({ x: r.nest.x, y: r.nest.y, why: 'nest', name: 'a hollow' });
+    for (const s of A.sites) cand.push({ x: s.door ? s.door.x : s.x, y: s.door ? s.door.y : s.y, why: 'site', name: s.kind }); if (A.nest) cand.push({ ...A.nest, why: 'nest', name: 'the nest' }); rng.shuffle(A.homes.slice()).slice(0, 40).forEach(h => cand.push({ x: h.x, y: h.y, why: 'street', name: h.name.replace(/^an? (house|shop|burnt-out house) on /, '') }));
     const keep = [];
     for (const p of cand) { if (keep.length >= HORDES.count) break; if (Math.hypot(p.x - c, p.y - c) < HORDES.minD || !ok(p.x, p.y) || keep.some(q => Math.hypot(q.x - p.x, q.y - p.y) < HORDES.gap)) continue; keep.push(p); }
     return keep.map((p, id) => ({ id, x: p.x, y: p.y, why: p.why, name: p.name, far: Math.hypot(p.x - c, p.y - c), dead: HORDES.size(1, Math.hypot(p.x - c, p.y - c)), awake: [], edge: -1 }));

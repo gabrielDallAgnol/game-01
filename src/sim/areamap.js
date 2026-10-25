@@ -1,7 +1,7 @@
 // [area] The engine's town as the game map round the camp. An area recipe (src/engine/recipes.js) is built from the
 // map seed, placed so its camp sits on the game's camp (N/2, N/2), at 1 cell = 1 m, and rasterised into the grid:
 // streets and drives are road, buildings, cars and walls are rock, the woods' canopies are forest, the creek is
-// water, rails are dirt. Outside the area's rectangle, and inside the far city, the frontier stays as generated. Deterministic and DOM-free;
+// water, rails are dirt. Round the area's rectangle a band of woods, then the void. Deterministic and DOM-free;
 // the built world rides along on map.area for the renderer (it is never saved: the seed rebuilds it).
 import { buildArea, RECIPES } from '../engine/recipes.js';
 import { obbBox, pointInObb, distToSeg } from '../engine/geom.js';
@@ -26,10 +26,10 @@ export function applyArea(g, id) {
   const fillDisc = (p, rad, t, r) => { for (let y = Math.floor(p.y - rad + oy); y <= Math.ceil(p.y + rad + oy); y++) for (let x = Math.floor(p.x - rad + ox); x <= Math.ceil(p.x + rad + ox); x++) if (Math.hypot(x + 0.5 - ox - p.x, y + 0.5 - oy - p.y) <= rad) set(x, y, t, r); };
   // 1. the ground: open grass, part of the wilds (open from day 1)
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { if (keep && keep(x, y)) continue; const i = idx(x, y); mask[i] = 1; terrain[i] = T.GRASS; wild[i] = 1; road[i] = 0; }
-  // 1b. the town's edge meets the frontier: void beyond it becomes a band of woods, so the map never ends in the dark
+  // 1b. the town's edge: the void beyond it becomes a band of woods, so the map never ends in the dark
   const BAND = 26;
   for (let y = Math.max(0, y0 - BAND); y < Math.min(N, y1 + BAND); y++) for (let x = Math.max(0, x0 - BAND); x < Math.min(N, x1 + BAND); x++) { const i = idx(x, y); if (mask[i] || terrain[i] !== T.VOID) continue; terrain[i] = ((x * 7 + y * 13) % 5) ? T.FOREST : T.GRASS; wild[i] = 1; }
-  // 2. the woods: canopies of the forest atoms (choppable, as in the frontier)
+  // 2. the woods: canopies of the forest atoms (choppable)
   W.placed.forEach(p => { if (p.def.kind === 'tree' && (p.def.tags.includes('forest') || p.def.tags.includes('forest-dead'))) fillDisc(p, (p.r || p.def.size[0] / 2) * 0.55, T.FOREST, false); });
   // 3. water, rails, then streets, drives and bridges on top
   W.water.forEach(wt => fillPoly(wt.pts, wt.w / 2, T.WATER, false));
@@ -42,7 +42,7 @@ export function applyArea(g, id) {
     if ((d.kind === 'building' || d.kind === 'vehicle') && d.collide === 'box') fillObb(p, T.ROCK, false);
     else if (d.kind === 'building' && d.collide === 'circle') fillDisc(p, p.w / 2, T.ROCK, false); });
   W.fences.forEach(f => { if (f.def && f.def.thick >= 0.3) fillSeg(f.a, f.b, 0.5, T.ROCK, false); });
-  // 5. the camp clearing, as the frontier makes it (the keep stands at its centre)
+  // 5. the camp clearing (the keep stands at its centre)
   for (let y = Math.floor(c - 11); y <= c + 11; y++) for (let x = Math.floor(c - 11); x <= c + 11; x++) { const d = Math.hypot(x + 0.5 - c, y + 0.5 - c); if (d < 10) set(x, y, d < 6 ? T.DIRT : T.GRASS, false); }
   const nest = W.nest ? { x: W.nest.x + ox, y: W.nest.y + oy } : null;
   // the buildings that are places: their footprint cells, so the map can make them claimable sites
