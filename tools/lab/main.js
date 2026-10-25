@@ -1,6 +1,6 @@
 // Atom Lab: builds a chapter from atoms with the engine pipeline, draws it with roles,
 // lets you walk it on a phone, shows the validators and overlays, and inspects any atom.
-import { buildChapter1, chapter1Registry } from '../../src/engine/chapter1.js';
+import { RECIPES, recipeRegistry, buildArea } from '../../src/engine/recipes.js';
 import { paintWorld, paintOverlays, SUN } from '../../src/engine/draw2d.js';
 import { PALETTES, resolve } from '../../src/engine/palettes.js';
 import { SPEED, HUMAN } from '../../src/engine/units.js';
@@ -8,12 +8,12 @@ import { pointInObb } from '../../src/engine/geom.js';
 
 const $ = id => document.getElementById(id);
 const cv = $('c'), ctx = cv.getContext('2d');
-const reg = chapter1Registry();
-const st = { seed: 7, chapter: 'ch1', ov: { sockets: false, nav: false, collision: false, lots: false }, viewM: 50, res: null, win: null, zoomAt: 0, hero: { x: 0, y: 0, vx: 0, vy: 0, face: { x: 0, y: 1 }, walk: 0 }, cam: { x: 0, y: 0 }, keys: {}, joy: { on: false, x: 0, y: 0 }, pick: null, t: 0 };
+const regs = {}, regFor = id => regs[id] || (regs[id] = recipeRegistry(id));
+const st = { seed: 7, area: 'suburb', chapter: 'ch1', ov: { sockets: false, nav: false, collision: false, lots: false }, viewM: 50, res: null, win: null, zoomAt: 0, hero: { x: 0, y: 0, vx: 0, vy: 0, face: { x: 0, y: 1 }, walk: 0 }, cam: { x: 0, y: 0 }, keys: {}, joy: { on: false, x: 0, y: 0 }, pick: null, t: 0 };
 
 function build() {
   const t0 = performance.now();
-  st.res = buildChapter1(st.seed, reg);
+  st.res = buildArea(st.area, st.seed, regFor(st.area));
   st.buildMs = performance.now() - t0;
   repaint();
   const W = st.res.W; st.hero.x = W.camp.x + 3; st.hero.y = W.camp.y - 4; st.cam.x = st.hero.x; st.cam.y = st.hero.y; st.pick = null;
@@ -34,9 +34,9 @@ function windowFor(s, dpr, vw, vh) {
 }
 
 function renderReport() {
-  const r = st.res, W = r.W, d = reg.describe();
+  const r = st.res, W = r.W, d = regFor(st.area).describe();
   const rows = r.results.map(v => `<li class="${v.ok ? 'ok' : v.fatal ? 'bad' : 'warn'}"><b>${v.ok ? '✓' : v.fatal ? '✕' : '!'}</b> ${v.name}<small>${v.msg}</small></li>`).join('');
-  const counts = { buildings: W.placed.filter(p => p.def.kind === 'building').length, trees: W.byTag('tree').length, fences: W.fences.length, lamps: W.byTag('lamp').length, cars: W.byTag('car').length, streets: W.streets.length, junctions: W.nodes.length };
+  const counts = { buildings: W.placed.filter(p => p.def.kind === 'building').length, trees: W.byTag('tree').length, 'walls & fences': W.fences.length, lamps: W.byTag('lamp').length, cars: W.byTag('car').length, streets: W.streets.length, junctions: W.nodes.length, rails: W.rails.length, runs: W.runs.length };
   $('report').innerHTML = `<div class="kv"><span>seed</span><b>${st.seed}</b><span>hash</span><b>${r.hash}</b><span>tries</span><b>${r.attempts}</b><span>build</span><b>${st.buildMs.toFixed(0)} ms</b><span>size</span><b>${W.w} × ${W.h} m</b><span>atoms</span><b>${d.atoms} kinds · ${W.placed.length} placed</b></div>
     <h4>validators</h4><ul class="val">${rows}</ul>
     <h4>stages</h4><div class="stages">${r.times.map(t => `<span>${t.stage}<i>${t.ms} ms</i></span>`).join('')}</div>
@@ -127,6 +127,8 @@ function inspectAt(cx, cy) {
 $('seed').addEventListener('change', e => { st.seed = Math.max(0, parseInt(e.target.value, 10) || 0); build(); });
 $('prev').onclick = () => { st.seed = Math.max(0, st.seed - 1); $('seed').value = st.seed; build(); };
 $('next').onclick = () => { st.seed += 1; $('seed').value = st.seed; build(); };
+$('area').innerHTML = Object.entries(RECIPES).map(([k, r]) => `<option value="${k}">${r.name}</option>`).join('');
+$('area').addEventListener('change', e => { st.area = e.target.value; build(); });
 $('pal').innerHTML = Object.entries(PALETTES).map(([k, p]) => `<option value="${k}">${p.name}</option>`).join('');
 $('pal').addEventListener('change', e => { st.chapter = e.target.value; repaint(); });
 document.querySelectorAll('[data-ov]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.ov; st.ov[k] = !st.ov[k]; b.setAttribute('aria-pressed', String(st.ov[k])); repaint(); }));
@@ -138,4 +140,4 @@ let last = performance.now();
 function loop(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; st.t += dt; step(dt); render(); requestAnimationFrame(loop); }
 const start = () => { $('seed').value = st.seed; if (innerWidth < 700) $('panel').classList.add('folded'), $('fold').textContent = 'show'; build(); requestAnimationFrame(loop); };
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(start); else start();
-window.__lab = { st, build, reg, setSeed: n => { st.seed = n; $('seed').value = n; build(); }, setChapter: k => { st.chapter = k; $('pal').value = k; repaint(); }, setOverlay: (k, v) => { st.ov[k] = v; repaint(); }, setView, teleport: (x, y) => { st.hero.x = x; st.hero.y = y; st.cam.x = x; st.cam.y = y; }, info: () => ({ seed: st.seed, hash: st.res.hash, tries: st.res.attempts, results: st.res.results }) };
+window.__lab = { st, build, regFor, setArea: a => { st.area = a; $('area').value = a; build(); }, setSeed: n => { st.seed = n; $('seed').value = n; build(); }, setChapter: k => { st.chapter = k; $('pal').value = k; repaint(); }, setOverlay: (k, v) => { st.ov[k] = v; repaint(); }, setView, teleport: (x, y) => { st.hero.x = x; st.hero.y = y; st.cam.x = x; st.cam.y = y; }, info: () => ({ seed: st.seed, hash: st.res.hash, tries: st.res.attempts, results: st.res.results }) };

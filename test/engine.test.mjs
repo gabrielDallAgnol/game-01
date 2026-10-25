@@ -1,5 +1,5 @@
 // The V2 engine: atoms validate, sockets are symmetric, palettes cover every role atoms name,
-// a chapter build is deterministic per seed and passes every fatal validator across seeds.
+// every recipe (area variant) is deterministic per seed and passes every fatal validator across seeds.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chapter1Registry, buildChapter1 } from '../src/engine/chapter1.js';
@@ -8,6 +8,9 @@ import { SOCKETS, canConnect } from '../src/engine/sockets.js';
 import { PALETTES, ROLES, missingRoles } from '../src/engine/palettes.js';
 import { seedTree } from '../src/engine/seeds.js';
 import { CH1_ATOMS } from '../src/atoms/ch1.js';
+import { RECIPES, recipeRegistry, buildArea } from '../src/engine/recipes.js';
+import { LOOKS } from '../src/engine/schema.js';
+import { readFileSync } from 'node:fs';
 
 test('the registry rejects a bad atom and a duplicate id', () => {
   const r = createRegistry();
@@ -46,12 +49,31 @@ test('a chapter build is deterministic for a seed', () => {
   assert.equal(x.hash, y.hash); assert.notEqual(x.hash, z.hash);
 });
 
-test('seeds 1–12 pass every fatal validator', () => {
-  const reg = chapter1Registry();
-  for (let seed = 1; seed <= 12; seed++) {
-    const r = buildChapter1(seed, reg);
+for (const id of Object.keys(RECIPES)) test(`${id}: seeds 1–10 pass every fatal validator`, () => {
+  const reg = recipeRegistry(id);
+  for (let seed = 1; seed <= 10; seed++) {
+    const r = buildArea(id, seed, reg);
     const bad = r.results.filter(v => v.fatal && !v.ok);
-    assert.deepEqual(bad.map(v => `${v.name}: ${v.msg}`), [], `seed ${seed}`);
-    assert.ok(r.W.placed.length > 400, `seed ${seed} is too empty`);
+    assert.deepEqual(bad.map(v => `${v.name}: ${v.msg}`), [], `${id} seed ${seed}`);
+    assert.ok(r.W.placed.length > 400, `${id} seed ${seed} is too empty`);
+    for (const a of reg.list().filter(a => a.tags.includes('must'))) assert.ok(r.W.placed.some(p => p.id === a.id), `${id} seed ${seed} misses ${a.id}`);
+  }
+});
+
+test('recipes differ and stay deterministic', () => {
+  const a = buildArea('milltown', 4), b = buildArea('milltown', 4), c = buildArea('suburb', 4);
+  assert.equal(a.hash, b.hash); assert.notEqual(a.hash, c.hash);
+});
+
+test('every look is drawn by the flat renderer, and it never checks an atom id', () => {
+  const src = readFileSync(new URL('../src/engine/draw2d.js', import.meta.url), 'utf8');
+  for (const look of LOOKS) assert.ok(look === 'none' || new RegExp(`\\b${look}\\(`).test(src), `no drawing for look ${look}`);
+  assert.ok(!/\.id\.startsWith|p\.id ===|\.id\.includes/.test(src), 'draw2d must not branch on atom ids');
+});
+
+test('stages pick atoms by tag or need, never by id', () => {
+  for (const f of ['forest', 'props', 'camp', 'terraces', 'mill', 'nest', 'buildings']) {
+    const src = readFileSync(new URL(`../src/engine/stages/${f}.js`, import.meta.url), 'utf8');
+    assert.ok(!/'[a-z]+\.[a-z0-9-]+\.[a-z0-9]+'/.test(src.replace(/^\/\/.*$/gm, '')), `${f}.js names an atom id`);
   }
 });
