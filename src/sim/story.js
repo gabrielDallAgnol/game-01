@@ -10,7 +10,6 @@ import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TI
 import { RARITY, KITS } from '../content/districts.js';
 import { EPISODES, seasonEnd } from '../content/season.js';
 import { TIDE } from '../content/mobs.js';
-import { PERKS, MASTERIES } from '../content/perks.js';
 import { createContracts } from './contracts.js';
 import { siteOk } from './spots.js';
 import { createDaily } from './daily.js';
@@ -84,8 +83,6 @@ export function createStory(ctx) {
       case 'perk': if (f.mul) S.P[f.key] *= f.mul; else S.P[f.key] += f.add; ctx.refreshMax(); break;
       case 'flag': if (f.key === 'garden') ST.garden = (ST.garden || 0) + 1; else if (f.key === 'beacon') ST.beacon = (ST.beacon || 0) + 1; else ST.flags[f.key] = true; break;
       case 'title': grant(f.id); break;
-      case 'blessing': S.picks.push('chest'); ctx.syncPicks(); break;
-      case 'skill': takeSkill(enc); break;
       case 'difficulty': setDifficulty(f.key); break;
       case 'contract': contracts.sign(enc, f.id); break;
       case 'reward': contracts.pay(); break;
@@ -333,26 +330,6 @@ export function createStory(ctx) {
       reward: k.reward, choices: [{ id: 'take', label: 'Take the reward', hint: `+${k.reward.scrap} scrap · a rare blessing · easier nights · +${k.reward.fame} Legacy (kept after this run).`, fx: [{ op: 'reward' }] }], ...C }, 11, 30);
   }
 
-  // ---------- the skill window: a blessing arrives as a skill, one a dawn ----------
-  function skillOf(id) {
-    if (!id) return null;
-    if (id.startsWith('m:')) { const mid = id.slice(2); for (const L of Object.values(MASTERIES)) { const m = L.find(x => x.id === mid); if (m) return { id, name: m.name, desc: m.desc, mastery: true }; } return null; }
-    const p = PERKS.find(x => x.id === id); return p ? { id, name: p.name, desc: p.desc, fam: p.fam, pact: !!p.pact } : null;
-  }
-  function pickSkill() {
-    const ids = S.offer || []; const good = ids.map(skillOf).filter(Boolean);
-    return good.find(p => !p.pact) || good[0] || null;
-  }
-  function offerSkill() {
-    if (!(S.pendingPicks > 0) || !(S.offer && S.offer.length) || queued(e => e.kind === 'skill')) return;
-    const p = pickSkill(); if (!p) return;
-    offer({ kind: 'skill', skill: p.id, eyebrow: `[Skill acquired: ${p.name}]`, title: p.name, scene: p.desc, lines: [p.desc], icon: p.mastery ? 'star' : (p.fam || 'skill'), choices: [{ id: 'take', label: 'Take it', hint: p.desc, fx: [{ op: 'skill' }] }] }, 5, 0);
-  }
-  function takeSkill(enc) {
-    const a = api(); if (!a) return;
-    const want = enc && enc.skill && (S.offer || []).includes(enc.skill) ? enc.skill : (pickSkill() || {}).id;
-    if (want) { a.choosePerk(want); const p = skillOf(want); if (p) { chron(`Learned ${p.name}.`, 2, ['skill']); ev('skill', { id: want, name: p.name }); } }
-  }
   function setDifficulty(key) {
     if (!key || key === 'keep') return;
     const a = api();
@@ -409,7 +386,6 @@ export function createStory(ctx) {
     // a route out of the fences every other day
     const front = ctx.frontier();
     if (front.length && S.feat.routes && S.night - (ST.lastRoute || 0) >= 2 && !queued(e => e.kind === 'district')) { const e = districtEncounter(); if (e) { offer(e, 4, 1); ST.lastRoute = S.night; } }
-    offerSkill();
     daily.settle();   // an accepted quest left undone costs what its card said; a declined one costs nothing
     release();
     episode();
@@ -607,6 +583,6 @@ export function createStory(ctx) {
     offerWin: w => offer({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: 'Got it', hint: '', fx: [] }] }, w.pri || 6, 30),
     // [acts] a System window now (by day; at night it waits for the dawn like any card)
     windowNow: w => push({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: w.ok || 'Got it', hint: '', fx: [] }] }),
-    release, flush, dailyProgress, arrivalOf, questLine, nightLine, contracts, skillOf, endThread,
+    release, flush, dailyProgress, arrivalOf, questLine, nightLine, contracts, endThread,
     rarityColor: r => (RARITY[r] || RARITY.common).color };
 }

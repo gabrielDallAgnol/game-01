@@ -3,7 +3,7 @@
 // see src/CONTRACT.md before renaming one).
 import { N } from './mapgen.js';
 import { START } from '../content/buildings.js';
-import { REROLL, freshPerkState } from '../content/perks.js';
+import { freshPerkState } from '../content/perks.js';
 import { PACK_RULES } from '../content/packs.js';
 import { SEASONS, RULES, seasonEnd } from '../content/season.js';
 
@@ -101,7 +101,7 @@ export function createState({ seed, biome, map, hero, mode, clock, difficulty, l
     claimed: new Set([0]), nestAlive: map.regions.map(r => !!r.nest), wake: map.regions.map(() => Infinity),
     mobs: [], projectiles: [], chests: [], purses: [], allies: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
     P: freshPerkState(), picks: [], pendingPicks: 0, offer: [], offerSource: null, chestsHeld: 0, dawns: 0,
-    reroll: { free: REROLL.free, cost: REROLL.base }, trade: null, halfUpgrade: false,
+    trade: null, halfUpgrade: false,
     weather: 'clear', clock, dayT: 0, dayQueue: [], drops: [], landmarks: map.landmarks.map(l => ({ ...l, owned: false })), seen: new Uint8Array(N * N), seenVersion: 0, builders: null, survivors: START.survivors,
     log: [], cur: null, over: false, won: false,
     sealed: Uint8Array.from(map.regions, r => (r.ring > 2 ? 1 : 0)) /* only the old core is behind the quarantine fence */, kits: {}, pickups: [], sealVersion: 0, legacy: { ...legacy },

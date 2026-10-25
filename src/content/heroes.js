@@ -28,8 +28,6 @@ export const HERO_ORDER = ['warrior', 'archer', 'merchant', 'medic'];
 export const MERC = { hp: 15, dmg: 3, rate: 0.8, speed: 5.5, leash: 6, reach: 1.1 };
 export const PURSE = { chance: 0.25, life: 12, value: { default: 1, brute: 3, guardian: 8, gravelord: 8 } };
 export const TRADES = [
-  { id: 'reroll', name: 'A fortune-teller', desc: 'One free blessing reroll.', gold: 6 },
-  { id: 'pick', name: 'A relic', desc: 'An extra blessing pick now.', gold: 15 },
   { id: 'sellfood', name: 'Hungry travellers', desc: 'Sell 5 food for 4 scrap.', food: 5, give: 4 },
   { id: 'halfup', name: 'A master builder', desc: 'Your next upgrade costs half.', gold: 4 },
   { id: 'mend', name: 'Stonemasons', desc: 'Repair the Haven Rig by a quarter.', gold: 8 },

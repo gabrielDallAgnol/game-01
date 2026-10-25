@@ -1,5 +1,5 @@
 // Cards: the one modal at a time (showCard / hideCard, arming against stray taps), and the story's windows:
-// encounters and their choice chips, the arrival, System windows, skills, contracts, victory.
+// encounters and their choice chips, the arrival, System windows, contracts, victory.
 // The engine decides effects and words (the written story in content/story.js).
 import { $, $$, ARM_MS, audio, chronLine, esc, rich, store } from './shared.js';
 import { CONTRACT_COPY } from '../content/contracts.js';
@@ -51,7 +51,6 @@ export function createCards(ui) {
       else if (f.op === 'flag' && f.key === 'scout') add('info', 'route', 'better route');
       else if (f.op === 'flag' && f.key === 'quiet') add('pos', 'quiet', 'quieter');
       else if (f.op === 'title') add('info', 'title', 'title');
-      else if (f.op === 'blessing') add('pos', 'skill', 'skill');
       else if (f.op === 'openFor' || f.op === 'open') add('info', 'pin', 'a marker');
       else if (f.op === 'recruit' || f.op === 'recruitNew') add('pos', 'star', esc(c.npcName || 'joins you'));
       else if (f.op === 'lose') add('neg', 'heartBreak', 'leaves');
@@ -80,7 +79,6 @@ export function createCards(ui) {
     if (enc.kind === 'arrival') return showArrival(enc);
     if (enc.kind === 'contract') return showContract(enc, st, swap || !isNew);
     if (enc.kind === 'victory') return showVictory(enc, st);
-    if (enc.kind === 'skill') return showSkill(enc);
     if (enc.kind === 'window' || enc.kind === 'chapter') return showWindow(enc);
     const title = enc.title, line = enc.speaker && enc.speaker.line;
     const pages = [enc.scene];   // the written story opens on the choice page (one paragraph)
@@ -130,13 +128,6 @@ export function createCards(ui) {
   }
   function revealSystem() {
     strip.say('[System online] Every choice is written down.', 'sys', true);
-  }
-  // a blessing is a skill: one line, one icon, one a dawn
-  function showSkill(enc) {
-    showCard('enc', `<div class="eyebrow"><span id="skEb"></span></div><div class="skillw" style="margin:14px 0 18px"><span class="glyph">${icon(enc.icon === 'star' ? 'star' : 'skill')}</span><span class="nm">${esc(enc.title)}</span><span class="ds">${esc(enc.scene)}</span></div>
-      <div class="cardrow foot end"><button class="btn big" id="skOk">Take it</button></div>`, { sys: true, narrow: true, anim: true });
-    typeOn($('#skEb'), enc.eyebrow, 60);
-    $('#skOk').onclick = onArmed(() => { if (ui.game.choose('take')) { audio.play('claim'); afterEncounter(); } });
   }
   // a window that explains something (a new system, a chapter retold): read at your own pace
   function showWindow(enc) {

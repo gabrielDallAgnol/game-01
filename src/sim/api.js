@@ -9,12 +9,12 @@ import { LANDMARKS, idx } from './mapgen.js';
 export function createApi(G) {
   const {
     S, W8, activeNests, addHeat, baseDist, build, buildLine, buildingAt, buyCost, canPlace, canPurge,
-    choosePack, choosePerk, claimLandmark, clearRubble, companionFollow, contractWon, costOf, crewing, damageBuilding,
+    choosePack, claimLandmark, clearRubble, companionFollow, contractWon, costOf, crewing, damageBuilding,
     defenceDps, demolish, districtOffer, dropSupply, effN, endRun, escape, foodNeed, foodPerDawn, forecast, forecastStrip,
     frontier, gainXp, handsFree, handsMax, has, hasTech, hearR, heatFloor, heroDps, heroPath, hitHive, hiveHealth, houseGold, hurtHero,
     inZone, isBloodMoon, keep, keepForRing, keepMaxHp, keepNeeds, killMob, kitFor, landmarkReach, lineCells, manned, map, mastered,
-    mastery, maxHpOf, newCost, nightLen, noise, noiseCalm, noiseFloor, openDistrict, owns, partySize, perkOk, planPurge, pop, powerIn,
-    powerOut, powered, prosper, raiseBlock, ratingOf, rebuild, rebuildAll, rebuildCost, regionInfo, reroll, rerollPacks, reveal,
+    mastery, maxHpOf, newCost, nightLen, noise, noiseCalm, noiseFloor, openDistrict, owns, partySize, planPurge, pop, powerIn,
+    powerOut, powered, prosper, raiseBlock, ratingOf, rebuild, rebuildAll, rebuildCost, regionInfo, rerollPacks, reveal,
     rubbleAt, ruins, rule, setDifficulty, setFinale, setHeroInput, setSeasonRules, siteOf, snapshot, spawnMob, startNight, step,
     threatRatio, timeOfDay, toolsInfo, towerStats, townDraw, trade, upCostOf, upgrade, upgradeKeep, upgradeWall, upkeep,
     useFlare, useSmoke, wallBudget, wallRun, zone
@@ -22,7 +22,7 @@ export function createApi(G) {
   const api = {
     setBuilders: f => { if ((S.foreman || S.autopilot) && FOCI.includes(f)) S.builders = f; },
     scavenge: { siteInfo: G.sc.siteInfo, send: G.sc.send, recall: G.sc.recall, treat: G.sc.treat, exile: G.sc.exile, hopsMap: G.sc.hopsMap },
-    state: S, map, get heroDef() { return G.HC; }, step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, choosePerk, reroll, trade, planPurge,
+    state: S, map, get heroDef() { return G.HC; }, step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, trade, planPurge,
     setHeroInput,
     setAutopilot: on => { S.autopilot = !!on; if (on && (!S.builders || S.builders === 'off')) { S.buildersWas = S.builders; S.builders = 'balanced'; } else if (!on) { S.builders = S.foreman ? (S.buildersWas ?? null) : null; S.buildersWas = undefined; } },
     heroTo: (x, y) => {
@@ -50,7 +50,7 @@ export function createApi(G) {
     keepCost: () => { const n = KEEP.need[keep.level]; return keep.level >= 3 ? null : { scrap: KEEP.cost[keep.level], food: (n && n.food) || 0, needs: keepNeeds() }; },
     // contracts (sim/contracts.js builds the offer): stacked rules, the finale, the difficulty step back
     rule: id => rule(id), contractWon, setSeasonRules, setDifficulty, endRun, setFinale, season: () => S.season, effNight: (n = S.night) => effN(n),
-    cut: CUT, raiseBlock: id => raiseBlock(S.byId.get(id)), perkOk,
+    cut: CUT, raiseBlock: id => raiseBlock(S.byId.get(id)),
     hitBuilding: (id, d) => { const b = S.byId.get(id); if (b) damageBuilding(b, d); return b ? b.hp : 0; }, hurtHero: n => hurtHero(n),   // scripted events and tests
     spawnMob: (kind, x, y, o) => { const m = spawnMob(kind, x, y); if (m && o) Object.assign(m, o); return m; }, killMob: (m, src = 'hero') => killMob(m, src),
     keepNeeds, hasTech, crewing, manned, handsMax, handsFree, powerIn, powerOut, powered, heatFloor, addHeat, difficulty: () => G.DIFF, newCost, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
@@ -60,7 +60,7 @@ export function createApi(G) {
     foodPerDawn,
     incomeRate: () => G.incomeRate(), incomePerCycle: () => G.incomePerCycle(),   // [income] scrap and food per second (sim/income.js)
     goldPerDawn: () => Math.round((START.baseIncome * G.DIFF.eco + S.P.tax + S.buildings.reduce((a, b) => a + (b.type === 'house' && !b.ruined ? houseGold(b) : 0), 0)) * prosper()) - upkeep() + S.landmarks.reduce((a, l) => a + (l.owned ? LANDMARKS[l.kind].gold || 0 : 0), 0) + (owns('tvtower') ? 3 : 0) + (G.HC.quarter ? 4 : 0),
-    upkeep, foodNeed, rerollCost: () => (S.reroll.free > 0 ? 0 : S.reroll.cost),
+    upkeep, foodNeed,
     forecast, mastered, mastery, isBloodMoon, drainEvents: () => S.events.splice(0),
     // [acts] act 1 (the woods) / act 2 (the road and the city); a region held behind the fence by act 1
     act: () => G.actNow(), actGated: r => G.actGated(r), actGoal: () => G.actGoal(),
@@ -80,7 +80,7 @@ export function createApi(G) {
     spawnAnimals: () => G.spawnAnimals(),   // [woods] the dawn top-up of the woods' game (tests, tools)
     // [econ3] the construction queue (reorder: dir -1 / +1 / 'top'; cancel refunds), harvester carts and nodes, relics
     queue: () => G.queueInfo(), queueMove: (id, dir) => G.queueMove(id, dir), queueCancel: id => G.queueCancel(id), crews: () => G.crews(),
-    haul: () => G.haulInfo(), buyCart: () => G.buyCart(), cartDock: () => G.cartDock(), relics: () => G.relicsInfo(),
+    haul: () => G.haulInfo(), buyCart: () => G.buyCart(), cartDock: () => G.cartDock(),
     // [area] the engine town's houses: the list, whether one is searched today, the one being searched (-1)
     searchHomes: () => G.searchHomes(), searched: id => G.searched(id), searchAt: () => G.searchAt(),
     // [combat2] telegraphed bites and the dash (?v2combat=1): is it on, dash (dx, dy: optional; true when it went), its state

@@ -6,7 +6,7 @@
 // owns the per-frame step(). Each rule lives in its own module (createX(G) factories, see CLAUDE.md for the map):
 //   core · economy · buildings · build · waves · forecast · combat · noise · brain · hives · loot · districts ·
 //   seasons · hero · blessings · save · nests · api
-// G holds: the run's constants (S, map, c, keep, rng, perkRng, mobById, seed, …), every module's functions, and five
+// G holds: the run's constants (S, map, c, keep, rng, mobById, seed, …), every module's functions, and five
 // late or changing slots read as G.x at call time: G.HC (the hero's class), G.DIFF (difficulty),
 // G.story, G.sc (scavenging), G.api.
 import { Rng, hashSeed } from './rng.js';
@@ -33,7 +33,6 @@ import { createLoot } from './loot.js';
 import { createDistricts } from './districts.js';
 import { createSeasons } from './seasons.js';
 import { createHero } from './hero.js';
-import { createBlessings } from './blessings.js';
 import { createSave } from './save.js';
 import { createApi } from './api.js';
 import { createActs } from './acts.js';
@@ -60,7 +59,7 @@ import { createPressure } from './pressure.js';
 // [econ3] the construction queue, harvester carts on resource nodes, relics instead of blessings, the dawn Settlement
 import { createConstruct } from './construct.js';
 import { createHaul } from './haul.js';
-import { createRelics } from './relics.js';
+import { createSettle } from './settle.js';
 // [area] next line
 import { createSearch } from './search.js';
 import { createCombat2 } from './combat2.js';
@@ -73,9 +72,9 @@ import { createHordes } from './hordes.js';
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno];   // [nest3] appended   // [pacify] appended
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno];   // [nest3] appended   // [pacify] appended
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
-MODULES.push(createConstruct, createHaul, createRelics);   // [econ3] appended
+MODULES.push(createConstruct, createHaul, createSettle);   // [econ3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
 MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the dash (does nothing without v2combat)
 MODULES.push(createV2Core);   // [v2] appended: the V2 core switches the old systems off (does nothing without v2)
@@ -92,7 +91,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
 
   // ---------- the shared context: run constants, then every module's functions ----------
   const G = { S, map, c, keep, seed, mapSeed, biome, mode, clock, restore, legacy,
-    rng: new Rng(hashSeed(seed, 'run')), perkRng: new Rng(hashSeed(seed, 'perks')), mobById: new Map(),
+    rng: new Rng(hashSeed(seed, 'run')), mobById: new Map(),
     HC, DIFF, story: null, sc: null, api: null, v2combat: !!v2combat, v2: !!v2 };   // [combat2] v2combat   // [v2] v2
   for (const make of MODULES) Object.assign(G, make(G));
   const {
@@ -125,7 +124,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // [acts] end
   newLog();
   for (const r of S.claimed) revealRegion(r); reveal(c, c, 14);
-  rollOffer(); rollPacks(); spawnRoamers(); spawnAnimals();   // day 1 is quiet: the first blessing comes at dawn 2
+  rollOffer(); rollPacks(); spawnRoamers(); spawnAnimals();
   if (!restore) scatterPickups(PICKUP.start);
 
   // ---------- scavenging ----------
@@ -164,7 +163,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     G.stepCombat2(dt);   // [combat2] the dash (no-op without the flag)
     if ((S.revealT = (S.revealT || 0) - dt) <= 0) { S.revealT = 0.25; if (!S.hero.dead) reveal(S.hero.x, S.hero.y, 8); }
     untitle();
-    if (S.picks.length && !S.offer.length) rollOffer();   // a pick added at any hour (a crate, a story reward) gets its cards
+    if (S.picks.length && !S.offer.length) rollOffer();   // a pick added at any hour (a crate, a level) is dropped: V2 has no blessings
     if (S.phase === 'day' && S.clock && !S.over) {
       S.dayT += dt;
       while (S.dayQueue.length && S.dayQueue[0].t <= S.dayT) { const q = S.dayQueue.shift(); if (nestAlive(q.nest) && !S.claimed.has(q.nest)) spawnAtNest(q.kind, q.nest); }

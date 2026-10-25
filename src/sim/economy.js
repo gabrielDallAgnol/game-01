@@ -4,7 +4,6 @@ import { BUILDINGS, HANDS, KEEP, POWER, RISE, START } from '../content/buildings
 import { CUT, FOREMAN, NOISE, PICKS_PER_DAWN } from './state.js';
 import { LANDMARKS } from './mapgen.js';
 import { PACKS, PACK_RULES } from '../content/packs.js';
-import { REROLL } from '../content/perks.js';
 import { TRADES } from '../content/heroes.js';
 import { seasonEnd } from '../content/season.js';
 // [econ3] a flat tower price
@@ -109,7 +108,6 @@ export function createEconomy(G) {
     G.planDay(S.night); G.spawnRoamers(); G.spawnAnimals(); G.scatterPickups(G.PICKUP.perDawn);
     for (const d of [...S.drops]) if (--d.ttl <= 0) { S.drops.splice(S.drops.indexOf(d), 1); ev('dropGone', { id: d.id }); }
     { const was = S.night - 1; if (isBloodMoon(was)) G.dropSupply('The Flare Night has set.'); else if (claimedNow !== null) G.dropSupply('With the Inferno Nest burned,'); else if (was >= 3 && rng.next() < 0.2) G.dropSupply('At first light,'); }
-    S.reroll.cost = REROLL.base;
     const want = [];
     if (owns('christ') && S.night % 3 === 0) want.push('chest');   // no dawn blessings: they come from hives (epic loot) and key levels
     if (nestPick) want.push('nest');
@@ -146,8 +144,6 @@ export function createEconomy(G) {
     if (t.gold && S.gold < t.gold) return fail(`That costs ${t.gold} scrap.`);
     if (t.food && S.food < t.food) return fail(`You need ${t.food} food.`);
     if (t.gold) { S.gold -= t.gold; S.stats.goldSpent += t.gold; }
-    if (id === 'reroll') S.reroll.free++;
-    if (id === 'pick') { S.picks.push('dawn'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); }
     if (id === 'sellfood') { S.food -= t.food; earn(t.give); }
     if (id === 'halfup') S.halfUpgrade = true;
     if (id === 'mend') keep.hp = Math.min(keep.maxHp, keep.hp + keep.maxHp * 0.25);

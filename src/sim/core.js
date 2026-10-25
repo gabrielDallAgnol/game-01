@@ -33,6 +33,8 @@ export function createCore(G) {
   const live = () => { if (liveTick !== S.time) { liveCache = S.buildings.filter(b => !b.ruined); liveTick = S.time; } return liveCache; };
   const owns = k => S.landmarks.some(l => l.owned && l.kind === k);
   const syncPicks = () => { S.pendingPicks = S.picks.length; };
+  // picks: what the old rules handed out as blessing cards (a chest, a level, a hive). V2 has no blessings: every pick is dropped
+  function rollOffer() { S.picks.length = 0; S.offer = []; S.offerSource = null; syncPicks(); }
 
   // ---------- the shroud: the city starts dark; you, your buildings and your land reveal it ----------
   function reveal(x, y, r) {
@@ -53,5 +55,5 @@ export function createCore(G) {
   // a season's rules live in S.season.rules (a won contract's rules stack); S.season.rule is the newest, for old readers
   const RULE_ALIAS = { lightsout: 'lightsOut', 'lights-out': 'lightsOut' };
   const rule = id => { if (!S.season) return false; const list = S.season.rules || [], a = RULE_ALIAS[id] || id; return list.some(r => (RULE_ALIAS[r] || r) === a) || (RULE_ALIAS[S.season.rule] || S.season.rule) === a; };
-  return { ev, toast, has, combo, mastery, syncMastery, mastered, isDef, earn, houseCap, pop, near, hasTech, claimedCount, isBloodMoon, dropLive, live, owns, syncPicks, reveal, revealRegion, fail, compass, rule };
+  return { ev, toast, has, combo, mastery, syncMastery, mastered, isDef, earn, houseCap, pop, near, hasTech, claimedCount, isBloodMoon, dropLive, live, owns, syncPicks, rollOffer, reveal, revealRegion, fail, compass, rule };
 }

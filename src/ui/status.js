@@ -2,7 +2,6 @@
 // speed, autopilot), the run log and the end screen.
 import { $, $$, FLAGS, audio, chronLine, esc, rich, store } from './shared.js';
 import { BARKS, ROLES, TITLES } from '../content/story.js';
-import { PERKS } from '../content/perks.js';
 import { RULES } from '../content/season.js';
 import { icon } from './icons.js';
 
@@ -82,7 +81,7 @@ export function createStatus(ui) {
   // ---------- log and ending ----------
   function logTable() {
     const rows = ui.game.logRows(); if (!rows.length) return '<p class="note">No nights played yet.</p>';
-    const pk = id => id.startsWith('m:') ? id.slice(2) : (PERKS.find(p => p.id === id) || { name: id }).name;
+    const pk = id => id;
     return `<div class="logwrap"><table class="log"><thead><tr><th>Night</th><th>Haven left</th><th>Threat</th><th>Wave HP</th><th>Tower DPS</th><th>Kills hero·tower·Haven</th><th>Lost</th><th>Scrap in / spent</th><th>Skills</th></tr></thead><tbody>${rows.map(l => {
       const kp = l.keepEnd !== undefined ? Math.round(l.keepEnd / l.keepMax * 100) : null;
       return `<tr><td>${l.night}${l.bloodMoon ? ' (Flare Night)' : ''}</td><td>${kp !== null ? kp + '%' : 'now'}</td><td>${l.ratio ?? '–'}</td><td>${l.waveHp}</td><td>${l.defDps}</td>

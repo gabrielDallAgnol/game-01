@@ -15,8 +15,6 @@ export const EXPANSION = {
   bold:    (g, n) => pickPurge(g, n, ['Easy', 'Medium']),
   reckless:(g, n) => pickPurge(g, n, ['Easy', 'Medium', 'Hard', 'Impossible']),
 };
-const PERK_PATHS = ['hero', 'bow', 'stone', 'harvest', 'any'];
-export { PERK_PATHS };
 
 function pickPurge(g, n, ok) {
   if (n < 3) return null;
@@ -115,20 +113,6 @@ export function choosePack(g, strat) {
   g.choosePack(pick.id);
 }
 export function chooseStory(g) { const S = g.state; for (let k = 0; k < 9 && S.story && S.story.encounters.length; k++) { const e = S.story.encounters[0]; const c = (e.kind === 'difficulty' && e.choices.find(x => x.id === 'keep')) || (e.kind === 'evolve' && e.choices.find(x => /Fights/.test(x.hint || ''))) || e.choices.find(x => g.story().can(x)) || e.choices[e.choices.length - 1]; g.choose(c.id); } }   // a sensible player keeps a hero that fights
-export function choosePerks(g, path) {
-  chooseStory(g);
-  const S = g.state;
-  while (S.pendingPicks > 0 && S.offer.length) {
-    let pick = S.offer.find(id => PERK_FAM[id] === path && !PERK_PACT[id]);
-    if (!pick) pick = S.offer.find(id => !PERK_PACT[id]) || S.offer[0];
-    g.choosePerk(pick);
-  }
-}
-const PERK_FAM = {};
-import { PERKS } from '../src/content/perks.js';
-const PERK_PACT = {};
-for (const p of PERKS) { PERK_FAM[p.id] = p.fam; PERK_PACT[p.id] = !!p.pact; }
-
 /** steer the hero for one decision tick: fight what threatens the town, else rest at the keep */
 export function heroTick(g, mode) {
   const S = g.state, h = S.hero, t = g.map.town;
@@ -168,20 +152,18 @@ export function playRun(createGame, opts) {
   const { seed, biome, hero, strat, path, expansion, heroMode = 'active', maxNights = 40, mapSeed } = opts;
   const g = createGame({ seed, biome, hero, mapSeed, clock: false });
   const S = g.state;
-  choosePerks(g, path);
   while (!S.over && S.night <= maxNights) {
     dayTurn(g, strat);
     const target = EXPANSION[expansion](g, S.night);
     if (target !== null) { g.planPurge(target); dayTurn(g, strat); }
     // walk over any chests lying around before the bell
-    if (S.chests.length && heroMode === 'active') { for (let k = 0; k < 600 && S.chests.length; k++) { g.heroTo(S.chests[0].x, S.chests[0].y); g.step(); } choosePerks(g, path); }
+    if (S.chests.length && heroMode === 'active') { for (let k = 0; k < 600 && S.chests.length; k++) { g.heroTo(S.chests[0].x, S.chests[0].y); g.step(); } }
     if (opts.scavenge) scavengeTurn(g);
     g.startNight();
     let steps = 0;
     while (S.phase === 'night' && steps < 60 * 400) { if (steps % 15 === 0) heroTick(g, heroMode); g.step(); steps++; }
     if (S.phase === 'night') break; // stuck night: report as is
     S.events.length = 0;
-    choosePerks(g, path);
   }
   return { nights: S.over ? S.night - 1 : S.night - 1, over: S.over, log: S.log, claimed: S.claimed.size };
 }

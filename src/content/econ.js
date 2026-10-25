@@ -5,7 +5,6 @@
 export const ECON = {
   queue: true,        // building takes time: blueprints go in a queue, crews raise them in order (sim/construct.js)
   carts: true,        // harvester carts haul scrap and timber from nodes that run dry (sim/haul.js)
-  relics: true,       // blessings are gone: drops are relics, stat tomes and blueprints (sim/relics.js)
   flatTower: true,    // a tower always costs the same (no +25% per tower you have)
   settle: true,       // the dawn Settlement report pays XP for a well-run town
 };

@@ -15,7 +15,6 @@ for (let s = S0; s < SEEDS; s += STRIDE) {
   let steps = 0, heatSum = 0, heatN = 0, peakHeat = 0, blackoutT = 0, minKeep = 1, aggroN = 0;
   const nightLog = [], feats = {}, classes = [];
   while (!S.over && S.night <= DAYS && steps < 60 * 60 * 60) {
-    while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]);
     if (S.story.encounters.length) chooseStory(g);
     if (!AUTO && steps % 15 === 0) heroTick(g, 'active');
     const n = S.night, ph = S.phase;
