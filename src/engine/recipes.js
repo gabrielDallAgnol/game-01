@@ -22,6 +22,14 @@ import { nestStage } from './stages/nest.js';
 import { terracesStage } from './stages/terraces.js';
 import { gridStreetsStage } from './stages/gridstreets.js';
 import { civicStage } from './stages/civic.js';
+import { HOLLOWMERE_ATOMS } from '../atoms/hollowmere.js';
+import { townPlanStage } from './stages/townplan.js';
+import { districtsStage } from './stages/districts.js';
+import { landmarksStage } from './stages/landmarks.js';
+import { suburbsStage } from './stages/suburbs.js';
+import { avenuesStage } from './stages/avenues.js';
+import { zonesStage } from './stages/zones.js';
+import { courtyardsStage } from './stages/courtyards.js';
 import { ALL_VALIDATORS } from './validators.js';
 import { buildWorld } from './pipeline.js';
 
@@ -42,6 +50,12 @@ export const RECIPES = {
     params: { terrain: { north: 0.1, west: 0.05, south: 0.1, east: 0.1 }, water: { x: [0.17, 0.2], w: 8, name: 'the cut', wiggle: 0.25 },
       terrace: { yard: 0, front: 0.4, runMin: 6, runSpan: 8, alleyExtra: 0.5, ruin: 0, swap: 0.3 }, props: { streetTrees: 0.35, kerbCars: 0.6 } },
     game: { camp: 'square' } },   // the camp is the plaza
+  // chapter 1 as one town, drawn on Nauen (Brandenburg): the three variants above become its districts
+  hollowmere: { name: 'hollowmere', blurb: 'Hollowmere: a round old town in its wall ring, the church square, the main street from the south gate, the station and the sugar works north, suburbs round it, the masts south-west', palette: 'ch1', size: { w: 600, h: 500 },
+    atoms: [...shared, ...CH1_ATOMS.filter(a => ['house', 'yard', 'street-tree'].some(t => a.tags.includes(t))), ...MILL_ATOMS.filter(a => ['railcar', 'wall', 'ruin', 'forest-dead'].some(t => a.tags.includes(t))), ...HOLLOWMERE_ATOMS],
+    stages: [terrainStage, townPlanStage, districtsStage, landmarksStage, suburbsStage, buildingsStage, terracesStage, courtyardsStage, campStage, propsStage, avenuesStage, forestStage, zonesStage, navStage],
+    params: { terrain: { north: 0.12, west: 0.08, south: 0.06, east: 0.06 }, terrace: { yard: 1, front: 0.6, runMin: 7, runSpan: 9, alleyExtra: 0.5, ruin: 0.03, swap: 0.3 }, props: { streetTrees: 0.3, kerbCars: 0.4 }, pace: [120, 180] },
+    game: {} },   // the camp is the church square in the lab and in the game
 };
 
 export function recipeRegistry(id) {
