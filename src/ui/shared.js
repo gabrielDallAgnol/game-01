@@ -1,8 +1,7 @@
-// What every UI module shares: DOM lookups ($, $$), local storage, the audio, the Chronicler and the saves (one each
+// What every UI module shares: DOM lookups ($, $$), local storage, the audio and the saves (one each
 // per page), feature flags, tuning constants and small text helpers (esc, rich, campCopy). No game state lives here:
 // that is the `ui` context (see app.js).
 import { createAudio } from './audio.js';
-import { createChronicler } from './story-ai.js';
 import { createSaves } from './saves.js';
 
 const $ = s => document.querySelector(s);
@@ -14,7 +13,6 @@ export const store = {
   set(k, v) { try { localStorage.setItem('hollowmere.' + k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
 };
 export const audio = createAudio(store);
-export const chronicler = createChronicler(store);
 export const saves = createSaves();
 for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => audio.unlock(), { capture: true });
 // Cut or parked (decisions, Oct 20): everything stays behind a flag so it can come back.
@@ -34,7 +32,6 @@ export const RINGS = ['Haven', 'The woods', 'The city', 'The old core'];
 export const ARM_MS = 600;          // cards ignore taps this long after they appear
 export const DAWN_DELAY = 1.2;      // seconds between the last kill and the first card
 export const JOY_PX = 14;           // a touch that moves further than this is a joystick drag, not a tap
-export const AI_WAIT = 2500;        // the Chronicler gets this long to swap its words in (scripted text shows first)
 export const SHORT = { house: 'Home', farm: 'Farm', tower: 'Tower', wall: 'Barricade', workshop: 'Workshop', market: 'Market', generator: 'Generator' };
 export const PLURAL = { house: 'homes', farm: 'farms', tower: 'towers', wall: 'barricade posts', workshop: 'workshops', market: 'markets', generator: 'generators' };
 export const ONE = { house: 'a home', farm: 'a farm', tower: 'a tower', wall: 'a barricade post', workshop: 'the workshop', market: 'the market', generator: 'a generator' };

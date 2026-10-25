@@ -1,6 +1,6 @@
 // The Status window (path, titles, companions, chronicle), companion chat, the More sheet (sound, graphics,
 // speed, autopilot), the run log and the end screen.
-import { $, $$, AI_WAIT, FLAGS, audio, chronLine, chronicler, esc, rich, store } from './shared.js';
+import { $, $$, FLAGS, audio, chronLine, esc, rich, store } from './shared.js';
 import { BARKS, ROLES, TITLES } from '../content/story.js';
 import { CLASS_TIERS, HEROES } from '../content/heroes.js';
 import { FAMILIES, PERKS } from '../content/perks.js';
@@ -24,10 +24,8 @@ export function createStatus(ui) {
       <h2>Companions</h2><div class="comps">${comp.length ? comp.map(n => `<div class="comp"><b>${esc(n.name)}</b><span>${n.withHero ? 'Travels with you · their post stands empty' : `${esc(ROLES[n.role].post)} · ${esc(ROLES[n.role].bonus)}`}</span><span class="bond">${Array.from({ length: 5 }, (_, k) => icon(k < n.bond ? 'heartFill' : 'heart')).join('')}</span><span class="acts"><button class="btn sm sys" data-chat="${n.id}">Talk</button><button class="btn sm sys ghost" data-follow="${n.id}" data-on="${n.withHero ? 0 : 1}">${n.withHero ? 'Back to post' : 'With me'}</button></span></div>`).join('') : '<span class="note">Nobody yet. Answer the calls: people are out there.</span>'}</div>
       <h2>Chronicle</h2><ol class="chron">${ST.chronicle.slice().reverse().slice(0, 14).map(c => `<li><span>Day ${c.day}</span>${esc(c.text)}</li>`).join('')}</ol>
       <p class="note" style="margin-top:10px">${ui.lastSave ? `Saved at dawn of day ${ui.lastSave.day} (${ui.lastSave.where === 'cloud' ? 'your account' : 'this device'}).` : 'The run saves itself every dawn.'}</p>
-      <label class="aitog"><input type="checkbox" id="aiTog" ${chronicler.enabled() ? 'checked' : ''}><span>Chronicler (Claude writes the story) · ${({ on: 'on', off: 'off', denied: 'not allowed', absent: 'not available here' })[chronicler.status()]}</span></label>
       <div class="cardrow foot end"><button class="btn big" id="stClose">Back</button></div>`, { sys: true, arm: false });
     $('#stClose').onclick = $('#stX').onclick = () => { ui.hideCard(); ui.paused = false; };
-    $('#aiTog').onchange = e => { chronicler.setEnabled(e.target.checked); };
     $$('[data-chat]').forEach(b => b.onclick = () => showChat(b.dataset.chat));
     $$('[data-follow]').forEach(b => b.onclick = () => { ui.game.companionFollow(b.dataset.follow, b.dataset.on === '1'); showStatus(); });
   }
@@ -49,28 +47,15 @@ export function createStatus(ui) {
   function showChat(id) {
     const S = ui.game.state, n = ui.game.story().npc(id); if (!n) return;
     const hist = chats[id] || (chats[id] = []);
-    const ai = chronicler.available(), left = Math.max(0, 6 - n.chatToday);
     const bark = k => { const L = BARKS[k]; const t = L[(n.chatToday + hist.length + n.id.length) % L.length]; const open = S.landmarks.filter(l => !S.sealed[l.region] && l.kind !== 'unknown'); return t.replace('{want}', n.persona.want).replace('{fear}', n.persona.fear).replace('{heat}', Math.round(S.noise ?? S.heat ?? 0)).replace('{pop}', ui.game.pop()).replace('{district}', open.length ? 'The road by the ' + open[open.length - 1].kind : 'The fence'); };
     ui.showCard('chat', `<button class="closex" id="chX" aria-label="Back">${icon('close')}</button><div class="eyebrow">[${esc(ROLES[n.role].post)}] bond ${n.bond}/5${n.named ? ' · named' : ''}</div><h1 class="sm">${esc(n.name)}</h1>
       <p class="note">${esc(n.persona.traits.join(', '))} · ${esc(n.persona.quirk)}</p>
       <div class="msgs" id="msgs">${hist.map(m => `<div class="msg ${m.role}">${esc(m.content)}</div>`).join('') || `<div class="msg assistant">${esc(bark('you'))}</div>`}</div>
-      ${ai ? `<form class="say" id="sayForm"><input id="sayIn" maxlength="160" autocomplete="off" placeholder="${left ? 'Say something…' : `${n.name.split(' ')[0]} has work to do. Tomorrow.`}" ${left ? '' : 'disabled'}><button class="btn sys" ${left ? '' : 'disabled'}>Say</button></form><p class="note">${left} more ${left === 1 ? 'talk' : 'talks'} today</p>`
-        : `<div class="topics"><button class="btn sys ghost" data-topic="self">About you</button><button class="btn sys ghost" data-topic="city">The road</button><button class="btn sys ghost" data-topic="you">About me</button></div>`}
+      <div class="topics"><button class="btn sys ghost" data-topic="self">About you</button><button class="btn sys ghost" data-topic="city">The road</button><button class="btn sys ghost" data-topic="you">About me</button></div>
       <div class="cardrow foot"><button class="btn ghost" id="chatBack">Back</button></div>`, { sys: true, arm: false });
     const box = $('#msgs'); box.scrollTop = box.scrollHeight;
     $('#chatBack').onclick = $('#chX').onclick = () => showStatus();
     $$('[data-topic]').forEach(b => b.onclick = () => { hist.push({ role: 'user', content: b.textContent }, { role: 'assistant', content: bark(b.dataset.topic) }); showChat(id); });
-    const form = $('#sayForm');
-    if (form) form.onsubmit = async e => {
-      e.preventDefault(); const t = $('#sayIn').value.trim(); if (!t || n.chatToday >= 6) return;
-      n.chatToday++; hist.push({ role: 'user', content: t }); showChat(id); const b = $('#msgs'); b.insertAdjacentHTML('beforeend', '<div class="msg assistant typing">…</div>'); b.scrollTop = b.scrollHeight;
-      const r = await chronicler.chat({ ...n, roleName: ROLES[n.role].post }, hist.slice(-8), ui.game.story().context());
-      hist.push({ role: 'assistant', content: r ? r.say : `(${n.name.split(' ')[0]} looks at you for a long moment and says nothing.)` });
-      if (r && r.remember) { n.memory.push(r.remember); if (n.memory.length > 8) n.memory.shift(); }
-      if (r && r.mood === 'warm' && n.bondedToday !== S.night) { n.bondedToday = S.night; if (n.bond < 3) n.bond++; }
-      if (ui.card === 'chat') showChat(id);
-    };
-    if (form) setTimeout(() => $('#sayIn') && $('#sayIn').focus(), 50);
   }
   // ---------- the More sheet: everything rarely touched ----------
   const SPEEDS = [1, 2, 3];   // (ui.speed: the current one)
@@ -136,9 +121,9 @@ export function createStatus(ui) {
     const stats = [['Dead put down', kills], ['Your kills', by.hero || 0], ['Scrap earned', st.goldEarned], ['Buildings raised', st.built], ['Sites claimed', st.sites || 0], ['Companions', ST.npcs.filter(n => n.joined).length], ['Titles', ST.titles.length], ['Most people', st.peakPop], ['Inferno Nests burned', st.regionsClaimed], ['Buildings lost', st.buildingsLost], ['Times you fell', st.heroDeaths], ['Contracts won', ST.wins || 0]];
     const lastPages = ST.chronicle.filter(c => c.imp >= 3).slice(-3);
     const L = ST.lostContract, survived = Math.max(0, S.night - 1);
-    let beats = obituaryScript(), shownAt = performance.now();
+    const beats = obituaryScript();
     const render = () => {
-      ui.showCard('end', `<div class="eyebrow"><span>${L ? `[Contract failed: ${esc(L.name)}]` : '[The window closes]'}</span>${chronicler.available() ? `<span class="chr">${icon('quill')}Chronicler</span>` : ''}</div>
+      ui.showCard('end', `<div class="eyebrow"><span>${L ? `[Contract failed: ${esc(L.name)}]` : '[The window closes]'}</span></div>
         <h1 class="big">${L ? 'The season ends without you' : 'The Haven has fallen'}</h1>
         <div class="bignum"><b>${survived}</b><span>${survived === 1 ? 'night' : 'nights'} survived${S.night > prev ? ' · a new best' : ` · best ${best}`}</span></div>
         <ul class="obit">${beats.map(b => `<li>${rich(b)}</li>`).join('')}</ul>
@@ -148,7 +133,6 @@ export function createStatus(ui) {
       $('#again').onclick = ui.onArmed(() => { location.reload(); });
     };
     render();
-    if (chronicler.available()) chronicler.obituary(ui.game.story().fullContext(), L ? `the contract "${L.name}" was lost` : `the Haven fell on night ${S.night}`).then(b => { if (b && ui.card === 'end' && performance.now() - shownAt < AI_WAIT * 2) { beats = b; render(); } });
   }
   $('#moreBtn').onclick = () => showMore();
   $('#dayPill').onclick = () => { if (ui.game && !ui.card && !ui.game.state.over) showStatus(); };

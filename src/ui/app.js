@@ -82,7 +82,7 @@ export function startApp() {
   Object.assign(ui, { holdCards, keys, setup, strip, callouts, ctoast, systemHere, firstRun });
   for (const make of MODULES) Object.assign(ui, make(ui));
   const {
-    aiFetch, classBeat, closePanel, dockH, edgeMarks, endJoy, hideCard, inventToday, joyIn, lossLine, noteLoss, refreshPanel,
+    classBeat, closePanel, dockH, edgeMarks, endJoy, hideCard, joyIn, lossLine, noteLoss, refreshPanel,
     refreshZone, showDusk, showEncounter, showEnd, showEpisode, showStart, stopPlacing, tickMini, toast, updateGhost,
     updateHud, watchFrames, cinemaFrame
   } = ui;
@@ -109,14 +109,13 @@ export function startApp() {
     for (const e of events) {
       if (toastFor.has(e.t)) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);
       if (e.t === 'window') { ui.game.story().offerWin(e); if (S.phase === 'day' && S.dayT < 3) windowAtDawn = true; }
-      if (e.t === 'encounter') aiFetch(S.story.encounters.find(x => x.id === e.id));
       if (e.t === 'episode') showEpisode(e);
       if (e.t === 'scene') showDusk(e);
       if (e.t === 'tip') callouts.show(e);
       if (e.t === 'ruin') noteLoss(e.id);
       if (e.t === 'difficulty' && typeof ui.game.setDifficulty !== 'function') { const D = ui.game.difficulty && ui.game.difficulty(); if (D && DIFFICULTY[e.key]) Object.assign(D, DIFFICULTY[e.key]); }   // one game per page: the shared table is safe to retune
       if (e.t === 'claim' && ui.selected && ui.selected.type === 'region') closePanel();
-      if (e.t === 'dawn') { inventToday(); holdCards(DAWN_DELAY); endJoy(); const ll = lossLine(), L = ui.pendingLedger; ui.pendingLedger = null; if (ui.roadUI && L && (L.fell.length || L.ruins || L.piper)) { ui.ledgerUp = true; setTimeout(() => { if (ui.roadUI) ui.roadUI.showLedger(L, ll, ui.dawnLine); ui.ledgerUp = false; }, 600); } else if (ll) setTimeout(() => ctoast.show(ll, 'bad', 'skull'), 400); const snap = ui.game.snapshot(); if (snap) saves.save(snap).then(w => { ui.lastSave = { day: snap.night, where: w }; }); }
+      if (e.t === 'dawn') { holdCards(DAWN_DELAY); endJoy(); const ll = lossLine(), L = ui.pendingLedger; ui.pendingLedger = null; if (ui.roadUI && L && (L.fell.length || L.ruins || L.piper)) { ui.ledgerUp = true; setTimeout(() => { if (ui.roadUI) ui.roadUI.showLedger(L, ll, ui.dawnLine); ui.ledgerUp = false; }, 600); } else if (ll) setTimeout(() => ctoast.show(ll, 'bad', 'skull'), 400); const snap = ui.game.snapshot(); if (snap) saves.save(snap).then(w => { ui.lastSave = { day: snap.night, where: w }; }); }
       if (e.t === 'over') { saves.clear(); { const L = store.get('legacy', { fame: 0, owned: {} }); S.fameEarned = fameOf(S); L.fame += S.fameEarned; store.set('legacy', L); } endT = now + 2600; ui.paused = false; closePanel(); stopPlacing(); hideCard(); if (ui.view.startOrbit) ui.view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && ui.selected && ui.selected.type === 'building' && !S.byId.get(ui.selected.id)) closePanel();
       // [road] road-ui reads the same events here

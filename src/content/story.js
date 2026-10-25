@@ -284,36 +284,6 @@ export const ROLES = {
   gunner: { post: 'Gunner', bonus: 'towers +6% damage', towers: 0.06 },
 };
 
-// Side quests the Chronicler (Claude) invents from what happened in this run. Claude picks a template, writes the words
-// and may invent the person in it; the engine owns the effects (numbers grow a little with the day: n = night).
-// Every choice has an id the AI must keep. `who`: the quest needs a character (Claude invents one).
-export const QUEST_TEMPLATES = {
-  rescue: { who: true, desc: 'someone trapped or hiding who needs you to come and get them', choices: [
-    { id: 'bring', label: 'Bring them home', fx: n => [{ op: 'survivors', n: 2 + (n >> 3) }, { op: 'food', n: -2 }] },
-    { id: 'supply', label: 'Leave supplies and a map', fx: () => [{ op: 'food', n: -2 }, { op: 'flag', key: 'beacon' }] },
-  ] },
-  recruit: { who: true, desc: 'a person with a skill and a past who could join the Haven as a companion (pick a role: scout, medic, cook, mechanic or gunner)', choices: [
-    { id: 'join', label: 'Ask them to join you', fx: () => [{ op: 'recruitNew' }] },
-    { id: 'trade', label: 'Trade, then part ways', fx: n => [{ op: 'gold', n: 5 + (n >> 1) }] },
-  ] },
-  bargain: { who: true, desc: 'a trader, a gang or a stranger who wants something for something', choices: [
-    { id: 'pay', label: 'Pay their price', cost: n => ({ gold: 4 + (n >> 1) }), fx: n => [{ op: 'food', n: 6 + (n >> 1) }] },
-    { id: 'refuse', label: 'Walk away', fx: () => [{ op: 'heat', n: 6 }] },
-  ] },
-  mystery: { who: false, desc: 'something strange the System notices: a place, an object, a sign, tied to what came before', choices: [
-    { id: 'touch', label: 'Look closer', fx: () => [{ op: 'blessing' }, { op: 'hurt', n: 6 }] },
-    { id: 'leave', label: 'Mark it and leave', fx: n => [{ op: 'gold', n: 3 + (n >> 2) }] },
-  ] },
-  dilemma: { who: true, desc: 'a hard choice between mercy and safety (or between two people), with no clean answer', choices: [
-    { id: 'mercy', label: 'Choose mercy', fx: n => [{ op: 'survivors', n: 1 + (n >> 4) }, { op: 'heat', n: 8 }] },
-    { id: 'safety', label: 'Choose the Haven', fx: n => [{ op: 'gold', n: 4 + (n >> 1) }] },
-  ] },
-  echo: { who: false, desc: 'a callback: something or someone from an earlier day comes back, changed', choices: [
-    { id: 'welcome', label: 'Meet it head on', fx: n => [{ op: 'perk', key: 'heroDmg', add: 0.3 }] },
-    { id: 'avoid', label: 'Let the past lie', fx: () => [{ op: 'heat', n: -8 }] },
-  ] },
-};
-
 // Offline chat: what companions say when Claude is not connected (topic buttons)
 export const BARKS = {
   self: ['"{want}. That is all I want."', '"Ask me again when the sun is up."', '"You want the truth? {fear}. Every night."'],

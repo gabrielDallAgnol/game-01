@@ -1,7 +1,7 @@
 // Cards: the one modal at a time (showCard / hideCard, arming against stray taps), and the story's windows:
 // encounters and their choice chips, the arrival, System windows, skills, jobs (class evolution), contracts, victory.
-// The engine decides effects; the Chronicler (story-ai.js) may only swap words in (AI_WAIT).
-import { $, $$, AI_WAIT, ARM_MS, audio, chronLine, chronicler, esc, rich, store } from './shared.js';
+// The engine decides effects and words (the written story in content/story.js).
+import { $, $$, ARM_MS, audio, chronLine, esc, rich, store } from './shared.js';
 import { CONTRACT_COPY } from '../content/contracts.js';
 import { RARITY } from '../content/districts.js';
 import { SYSTEM } from '../content/story.js';
@@ -33,33 +33,6 @@ export function createCards(ui) {
 
   // ---------- story: encounters, the status window, companions ----------
   const encState = new Map();   // per encounter: { page, touched, shownAt }
-  const aiBusy = new Set();
-  const aiSkips = new Set(['daily', 'gift', 'evolve', 'season', 'chapter', 'district', 'arrival', 'skill', 'window', 'difficulty', 'victory']);
-  function aiFetch(enc) {
-    if (!enc || enc.ai != null || !chronicler.available()) return;
-    if (enc.kind === 'contract') {
-      enc.ai = 'pending'; enc.aiAt = performance.now(); aiBusy.add(enc.id);
-      chronicler.contract(ui.game.story().fullContext(), enc).then(p => { aiBusy.delete(enc.id); enc.ai = p || 'none'; enc.aiReady = performance.now(); refreshIfOpen(enc); });
-      return;
-    }
-    if (enc.kind === 'victory') {
-      enc.ai = 'pending'; enc.aiAt = performance.now(); aiBusy.add(enc.id);
-      const k = ui.game.state.story.contract || { n: enc.season, name: enc.contract, finale: {} };
-      chronicler.seasonRecap(ui.game.story().fullContext(), k).then(p => { aiBusy.delete(enc.id); enc.ai = p || 'none'; enc.aiReady = performance.now(); refreshIfOpen(enc); });
-      return;
-    }
-    if (aiSkips.has(enc.kind)) return;
-    enc.ai = 'pending'; enc.aiAt = performance.now(); const id = enc.id; aiBusy.add(id);
-    chronicler.rewrite(enc, ui.game.story().context()).then(patch => { aiBusy.delete(id); enc.ai = patch || 'none'; enc.aiReady = performance.now(); refreshIfOpen(enc); });
-  }
-  /** Claude's words arrive: swap them in only if the card has been open less than AI_WAIT and nothing was tapped */
-  function refreshIfOpen(enc) {
-    const top = ui.game && ui.game.state.story.encounters[0], st = encState.get(enc.id);
-    if (ui.card !== 'enc' || top !== enc || !st || st.touched || performance.now() - st.shownAt > AI_WAIT) return;
-    st.useAi = true; showEncounter(true);
-  }
-  const usePatch = enc => { const st = encState.get(enc.id); if (!enc.ai || typeof enc.ai !== 'object') return null; if (st && st.useAi === false) return null; return enc.ai; };
-
   // cause → consequence: every choice shows what it does as chips (green gains, red costs)
   function chipsOf(c) {
     const S = ui.game.state, out = [], add = (cls, ic, t) => out.push(`<span class="chip ${cls}">${ic ? icon(ic) : ''}${t}</span>`), sg = n => (n > 0 ? `+${n}` : `−${-n}`);
@@ -98,15 +71,11 @@ export function createCards(ui) {
   // [arrive] how the people a choice adds get here, said the same way on every card (the engine's line, never the AI's)
   const arriveLine = (enc, c) => { const A = ui.game.story().arrivalOf && ui.game.story().arrivalOf(enc, c); return A ? `<span class="arrive ${A.mode}">${icon(A.icon)}<b>${esc(A.tag)}</b><span>${esc(A.text)}</span></span>` : ''; };
   const richHint = t => rich(t).replace(/(^|[\s(])([+\-−]\s?\d+%?\s(?:more\s)?(?:scrap|food|people|person|noise|heat|bond|health|damage|hero damage|xp))/gi, '$1<b>$2</b>');
-  const badge = (enc, P) => (chronicler.available() && !aiSkips.has(enc.kind) ? `<span class="chr${enc.ai === 'pending' ? ' busy' : ''}" title="The Chronicler (Claude) writes this run's story">${icon('quill')}${P ? 'Chronicler' : enc.ai === 'pending' ? 'writing' : ''}</span>` : '');
 
   function showEncounter(swap = false) {
     const S = ui.game.state, enc = S.story.encounters[0]; if (!enc) { afterEncounter(); return; }
     ui.paused = true; if (ui.placing) ui.stopPlacing(); ui.closePanel();
-    if (enc.ai === 'pending' && !aiBusy.has(enc.id)) enc.ai = null;   // a request lost to a reload
-    aiFetch(enc);
-    let st = encState.get(enc.id); if (!st) { st = { page: 0, touched: false, shownAt: performance.now(), useAi: null }; encState.set(enc.id, st); }
-    if (st.useAi === null) st.useAi = enc.ai && typeof enc.ai === 'object' ? true : null;
+    let st = encState.get(enc.id); if (!st) { st = { page: 0, touched: false, shownAt: performance.now() }; encState.set(enc.id, st); }
     const isNew = !st.opened; st.opened = true;
     if (enc.kind === 'arrival') return showArrival(enc);
     if (enc.kind === 'contract') return showContract(enc, st, swap || !isNew);
@@ -114,23 +83,21 @@ export function createCards(ui) {
     if (enc.kind === 'victory') return showVictory(enc, st);
     if (enc.kind === 'skill') return showSkill(enc);
     if (enc.kind === 'window' || enc.kind === 'chapter') return showWindow(enc);
-    const P = usePatch(enc);
-    const title = P ? P.title : enc.title, line = P && P.line ? P.line : enc.speaker && enc.speaker.line;
-    // the written story opens on the choice page (one paragraph); the Chronicler's beats are short pages
-    const pages = P && P.beats && P.beats.length > 1 ? P.beats : [P ? P.scene : enc.scene];
+    const title = enc.title, line = enc.speaker && enc.speaker.line;
+    const pages = [enc.scene];   // the written story opens on the choice page (one paragraph)
     const pg = Math.min(st.page, pages.length - 1), last = pg >= pages.length - 1;
     const dots = pages.length > 1 ? `<div class="pgdots">${pages.map((_, k) => `<i class="${k === pg ? 'on' : k < pg ? 'past' : ''}"></i>`).join('')}</div>` : '';
     const opts = last ? `<div class="opts one encopts">${enc.choices.map(c => { const ok = !c.cost || ui.game.story().can(c); const rar = c.rarity ? RARITY[c.rarity] : null;
-        return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span>${esc(P && P.labels && P.labels[c.id] || c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}</span>${chipsOf(c)}${c.hint ? `<span class="ds">${richHint(c.hint)}</span>` : ''}${arriveLine(enc, c)}</button>`; }).join('')}</div>`
+        return `<button class="opt${rar ? ' rar' : ''}" data-choice="${c.id}" ${ok ? '' : 'disabled'} ${rar ? `style="--rar:${rar.color}"` : ''}><span class="nm"><span>${esc(c.label)}</span>${rar ? `<span class="rarity">${rar.name}</span>` : ''}</span>${chipsOf(c)}${c.hint ? `<span class="ds">${richHint(c.hint)}</span>` : ''}${arriveLine(enc, c)}</button>`; }).join('')}</div>`
       : `<div class="cardrow foot spread"><button class="btn ghost sm" id="encSkip">Skip</button><button class="btn big" id="encNext">Continue ${icon('next')}</button></div>`;
-    showCard('enc', `<div class="enc ${enc.kind}"><div class="eyebrow"><span id="encEb"></span>${badge(enc, P)}</div>
+    showCard('enc', `<div class="enc ${enc.kind}"><div class="eyebrow"><span id="encEb"></span></div>
       <h1 class="sm">${esc(title)}</h1>
       ${enc.speaker && pg === 0 ? `<div class="speaker"><b>${esc(enc.speaker.name)}</b><span>${rich(line || '')}</span></div>` : ''}
       <p class="scene page" id="encScene">${rich(pages[pg])}</p>${dots}${opts}</div>`, { sys: true, arm: !swap && pg === 0, anim: isNew });
     const eb = $('#encEb'); if (swap || st.ebDone) eb.innerHTML = sysRich(enc.eyebrow || '[System]'); else { st.ebDone = true; typeOn(eb, enc.eyebrow || '[System]', 60); }
     const next = () => { st.touched = true; st.page = pg + 1; showEncounter(); };
     if (!last) { $('#encNext').onclick = onArmed(next); $('#encScene').onclick = onArmed(next); $('#encSkip').onclick = onArmed(() => { st.touched = true; st.page = pages.length - 1; showEncounter(); }); }
-    $$('[data-choice]').forEach(b => b.onclick = onArmed(() => { st.touched = true; if (P && P.chronicle) enc.aiChron = P.chronicle; if (ui.game.choose(b.dataset.choice)) { encState.delete(enc.id); audio.play('claim'); afterEncounter(); } }));
+    $$('[data-choice]').forEach(b => b.onclick = onArmed(() => { st.touched = true; if (ui.game.choose(b.dataset.choice)) { encState.delete(enc.id); audio.play('claim'); afterEncounter(); } }));
   }
   function afterEncounter() {
     if (ui.game.state.story.encounters.length) { showEncounter(); return; }
@@ -223,7 +190,7 @@ export function createCards(ui) {
   }
   // ---------- seasons as contracts ----------
   function showContract(enc, st, swap) {
-    const P = usePatch(enc), sel = st.sel || null;
+    const P = null, sel = st.sel || null;
     const pick = id => enc.offers.find(o => o.id === id);
     const pips = n => `<span class="pips" aria-hidden="true">${[1, 2, 3].map(k => `<i class="${k <= n ? 'on' : ''}"></i>`).join('')}</span>`;
     const card1 = o => { const nm = (P && P.names && P.names[o.id]) || o.name, tw = (P && P.twists && P.twists[o.id]) || o.twist, T = o.terms, tier = T.tier || { tag: 'Risky', pips: 2 };
@@ -235,7 +202,7 @@ export function createCards(ui) {
         <span class="kline gain"><b>Reward</b>${esc(T.gain)} <em>${esc(T.legacy)}</em></span>
         ${tw ? `<span class="tw">${esc(tw)}</span>` : ''}</button>`; };
     const selGoal = sel ? pick(sel).terms.goal.replace(/^\w/, c => c.toLowerCase()) : '';
-    showCard('enc', `<div class="eyebrow"><span id="kEb"></span>${chronicler.available() ? `<span class="chr${enc.ai === 'pending' ? ' busy' : ''}">${icon('quill')}${P ? 'Chronicler' : enc.ai === 'pending' ? 'writing' : ''}</span>` : ''}</div>
+    showCard('enc', `<div class="eyebrow"><span id="kEb"></span></div>
       <h1 class="sm">${esc(enc.title)}</h1><p class="scene kscene">${rich(enc.scene)}</p>
       <div class="contracts">${enc.offers.map(card1).join('')}</div>
       <p class="note">${rich(CONTRACT_COPY.legacyNote)}</p>
@@ -250,8 +217,8 @@ export function createCards(ui) {
     return [...L.filter(c => !/: "/.test(c.text)), ...L.filter(c => /: "/.test(c.text))].slice(0, 3).sort((a, b) => a.day - b.day).map(c => chronLine(c.text));
   }
   function showVictory(enc, st) {
-    const P = usePatch(enc), beats = P && P.beats ? P.beats : (seasonLines(enc.season).length ? seasonLines(enc.season) : ['You held the Haven through a whole season.']), next = (P && P.next) || enc.next;
-    showCard('enc', `<div class="eyebrow"><span id="vEb"></span>${chronicler.available() ? `<span class="chr">${icon('quill')}${P ? 'Chronicler' : ''}</span>` : ''}</div>
+    const P = null, beats = P && P.beats ? P.beats : (seasonLines(enc.season).length ? seasonLines(enc.season) : ['You held the Haven through a whole season.']), next = (P && P.next) || enc.next;
+    showCard('enc', `<div class="eyebrow"><span id="vEb"></span></div>
       <h1 class="big">${esc(enc.title)}</h1><p class="scene">${rich(enc.scene)}</p>
       <ul class="obit">${beats.map(b => `<li>${rich(b)}</li>`).join('')}</ul><div class="nexton">${esc(next)}</div>
       <div class="chips" style="margin:12px 0 4px"><span class="chip info">${icon('level')}easier nights</span><span class="chip pos">${icon('scrap')}+${enc.reward.scrap}</span><span class="chip pos">${icon('skill')}a rare blessing</span><span class="chip pos">${icon('star')}+${enc.reward.fame} Legacy</span></div>
@@ -259,5 +226,5 @@ export function createCards(ui) {
     const eb = $('#vEb'); if (st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; typeOn(eb, enc.eyebrow, 60); }
     $('#vOk').onclick = onArmed(() => { st.touched = true; if (ui.game.choose('take')) { const L = store.get('legacy', { fame: 0, owned: {} }); L.fame += enc.reward.fame; store.set('legacy', L); audio.play('claim'); afterEncounter(); } });
   }
-  return { showCard, onArmed, hideCard, aiFetch, showEncounter, showInfo, classBeat };
+  return { showCard, onArmed, hideCard, showEncounter, showInfo, classBeat };
 }

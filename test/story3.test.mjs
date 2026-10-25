@@ -1,5 +1,5 @@
 // "The Solar Flare" words: the opening shows once, the world is Ash-Born and Inferno Nests (never zombies or miasma in
-// player-facing text), the barks and the act/rig event lines exist, and the Chronicler stays on-world.
+// player-facing text), the barks and the act/rig event lines exist.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -8,7 +8,6 @@ import { INTRO_CARDS, CANON, TONE_WORLD, ACTS, eventText, CREW_BIO, GAME_TITLE }
 import { pick, pickWho, KINDS, CREW, CITIZEN } from '../src/content/barks.js';
 import { introWanted, markIntroSeen, INTRO_KEY } from '../src/ui/intro.js';
 import { MOBS } from '../src/content/mobs.js';
-import { clip, rewritePrompt, TONE } from '../src/ui/story-ai.js';
 
 const mem = () => { const m = new Map(); return { get: (k, d) => (m.has(k) ? m.get(k) : d), set: (k, v) => m.set(k, v) }; };
 const here = path.dirname(new URL(import.meta.url).pathname), SRC = path.join(here, '..', 'src');
@@ -52,24 +51,15 @@ test('mob names are the Ash-Born varieties', () => {
   assert.ok(!Object.values(MOBS).some(m => /zombie|walker|gravelord/i.test(m.name)));
 });
 
-test('the Chronicler stays on-world: canon in every prompt, no numbers in the canon, off-canon words are swapped', () => {
-  assert.ok(!/\d/.test(CANON), 'the canon has no numbers');
-  assert.match(TONE, /Ash-Born/); assert.match(TONE, /Haven Rig/); assert.match(TONE_WORLD, /warm/i);
-  const enc = { kind: 'k', eyebrow: '[x]', title: 't', scene: 's', choices: [{ id: 'a', label: 'a', hint: 'h' }] };
-  const p = rewritePrompt(enc, { city: 'Hollowmere', day: 2, people: [], sites: [], titles: [], companions: [], chronicle: [] });
-  assert.match(p, /Solar Flare/); assert.doesNotMatch(p, /zombie town-defence/i);
-  assert.equal(clip('A zombie and an undead walker in the miasma', 80), 'An Ash-Born and an Ash-Born Cinder in the heat haze');
-});
-
 // ---------- no zombies in what the player reads ----------
 const files = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(d => (d.isDirectory() ? files(path.join(dir, d.name)) : d.name.endsWith('.js') ? [path.join(dir, d.name)] : []));
 const stripComments = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
-test('no zombie / miasma / undead in player-facing source (the Chronicler canon is the one intentional exception)', () => {
+test('no zombie / miasma / undead in player-facing source (the canon in solar.js is the one intentional exception)', () => {
   const bad = [];
   for (const f of files(SRC).concat(path.join(SRC, '..', 'index.html'))) {
     if (f.endsWith(path.join('content', 'solar.js'))) continue;   // CANON names the words it forbids
     const t = f.endsWith('.html') ? fs.readFileSync(f, 'utf8') : stripComments(fs.readFileSync(f, 'utf8'));
-    for (const m of t.matchAll(/\b(zombies?|miasma|undead)\b/gi)) { if (/story-ai\.js$/.test(f) && /CANONIZE|replace\(/.test(t.slice(Math.max(0, m.index - 60), m.index + 60))) continue; bad.push(`${path.relative(SRC, f)}: ${m[0]}`); }
+    for (const m of t.matchAll(/\b(zombies?|miasma|undead)\b/gi)) bad.push(`${path.relative(SRC, f)}: ${m[0]}`);
   }
   assert.deepEqual(bad, []);
 });

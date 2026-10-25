@@ -1,12 +1,12 @@
 // The story engine: decides which encounter comes next and applies every effect. Deterministic (own RNG).
-// Claude may rewrite an encounter's words (see ui/story-ai.js), never its choices' effects.
+// The words are the written story (content/story.js); the effects are the engine's.
 //
 // S.story = { day, encounters (the cards on screen now), later (cards waiting for a dawn), threads {id: {stage, status,
 //   cast, region, site, spot, failAt}}, npcs [], titles [], chronicle [], flags {}, quests [], daily {}, contract {}, … }
 //
 // The dawn budget: at most ONE story card and ONE System window a dawn. Everything else waits in `later` for a
 // later dawn (cards that only make sense today expire). Nothing opens at night unless it is about the night.
-import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET, STREET_GEN, QUEST_TEMPLATES, NUMBER, NIGHT_TEXT, ARRIVE } from '../content/story.js';
+import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET, STREET_GEN, NUMBER, NIGHT_TEXT, ARRIVE } from '../content/story.js';
 import { RARITY, KITS } from '../content/districts.js';
 import { EPISODES, seasonEnd } from '../content/season.js';
 import { TIDE } from '../content/mobs.js';
@@ -656,7 +656,6 @@ export function createStory(ctx) {
     regen: () => ST.npcs.reduce((a, n) => a + (n.alive && n.joined && ROLES[n.role] && ROLES[n.role].regen || 0), 0),
   };
   // ---------- side quests the Chronicler invents: Claude picks a template and writes it; the engine owns the effects ----------
-  const NEW_ROLES = ['scout', 'medic', 'cook', 'mechanic', 'gunner'];
   const sgn = n => (n > 0 ? `+${n}` : `${n}`);
   function describe(fx, npcData) {
     const out = [];
@@ -667,41 +666,6 @@ export function createStory(ctx) {
       else if (f.op === 'perk' && f.key === 'heroDmg') out.push(`+${f.add} hero damage`); else if (f.op === 'recruitNew' && npcData) out.push(`${npcData.name.split(' ')[0]} joins as your ${ROLES[npcData.role].post.toLowerCase()}: ${ROLES[npcData.role].bonus}`);
     }
     return out.length ? `${out.join(', ')}.` : 'Nothing changes.';
-  }
-  const clip = (v, n) => String(v ?? '').replace(/[<>[\]{}]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
-  /** a quest from the Chronicler: validated, given engine-owned effects, placed as a beacon */
-  function invent(q) {
-    if (!q || typeof q !== 'object' || ST.inventDay === S.night || !roomForQuest()) return false;
-    const T = QUEST_TEMPLATES[q.template]; if (!T) return false;
-    let who = null;
-    if (T.who) {
-      const c = q.character || {}; const role = q.template === 'recruit' ? (NEW_ROLES.includes(c.role) ? c.role : NEW_ROLES[rng.int(NEW_ROLES.length)]) : null;
-      const traits = (Array.isArray(c.traits) ? c.traits : []).map(t => clip(t, 18)).filter(Boolean).slice(0, 3);
-      who = { name: clip(c.name, 28) || 'A stranger', epithet: clip(c.epithet, 32) || 'a stranger', traits: traits.length ? traits : ['wary'], quirk: clip(c.quirk, 60) || 'keeps to themselves', want: clip(c.want, 60) || 'to live', fear: clip(c.fear, 60) || 'the dark', secret: clip(c.secret, 120) || 'nothing they will say', role: role || 'scout' };
-      if (ST.npcs.some(n => n.name === who.name)) who.name = `${who.name.split(' ')[0]} the Second`;
-    }
-    const beats = (Array.isArray(q.beats) ? q.beats : []).map(b => clip(String(b).replace(/\*\*/g, '§'), 200).replace(/§(.+?)§/g, '**$1**').replace(/§/g, '')).filter(b => b.length >= 8).slice(0, 3);
-    if (!beats.length) return false;
-    const labels = {}; for (const c of Array.isArray(q.choices) ? q.choices : []) if (c && T.choices.some(t => t.id === c.id)) labels[c.id] = clip(c.label, 44);
-    const choices = T.choices.map(t => { const fx = t.fx(S.night); return { id: t.id, label: labels[t.id] || t.label, hint: describe(fx, who), cost: t.cost ? t.cost(S.night) : undefined, fx, npcName: who && fx.some(f => f.op === 'recruitNew') ? `${who.name.split(' ')[0]} joins` : undefined }; });
-    const spot = ctx.findSpot(); if (!spot) return false;
-    const kind = `ai${ST.nextId++}`; ST.gen = ST.gen || {};
-    ST.gen[kind] = { eyebrow: clip(q.eyebrow, 40) ? `[${clip(q.eyebrow, 40)}]` : '[Side quest]', title: clip(q.title, 48) || 'A side quest', scene: beats.join(' '), beats, choices, npc: who, made: true, callback: clip(q.callback, 120) };
-    ST.spots.push({ id: ST.nextId++, kind, x: spot.x, y: spot.y, day: S.night, made: true });
-    ctx.guard(spot.x, spot.y, Math.min(5, 2 + Math.floor(S.night / 4)));
-    ST.inventDay = S.night; ST.invented = (ST.invented || 0) + 1;
-    toast(`[New side quest: ${ST.gen[kind].title}] A **blue beacon** marks it.`, 'sys');
-    return true;
-  }
-  // what the AI needs to write an encounter in this run's voice
-  function context() {
-    const owned = S.landmarks.filter(l => l.owned).map(l => LM[l.kind].name);
-    return {
-      city: map.name, day: S.night, phase: S.phase, people: ctx.pop(), heat: Math.round(S.noise ?? S.heat ?? 0), keepLevel: S.keep ? S.keep.level : 1,
-      districtsOpen: map.regions.filter(r => !S.sealed[r.id]).length, sites: owned, titles: ST.titles.map(t => TITLES[t].name),
-      companions: ST.npcs.filter(n => n.alive && n.joined).map(n => ({ name: n.name, role: ROLES[n.role].post, bond: n.bond, traits: n.persona.traits.join(', '), quirk: n.persona.quirk })),
-      chronicle: ST.chronicle.slice(-10).map(c => `day ${c.day}: ${c.text}`),
-    };
   }
   /** the things a twist may hang on: real people, places and threads of this run (most recent first) */
   function hooks() {
@@ -715,23 +679,7 @@ export function createStory(ctx) {
         ...ST.chronicle.map(c => /^(.+?): "/.exec(c.text)).filter(Boolean).map(m => m[1]).filter(t => !/window only you|System|Contract/i.test(t)).slice(-8)])].filter(Boolean),
     };
   }
-  /** everything the Chronicler needs: the whole run so far */
-  function fullContext() {
-    const base = context();
-    return { ...base, chronicle: ST.chronicle.slice(-40).map(c => `day ${c.day}: ${c.text}`), season: S.season ? `${S.season.n}: ${S.season.name}` : '1',
-      hero: { class: ctx.heroes[S.heroClass].name, level: S.lvl, path: pathText() },
-      companions: ST.npcs.filter(n => n.alive && n.joined).map(n => ({ name: n.name, epithet: n.epithet, role: ROLES[n.role].post, bond: n.bond, traits: n.persona.traits.join(', '), quirk: n.persona.quirk, want: n.persona.want, fear: n.persona.fear })),
-      threads: Object.entries(ST.threads).map(([id, t]) => `${THREADS[id].title}: ${t.status === 'open' ? 'open' : t.status === 'done' ? 'closed (resolved)' : t.status === 'waiting' ? 'waiting on you' : 'closed (failed)'}`),
-      losses: [...ST.npcs.filter(n => !n.alive).map(n => `${n.name} (gone, day ${n.lost || '?'})`), ...(S.stats.buildingsLost ? [`${S.stats.buildingsLost} buildings lost`] : []), ...(S.stats.heroDeaths ? [`the hero fell ${S.stats.heroDeaths} times`] : [])],
-      choices: ST.chronicle.filter(c => /: "/.test(c.text)).slice(-12).map(c => `day ${c.day}: ${c.text}`),
-      titles: ST.titles.map(t => TITLES[t].name),
-      districts: map.regions.filter(r => r.ring > 0 && !S.sealed[r.id]).map(r => { const l = ctx.siteOf(r.id); return l ? LM[l.kind].name : 'the woods'; }),
-      people: ST.npcs.filter(n => n.alive).map(n => `${n.name} (${n.joined ? ROLES[n.role].post : 'met'})`),
-      contract: ST.contract ? { name: ST.contract.name, finale: ST.contract.finale.name, won: ST.contract.won } : null,
-      hooks: hooks().all,
-      episode: ST.episode ? ST.episode.title : null };
-  }
-  return { activeQuests, shownQuests, objectives, questCap, roomForQuest, invent, fullContext, hooks, offerTrial, trialWon, seasonCard, pathText, start, dawn, tick, choose, can, bonus, context, chron, npc, grant,
+  return { activeQuests, shownQuests, objectives, questCap, roomForQuest, hooks, offerTrial, trialWon, seasonCard, pathText, start, dawn, tick, choose, can, bonus, chron, npc, grant,
     offerWin: w => offer({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: 'Got it', hint: '', fx: [] }] }, w.pri || 6, 30),
     // [acts] a System window now (by day; at night it waits for the dawn like any card)
     windowNow: w => push({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: w.ok || 'Got it', hint: '', fx: [] }] }),

@@ -3,7 +3,6 @@
 // ability bar, the noise meter, the blackout banner, the day's wave forecast, the nest siege bar, the Rig's panel
 // section and pill, the carts row, and the Chronicler (no AI calls, no toggles). Wraps other modules' ui.x slots
 // (read at call time by app.js, panels.js, placing.js), so their files stay as they are. Without the flag: no change.
-import { chronicler } from './shared.js';
 import { V2 } from './v2-flag.js';
 
 const CSS = `body.v2 #ability,body.v2 #rNoise,body.v2 #blackout,body.v2 .h3chip,body.v2 .h3bar,body.v2 .inf,body.v2 .rigbtn,body.v2 .aitog,body.v2 #forecast:not(.night){display:none!important}`;
@@ -16,7 +15,6 @@ export function createV2CoreUi(ui) {
   function sync() {
     const on = v2(); if (on === was) return; was = on;
     document.body.classList.toggle('v2', on);
-    if (chronicler.setBlocked) chronicler.setBlocked(on);   // the Chronicler writes nothing in the V2 core
   }
   sync();
   const rigTick0 = ui.rigTick, infTick0 = ui.infernoTick, rigPanel0 = ui.rigPanelHtml, econRow0 = ui.econRow;

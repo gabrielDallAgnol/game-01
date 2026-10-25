@@ -1,6 +1,6 @@
 // The start screen (key art, worlds, legacy), beginning or continuing a run (creates the game and the view),
-// the "previously on" recap and the Chronicler's daily quest.
-import { $, $$, AI_WAIT, FLAGS, LEGACY_KEEP, WHATS_NEW, audio, chronicler, esc, rich, saves, store } from './shared.js';
+// the "previously on" recap.
+import { $, $$, FLAGS, LEGACY_KEEP, WHATS_NEW, audio, esc, rich, saves, store } from './shared.js';
 import { BIOMES, generateMap, mapChoices } from '../sim/mapgen.js';
 // [area] next line
 import { AREA, AREA_FLAG, areaOpts } from './area-flag.js';
@@ -11,7 +11,7 @@ import { AREAS } from '../sim/areamap.js';
 import { RECIPES } from '../engine/recipes.js';
 import { DIFFICULTY, SAVE_V, createGame } from '../sim/game.js';
 import { LEGACY } from '../content/legacy.js';
-import { QUEST_TEMPLATES, SYSTEM } from '../content/story.js';
+import { SYSTEM } from '../content/story.js';
 import { createRoadUI } from './road-ui.js';
 import { createView } from '../render/view.js';
 import { regionNames } from '../content/names.js';
@@ -33,7 +33,6 @@ export function createStart(ui) {
       <div class="cta"><div id="contRow" hidden></div><button class="btn big" id="begin">Begin</button></div>
       <details id="startMore"><summary>More</summary>
         <div class="worlds">${opts.map((o, k) => `<canvas id="mm${k}" aria-hidden="true"></canvas><div><b>${esc(o.name)}</b><div class="note">${esc(BIOMES[o.biome].blurb)} · seed ${o.seed}</div><button class="btn ghost sm" id="reroll" style="margin-top:8px">Another world</button></div>`).join('')}</div>
-        <label class="aitog" style="margin-top:14px"><input type="checkbox" id="aiStart" ${chronicler.enabled() ? 'checked' : ''}><span>Let the Chronicler (Claude) write your story and play your companions. It uses your Claude account and asks first. Off: the written story.</span></label>
         ${FLAGS.startDifficulty ? `<div class="opts one" style="margin-top:12px">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="opt" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><span class="nm">${d.name}</span><span class="ds">${d.blurb}</span></button>`).join('')}</div>` : '<p class="note" style="margin-top:12px">The System asks how hard it should be after your first night.</p>'}
         ${AREA_FLAG || AREA.id ? `<div class="opts one" style="margin-top:12px">${[...AREAS, ''].map(k => `<button class="opt" data-area="${k}" aria-pressed="${(AREA.id || '') === k}"><span class="nm">${k ? RECIPES[k].name : 'the frontier'}</span><span class="ds">${k ? esc(RECIPES[k].blurb) : 'The old map: a camp in the woods, the city far away.'}</span></button>`).join('')}</div>` : ''}   <!-- [area] -->
         <button class="btn ghost sm" id="replayIntro" style="margin-top:14px">Replay the opening</button>   <!-- [story3] -->
@@ -43,7 +42,6 @@ export function createStart(ui) {
       <div class="foot">${best ? `Your best: night ${best} · ` : ''}Drag to walk · tap to go somewhere</div>`, { cls: 'titlecard', arm: false });
     opts.forEach((o, k) => ui.drawMinimap($(`#mm${k}`), generateMap(o.seed, o.biome, areaOpts())));
     $$('[data-diff]').forEach(b => b.onclick = () => { setup.difficulty = b.dataset.diff; store.set('difficulty', setup.difficulty); $$('[data-diff]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
-    $('#aiStart').onchange = e => chronicler.setEnabled(e.target.checked);
     $$('[data-area]').forEach(b => b.onclick = () => { AREA.id = b.dataset.area || null; showStart(); $('#startMore').open = true; });   // [area]
     $$('[data-legacy]').forEach(b => b.onclick = () => { const L = store.get('legacy', { fame: 0, owned: {} }), up = LEGACY.find(x => x.id === b.dataset.legacy), n = L.owned[up.id] || 0; if (n >= up.max || L.fame < up.cost) return; L.fame -= up.cost; L.owned[up.id] = n + 1; store.set('legacy', L); audio.play('claim'); showStart(); $('#startMore').open = true; });
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); $('#startMore').open = true; };
@@ -109,20 +107,10 @@ export function createStart(ui) {
     clearTimeout(subtitle.t); subtitle.t = setTimeout(() => { el.hidden = true; }, ms);
   }
 
-  // coming back to a run: "previously on Hollowmere" (Claude tells it when on; else the chronicle's big moments)
+  // coming back to a run: "previously on Hollowmere" (the chronicle's big moments)
   function previouslyOn() {
-    const ST = ui.game.state.story, offline = ST.chronicle.filter(c => c.imp >= 3).slice(-3).map(c => `Day ${c.day}: ${c.text}`);
-    const show = lines => ui.showInfo({ eyebrow: '[Previously on Hollowmere]', title: `${ui.game.map.name} · day ${ui.game.state.night}`, lines: lines.length ? lines : ['You held the Haven. The Ash-Born did not wait for you.'] });
-    if (!chronicler.available()) { show(offline); return; }
-    ui.paused = true; let done = false;
-    const t = setTimeout(() => { if (!done) { done = true; show(offline); } }, AI_WAIT);
-    chronicler.recap(ui.game.story().fullContext()).then(b => { if (done) return; done = true; clearTimeout(t); show(b || offline); });
+    const ST = ui.game.state.story, lines = ST.chronicle.filter(c => c.imp >= 3).slice(-3).map(c => `Day ${c.day}: ${c.text}`);
+    ui.showInfo({ eyebrow: '[Previously on Hollowmere]', title: `${ui.game.map.name} · day ${ui.game.state.night}`, lines: lines.length ? lines : ['You held the Haven. The Ash-Born did not wait for you.'] });
   }
-  // the Chronicler invents today's side quest from everything that happened (one a day, from day 2)
-  function inventToday() {
-    const S = ui.game.state; if (!chronicler.available() || S.night < 2 || S.story.inventDay === S.night || inventToday.busy) return;
-    inventToday.busy = true;
-    chronicler.invent(ui.game.story().fullContext(), QUEST_TEMPLATES).then(q => { inventToday.busy = false; if (q && ui.game && !ui.game.state.over) ui.game.story().invent(q); });
-  }
-  return { showStart, inventToday, beginRun: begin };   // [rig3] beginRun: the act change swaps the game in
+  return { showStart, beginRun: begin };   // [rig3] beginRun: the act change swaps the game in
 }
