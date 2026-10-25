@@ -5,6 +5,10 @@ import { N, idx } from '../../sim/mapgen.js';
 import { K } from '../kit.js';
 import { BSCALE, FOOT, HOUSE_COLORS } from './shared.js';
 import { inkify } from '../ink.js';
+// [gemini3] begin: the Logger's Hut
+import { loggersHut } from '../kit/lumber.js';
+BSCALE.lumbermill = 1; FOOT.lumbermill = 2;
+// [gemini3] end
 
 export function createBuildings(V) {
   const { S, C, game, world, fx, Wv } = V;
@@ -36,6 +40,7 @@ export function createBuildings(V) {
     else if (type === 'farm') m = K.farm({ level, seed: v + 1, own: true, game: true, color: ['#8e9a88', '#8b95a0'][v], roof: ['#2f8f88', '#3d6b9a'][v] });
     else if (type === 'tower') m = K.tower({ level, game: true, spec: spec || undefined });
     else if (type === 'wall') m = K.post(level, links, v);
+    else if (type === 'lumbermill') m = loggersHut();   // [gemini3]
     else if (type === 'workshop') {   // a corrugated shed with a sawtooth roof, a roller door and a chimney
       const B = new K.B();
       B.cbox('grey', 2.5, 1.1, 2.1, 0, 0, 0, { r: 0.04 });
@@ -122,7 +127,7 @@ export function createBuildings(V) {
     }
     return cheerGeo[key].clone();
   }
-  const NICE = { house: '+1 Home', farm: '+1 Farm', tower: '+1 Tower', generator: '+1 Generator', workshop: 'Workshop', market: 'Market' };
+  const NICE = { house: '+1 Home', farm: '+1 Farm', tower: '+1 Tower', generator: '+1 Generator', workshop: 'Workshop', market: 'Market', lumbermill: "Logger's Hut" };   // [gemini3] lumbermill
   const noPowerMat = new THREE.SpriteMaterial({ map: K.textTex('NO POWER', { w: 256, h: 64, size: 40, bg: '#3a0d08', fg: '#ff6a50', spacing: '2px' }), transparent: true, depthTest: false });
   // ruins persist until rebuilt: a fallen building is drawn as its own charred, collapsed shell
   function syncBuildings() {

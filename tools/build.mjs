@@ -13,6 +13,8 @@ function visit(file) {
   if (mods.has(file)) return;
   mods.set(file, null);
   let code = fs.readFileSync(file, 'utf8');
+  // [gemini3] the build time on the start screen (src/version.js keeps 'dev'; only the bundle gets the stamp)
+  if (rel(file) === 'src/version.js') code = code.replace("time: 'dev'", () => `time: '${new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).slice(0, 16)}'`);
   const exportsList = [];
   code = code.replace(/^import\s+\{([^}]*)\}\s+from\s+'([^']+)';?[ \t]*$/gm, (_, names, spec) => {
     const dep = path.resolve(path.dirname(file), spec); visit(dep);

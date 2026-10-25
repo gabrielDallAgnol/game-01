@@ -9,6 +9,8 @@ import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../src/content/season.js';
 import { BUILDINGS } from '../src/content/buildings.js';
 import { TIDE } from '../src/content/mobs.js';
 import { playRun } from '../tools/bot.mjs';
+import { MATURITY } from '../src/content/stronghold.js';
+MATURITY.on = false;   // [gemini3] these rules predate the Camp's maturity gates (day, standing buildings): test/gemini3.test.mjs covers them
 
 test('the frontier map generates valid worlds across 20 seeds', () => {
   for (const biome of ['riverbend']) for (let s = 1; s <= 20; s++) {
@@ -280,7 +282,7 @@ test('weather is a season rule now: never rolled at dawn; a storm or still rule 
   assert.ok(still < base && storm > base, `${still} ${base} ${storm}`);
 });
 
-test('clearing rubble on your land costs gold and makes buildable ground', () => {
+test('clearing rubble on your land makes buildable ground (trees: a job that pays timber, [gemini3])', () => {
   let g, spot;
   for (let seed = 1; seed < 40 && !spot; seed++) {
     g = createGame({ seed }); const S = g.state, N = Math.sqrt(g.map.terrain.length);
@@ -289,9 +291,10 @@ test('clearing rubble on your land costs gold and makes buildable ground', () =>
   assert.ok(spot, 'no rubble in any starting town');
   readyDay(g); const S = g.state;
   const r = g.rubbleAt(spot.x, spot.y), gold = S.gold = 20;
-  assert.ok(r.cells.length > 0 && r.cost === (r.cells.length - r.blocks) + 3 * r.blocks);
+  assert.ok(r.cells.length > 0 && r.cost === (r.trees ? 0 : (r.cells.length - r.blocks) + 3 * r.blocks));
   assert.equal(g.clearRubble(spot.x, spot.y), r.cells.length);
-  assert.equal(S.gold, gold - r.cost);
+  if (r.trees) { assert.ok(S.chop); for (let k = 0; k < 60 * 20 && S.chop; k++) g.step(); assert.ok(!S.chop, 'the hero walked over and felled the patch'); assert.ok(S.gold >= gold + r.pay); }
+  else assert.equal(S.gold, gold - r.cost);
   assert.ok(r.cells.every(i => g.map.terrain[i] === 0 || g.map.terrain[i] === 6));
   assert.equal(g.rubbleAt(spot.x, spot.y).cells.length, 0);
 });

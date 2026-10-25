@@ -37,6 +37,11 @@ import { createRigUi } from './rig-ui.js';
 export { FLAGS };
 // the UI modules, in creation order (each registers its own DOM handlers when created)
 const MODULES = [createMap, createStart, createCards, createStatus, createHud, createPlacing, createPanels, createInput, createCinema, createHomeward, createFolkUi, createInfernoUi, createRigUi];   // [nest3] [rig3] appended   // [pacify] [folk] appended
+// [gemini3] the build tag on the start screen
+import { createVersion } from './version.js';
+import { createLoggingUi } from './logging-ui.js';
+
+MODULES.push(createVersion, createLoggingUi);   // [gemini3] appended
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
@@ -75,8 +80,10 @@ export function startApp() {
 
   // ---------- loop ----------
   const toastFor = new Set(['toast', 'fail']);
+  let drawnAt = 0;   // [gemini3]
   function frame(now) {
     requestAnimationFrame(frame);
+    if (ui.paused && ui.card && now - drawnAt < 95) return; drawnAt = now;   // [gemini3] behind a card the world idles at ~10 fps (battery, heat on phones)
     const raw = now - last, dt = Math.min(0.1, raw / 1000); last = now;
     if (!ui.game || !ui.view) return;
     const S = ui.game.state;

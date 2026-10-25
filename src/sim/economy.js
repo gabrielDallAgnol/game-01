@@ -38,8 +38,8 @@ export function createEconomy(G) {
     if (powerIn() - powerOut() >= 3) S.powerWarned = false;
     if (out !== S.blackout) { S.blackout = out; ev(out ? 'blackout' : 'powerBack'); toast(out ? `POWER DOWN. Your powered buildings switched off: ${powerOut()} needed, ${powerIn()} made. Build a generator or pull something down.` : 'Power restored. The lights come back on.', out ? 'bad' : 'good'); }
   }
-  const houseGold = b => Math.round(BUILDINGS.house.gold[b.level - 1] * G.DIFF.eco) + S.P.houseGold + (hasTech('market') ? 1 : 0) + (mastery('tycoon') ? 1 : 0) + (has('guarded') && near(b, 'tower', 6) ? 2 : 0) + (combo('guarded', 'bastion') && near(b, 'wall', 3) ? 1 : 0);
-  const farmFood = b => Math.round((BUILDINGS.farm.food[b.level - 1] * G.DIFF.eco + S.P.farmFood + (b.nearWater ? 1 : 0)) * (rule('winter') ? 0.67 : 1));
+  const houseGold = b => Math.round(BUILDINGS.house.gold[b.level - 1] * G.DIFF.eco) + S.P.houseGold + (G.strongPay ? G.strongPay(b) : 0) /* [gemini3] compact */ + (hasTech('market') ? 1 : 0) + (mastery('tycoon') ? 1 : 0) + (has('guarded') && near(b, 'tower', 6) ? 2 : 0) + (combo('guarded', 'bastion') && near(b, 'wall', 3) ? 1 : 0);
+  const farmFood = b => Math.round((BUILDINGS.farm.food[b.level - 1] * G.DIFF.eco + S.P.farmFood + (G.strongPay ? G.strongPay(b) : 0) /* [gemini3] compact */ + (b.nearWater ? 1 : 0)) * (rule('winter') ? 0.67 : 1));
   const prosper = () => (mastery('prosperity') ? 1.3 : 1);
   const upkeep = () => Math.max(0, S.buildings.reduce((a, b) => a + ((BUILDINGS[b.type].upkeep || [])[b.level - 1] || 0), 0) - S.P.upkeepCut * 2);
   const foodNeed = () => Math.ceil(pop() * START.foodPerCitizen * (rule('hunger') ? 1.3 : 1));
@@ -47,8 +47,8 @@ export function createEconomy(G) {
   // the hall is gated on food INCOME (the town can feed itself with room to spare) and people, never on food in store
   const foodPerDawn = () => Math.round(S.buildings.reduce((a, b) => a + (b.type === 'farm' && !b.ruined ? farmFood(b) : 0), 0) * prosper()) + S.landmarks.reduce((a, l) => a + (l.owned ? LANDMARKS[l.kind].food || 0 : 0), 0);
   function keepNeeds() {
-    const n = KEEP.need[keep.level]; if (!n) return [];
-    const out = [];
+    const n = (G.keepNeed && G.keepNeed(keep.level)) || KEEP.need[keep.level]; if (!n) return [];   // [gemini3] maturity gates
+    const out = G.maturityNeeds ? G.maturityNeeds(n) : [];   // [gemini3]
     if (n.foodNet !== undefined && foodPerDawn() - foodNeed() < n.foodNet) out.push(`food income ${foodNeed() + n.foodNet} a day (now ${foodPerDawn()})`);
     if (n.food && S.food < n.food) out.push(`${n.food} food in store`);
     if (pop() < n.people) out.push(`${n.people} people`);
