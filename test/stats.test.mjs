@@ -45,9 +45,9 @@ test('thresholds: an ability at 10, its second rank at 20, a capstone at 30; hyb
 test('what a point gives: STR health and damage, AGI attack rate and speed, INT power and cooldowns', () => {
   const g = fresh(), S = g.state; g.addStatPoints(60, 'test');
   const hp0 = S.hero.maxHp, dps0 = g.heroDps();
-  g.spendStat('str', 20); assert.ok(S.hero.maxHp >= hp0 + 7, `STR adds health (${hp0} → ${S.hero.maxHp})`);
-  const dps1 = g.heroDps(); assert.ok(dps1 > dps0 * 1.2 && dps1 < dps0 * 1.28, `20 STR ≈ +24% damage (${dps0} → ${dps1})`);
-  g.spendStat('agi', 20); const dps2 = g.heroDps(); assert.ok(dps2 > dps1 * 1.15 && dps2 < dps1 * 1.25, '20 AGI ≈ +20% attack rate');
+  g.spendStat('str', 20); assert.ok(S.hero.maxHp >= hp0 + 5, `STR adds health (${hp0} → ${S.hero.maxHp})`);
+  const dps1 = g.heroDps(); assert.ok(dps1 > dps0 * 1.1 && dps1 < dps0 * 1.14, `20 STR ≈ +12% damage (${dps0} → ${dps1})`);
+  g.spendStat('agi', 20); const dps2 = g.heroDps(); assert.ok(dps2 > dps1 * 1.08 && dps2 < dps1 * 1.12, '20 AGI ≈ +10% attack rate');
   g.spendStat('int', 10); const cd = g.powersInfo().actives.find(a => a.id === 'burst').cdMax; assert.ok(cd < 14 && cd > 12, `INT cuts cooldowns (${cd})`);
 });
 
