@@ -47,7 +47,9 @@ import { createEconUi } from './econ-ui.js';
 MODULES.push(createEconUi);   // [econ3] appended
 // [hero3] the stats window, the title chip, the ability bar
 import { createHero3Ui } from './hero3.js';
+import { createDodge } from './dodge.js';
 MODULES.push(createHero3Ui);   // [hero3] appended
+MODULES.push(createDodge);   // [combat2] appended: the dash keys and button (nothing without ?v2combat=1)
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
@@ -140,6 +142,7 @@ export function startApp() {
     ui.infernoTick(dt);   // [nest3]
     ui.rigTick(dt, events);   // [rig3] the Rig rolls, the next act is swapped in
     ui.econTick(dt, events);   // [econ3]
+    ui.dodgeTick(dt);   // [combat2]
     hudT -= dt; if (hudT <= 0) { updateHud(); ui.tickHome();   /* [pacify] the way home */ hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
   }
   requestAnimationFrame(frame);
