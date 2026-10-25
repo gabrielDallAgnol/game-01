@@ -72,7 +72,7 @@ test('every look is drawn by the flat renderer, and it never checks an atom id',
 });
 
 test('stages pick atoms by tag or need, never by id', () => {
-  for (const f of ['forest', 'props', 'camp', 'terraces', 'mill', 'nest', 'buildings']) {
+  for (const f of ['forest', 'props', 'camp', 'terraces', 'mill', 'nest', 'buildings', 'bridges', 'civic', 'gridstreets', 'water', 'rail', 'millstreets', 'lots', 'roads', 'terrain', 'nav']) {
     const src = readFileSync(new URL(`../src/engine/stages/${f}.js`, import.meta.url), 'utf8');
     assert.ok(!/'[a-z]+\.[a-z0-9-]+\.[a-z0-9]+'/.test(src.replace(/^\/\/.*$/gm, '')), `${f}.js names an atom id`);
   }

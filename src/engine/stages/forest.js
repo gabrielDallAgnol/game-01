@@ -14,6 +14,7 @@ export function occupancyOf(W) {
   W.fences.forEach(f => O.seg(f.a, f.b, 0.6, OCC.PROP));
   W.rails.forEach(r => O.poly(r.pts, 3, OCC.STREET));
   if (W.camp) O.disc(W.camp.x, W.camp.y, W.camp.r + 4, OCC.CAMP);
+  if (W.plaza) O.obb(W.plaza, OCC.LOT);
   return O;
 }
 
@@ -28,11 +29,11 @@ export const forestStage = {
       const heat = W.terrain.scorch ? W.terrain.scorch(px, py) : 0; if (heat > 0.8) continue;
       const pool = heat > 0.45 && dead.length ? dead : live; if (!pool.length) continue;
       const id = rng.pick(pool).id, r = reg.get(id).size[0] / 2 * rng.range(0.8, 1.05);
-      if (!O.free(px, py, r * 0.55)) continue;
+      if (!O.free(px, py, r * 0.55, OCC.STREET)) continue;   // any taken cell blocks a trunk: streets and water too
       W.place(reg, id, px, py, 0, { r, k: rng.float() }); O.disc(px, py, r * 0.6, OCC.TREE); n++;
     }
     // a few lone trees in the open fields
-    for (let i = 0; i < 40 && lone.length; i++) { const px = rng.range(4, W.w - 4), py = rng.range(4, W.h - 4); if (W.terrain.woods(px, py) > 0.55) continue; const heat = W.terrain.scorch ? W.terrain.scorch(px, py) : 0, pool = heat > 0.45 && dead.length ? dead : lone, r = rng.range(2.6, 3.8); if (heat > 0.8 || !O.free(px, py, r + 0.5)) continue; W.place(reg, rng.pick(pool).id, px, py, 0, { r, k: rng.float() }); O.disc(px, py, r, OCC.TREE); n++; }
+    for (let i = 0; i < 40 && lone.length; i++) { const px = rng.range(4, W.w - 4), py = rng.range(4, W.h - 4); if (W.terrain.woods(px, py) > 0.55) continue; const heat = W.terrain.scorch ? W.terrain.scorch(px, py) : 0, pool = heat > 0.45 && dead.length ? dead : lone, r = rng.range(2.6, 3.8); if (heat > 0.8 || !O.free(px, py, r + 0.5, OCC.STREET)) continue; W.place(reg, rng.pick(pool).id, px, py, 0, { r, k: rng.float() }); O.disc(px, py, r, OCC.TREE); n++; }
     W.occ = O;
     W.note('forest', `${n} trees in the woods and fields (min clearance ${STREET.kerb} m from streets)`);
   },
