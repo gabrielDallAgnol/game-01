@@ -7,6 +7,6 @@
 // COMMIT: a roamer that takes your scent, or that you hit, keeps on you for `aggro` / `hit` seconds whatever the
 // distance (still never more than 30 cells from its ground), and gives up for `giveUp` s (was 8) before it looks again.
 // SCOUT: in act 1 the System pins a hollow only once you have seen it; until then it gives the tracks' direction.
-export const DAYDEAD = { on: true, grace: 12, k: [0, 0.45, 0.55, 0.55, 0.6] };
+export const DAYDEAD = { on: true, grace: 20, k: [0, 0.35, 0.4, 0.45, 0.5] };   // (0.45–0.6 cost the bots ~0.4 nights in the sweep)
 export const COMMIT = { on: true, aggro: 6, hit: 10, giveUp: 3 };
 export const SCOUT = { on: true };
