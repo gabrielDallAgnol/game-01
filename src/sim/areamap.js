@@ -8,7 +8,7 @@ import { obbBox, pointInObb, distToSeg } from '../engine/geom.js';
 
 export const AREAS = Object.keys(RECIPES);
 // what an atom offers → the game's site it becomes (claim it to get the site's dawn income and effect)
-export const OFFER_SITE = { medicine: 'clinic', fuel: 'fuel', iron: 'quarry', work: 'substation', shop: 'market' };
+export const OFFER_SITE = { medicine: 'clinic', law: 'police', learning: 'school', signal: 'radio', fuel: 'fuel', iron: 'quarry', work: 'substation', shop: 'market' };
 const siteOf = def => { for (const o of Object.keys(OFFER_SITE)) if (def.offers.includes(o)) return OFFER_SITE[o]; return null; };   // the table's order is the priority
 
 export function applyArea(g, id) {
