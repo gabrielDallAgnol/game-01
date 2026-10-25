@@ -16,7 +16,7 @@ export const navStage = {
       if (c === 'box') O.obb(p, BLOCK);
       else if (c === 'circle') O.disc(p.x, p.y, p.def.trunk || p.def.size[0] / 2, BLOCK);
     });
-    W.fences.forEach(f => O.seg(f.a, f.b, 0.2, BLOCK));
+    W.fences.forEach(f => O.seg(f.a, f.b, f.def && f.def.thick ? f.def.thick / 2 : 0.2, BLOCK));
     W.nav = { w: O.w, h: O.h, cell: NAV_CELL, blocked: O.g, at: (x, y) => O.at(x / NAV_CELL, y / NAV_CELL) };
     let walk = 0; for (const v of O.g) if (!v) walk++;
     W.note('nav', `${walk} walkable m² of ${O.w * O.h}`);

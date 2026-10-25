@@ -6,6 +6,9 @@ import { ROLES } from './palettes.js';
 export const LAYERS = ['ground', 'water', 'road', 'mark', 'drive', 'shadow', 'low', 'figure', 'roof', 'canopy', 'fog', 'light'];
 export const KINDS = ['building', 'prop', 'tree', 'vehicle', 'street', 'water', 'lot', 'figure', 'item', 'rig'];
 export const COLLIDE = ['box', 'circle', 'segment', 'none'];
+// How the flat renderer draws an atom. A look is a drawing grammar shared by many atoms,
+// so a new atom picks a look and roles, and needs no drawing code.
+export const LOOKS = ['gable', 'flat', 'canopy', 'tarp', 'rig', 'car', 'lamp', 'ring', 'pool', 'tree', 'deadtree', 'ruin', 'railcar', 'tower', 'crater', 'nest', 'pylon', 'none'];
 
 export function validateAtom(a) {
   const err = [];
@@ -17,6 +20,7 @@ export function validateAtom(a) {
   need(typeof a.height === 'number' && a.height >= 0 && a.height < 120, 'height: metres, used for shadows');
   need(LAYERS.includes(a.layer), `layer: one of ${LAYERS.join(', ')}`);
   need(COLLIDE.includes(a.collide), `collide: one of ${COLLIDE.join(', ')}`);
+  need(LOOKS.includes(a.look), `look: one of ${LOOKS.join(', ')}`);
   need(Array.isArray(a.roles) && a.roles.length > 0, 'roles: at least one palette role');
   (a.roles || []).forEach(r => need(ROLES.includes(r), `roles: unknown role ${r}`));
   (a.sockets || []).forEach((s, i) => {

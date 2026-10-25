@@ -1,11 +1,11 @@
 // The world container: everything a pipeline builds, in metres. Stages add to it; validators
 // read it; the renderer draws it. Placed atoms keep the seed path that made them.
-import { obbBox } from './geom.js';
+import { obbBox, toWorld } from './geom.js';
 
 export function createWorld(spec) {
   const W = {
-    seed: spec.seed, chapter: spec.chapter || 'ch1', w: spec.w, h: spec.h,
-    streets: [], nodes: [], water: [], bridges: [], lots: [], placed: [], fences: [], areas: [],
+    seed: spec.seed, area: spec.area || 'suburb', chapter: spec.chapter || 'ch1', w: spec.w, h: spec.h, params: spec.params || {},
+    streets: [], nodes: [], water: [], bridges: [], lots: [], placed: [], fences: [], areas: [], rails: [], crossings: [], runs: [],
     camp: null, nav: null, log: [], uid: 0,
     place(reg, id, x, y, rot, extra) {
       const def = reg.get(id);
@@ -16,6 +16,9 @@ export function createWorld(spec) {
     note(stage, msg) { W.log.push({ stage, msg }); },
     byTag: tag => W.placed.filter(p => p.def.tags.includes(tag)),
     box: p => obbBox(p),
+    // every lot uses one frame: x along its street, +y away from it, front edge at local y = -h/2
+    lotFront: l => ({ a: toWorld(l, -l.w / 2, -l.h / 2), b: toWorld(l, l.w / 2, -l.h / 2) }),
+    doorAt: (x, y, r) => W.placed.some(p => p.door && Math.hypot(p.door.x - x, p.door.y - y) < r),
   };
   return W;
 }
@@ -27,5 +30,6 @@ export function worldHash(W) {
   W.streets.forEach(s => s.pts.forEach(p => { mix(p.x); mix(p.y); }));
   W.placed.forEach(p => { mix(p.x); mix(p.y); mix(p.rot); for (const c of p.id) mix(c.charCodeAt(0)); });
   W.fences.forEach(f => { mix(f.a.x); mix(f.a.y); mix(f.b.x); mix(f.b.y); });
+  W.rails.forEach(r => r.pts.forEach(p => { mix(p.x); mix(p.y); }));
   return (h >>> 0).toString(16).padStart(8, '0');
 }

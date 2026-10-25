@@ -7,7 +7,7 @@ import { createWorld, worldHash } from './world.js';
 export function buildWorld(reg, spec, maxTries = 5) {
   let last = null;
   for (let t = 0; t < maxTries; t++) {
-    const root = seedTree(spec.seed).child(spec.chapter || 'ch1').child(t ? `try:${t}` : 'main');
+    const root = seedTree(spec.seed).child(spec.area || 'suburb').child(t ? `try:${t}` : 'main');
     const W = createWorld(spec), times = [];
     for (const st of reg.stages()) { const t0 = now(); st.run(W, root.child(st.name), reg); times.push({ stage: st.name, ms: +(now() - t0).toFixed(1) }); }
     const results = reg.validators().map(v => ({ name: v.name, fatal: v.fatal, ...v.run(W, reg) }));

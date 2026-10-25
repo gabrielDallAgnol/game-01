@@ -1,13 +1,14 @@
 // Stage: terrain. Decides the land's character for this seed: where the woods want to be,
 // the open fields, and where the camp clearing sits. Everything later reads these masks.
+// A recipe tunes it with params.terrain: { north, west, south, east } edge bias for the woods.
 import { makeNoise, lerp } from '../geom.js';
 
 export const terrainStage = {
   name: 'terrain',
   run(W, seed) {
-    const rng = seed.rng(), n = makeNoise(rng), m = makeNoise(rng);
+    const rng = seed.rng(), n = makeNoise(rng), m = makeNoise(rng), E = { north: 0.18, west: 0.2, south: 0, east: 0, ...(W.params.terrain || {}) };
     W.terrain = {
-      woods: (x, y) => { const v = n(x / 70, y / 70) * 0.7 + n(x / 23 + 9, y / 23 + 9) * 0.3; const north = y < W.h * 0.16 ? 0.18 : 0, west = x < W.w * 0.22 && y < W.h * 0.62 ? 0.2 : 0; return v + north + west; },
+      woods: (x, y) => { const v = n(x / 70, y / 70) * 0.7 + n(x / 23 + 9, y / 23 + 9) * 0.3; const north = y < W.h * 0.16 ? E.north : 0, west = x < W.w * 0.22 && y < W.h * 0.62 ? E.west : 0, south = y > W.h * 0.84 ? E.south : 0, east = x > W.w * 0.8 ? E.east : 0; return v + north + west + south + east; },
       field: (x, y) => m(x / 60, y / 60),
     };
     W.campHint = { x: lerp(W.w * 0.09, W.w * 0.15, rng.float()), yAbove: lerp(26, 34, rng.float()) };

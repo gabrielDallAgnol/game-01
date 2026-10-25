@@ -12,6 +12,10 @@ export const STREET = { lane: 3.2, kerb: 1.8, local: 7, highway: 9, connector: 7
 export const LOT = { width: 18, depth: 24, setback: [4, 6], sideGap: 1.5 };
 export const GAP = { detached: 3, partyWall: 0, treeFromKerb: 0.6, lampEvery: 30, streetTreeEvery: [12, 18] };
 
+// Rails and terraces (m): standard gauge, the corridor kept clear, rowhouse depth and alleys
+export const RAIL = { gauge: 1.435, corridor: 4.6, clear: 3 };
+export const TERRACE = { depth: 9, alley: 3, front: 1.2, yard: 5 };
+
 // Pace targets (s) — the travel-time validator checks the world against these.
 export const PACE = { crossArea: [45, 90], placeFromHub: [20, 45], dayCycle: 960 };
 

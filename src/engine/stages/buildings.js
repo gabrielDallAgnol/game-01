@@ -9,7 +9,7 @@ const fits = (def, lot) => def.size[0] <= lot.w - 2 * LOT.sideGap && def.size[1]
 export const buildingsStage = {
   name: 'buildings',
   run(W, seed, reg) {
-    const once = new Set();
+    const once = new Set(), yardAtoms = reg.needing('yard'), yardExtras = yardAtoms.filter(d => d.kind !== 'tree'), yardTree = yardAtoms.find(d => d.kind === 'tree');
     W.lots.forEach(lot => {
       const ls = seed.child(lot.id), rng = ls.rng();
       if (lot.kind === 'park') return;
@@ -38,20 +38,15 @@ export const buildingsStage = {
         b.drive = { x: mid.x, y: mid.y, w: DW, h: len, rot: lot.rot };
         lot.drive = b.drive; lot.driveMouth = toWorld(lot, dx, -lot.h / 2);
       }
-      if (lot.kind === 'commercial' && def.roof !== 'canopy') { const pk = toWorld(lot, 0, -lot.h / 2 + (sb - 1) / 2); lot.parking = { x: pk.x, y: pk.y, w: lot.w - 2, h: sb - 2, rot: lot.rot }; }
+      if (lot.kind === 'commercial' && def.look !== 'canopy') { const pk = toWorld(lot, 0, -lot.h / 2 + (sb - 1) / 2); lot.parking = { x: pk.x, y: pk.y, w: lot.w - 2, h: sb - 2, rot: lot.rot }; }
       // backyard: one yard atom between the building's back and the lot's back
       if (lot.kind === 'residential') {
         const backY = ly + def.size[1] / 2, depth = lot.h / 2 - backY;
-        const roll = rng.float(), yard = roll < 0.18 ? 'pool.backyard.a' : roll < 0.36 ? 'shed.garden.a' : null;
-        if (yard) { const yd = reg.get(yard); if (yd.size[1] + 2 < depth) { const p = toWorld(lot, rng.range(-lot.w / 2 + yd.size[0], lot.w / 2 - yd.size[0]) * 0.8, backY + depth * 0.5); W.place(reg, yard, p.x, p.y, lot.rot, { lot: lot.id }); } }
-        if (rng.chance(0.72) && depth > 6) { const p = toWorld(lot, rng.range(-lot.w / 2 + 3, lot.w / 2 - 3), backY + depth * rng.range(0.55, 0.8)); W.place(reg, 'tree.yard.a', p.x, p.y, 0, { lot: lot.id, r: rng.range(2.8, 3.8), k: rng.float() }); }
+        const roll = rng.float(), yd = yardExtras[Math.floor(roll / 0.18)] || null;
+        if (yd) { const yard = yd.id; if (yd.size[1] + 2 < depth) { const p = toWorld(lot, rng.range(-lot.w / 2 + yd.size[0], lot.w / 2 - yd.size[0]) * 0.8, backY + depth * 0.5); W.place(reg, yard, p.x, p.y, lot.rot, { lot: lot.id }); } }
+        if (yardTree && rng.chance(0.72) && depth > 6) { const p = toWorld(lot, rng.range(-lot.w / 2 + 3, lot.w / 2 - 3), backY + depth * rng.range(0.55, 0.8)); W.place(reg, yardTree.id, p.x, p.y, 0, { lot: lot.id, r: rng.range(2.8, 3.8), k: rng.float() }); }
       }
     });
-    // the camp: the dead hauler, three tarps, the fire
-    const cp = W.camp, crng = seed.child('camp').rng();
-    W.place(reg, 'firepit.camp.a', cp.x, cp.y, 0);
-    W.place(reg, 'rig.hauler.a', cp.x + 5, cp.y + 9, -0.35);
-    [[-7, -4, 0.3], [7, -5, -0.2], [-2, 7, 0.1]].forEach(([dx, dy, r], i) => W.place(reg, 'tarp.camp.a', cp.x + dx, cp.y + dy, r + crng.range(-0.1, 0.1), { tone: i }));
     W.note('buildings', `${W.placed.filter(p => p.def.kind === 'building').length} buildings`);
   },
 };
