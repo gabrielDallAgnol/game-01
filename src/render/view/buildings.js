@@ -25,7 +25,9 @@ export function createBuildings(V) {
     // the model, its pad and its cheer folded into one vertex-coloured mesh: one draw per building
     const g0 = new THREE.Group(); g0.add(buildModel(type, level, v, links, spec));
     if (FOOT[type]) { g0.add(padFor(FOOT[type])); if (type !== 'wall') { const c = cheer(type, FOOT[type], 0, level); if (c) g0.add(c); } }
-    const m = K.flattenVC(g0); inkify(m);   // [look3] ink hull, built once per cached model
+    const m = K.flattenVC(g0);
+    if (V.topPop) V.topPop.own(m);   // [toppop] signal-blue roofs and a cream pad from above (null without ?top=1)
+    inkify(m);   // [look3] ink hull, built once per cached model
     modelCache.set(key, m); return m.clone();
   }
   const ruinCache = new Map();

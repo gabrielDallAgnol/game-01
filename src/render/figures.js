@@ -188,6 +188,7 @@ export function createCrowd(world) {
       }
     },
     warm(list) { for (const k of list) kindOf(k); },
+    mats: { body: bodyMat, eye: eyeMat },   // [toppop] the top-down view tints the dead (view/toppop.js)
   };
 }
 
