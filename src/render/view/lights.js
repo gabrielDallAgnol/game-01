@@ -34,6 +34,7 @@ export function createLights(V) {
       for (const p of S.projectiles) if (p.enemy) fx2.pools.light(p.x - C, p.y - C, 1.2, ROT, 0.7);
       for (const d of S.drops) fx2.pools.light(d.x - C, d.y - C, 2.4, REDL, 0.5);
       const h = S.hero; if (!h.dead) fx2.pools.light(h.x - C, h.y - C, 4.2, LANT, 0.55 * fl(0), 0.25);
+      if (V.atoms) V.atoms.lights(fx2.pools, lit, fl, camTarget);   // [area] the town's lamps and lit windows
       if (opts.lights) opts.lights(fx2.pools, k);   // [road] stations and convoys can add their fires here
       // [road] begin: lit station fires paint into the night light texture
       if (roadView) for (const l of roadView.lights()) fx2.pools.light(l.x - C, l.y - C, l.d * 0.7, AMBER, 1.6 * fl(l.x | 0));

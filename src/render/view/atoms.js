@@ -58,5 +58,16 @@ export function createAtoms(V) {
     pool.forEach((p, k) => { const o = near[k]; p.g.visible = !!o; if (!o) return; p.g.position.set(o.x - C, 0.09, o.y - C);
       const s = o.id === at ? Math.min(1, (S.search ? S.search.t : 0) / 1.4) : 0; p.f.scale.setScalar(Math.max(0.001, s)); p.f.visible = s > 0; p.g.scale.setScalar(1 + 0.08 * Math.sin(V.time * 4 + o.id)); });
   }
-  return { update: t => { update(t); if (homes.length) marks(); }, repaint: () => { cx = NaN; } };
+  // the town at night: every atom with a light chance is lit or dark by its own hash (lamps always, homes about half),
+  // and paints the night's light pools like the camp's fires do
+  const LAMP = new THREE.Color('#ffd9a0').convertSRGBToLinear(), WIN = new THREE.Color('#ffb868').convertSRGBToLinear(), FIRE = new THREE.Color('#ff7a3a').convertSRGBToLinear();
+  const hash = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+  const lamps = Wd.placed.filter(p => p.def.light && !p.def.tags.includes('camp') && hash(p.uid + Wd.seed * 31) < p.def.light).map(p => {
+    const x = p.x + A.ox - C, z = p.y + A.oy - C, look = p.def.look;
+    return look === 'lamp' ? { x, z, r: 5.5, c: LAMP, k: 0.9, core: 0.35 } : look === 'nest' ? { x, z, r: 14, c: FIRE, k: 1.6, core: 0.4 } : { x, z, r: 2.6 + Math.min(p.w, p.h) * 0.12, c: WIN, k: 0.42, core: 0.1, win: true, id: p.uid };
+  });
+  function lights(pools, lit, fl, cam) {
+    for (const l of lamps) { if (Math.abs(l.x - cam.x) > 60 || Math.abs(l.z - cam.z) > 60) continue; pools.light(l.x, l.z, l.r, l.c, l.k * (l.win ? lit * fl(l.id) : 1), l.core); }
+  }
+  return { update: t => { update(t); if (homes.length) marks(); }, lights, repaint: () => { cx = NaN; } };
 }
