@@ -4,12 +4,14 @@
 // the Ranger's Hawk and Rain, the Scavver's Crew, the Medic's Arise, the Druid's Wolf Form.
 // Numbers: `dmg` is a multiple of your own hit (heroDmg), `hp` of your max health; INT's ability power scales every
 // active's dmg and its cooldown cut every cd. kind: 'active' (a button) · 'passive' (always on).
+// v56 integration tune: every ability's cooldown ×1.4 (the bot fires them on cooldown; the sweep sat at the cap)
+export const ABILITY_CD_K = 1.4;
 export const ABILITIES = {
   // ---------- STR: Heavy Cleave → Shockwave → Unbreakable ----------
   cleave: { name: 'Heavy Cleave', stat: 'str', at: 10, kind: 'active', icon: 'fist', cd: 14,
     r: 3.2, dmg: 1.8, push: 1.6, stun: 0.6,
     rank2: { name: 'Shockwave Cleave', r: 4.4, dmg: 2.4, push: 2.8, stun: 1, cd: 12 },
-    how: 'A two-handed swing round you: every dead in reach is hit hard and thrown back.', how2: 'Rank 2: wider, harder, the dead fly further and lose their next bite.' },
+    how: 'A two-handed swing round you: every Ash-Born in reach is hit hard and thrown back.', how2: 'Rank 2: wider, harder, the Ash-Born fly further and lose their next bite.' },
   unbreak: { name: 'Unbreakable', stat: 'str', at: 30, kind: 'passive', icon: 'shield',
     below: 0.3, dur: 8, dmgK: 1.5, rate: 1.3, every: 60,
     how: 'Once a minute, when you drop under 30% health in a fight: 8 s nothing brings you down, and you hit 50% harder.' },
@@ -20,7 +22,7 @@ export const ABILITIES = {
     how: 'Flash to the toughest dead within 7 cells and strike it, and the ones beside it.', how2: 'Rank 2: reach 9, and you blink on through two more.' },
   smoke: { name: 'Smoke Step', stat: 'agi', at: 30, kind: 'passive', icon: 'smoke',
     dur: 4, r: 10, dmgK: 1.5,
-    how: 'After a Blink Strike you vanish for 4 s: the dead near you lose your scent, and your hits land 50% harder.' },
+    how: 'After a Blink Strike you vanish for 4 s: the Ash-Born near you lose your scent, and your hits land 50% harder.' },
   // ---------- INT: Aether Burst → Aether Rain → Spirit Hawk ----------
   burst: { name: 'Aether Burst', stat: 'int', at: 10, kind: 'active', icon: 'flame', cd: 14,
     reach: 9, r: 2.6, dmg: 2.2, waves: 1,

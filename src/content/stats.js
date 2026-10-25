@@ -16,17 +16,21 @@ export const HYBRID_AT = 15;              // two stats at 15 or more each unlock
 export const STATS = {
   str: { name: 'STR', long: 'Strength', color: '#ff8a5c', icon: 'fist',
     per: { dmg: 0.006, hp: 0.3, hive: 0.02 },
-    lines: p => [`+${(p * 0.6).toFixed(0)}% damage`, `+${Math.round(p * 0.3)} health`, `+${Math.round(p * 2)}% damage to hives`] },
+    lines: p => [`+${(p * 0.36).toFixed(0)}% damage`, `+${Math.round(p * 0.18)} health`, `+${Math.round(p * 1.2)}% damage to hives`] },
   agi: { name: 'AGI', long: 'Agility', color: '#7dff9e', icon: 'run',
     per: { speed: 0.006, rate: 0.005, dodge: 0.002 }, dodgeMax: 0.2,
-    lines: p => [`+${(p * 0.6).toFixed(0)}% move speed`, `+${(p * 0.5).toFixed(0)}% attack speed`, `${Math.round(Math.min(0.2, p * 0.002) * 100)}% dodge`] },
+    lines: p => [`+${(p * 0.36).toFixed(0)}% move speed`, `+${(p * 0.3).toFixed(0)}% attack speed`, `${Math.round(Math.min(0.2, p * 0.0012) * 100)}% dodge`] },
   int: { name: 'INT', long: 'Intellect', color: '#7fc8ff', icon: 'skill',
     per: { power: 0.03, cd: 0.01, tower: 0.003 }, cdMax: 0.35,
-    lines: p => [`+${Math.round(p * 3)}% ability power`, `-${Math.round(Math.min(0.35, p * 0.01) * 100)}% cooldowns`, `+${(p * 0.3).toFixed(0)}% fire rate, towers near you`] },
+    lines: p => [`+${Math.round(p * 1.8)}% ability power`, `-${Math.round(Math.min(0.35, p * 0.006) * 100)}% cooldowns`, `+${(p * 0.18).toFixed(0)}% fire rate, towers near you`] },
   gov: { name: 'GOV', long: 'Governance', color: '#ffd36a', icon: 'flag',
     per: { income: 0.012, build: 0.02, ally: 0.02 },
-    lines: p => [`+${(p * 1.2).toFixed(0)}% scrap income`, `+${Math.round(p * 2)}% build speed`, `+${Math.round(p * 2)}% ally and crew strength`] },
+    lines: p => [`+${(p * 0.72).toFixed(0)}% scrap income`, `+${Math.round(p * 1.2)}% build speed`, `+${Math.round(p * 1.2)}% ally and crew strength`] },
 };
+// v56 integration tune (Oct 25, after merging econ3/nest3/rig3/gemini3): the stat values a point gives, scaled as one
+// (the sweep sat at the 16-night cap); the % lines above read the unscaled numbers, so scale them in the UI too
+export const STAT_TUNE = { per: 0.6 };
+for (const k in STATS) for (const q in STATS[k].per) STATS[k].per[q] *= STAT_TUNE.per;
 
 // the bots' and the autopilot's spread: each point goes to the stat furthest below its share (a fighter who leads)
 export const AUTO_SPREAD = { str: 0.4, agi: 0.3, int: 0.15, gov: 0.15 };

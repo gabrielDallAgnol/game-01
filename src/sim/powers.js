@@ -4,7 +4,7 @@
 // the multipliers sim/stats.js folds into its hooks (powDmg, powRate, powSpeed, powHurt, powHit, powWard, powTower).
 // Ported from this week's class signatures (fix-classes2: Shockwave, Berserk, Smoke Step, Hawk, Rain, Crew, Arise, the
 // Druid's wolf). State: S.pow. Every hit goes in as the hero's ('hero': it pays xp and Marks for the towers).
-import { ABILITIES } from '../content/abilities.js';
+import { ABILITIES, ABILITY_CD_K } from '../content/abilities.js';
 import { MOBS } from '../content/mobs.js';
 import { BIG } from './state.js';
 import { idx, inside } from './mapgen.js';
@@ -94,7 +94,7 @@ export function createPowers(G) {
     if (S.over || S.hero.dead) return false;
     const p = P(); if ((p.cd[id] || 0) > 0) return fail(`${D(id).name} is ready in ${Math.ceil(p.cd[id])} s.`);
     if (!ACT[id]()) return false;
-    p.cd[id] = D(id).cd * G.cdCut() * (S.P.abilityCd || 1); ev('powUse', { id }); return true;
+    p.cd[id] = D(id).cd * ABILITY_CD_K * G.cdCut() * (S.P.abilityCd || 1); ev('powUse', { id }); return true;
   }
 
   // ---------- allies: the crew and the risen walk in S.allies (hero.js stepAllies moves them) ----------
@@ -196,7 +196,7 @@ export function createPowers(G) {
   /** what the ability bar shows: the actives you hold, their cooldowns and live states */
   function powersInfo() {
     const p = P();
-    return { actives: Object.keys(ACT).filter(id => has(id)).map(id => { const d = D(id); return { id, name: d.name, icon: d.icon, cd: p.cd[id] || 0, cdMax: d.cd * G.cdCut() * (S.P.abilityCd || 1) }; }),
+    return { actives: Object.keys(ACT).filter(id => has(id)).map(id => { const d = D(id); return { id, name: d.name, icon: d.icon, cd: p.cd[id] || 0, cdMax: d.cd * ABILITY_CD_K * G.cdCut() * (S.P.abilityCd || 1) }; }),
       wild: p.wildT, unbreak: p.unbreakT, smoke: p.smokeT, rally: p.rally ? p.rally.left : 0, mark: p.hawk && p.hawk.markT > 0 ? p.hawk.tgt : -1 };
   }
   const powSave = () => ({ crew: S.allies.filter(a => a.crew).length });
