@@ -17,12 +17,10 @@ export function createV2CoreUi(ui) {
     document.body.classList.toggle('v2', on);
   }
   sync();
-  const rigTick0 = ui.rigTick, infTick0 = ui.infernoTick, rigPanel0 = ui.rigPanelHtml, econRow0 = ui.econRow;
+  const infTick0 = ui.infernoTick, econRow0 = ui.econRow;
   return {
     v2coreTick: () => sync(),
-    rigTick: (dt, events) => (v2() ? undefined : rigTick0 && rigTick0(dt, events)),
     infernoTick: dt => (v2() ? undefined : infTick0 && infTick0(dt)),
-    rigPanelHtml: () => (v2() ? '' : rigPanel0 ? rigPanel0() : ''),
     econRow: () => (v2() ? '' : econRow0 ? econRow0() : ''),
   };
 }

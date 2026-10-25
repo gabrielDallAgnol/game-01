@@ -38,7 +38,6 @@ export function createCamera(V) {
       prevHx = h.x; prevHy = h.y;
       if (fm) { focus.t -= dt; camGoal.copy(Wv(fm.x, fm.y)); }
       else if (!h.dead) camGoal.copy(Wv(h.x, h.y)).add(lead);
-      if (V.rigCam) camGoal.copy(V.rigCam);   // [rig3] the camera rides with the Haven Rig while it drives
       // [cinema] begin: the look-at shot eases the camera to a place and back on a fixed curve, no spring
       const cine = V.cinema, cb = cine ? cine.blend() : 0;
       if (cine && cine.active()) {

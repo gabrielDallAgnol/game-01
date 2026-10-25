@@ -76,13 +76,9 @@ export function createStart(ui) {
     const list = LEGACY.filter(u => FLAGS.legacyAll || LEGACY_KEEP.includes(u.id));
     return `<h2 style="font:600 12px var(--mono);letter-spacing:.12em;text-transform:uppercase;margin:18px 0 0">Legacy · ${L.fame} fame</h2><div class="legacy">${list.map(u => { const n = L.owned[u.id] || 0; return `<button class="opt" data-legacy="${u.id}" ${n >= u.max || L.fame < u.cost ? 'disabled' : ''}><span class="nm">${u.name} ${n ? `${n}/${u.max}` : ''}<span class="cost">${n >= u.max ? 'max' : `${u.cost} fame`}</span></span><span class="ds">${u.desc.replace(/town hall/i, 'Haven')}</span></button>`; }).join('')}</div>`;
   }
-  function begin(mapSeed, biome, snap = null, made = null) {
+  function begin(mapSeed, biome, snap = null) {
     $('#overlay').classList.remove('start');
-    // [rig3] begin: the next act's game, made by sim/migrate.js: a fresh view for its map (the old one is let go)
-    if (made && ui.view) { try { ui.view.dispose(); } catch (err) { console.error(err); } ui.view = null; }
-    if (made) mapSeed = made.map.seed;
-    // [rig3] end
-    ui.game = made ? made : snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {}, area: snap.area || null, v2combat: COMBAT2.on, v2: !!snap.v2 })
+    ui.game = snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {}, area: snap.area || null, v2combat: COMBAT2.on, v2: !!snap.v2 })
       : createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty, legacy: store.get('legacy', { owned: {} }).owned, area: AREA.id, v2combat: COMBAT2.on, v2: V2.on });   // [combat2] v2combat   // [v2] v2
     ui.names = regionNames(mapSeed, ui.game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
@@ -91,8 +87,7 @@ export function createStart(ui) {
     window.__ui = { strip, callouts, ctoast, showStatus: ui.showStatus, showMore: ui.showMore, showMap: ui.showMap, cards: () => ui.card, toast: ui.toast };
     $('#hud').hidden = false; ui.hideCard(); ui.paused = false; ui.selected = null; ui.placing = null; ui.closePanel();
     $('#ability').hidden = true;
-    if (made) { /* [rig3] the Rig's arrival speaks for itself */ }
-    else if (snap) { previouslyOn(); }
+    if (snap) { previouslyOn(); }
     else setTimeout(() => subtitle(SYSTEM.dayOne), 2700);
     holdCards(0.3);
   }
@@ -106,5 +101,5 @@ export function createStart(ui) {
     const ST = ui.game.state.story, lines = ST.chronicle.filter(c => c.imp >= 3).slice(-3).map(c => `Day ${c.day}: ${c.text}`);
     ui.showInfo({ eyebrow: '[Previously on Hollowmere]', title: `${ui.game.map.name} · day ${ui.game.state.night}`, lines: lines.length ? lines : ['You held the Haven. The Ash-Born did not wait for you.'] });
   }
-  return { showStart, beginRun: begin };   // [rig3] beginRun: the act change swaps the game in
+  return { showStart };
 }

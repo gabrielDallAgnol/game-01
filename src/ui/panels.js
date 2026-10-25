@@ -30,12 +30,12 @@ export function createPanels(ui) {
     const S = ui.game.state, body = $('#pBody'), day = !S.over;
     if (ui.selected.type === 'keep') {
       const k = S.keep, l = k.level;
-      $('#pEyebrow').textContent = 'Your home'; $('#pTitle').textContent = ui.rigPanelHtml && ui.rigPanelHtml() ? `The Haven Rig · level ${l}` : `The Haven · level ${l}`;   // [rig3]
+      $('#pEyebrow').textContent = 'Your home'; $('#pTitle').textContent = `The Haven · level ${l}`;
       let html = `<div class="stat"><span>Health <b>${Math.ceil(k.hp)} / ${k.maxHp}</b></span><span>${campCopy(KEEP.desc[l - 1])}</span>${ui.strongLine ? ui.strongLine() : ''}</div><div class="opts two">`;   // [gemini3] small and strong
       const miss = l < 3 ? ui.game.keepNeeds() : [];
       html += l < 3 ? opt('opt-keep', 'data-keep="1"', 'Raise the Haven', KEEP.cost[l], miss.length ? `Still needed: ${miss.join(' · ')}` : `${campCopy(KEEP.desc[l])} · buildings up to level ${l + 1}`, miss.length > 0 || S.gold < KEEP.cost[l] || !day) : '';
       if (FLAGS.trader && S.trade && !S.trade.done && day) html += opt('opt-trader', 'data-trader="1"', 'Visit the trader', null, 'One deal before nightfall.', false);
-      body.innerHTML = html + '</div>' + (l >= 3 ? '<p class="note">The Haven stands at its full height.</p>' : '') + (ui.rigPanelHtml ? ui.rigPanelHtml() : '');   // [rig3] the Rig's systems and Pack up & roll
+      body.innerHTML = html + '</div>' + (l >= 3 ? '<p class="note">The Haven stands at its full height.</p>' : '');
       ui.selected.range = KEEP.range[l - 1] + S.P.towerRange;
       return;
     }
@@ -122,7 +122,6 @@ export function createPanels(ui) {
     if (btn.dataset.clear && ui.treesClick && ui.game.rubbleAt(ui.selected.x, ui.selected.y).trees) { if (ui.treesClick(ui.selected.x, ui.selected.y)) { closePanel(); ui.updateHud(); } return; }   // [gemini3]
     if (btn.dataset.clear) { const n = ui.game.clearRubble(ui.selected.x, ui.selected.y); if (n) { ui.toast(`${n} ${n === 1 ? 'cell' : 'cells'} cleared.`); closePanel(); ui.updateHud(); return; } }
     if (btn.dataset.rebuild) { if (ui.game.rebuild(ui.selected.id)) { audio.play('build'); ui.toast(`${BUILDINGS[ui.game.state.byId.get(ui.selected.id).type].name} rebuilt.`, 'good'); renderPanel(); ui.updateHud(); } return; }
-    if (btn.dataset.roll && ui.rigAsk) { ui.rigAsk(); return; }   // [rig3]
     if (btn.dataset.keep && ui.game.upgradeKeep()) ui.toast('The Haven rises higher.');
     if (btn.dataset.trader && FLAGS.trader) { closePanel(); ui.paused = true; showTrader(); return; }
     if (btn.dataset.up && ui.game.upgrade(ui.selected.id)) ui.toast('Upgraded.');

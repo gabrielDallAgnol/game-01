@@ -12,8 +12,8 @@ export function createCombat(G) {
     toast
   } = G;
   const towerMult = () => (1 + S.P.towerDmg + (G.sc && !CUT.crew ? G.sc.towerBonus() : 0) + (owns('police') ? 0.15 : 0) + (G.story ? G.story.bonus.towers() : 0)) * (mastery('deadeye') ? 1.4 : 1);
-  const keepMult = () => (1 + S.P.keepDmg) * (mastery('deadeye') ? 1.4 : 1) * (G.rigK ? G.rigK('dmg') : 1);   // [rig3] the Rig's guns
-  const keepShots = l => KEEP.shots[l] + (G.rigK ? G.rigK('shots') : 0);   // [rig3] a second gun
+  const keepMult = () => (1 + S.P.keepDmg) * (mastery('deadeye') ? 1.4 : 1);
+  const keepShots = l => KEEP.shots[l];
   function towerStats(b) {
     const B = BUILDINGS.tower, l = b.level - 1;
     const h = S.hero, hd = h.dead ? Infinity : Math.hypot(h.x - b.x, h.y - b.y);

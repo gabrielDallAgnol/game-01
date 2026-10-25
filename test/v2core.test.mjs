@@ -52,7 +52,6 @@ test('v2: three nights with none of the old systems', () => {
   assert.deepEqual(S.picks, []); assert.deepEqual(S.offer, []);
   assert.equal(S.attr.pts, 0, 'no stat points'); assert.equal(g.statsOn(), false);
   assert.ok(!g.road, 'no road');
-  assert.equal(g.rigInfo().on, false, 'no Haven Rig'); assert.ok(g.rigBlock(), 'the Rig never rolls');
   assert.ok(g.forecast().every(f => S.hordes && S.hordes.spots.some(h => -1 - h.edge === f.nest)), 'the only forecast is a marching horde (the V2 night)');
   assert.equal(g.useAbility(), false, 'no class ability');
   const nest = g.map.regions.find(reg => reg.nest && S.nestAlive[reg.id]);

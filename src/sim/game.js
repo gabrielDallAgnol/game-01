@@ -52,9 +52,6 @@ import { createWoods } from './woods.js';
 import { createTowers } from './towers.js';
 // [income] scrap and food by the second
 import { createIncome } from './income.js';
-// [rig3] the Haven Rig (the keep that moves) and an act's map theme
-import { createRig } from './rig.js';
-import { themeMap } from './legmap.js';
 // [gemini3] begin: ported from Gemini's fork (logging)
 import { createLogging } from './logging.js';
 import { createStronghold } from './stronghold.js';
@@ -79,7 +76,7 @@ import { createHordes } from './hordes.js';
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno, createRig];   // [nest3] appended   // [pacify] appended
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno];   // [nest3] appended   // [pacify] appended
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
 MODULES.push(createConstruct, createHaul, createRelics);   // [econ3] appended
 MODULES.push(createStats, createPowers);   // [hero3] appended
@@ -88,10 +85,9 @@ MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the 
 MODULES.push(createV2Core);   // [v2] appended: the V2 core switches the old systems off (does nothing without v2)
 MODULES.push(createHordes);   // [v2] appended: hordes, the V2 night (does nothing without v2)
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null, area = 'suburb', v2combat = true, v2 = true } = {}) {   // [area] area: an engine recipe id   // [combat2] v2combat: the flag   // [v2] v2: the V2 core
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, area = 'suburb', v2combat = true, v2 = true } = {}) {   // [area] area: an engine recipe id   // [combat2] v2combat: the flag   // [v2] v2: the V2 core
   if (hero === 'steward') hero = 'merchant';
-  const map = premap && premap.seed === (mapSeed ?? seed) && premap.biome === biome && (premap.area ? premap.area.id : null) === area ? premap : generateMap(mapSeed ?? seed, biome, area ? { area } : {});   // [rig3] premap: a fresh map migrate.js already made
-  if (map !== premap) themeMap(map, leg ?? (restore && restore.rig && restore.rig.leg) ?? 1);   // [rig3] the act's ground and props
+  const map = generateMap(mapSeed ?? seed, biome, area ? { area } : {});
   const HC = heroKit(hero), DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
   const c = map.town.x;
   const S = createState({ seed, biome, map, hero, mode, clock, difficulty, legacy, HC });
@@ -164,7 +160,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // [acts] begin
   if (restore) G.actRestore();
   // [acts] end
-  if (carry) G.rigArrive(carry);   // [rig3] the next act: what rode along on the Haven Rig
   return G.api;
 
   // ---------- simulation step ----------
@@ -230,7 +225,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [income] begin: scrap and food trickle in by the second (sim/income.js)
     G.stepIncome(dt);
     // [income] end
-    G.stepRig(dt);   // [rig3] the Haven Rig's systems, the road-open beat, unpacking
     G.stepSearch(dt);   // [area] houses to search (only in an engine-built area)
     if (G.stepHordes) G.stepHordes(dt);   // [v2] hordes wake, break, sleep
     // [econ3] begin: the construction queue and the harvester carts (sim/construct.js, sim/haul.js)

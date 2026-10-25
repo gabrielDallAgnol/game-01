@@ -44,9 +44,6 @@ import { createCinema } from './view/cinema.js';
 import { createGltf } from './view/gltf.js';
 // [folk] the village the folk raise by themselves
 import { createVillage } from './view/village.js';
-// [rig3] the Haven Rig in motion, an act's look
-import { createHaven } from './view/haven.js';
-import { createLegs } from './view/legs.js';
 // [econ3] nodes, carts, scaffolds on the queue
 import { createHaul } from './view/haul.js';
 // [top] begin
@@ -115,8 +112,6 @@ export function createView(canvas, game, opts = {}) {
   const rest = createRest(V);   // [nests] the "+ resting" tag at the Camp
   const village = V.village = createVillage(V);   // [folk] the folk's props and scaffold
   const birds = V.birds = createBirds(V);   // [woods] birds flushed from the trees
-  const haven = V.haven = createHaven(V);   // [rig3] the Rig folds, drives and unfolds
-  const legs = V.legs = createLegs(V);   // [rig3] the act's ground colours and props
   const haul = V.haul = createHaul(V);   // [econ3] nodes, carts, scaffolds on the queue
   const hero3fx = createHero3Fx(V);   // [hero3] the stat abilities' feedback
   const topFlat = createTopFlat(V);   // [top] the flat look's light (null without ?top=1)
@@ -158,7 +153,6 @@ export function createView(canvas, game, opts = {}) {
     loot.bobChests(dt);
     buildings.update(dt);
     keep.update();
-    haven.update(dt);   // [rig3]
     markers.updateMain();
     hives.update(dt);
     inferno.update(dt, ui.events);   // [nest3]
@@ -190,8 +184,7 @@ export function createView(canvas, game, opts = {}) {
     scene, camera, info: () => new Promise(res => { const I = renderer.info; I.autoReset = false; requestAnimationFrame(() => { I.reset(); requestAnimationFrame(() => { const o = { calls: I.render.calls, tris: I.render.triangles, geos: I.memory.geometries }; I.autoReset = true; res(o); }); }); }),   // one whole frame (all passes)
     setZoom: cam.setZoom, getZoom: cam.getZoom,
     lookAt: (x, y, o) => { V.focus = null; cinema.look(x, y, o); }, skipLook: cinema.skip, looking: cinema.active,   // [cinema]
-    rig: { phase: () => haven.phase(), done: () => haven.done(), busy: () => haven.busy(), skip: () => haven.skip() },   // [rig3]
-    // [rig3] let this view go (the act change makes a new one on the same canvas): free what it put on the GPU
+    // let this view go: free what it put on the GPU
     dispose: () => { scene.traverse(o => { if (o.geometry) o.geometry.dispose(); }); world.clear(); fx.clear(); scene.clear(); renderer.renderLists.dispose(); renderer.dispose(); },
     setQuality: q => { look.setQuality(q); resize(); }, quality: () => look.quality(),
   };
