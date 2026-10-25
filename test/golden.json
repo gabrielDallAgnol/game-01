@@ -59,9 +59,7 @@
  "E dawn night=3 phase=day over=false gold=26 food=5 kills=21 mobs=31 bld=0 ev=259:70c467d12174a2a3 state=c3fe2e299dca8e30 probe=c901cc13def0dcda",
  "E dawn night=4 phase=day over=false gold=36 food=2 kills=42 mobs=33 bld=0 ev=551:752ecb4c4e8a14ed state=10cc48ce1dcb616c probe=9cac5b7feaf013a6",
  "E dawn night=5 phase=day over=false gold=50 food=0 kills=72 mobs=35 bld=0 ev=918:b2325b393e2056e0 state=bd76b16548cc4fa0 probe=b457d4ed8405e37c",
- "E dawn night=6 phase=day over=false gold=68 food=0 kills=113 mobs=35 bld=0 ev=1538:ac4614254f9e83fb state=ef3f5b18a841e746 probe=4fceea732d5608fd",
- "E dawn night=7 phase=day over=false gold=84 food=0 kills=153 mobs=35 bld=0 ev=1990:3014fd59c41a7aaa state=3c66a501329121a0 probe=00b30d9723e9270d",
- "E fell night=7 phase=over over=true gold=86 food=0 kills=184 mobs=58 bld=0 ev=2540:8cdfa93b00f45444 state=2cbc2172bf58b646 probe=db944a1c8cf04eab",
- "E end night=7 phase=over over=true gold=86 food=0 kills=184 mobs=58 bld=0 ev=2540:8cdfa93b00f45444 state=6a7743de54be8582 probe=db944a1c8cf04eab",
- "E log 2f804df7d8b0163d stats 03588d64eec8b5f3"
+ "E fell night=5 phase=over over=true gold=55 food=0 kills=103 mobs=46 bld=0 ev=1617:a23c314b8ff2cfb8 state=c0522851e948618d probe=7cd6a565f8dd7fae",
+ "E end night=5 phase=over over=true gold=55 food=0 kills=103 mobs=46 bld=0 ev=1617:a23c314b8ff2cfb8 state=dce08faab994a1a3 probe=7cd6a565f8dd7fae",
+ "E log ad212f00e6dfab65 stats 8f3fed3a3d53ff49"
 ]
