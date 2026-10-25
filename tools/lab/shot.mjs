@@ -13,7 +13,7 @@ const snap = async (name, fn) => { await page.evaluate(fn); await page.waitForTi
 await snap('map', () => __lab.setMap(true));
 const sites = await page.evaluate(() => Object.entries(__lab.st.res.W.sites || {}).filter(([, p]) => p && p.x != null).map(([k, p]) => [k, p.x, p.y]));
 await page.evaluate(() => __lab.setMap(false));
-await snap('camp', () => { const W = __lab.st.res.W; __lab.teleport(W.camp.x, W.camp.y + 6); __lab.setView(90); });
-for (const [k, x, y] of sites) if (process.env.SITES !== '0') await snap(k, `__lab.teleport(${x}, ${y + 14}); __lab.setView(90)`);
+await snap('camp', () => { const W = __lab.st.res.W; __lab.teleport(W.camp.x, W.camp.y + 6); __lab.st.viewM = 160; });
+for (const [k, x, y] of sites) if (process.env.SITES !== '0') await snap(k, `__lab.teleport(${x}, ${y + 14}); __lab.st.viewM = 160`);
 console.log(JSON.stringify(await page.evaluate(() => __lab.info().results.map(r => `${r.ok ? 'ok' : r.fatal ? 'FATAL' : 'warn'} ${r.name}: ${r.msg}`)), null, 1));
 await b.close();

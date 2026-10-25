@@ -46,7 +46,7 @@ export const fencesSkipFronts = {
 
 export const crossTime = {
   name: 'area crossing time', fatal: false,
-  run(W) { const s = W.w / SPEED.walk; const [a, b] = PACE.crossArea; return { ok: s >= a && s <= b, msg: `${W.w} m at walking pace = ${s.toFixed(0)} s (target ${a}–${b} s)`, count: 0 }; },
+  run(W) { const s = W.w / SPEED.walk; const [a, b] = W.params.pace || PACE.crossArea; /* a recipe may set its own (the town: 2–3 min) */ return { ok: s >= a && s <= b, msg: `${W.w} m at walking pace = ${s.toFixed(0)} s (target ${a}–${b} s)`, count: 0 }; },
 };
 
 // nothing solid sits on a railway; streets may only cross it at a level crossing

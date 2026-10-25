@@ -66,16 +66,19 @@ const OVER = {
     d.globalAlpha = 1; d.strokeStyle = P(R[0]); d.lineWidth = 0.22; d.strokeRect(-hw, -hw, p.w, p.w); d.beginPath(); d.moveTo(-hw, -hw); d.lineTo(hw, hw); d.moveTo(hw, -hw); d.lineTo(-hw, hw); d.stroke();
     d.lineWidth = 0.16; d.strokeRect(-hw * 0.55, -hw * 0.55, p.w * 0.55, p.w * 0.55);
     d.beginPath(); d.arc(0, 0, 0.6, 0, Math.PI * 2); d.fillStyle = P(R[1]); d.fill(); d.restore(); },
-  // a building the Ash-Born have taken: its roof under lumps of ash-flesh, ember veins and glowing sores spilling past the walls
+  // a building the Ash-Born have taken: dark ash-flesh heaped round a few hearts and spilling past the walls, ember
+  // cracks running out from each heart, glowing sores, a low glow; the sawtooth roof still shows between the heaps
   infested(d, p, P) { const R = p.def.roles, k = p.k || 0.37, fr = i => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
     d.save(); d.translate(p.x, p.y); d.rotate(p.rot); d.beginPath(); d.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, 0.3); d.fillStyle = P(R[0]); d.fill();
-    d.fillStyle = P(R[1]); for (let x = -p.w / 2 + 2; x < p.w / 2 - 2; x += 4.5) d.fillRect(x, -p.h / 2 + 0.6, 1.4, p.h - 1.2);
-    const n = Math.round(p.w * p.h / 40), L = []; d.fillStyle = P(R[1]);
-    for (let i = 0; i < n; i++) { const x = (fr(i) - 0.5) * p.w * 1.08, y = (fr(i + 97) - 0.5) * p.h * 1.12, r = 1 + fr(i + 191) * 2.8; L.push({ x, y, r }); d.beginPath(); d.arc(x, y, r, 0, Math.PI * 2); d.fill(); }
-    d.fillStyle = 'rgba(20,10,10,0.35)'; L.forEach(l => { d.beginPath(); d.arc(l.x + 0.3, l.y + 0.3, l.r * 0.6, 0, Math.PI * 2); d.fill(); });
-    d.strokeStyle = P(R[3] || R[2]); d.lineWidth = 0.3; d.lineCap = 'round'; d.globalAlpha = 0.85;
-    for (let i = 0; i < L.length - 1; i += 2) { const a = L[i], b = L[i + 1]; d.beginPath(); d.moveTo(a.x, a.y); d.quadraticCurveTo((a.x + b.x) / 2 + (fr(i + 7) - 0.5) * 4, (a.y + b.y) / 2 + (fr(i + 11) - 0.5) * 4, b.x, b.y); d.stroke(); }
-    d.globalAlpha = 1; d.fillStyle = P(R[2]); L.forEach((l, i) => { if (i % 3) return; d.beginPath(); d.arc(l.x, l.y, 0.45 + fr(i + 3) * 0.4, 0, Math.PI * 2); d.fill(); });
+    d.fillStyle = P(R[1]); for (let x = -p.w / 2 + 1.5; x < p.w / 2 - 1; x += 4) d.fillRect(x, -p.h / 2 + 0.5, 1.3, p.h - 1);
+    const hearts = Array.from({ length: 2 + Math.floor(p.w / 22) }, (_, i) => ({ x: (fr(i + 1) - 0.5) * p.w * 0.8, y: (fr(i + 31) - 0.5) * p.h * 0.6, r: Math.min(p.w, p.h) * (0.35 + fr(i + 61) * 0.25) }));
+    hearts.forEach((h, i) => { const g = d.createRadialGradient(h.x, h.y, 0, h.x, h.y, h.r * 1.8); g.addColorStop(0, P(R[2])); g.addColorStop(1, 'rgba(0,0,0,0)'); d.globalAlpha = 0.35; d.fillStyle = g; d.fillRect(h.x - h.r * 2, h.y - h.r * 2, h.r * 4, h.r * 4); d.globalAlpha = 1; });
+    d.fillStyle = 'rgba(34,24,28,0.92)';
+    hearts.forEach((h, i) => { for (let j = 0; j < 9; j++) { const a = fr(i * 17 + j) * Math.PI * 2, rr = h.r * Math.sqrt(fr(i * 23 + j + 5)), x = h.x + Math.cos(a) * rr, y = h.y + Math.sin(a) * rr * 0.8; d.beginPath(); d.arc(x, y, h.r * (0.22 + fr(i * 29 + j) * 0.3), 0, Math.PI * 2); d.fill(); } });
+    d.strokeStyle = P(R[3] || R[2]); d.lineCap = 'round';
+    hearts.forEach((h, i) => { for (let j = 0; j < 7; j++) { const a = j / 7 * Math.PI * 2 + fr(i * 7 + j) * 0.8, L = h.r * (0.8 + fr(i * 13 + j) * 0.9); d.lineWidth = 0.35; d.beginPath(); d.moveTo(h.x, h.y);
+      const mx = h.x + Math.cos(a + 0.3) * L * 0.5, my = h.y + Math.sin(a + 0.3) * L * 0.5; d.quadraticCurveTo(mx, my, h.x + Math.cos(a) * L, h.y + Math.sin(a) * L); d.stroke(); d.lineWidth = 0.18; d.beginPath(); d.moveTo(mx, my); d.lineTo(mx + Math.cos(a - 0.9) * L * 0.3, my + Math.sin(a - 0.9) * L * 0.3); d.stroke(); } });
+    d.fillStyle = P(R[2]); hearts.forEach((h, i) => { for (let j = 0; j < 5; j++) { const a = fr(i * 41 + j) * Math.PI * 2, rr = h.r * 0.6 * fr(i * 43 + j); d.beginPath(); d.arc(h.x + Math.cos(a) * rr, h.y + Math.sin(a) * rr, 0.35 + fr(i * 47 + j) * 0.45, 0, Math.PI * 2); d.fill(); } });
     label(d, p, P); d.restore(); },
   deadtree(d, p, P) { const r = p.r || p.def.size[0] / 2, k = p.k || 0, R = p.def.roles, n = 5 + Math.floor(k * 3); d.strokeStyle = P(R[0]); d.lineCap = 'round';
     for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + k * 5, l = r * (0.7 + 0.3 * Math.sin(i * 3.1 + k * 7)), mx = p.x + Math.cos(a) * l * 0.55, my = p.y + Math.sin(a) * l * 0.55; d.lineWidth = 0.32; line(d, [p, { x: mx, y: my }, { x: p.x + Math.cos(a) * l, y: p.y + Math.sin(a) * l }]); d.stroke(); d.lineWidth = 0.18; line(d, [{ x: mx, y: my }, { x: mx + Math.cos(a + 0.8) * l * 0.35, y: my + Math.sin(a + 0.8) * l * 0.35 }]); d.stroke(); }

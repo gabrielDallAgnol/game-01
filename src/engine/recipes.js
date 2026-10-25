@@ -54,7 +54,7 @@ export const RECIPES = {
   hollowmere: { name: 'hollowmere', blurb: 'Hollowmere: a round old town in its wall ring, the church square, the main street from the south gate, the station and the sugar works north, suburbs round it, the masts south-west', palette: 'ch1', size: { w: 600, h: 500 },
     atoms: [...shared, ...CH1_ATOMS.filter(a => ['house', 'yard', 'street-tree'].some(t => a.tags.includes(t))), ...MILL_ATOMS.filter(a => ['railcar', 'wall', 'ruin', 'forest-dead'].some(t => a.tags.includes(t))), ...HOLLOWMERE_ATOMS],
     stages: [terrainStage, townPlanStage, districtsStage, landmarksStage, suburbsStage, buildingsStage, terracesStage, courtyardsStage, campStage, propsStage, avenuesStage, forestStage, zonesStage, navStage],
-    params: { terrain: { north: 0.12, west: 0.08, south: 0.06, east: 0.06 }, terrace: { yard: 1, front: 0.6, runMin: 7, runSpan: 9, alleyExtra: 0.5, ruin: 0.03, swap: 0.3 }, props: { streetTrees: 0.3, kerbCars: 0.4 } },
+    params: { terrain: { north: 0.12, west: 0.08, south: 0.06, east: 0.06 }, terrace: { yard: 1, front: 0.6, runMin: 7, runSpan: 9, alleyExtra: 0.5, ruin: 0.03, swap: 0.3 }, props: { streetTrees: 0.3, kerbCars: 0.4 }, pace: [120, 180] },
     game: {} },   // the camp is the church square in the lab and in the game
 };
 

@@ -54,7 +54,7 @@ export const landmarksStage = {
       [...rr, ...role('road').filter(s => T.zoneAt(...Object.values(at(mid(s).x, mid(s).y))) === 'industry')].forEach(s => [1, -1].forEach(sd => cutLots(W, C, s, sd, { kind: 'industrial', width: [36, 42], depth: 30, gap: 4, rng: seed.child(`ind:${s.id}:${sd}`).rng(), allow: inWorks }))); }
     // the water tower by the north-west gate, just outside the promenade
     { const def = need('site.lookout'); let ok = false;
-      if (def) for (let i = 0; i < 6 && !ok; i++) for (let j = -2; j <= 2 && !ok; j++) { const q = T.ell(T.A.NW - 0.2 + j * 0.05, 1.22 + i * 0.04), box = { x: q.x, y: q.y, w: def.size[0] + 4, h: def.size[1] + 4, rot: 0 };
+      if (def) for (let i = 0; i < 6 && !ok; i++) for (let j = -2; j <= 2 && !ok; j++) { const q = T.ell(T.A.NW + 0.05 + j * 0.05, 1.22 + i * 0.04), box = { x: q.x, y: q.y, w: def.size[0] + 4, h: def.size[1] + 4, rot: 0 };
         if (!C.blocked(box, null)) { sites.watertower = W.place(reg, def.id, q.x, q.y, 0, { seedPath: 'site:watertower' }); C.take(box); ok = true; } }
       if (def && !ok) missing.push('watertower'); }
     // the transmitter field: the hall at the end of the mast lane, facing the town; the masts beyond it on their guys

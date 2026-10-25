@@ -31,7 +31,7 @@ export const townPlanStage = {
     const vr = (P.rail - F.y) / Math.cos(F.rot), vs = vr + 28, uL = -F.x - 30, uR = W.w - F.x + 30;
     W.rails.push({ id: 'main', name: 'the line', pts: [at(uL, vr), at(uR, vr)], ends: [at(uL + 30, vr), at(uR - 30, vr)], sockets: ['rail.end', 'rail.end'] });
     // zones (what the land outside the streets is for); the districts stage turns them into named polygons
-    const M = { x: W.w * 0.17 + rng.range(-4, 4), y: W.h * 0.82 + rng.range(-4, 4) }, look = ell(A.NW - 0.2, 1.25);
+    const M = { x: W.w * 0.17 + rng.range(-4, 4), y: W.h * 0.82 + rng.range(-4, 4) }, look = ell(A.NW + 0.05, 1.25);
     const Z = { park: [-0.5, 0.45, 1.62], barns: [Math.PI - 0.5, Math.PI + 0.42, 1.72], masts: { ...M, r: 84 }, lookout: { ...look, r: 20 }, industry: { u: 40, v: [vs + 4, vs + 100] } };
     const zoneAt = (x, y) => {
       const k = e(x, y); if (k < kBelt) return 'oldtown';
