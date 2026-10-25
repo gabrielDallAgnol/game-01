@@ -1,26 +1,15 @@
-// Pacified land, the home threat and the way home.
-// 1. Pacified land: the Camp, every claimed region and the ground within PACIFY.r of what you built or hold. A hive
-//    sleeping there never wakes (smothered): it shows on the map and can still be burned, but it sends no dead.
-// 2. The home threat: after PACIFY.from nights the night's budget reads the wave curve (WAVES.budget, content/mobs.js)
-//    at a "home night" instead of the calendar night: a slow plateau plus a load for each awake, unpacified hive
-//    (more when it hears the Camp or sits at your door). Woods pacified: nights at home climb slowly and stay holdable.
-//    Hives awake and loud: the old curve. It is a ratio layer only (homeK, applied in waves.js nightBudget): whatever
-//    the curve itself becomes (fix-towers' late tuning), this reads that same curve at an earlier night; it never
-//    raises a night (homeK ≤ 1), and leaves hp (WAVES.hpScale), blood moons, weather and the purge as they are.
-// 3. The way home: by day, standing at a site you hold, far from the Camp and out of the fight, the
-//    hero can Return to Camp (a short channel, broken by moving or being hit; a cooldown). A dusk warning comes once a
-//    day when the walk home takes longer than the light left.
-import { MOBS, TIDE, WAVES } from '../content/mobs.js';
+// Pacified land and the way home.
+// 1. Pacified land: the Camp, every claimed region and the ground within PACIFY.r of what you built or hold (minus an
+//    awake hive's reach), drawn on the map.
+// 2. The way home: by day, standing at a site you hold, far from the Camp and out of the fight, the hero can Return to
+//    Camp (a short channel, broken by moving or being hit; a cooldown). A dusk warning comes once a day when the walk
+//    home takes longer than the light left. (The home threat and smothered hives went with the old waves, Oct 25.)
+import { MOBS, TIDE } from '../content/mobs.js';
 import { ZONE } from './state.js';
 import { N, idx } from './mapgen.js';
 
 export const PACIFY = {
   r: 16,                 // cells of quiet ground beyond your base's edge (keep, buildings, held sites)
-  from: 10,              // the home threat follows the calendar until this night
-  slow: 0.35,            // then the quiet plateau climbs this many curve-nights a night
-  hear: [0, 3, 4, 5],    // load (curve-nights) of an awake hive that hears the Camp, by ring
-  door: [0, 2, 3, 3],    // load of an awake hive that does not hear the Camp but touches your land (ZONE.hiveReach)
-  far: 0.5,              // load of an awake hive far off (its dead mostly fill the city)
   home: { channel: 2.5, cd: 45, far: 25, site: 6 },   // Return to Camp: channel s, cooldown s, min cells from the Camp, reach of a held site
   warn: { margin: 12, far: 30, speed: 1.3 },   // dusk warning: s of spare light, min cells from the Camp, path detour factor
 };
@@ -34,7 +23,7 @@ export function createPacify(G) {
   /** one byte a cell: 1 = pacified (cached; rebuilt when the base, claims or seals change) */
   function pacifyMap() {
     G.zone();   // keeps S.zoneVersion current
-    const awake = map.regions.filter(r => live(r.id) && S.wake[r.id] <= S.night && !S.smother[r.id]);
+    const awake = map.regions.filter(r => live(r.id) && S.wake[r.id] <= S.night);
     const key = `${S.zoneVersion}|${S.claimed.size}|${S.sealVersion}|${awake.map(r => r.id).join(',')}`;
     if (key === pkey && pmap) return pmap;
     const z = new Uint8Array(N * N), src = [{ x: c, y: c, r: ZONE.keep }];
@@ -54,39 +43,6 @@ export function createPacify(G) {
     return z;
   }
   const pacifiedAt = (x, y) => { const cx = Math.floor(x), cy = Math.floor(y); return cx >= 0 && cy >= 0 && cx < N && cy < N && pacifyMap()[idx(cx, cy)] === 1; };
-  // A hive found asleep on pacified ground is smothered (S.smother): it stays asleep while the ground stays yours (its
-  // wake is pushed on each check, so a save keeps it asleep too). Act 1's forest hollows are the act's quest: left alone.
-  // A hive already awake when the land around it is pacified stays awake: it is on your map and can be burned.
-  S.smother = S.smother || {};
-  const canSmother = r => { const reg = map.regions[r]; return live(r) && S.wake[r] > S.night && pacifiedAt(reg.nest.x, reg.nest.y); };
-  const smothered = r => !!S.smother[r] && live(r) && pacifiedAt(map.regions[r].nest.x, map.regions[r].nest.y);
-  /** a region counts as pacified when it is claimed or its middle lies on pacified ground */
-  const regionPacified = r => !S.sealed[r] && (S.claimed.has(r) || pacifiedAt(map.regions[r].x, map.regions[r].y));
-
-  // ---------- the home threat ----------
-  /** curve-nights an awake, unpacified hive adds tonight */
-  function hiveLoad(r) {
-    const reg = map.regions[r], ring = Math.min(3, reg.ring);
-    return G.hears(r) ? PACIFY.hear[ring] : G.baseDist(reg.nest.x, reg.nest.y) <= ZONE.hiveReach ? PACIFY.door[ring] : PACIFY.far;
-  }
-  /** the night the home threat reads the curve at (never later than n itself) */
-  function homeNight(n = S.night) {
-    if (n <= PACIFY.from) return n;
-    const load = G.activeNests(n).reduce((a, r) => a + hiveLoad(r), 0);
-    return Math.min(n, PACIFY.from + PACIFY.slow * (n - PACIFY.from) + load);
-  }
-  /** the multiplier on the night's budget (≤ 1): the curve at the home night over the curve at the real night */
-  function homeK(n = S.night) {
-    const h = homeNight(n); if (h >= n) return 1;
-    const d = S.diffNight || 0;
-    return WAVES.budget(Math.max(1, h - d)) / WAVES.budget(Math.max(1, n - d));
-  }
-  function threatInfo(n = S.night) {
-    const act = G.activeNests(n);
-    return { night: n, home: +homeNight(n).toFixed(1), k: +homeK(n).toFixed(2), awake: act.length, loud: act.filter(r => hiveLoad(r) > PACIFY.far).length,
-      smothered: map.regions.filter(r => r.nest && smothered(r.id)).map(r => r.id), pacified: map.regions.filter(r => regionPacified(r.id)).map(r => r.id) };
-  }
-
   let watchT = 0, warnDay = -1;
 
   // ---------- the way home ----------
@@ -160,5 +116,5 @@ export function createPacify(G) {
     stepHome(dt);
     if ((watchT -= dt) <= 0) { watchT = 0.25; duskWarn(); }
   }
-  return { pacifyMap, pacifiedAt, smothered, regionPacified, homeNight, homeK, threatInfo, homeInfo, returnHome, cancelReturn, stepPacify };
+  return { pacifyMap, pacifiedAt, homeInfo, returnHome, cancelReturn, stepPacify };
 }

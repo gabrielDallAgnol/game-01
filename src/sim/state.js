@@ -10,10 +10,7 @@ import { SEASONS, RULES, seasonEnd } from '../content/season.js';
 export const STEP = 1 / 60;
 export const PICKS_PER_DAWN = 2;
 export const DROPS = { channel: 3, reach: 1.7, life: 2 };   // seconds to open, how close, nights it lasts
-export const NIGHT_TAIL = 30;   // seconds of night after the last surge before the sun comes up
-export const STREAM = { every: 11, drop: 0.35, min: 3.5, nightMult: 1.6, rage: 4, rageTime: 18, hiveHp: 102 };   // hiveHp: 60 × 1.7 (hollows are no longer free loot)   // seconds between dead per hive
 export const ZONE = { keep: 13, building: 4.5, landmark: 7, hiveBlock: 6, hiveReach: 14 };
-export const TOWN_DRAW = { free: 12, per: 0.012 };   // (old population draw: replaced by NOISE.mult, kept for old callers)
 export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/3
 // ---------- cuts (decided Oct 20): each system stays in the code behind a flag so it can return ----------
 // power: no generators in the build list, no blackouts (the data stays for a "Lights Out" contract rule)
@@ -44,10 +41,6 @@ export const NOISE = {
 export const TENSION = { hallCap: 0.03, hallGuard: 0.5, guardR: 3, respawn: 30, downRate: 0.75, rebuild: 0.5 };
 // The hero's presence: towers near the hero shoot faster and further; whatever the hero hits is Marked for the towers.
 export const PRESENCE = { r: 6, rate: 1.3, range: 2, markT: 4, mark: 1.3 };
-// Fronts: the dead come from at least `want(n)` sides a night (sources closer than `side` radians are one side). When
-// the awake hives lie on one side, a pack walks out of the deep woods ≥`far` round (weight `pack` of a hive), and each
-// source gets at least `min` of the night's dead. Same budget: only where it comes from.
-export const FRONTS = { want: n => (n >= 5 ? 3 : 2), side: 1.4, far: 1.75, pack: 0.5, min: 3 };
 // Season rules that used to be weather (rolled at dawn, now a contract's rule): what they do to a night
 export const RULE_FX = {
   storm: { name: RULES.storm.name, desc: RULES.storm.desc, weather: 'storm' },
@@ -67,8 +60,6 @@ export const FOREMAN = { buildings: 6, keep: 3 };   // the Foreman: a toggle, ne
 // ~2000 by night 22, then ~200 a night); each level is a small step (a third of the old one)
 export const LEVEL = { xp: lv => Math.round(1.2 * Math.pow(lv, 1.44) + 4), dmg: 0.03, hp: 1.3, max: 50, blessEvery: 15 };
 export const WALL_COST = 6;            // extra path cost of breaking through a palisade
-// thresholds calibrated from bot runs (tools/balance.mjs → threat ratio vs outcome)
-export const RATING = [[0.3, 'Easy'], [0.55, 'Medium'], [0.8, 'Hard'], [Infinity, 'Impossible']];
 export class MinHeap {
   constructor() { this.k = []; this.v = []; }
   get size() { return this.k.length; }
@@ -96,7 +87,7 @@ export function createState({ seed, biome, map, hero, mode, clock, difficulty, l
     mobs: [], projectiles: [], chests: [], purses: [], allies: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
     P: freshPerkState(), picks: [], pendingPicks: 0, offer: [], offerSource: null, chestsHeld: 0, dawns: 0,
     trade: null, halfUpgrade: false,
-    weather: 'clear', clock, dayT: 0, dayQueue: [], drops: [], landmarks: map.landmarks.map(l => ({ ...l, owned: false })), seen: new Uint8Array(N * N), seenVersion: 0, builders: null, survivors: START.survivors,
+    weather: 'clear', clock, dayT: 0, drops: [], landmarks: map.landmarks.map(l => ({ ...l, owned: false })), seen: new Uint8Array(N * N), seenVersion: 0, builders: null, survivors: START.survivors,
     log: [], cur: null, over: false, won: false,
     sealed: Uint8Array.from(map.regions, r => (r.ring > 2 ? 1 : 0)) /* only the old core is behind the quarantine fence */, kits: {}, pickups: [], sealVersion: 0, legacy: { ...legacy },
     hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0, guardT: 0, attacks: 0, carry: { scrap: 0, food: 0 } },

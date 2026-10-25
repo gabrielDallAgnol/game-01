@@ -1,57 +1,25 @@
-// Where the dead come from: which hives are awake and hear the camp, the night's budget, the wave list,
-// spawning, the day's stragglers, dusk (startNight), the purge march, and the light clock (timeOfDay).
-import { CUT, FRONTS, ZONE } from './state.js';
-import { MAX_LEVEL } from '../content/buildings.js';
+// Where the dead come from and when: which hives are awake, the edge spawns (the hordes' march enters the night queue
+// from there, sim/hordes.js), spawning, dusk (startNight: the night queue is the hordes' march), and the light clock
+// (timeOfDay). The old wave builder (budgets, fronts, purges, day stragglers) was cut on Oct 25: V2's night is hordes.
 import { MOBS, TIDE, WAVES } from '../content/mobs.js';
+import { MAX_LEVEL } from '../content/buildings.js';
+import { CUT } from './state.js';
 import { PASSABLE, idx, inside } from './mapgen.js';
 
 export function createWaves(G) {
-  const { S, c, claimedCount, ev, fail, isBloodMoon, keep, map, mobById, pop, rng, rule, toast } = G;
+  const { S, claimedCount, ev, isBloodMoon, keep, map, mobById, pop, rng, toast } = G;
 
   // ---------- regions & nests ----------
-  const edgeSpawns = [];
-  // a hive notices you once your base comes within reach of it
-  const adjacentToClaimed = r => { const n = map.regions[r].nest; return !!n && G.baseDist(n.x, n.y) <= ZONE.hiveReach; };
-  // an awake hive sends its dead toward the noise, however far away it is (the sealed core stays shut)
+  const edgeSpawns = [];   // [{ x, y, horde? }]: where a marching horde enters (sim/hordes.js pushes one per horde)
+  /** the hives awake tonight (they send nothing in V2; the hero just heals nowhere near one) */
   function activeNests(n = S.night) {
-    return map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !S.sealed[r.id] && S.wake[r.id] <= n && !(G.smothered && G.smothered(r.id))).map(r => r.id);   // [pacify] a hive smothered by your land stays asleep
+    return map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !S.sealed[r.id] && S.wake[r.id] <= n).map(r => r.id);
   }
-  // hearing: a hive marches on the camp only if the camp is loud enough to be heard from there. A loud town (heat) draws the far city.
-  const HEAR = { base: 62, perHeat: 1.2 };
-  const hearR = () => HEAR.base + (S.noise || 0) * HEAR.perHeat;   // the hearing ring around the camp, in cells
-  const hears = r => { const n = map.regions[r].nest; return Math.hypot(n.x - c, n.y - c) < hearR(); };
-  const marchNests = (n = S.night) => activeNests(n).filter(hears);
   // pacing: forest hollows can be burned from day 1; city hives need a level 2 keep, the old core level 3
   const keepForRing = ring => (ring <= 1 ? 1 : Math.min(MAX_LEVEL, ring));
-  function canPurge(r) {
-    const reg = map.regions[r];
-    return reg && reg.nest && S.nestAlive[r] && !S.claimed.has(r) && adjacentToClaimed(r) && keep.level >= keepForRing(reg.ring);
-  }
-
-  // ---------- threat estimate (shared by the purge rating, the log and bots) ----------
-  function unlocked(n) { return Object.entries(MOBS).filter(([, m]) => m.weight > 0 && m.from <= n).map(([k, m]) => (k === 'runner' && rule('raiders') ? [k, { ...m, weight: m.weight * 3 }] : [k, m])); }
-  function hpPerBudget(n) {
-    const u = unlocked(n), w = u.reduce((a, [, m]) => a + m.weight, 0);
-    const hp = u.reduce((a, [, m]) => a + m.weight * m.hp, 0) / w, cost = u.reduce((a, [, m]) => a + m.weight * m.cost, 0) / w;
-    return hp / cost;
-  }
-  // Flare Nights: a nest guardian at 5, two at 10, the Gravelord from 15 (one more every 10 nights)
-  function bossesFor(n) { return n < 15 ? ['guardian'] : Array.from({ length: Math.floor((n - 5) / 10) }, () => 'gravelord'); }   // on night 10 the season's unique monster takes the guardian's place
-  const territory = () => (S.P.greed ? 1 + 0.25 * (claimedCount() - 1) : WAVES.territory(claimedCount()));
-  // the difficulty curve: a won contract pulls the night the curve reads from back (see contractWon)
+  // the difficulty curve: the night the hp curve reads from
   const effN = n => Math.max(1, n - (S.diffNight || 0));
   const hpS = n => WAVES.hpScale(effN(n));
-  function nightBudget(n) { return G.DIFF.threat * WAVES.budget(effN(n)) * (TIDE.opening[n] ?? 1) * territory() * G.townDraw() * (isBloodMoon(n) ? WAVES.bloodMoonMult(n) : 1) * (n > 1 && isBloodMoon(n - 1) ? 0.75 : 1) * G.weatherFor(n).dead * (G.homeK ? G.homeK(n) : 1); }   // [pacify] homeK ≤ 1: the home threat plateaus once the land around the Camp is quiet (sim/pacify.js)   // the night after a Flare Night is a breather
-  function purgeBudget(r, n) { return WAVES.budget(effN(n)) * WAVES.purgeShare(map.regions[r].ring); }
-
-  // ---------- waves ----------
-  /** night 1's second pack: out of the deep woods on another side of the camp than the first hive (≥100° round) */
-  function n1Edge(r) {
-    const p = r < 0 ? edgeSpawns[-1 - r] : map.regions[r].nest, a0 = Math.atan2(p.y - c, p.x - c);
-    let best = -1, bd = Infinity;
-    edgeSpawns.forEach((e, k) => { let d = Math.abs(Math.atan2(e.y - c, e.x - c) - a0); if (d > Math.PI) d = 2 * Math.PI - d; const far = Math.hypot(e.x - c, e.y - c); if (d >= 1.75 && far < bd) { bd = far; best = k; } });
-    return best < 0 ? r : -1 - best;
-  }
   const nightLen = () => TIDE.nightLen; let todLast = 0.25;   // every night lasts its full length: the moon crosses the sky, cleared or not
   // one continuous clock for the light: 0 sunrise … dayShare dusk falls … 1 the next sunrise (day from S.dayT, night from S.qT)
   function timeOfDay() {
@@ -59,68 +27,6 @@ export function createWaves(G) {
     if (S.phase === 'over') return todLast;   // the run ended: the light holds where it was
     return (todLast = S.phase === 'night' ? D + (1 - D) * Math.min(1, S.qT / nightLen()) : D * (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4));
   }
-  const N1_COUNT = 1 + TIDE.night1.packA.length + TIDE.night1.packB.length;
-  // ---------- fronts: every night the dead come from at least two sides (three from night 5) ----------
-  // When the awake hives that hear the camp all lie on one side (night 2 has one hollow awake), packs come out of the
-  // deep woods on the far side, like night 1's second pack. The night's budget is the same; only where it walks from.
-  const srcPos = r => (r < 0 ? edgeSpawns[-1 - r] : map.regions[r].nest);
-  const angOf = r => { const p = srcPos(r); return Math.atan2(p.y - c, p.x - c); };
-  const gap = (a, b) => { const d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; };
-  /** how many sides the sources cover: sources less than FRONTS.side apart count as one side */
-  function sideCount(srcs) { const reps = []; for (const r of srcs) { const a = angOf(r); if (reps.every(b => gap(a, b) >= FRONTS.side)) reps.push(a); } return reps.length; }
-  /** tonight's sources and their weights (no rng: the forecast reads the same list the wave is drawn from) */
-  function nightSources(n = S.night) {
-    const nests = marchNests(n);
-    if (!nests.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !(G.smothered && G.smothered(r.id))).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) nests.push(any[0].id); }
-    // the whole valley is yours: the dead now come out of the dark woods at the edge
-    if (!nests.length) edgeSpawns.forEach((_, k) => nests.push(-1 - k));
-    const wts = nests.map(r => (S.wake[r] === n && n > 1 ? 0.5 : 1));
-    const want = FRONTS.want(n);
-    while (nests.length && sideCount(nests) < want) {
-      // the deep woods farthest round from every source (≥100° when there is one, the nearest of those)
-      let best = -1, bg = -1, bd = Infinity;
-      edgeSpawns.forEach((e, k) => {
-        if (nests.includes(-1 - k)) return;
-        const a = Math.atan2(e.y - c, e.x - c), g = Math.min(...nests.map(r => gap(a, angOf(r)))), far = Math.hypot(e.x - c, e.y - c);
-        const better = g >= FRONTS.far ? (bg < FRONTS.far || far < bd) : (bg < FRONTS.far && g > bg);
-        if (better) { best = k; bg = g; bd = far; }
-      });
-      if (best < 0 || bg < FRONTS.side) break;
-      nests.push(-1 - best); wts.push(FRONTS.pack);
-    }
-    return { nests, wts };
-  }
-  const sourceDirs = srcs => srcs.map(r => { const p = srcPos(r); return G.compass(p.x, p.y); });
-  function makeWave(n) {
-    if (G.v2) return G.v2Wave ? G.v2Wave(n) : [];   // [v2] no night waves from nests (the hordes hook in here: G.v2Wave)
-    const first = n === 1 && S.purge === null ? marchNests(n) : null;
-    if (first && !first.length) { const any = map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id)).sort((p, q) => Math.hypot(p.nest.x - c, p.nest.y - c) - Math.hypot(q.nest.x - c, q.nest.y - c)); if (any.length) first.push(any[0].id); }
-    if (first && first.length) { const N1 = TIDE.night1, b = n1Edge(first[0]);   // hand-authored: the first dead, its pack, then a pack from the far woods
-      return [{ kind: 'walker', nest: first[0], t: N1.first, first: true }, ...N1.packA.map(t => ({ kind: 'walker', nest: first[0], t })), ...N1.packB.map(t => ({ kind: 'walker', nest: b, t }))]; }
-    const { nests, wts } = nightSources(n);
-    const u = unlocked(n), list = [];
-    let budget = nightBudget(n);
-    while (budget > 0.5) {
-      const ok = u.filter(([, m]) => m.cost <= budget + 0.3); if (!ok.length) break;
-      const [kind, m] = ok[rng.weighted(ok.map(([, mm]) => mm.weight))];
-      list.push({ kind, nest: nests[rng.weighted(wts)] }); budget -= m.cost;
-    }
-    // every front gets a real pack: a source the dice left thin takes dead from the biggest one
-    { const minEach = Math.min(FRONTS.min, Math.floor(list.length / Math.max(1, nests.length)));
-      const count = r => list.filter(e => e.nest === r).length;
-      for (const r of nests) while (count(r) < minEach) { const big = nests.reduce((a, b) => (count(b) > count(a) ? b : a)); if (count(big) <= minEach) break; (list.find(e => e.nest === big && e.kind !== 'brute') || list.find(e => e.nest === big)).nest = r; } }
-    const dur = WAVES.duration(n), surges = WAVES.surges(n);
-    const q = list.map((e, k) => ({ ...e, t: Math.floor(k * surges / list.length) / surges * dur + rng.range(0, 2.5) }));
-    if (isBloodMoon(n)) { const bs = bossesFor(n); const uq = S.unique && !S.unique.slain && S.unique.night === n; bs.forEach((kind, k) => q.push({ kind, unique: uq && k === 0, finale: k === 0 && S.season && n === S.season.end && S.season.finaleHive === undefined, nest: nests[rng.int(nests.length)], t: dur * 0.6 + rng.range(0, 6) })); }
-    if (S.purge !== null) {
-      let pb = purgeBudget(S.purge, n);
-      const last = dur * (surges - 1) / surges;
-      while (pb > 0.5) { const ok = u.filter(([, m]) => m.cost <= pb + 0.3); if (!ok.length) break; const [kind, m] = ok[rng.weighted(ok.map(([, mm]) => mm.weight))]; q.push({ kind, nest: S.purge, t: last + rng.range(0, 4) }); pb -= m.cost; }
-      q.push({ kind: 'guardian', nest: S.purge, t: last + 2 });
-    }
-    return q.sort((a, b) => a.t - b.t);
-  }
-
   function spawnMob(kind, x, y, opts = {}) {
     if (G.spawnPoint) ({ x, y } = G.spawnPoint(x, y));   // never in the void, a walled-in yard or a roof: the nearest open ground (sim/steer.js)
     const m = MOBS[kind], hs = hpS(S.night);
@@ -137,44 +43,21 @@ export function createWaves(G) {
     }
     return spawnMob(kind, n.x, n.y);
   }
-  function planPurge(r) {
-    if (r !== null && map.regions[r] && keep.level < keepForRing(map.regions[r].ring)) return fail(`Raise the Haven Rig to level ${keepForRing(map.regions[r].ring)} first.`);
-    if (r === null) { S.purge = null; return true; }
-    if (!canPurge(r)) return fail('You can only march on an Inferno Nest next to your land.');
-    S.purge = r; return true;
-  }
-
   function startNight(dusk = false) {
     if (S.phase !== 'day' || S.over || S.story.encounters.length) return false;   // no bell: dusk comes with the sun (tests and bots may still skip ahead)
-    S.dayQueue = [];
     G.refreshFlow(); G.cacheNeighbours();
-    S.phase = 'night'; G.dropCrew(); G.crewing(); S.queue = makeWave(S.night); S.qT = 0; S.nightFlags = {}; S.trade = null;
+    S.phase = 'night'; G.dropCrew(); G.crewing(); S.queue = G.v2Wave ? G.v2Wave(S.night) : []; S.qT = 0; S.nightFlags = {}; S.trade = null;
     for (const b of S.buildings) b.fell = false;
-    const purgeReg = S.purge;
     Object.assign(S.cur, {
       goldAtBell: S.gold, pop: pop(), town: G.townCounts(), defDps: +G.defenceDps().toFixed(1), heroDps: +G.heroDps().toFixed(1),
       wave: S.queue.length, waveHp: Math.round(S.queue.reduce((a, q) => a + (MOBS[q.kind].fixedHp ? MOBS[q.kind].hp : Math.ceil(MOBS[q.kind].hp * hpS(S.night))), 0)),
-      ratio: +G.threatRatio(S.night, purgeReg).toFixed(2), forecast: G.forecastStrip(), noise: Math.round(S.noise || 0), standing: S.buildings.filter(b => !b.ruined).length, purge: purgeReg, nests: activeNests().length, claimed: claimedCount(), bloodMoon: isBloodMoon(S.night),
+      standing: S.buildings.filter(b => !b.ruined).length, nests: activeNests().length, claimed: claimedCount(), bloodMoon: isBloodMoon(S.night),
     });
     if (!CUT.crew) G.sc.nightfall(keep);
-    if (!G.v2) { const rt = G.ratingOf(S.cur.ratio); if (rt === 'Hard' || rt === 'Impossible') toast(`[Warning: ${rt}] Tonight beats your towers. Stay near the homes.`, 'bad'); }
     ev('night', { n: S.night, bloodMoon: isBloodMoon(S.night) });
-    toast(G.v2 ? `Dusk. Night ${S.night}.` : isBloodMoon(S.night) ? `Flare Night. Night ${S.night} begins.` : `Dusk. Night ${S.night}: the Ash-Born come in force.`, isBloodMoon(S.night) ? 'bad' : undefined);   // [v2] no forecast in the dusk line
+    toast(`Dusk. Night ${S.night}.`, isBloodMoon(S.night) ? 'bad' : undefined);
     return true;
   }
 
-  // ---------- the low tide: stragglers by day, roaming dead in the wild ----------
-  function planDay(n) {
-    S.dayT = 0; S.dayQueue = [];
-    if (!S.clock || G.v2) return;   // [v2] no day stragglers from nests
-    const share = TIDE.dayShare(n), nests = activeNests(n); if (!share || !nests.length) return;
-    const u = unlocked(Math.max(1, n - 2)); let budget = nightBudget(n) * share;
-    while (budget > 0.5) {
-      const ok = u.filter(([, m]) => m.cost <= budget + 0.3); if (!ok.length) break;
-      const [kind, m] = ok[rng.weighted(ok.map(([, mm]) => mm.weight))];
-      S.dayQueue.push({ kind, nest: nests[rng.int(nests.length)], t: rng.range(6, TIDE.dayLen - 4) }); budget -= m.cost;
-    }
-    S.dayQueue.sort((a, b) => a.t - b.t);
-  }
-  return { edgeSpawns, activeNests, hearR, hears, marchNests, keepForRing, canPurge, unlocked, hpPerBudget, bossesFor, effN, hpS, nightBudget, purgeBudget, n1Edge, nightSources, sourceDirs, nightLen, timeOfDay, N1_COUNT, spawnMob, spawnAtNest, planPurge, startNight, planDay };
+  return { edgeSpawns, activeNests, keepForRing, effN, hpS, nightLen, timeOfDay, spawnMob, spawnAtNest, startNight };
 }

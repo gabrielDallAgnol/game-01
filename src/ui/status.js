@@ -81,9 +81,9 @@ export function createStatus(ui) {
   function logTable() {
     const rows = ui.game.logRows(); if (!rows.length) return '<p class="note">No nights played yet.</p>';
     const pk = id => id;
-    return `<div class="logwrap"><table class="log"><thead><tr><th>Night</th><th>Haven left</th><th>Threat</th><th>Wave HP</th><th>Tower DPS</th><th>Kills hero·tower·Haven</th><th>Lost</th><th>Scrap in / spent</th><th>Skills</th></tr></thead><tbody>${rows.map(l => {
+    return `<div class="logwrap"><table class="log"><thead><tr><th>Night</th><th>Haven left</th><th>Horde HP</th><th>Tower DPS</th><th>Kills hero·tower·Haven</th><th>Lost</th><th>Scrap in / spent</th><th>Skills</th></tr></thead><tbody>${rows.map(l => {
       const kp = l.keepEnd !== undefined ? Math.round(l.keepEnd / l.keepMax * 100) : null;
-      return `<tr><td>${l.night}${l.bloodMoon ? ' (Flare Night)' : ''}</td><td>${kp !== null ? kp + '%' : 'now'}</td><td>${l.ratio ?? '–'}</td><td>${l.waveHp}</td><td>${l.defDps}</td>
+      return `<tr><td>${l.night}${l.bloodMoon ? ' (Flare Night)' : ''}</td><td>${kp !== null ? kp + '%' : 'now'}</td><td>${l.waveHp}</td><td>${l.defDps}</td>
       <td>${l.kills.hero || 0} · ${l.kills.tower || 0} · ${l.kills.keep || 0}</td><td>${l.lost.length}${l.risen ? ` (${l.risen} rose)` : ''}</td><td>+${l.goldIn ?? 0} / ${l.spent}</td><td>${l.perks.map(pk).join(', ') || '–'}</td></tr>`; }).join('')}</tbody></table></div>`;
   }
   function showLog() {

@@ -8,21 +8,21 @@ import { LANDMARKS, idx } from './mapgen.js';
 
 export function createApi(G) {
   const {
-    S, W8, activeNests, addHeat, baseDist, build, buildLine, buildingAt, buyCost, canPlace, canPurge,
+    S, W8, activeNests, addHeat, baseDist, build, buildLine, buildingAt, buyCost, canPlace,
     choosePack, claimLandmark, clearRubble, companionFollow, costOf, crewing, damageBuilding,
-    defenceDps, demolish, districtOffer, dropSupply, effN, endRun, foodNeed, foodPerDawn, forecast, forecastStrip,
-    frontier, gainXp, handsFree, handsMax, has, hasTech, hearR, heatFloor, heroDps, heroPath, houseGold, hurtHero,
+    defenceDps, demolish, districtOffer, dropSupply, effN, endRun, foodNeed, foodPerDawn, forecast,
+    frontier, gainXp, handsFree, handsMax, has, hasTech, heatFloor, heroDps, heroPath, houseGold, hurtHero,
     inZone, isBloodMoon, keep, keepForRing, keepMaxHp, keepNeeds, killMob, kitFor, landmarkReach, lineCells, manned, map, mastered,
-    mastery, maxHpOf, newCost, nightLen, noise, noiseCalm, noiseFloor, openDistrict, owns, partySize, planPurge, pop, powerIn,
-    powerOut, powered, prosper, raiseBlock, ratingOf, rebuild, rebuildAll, rebuildCost, regionInfo, rerollPacks, reveal,
+    mastery, maxHpOf, newCost, nightLen, noise, noiseCalm, noiseFloor, openDistrict, owns, partySize, pop, powerIn,
+    powerOut, powered, prosper, raiseBlock, rebuild, rebuildAll, rebuildCost, regionInfo, rerollPacks, reveal,
     rubbleAt, ruins, rule, setDifficulty, setHeroInput, siteOf, snapshot, spawnMob, startNight, step,
-    threatRatio, timeOfDay, towerStats, townDraw, trade, upCostOf, upgrade, upgradeKeep, upgradeWall, upkeep,
+    timeOfDay, towerStats, townDraw, trade, upCostOf, upgrade, upgradeKeep, upgradeWall, upkeep,
     wallBudget, wallRun, zone
   } = G;
   const api = {
     setBuilders: f => { if ((S.foreman || S.autopilot) && FOCI.includes(f)) S.builders = f; },
     scavenge: { siteInfo: G.sc.siteInfo, send: G.sc.send, recall: G.sc.recall, treat: G.sc.treat, exile: G.sc.exile, hopsMap: G.sc.hopsMap },
-    state: S, map, get heroDef() { return G.HC; }, step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, trade, planPurge,
+    state: S, map, get heroDef() { return G.HC; }, step, build, choosePack, rerollPacks, buyCost, upgrade, demolish, upgradeKeep, startNight, trade,
     setHeroInput,
     setAutopilot: on => { S.autopilot = !!on; if (on && (!S.builders || S.builders === 'off')) { S.buildersWas = S.builders; S.builders = 'balanced'; } else if (!on) { S.builders = S.foreman ? (S.buildersWas ?? null) : null; S.buildersWas = undefined; } },
     heroTo: (x, y) => {
@@ -40,11 +40,10 @@ export function createApi(G) {
     xpNext: () => LEVEL.xp(S.lvl), gainXp: n => gainXp(n), partySize: () => partySize(), companionFollow, snapshot, frontier, districtOffer, openDistrict, kitFor, siteOf, story: () => G.story, choose: id => G.story.choose(id),
     // noise: one meter 0–100 (S.noise). noiseInfo: what it is made of and what it does right now
     noise: () => Math.round(S.noise || 0),
-    noiseInfo: () => ({ noise: Math.round(S.noise || 0), floor: Math.round(noiseFloor() * noiseCalm()), choice: Math.round(S.noiseChoice || 0), spike: Math.round(S.noiseSpike || 0), hear: Math.round(hearR()), mult: +townDraw().toFixed(2), erupt: HEAT.erupt, stir: HEAT.stir, live: !!S.feat.heat }),
-    hearRadius: () => hearR(),
-    // tension: ruins, rebuilding, the forecast strip and the dawn ledger
+    noiseInfo: () => ({ noise: Math.round(S.noise || 0), floor: Math.round(noiseFloor() * noiseCalm()), choice: Math.round(S.noiseChoice || 0), spike: Math.round(S.noiseSpike || 0), mult: +townDraw().toFixed(2), erupt: HEAT.erupt, stir: HEAT.stir, live: !!S.feat.heat }),
+    // tension: ruins, rebuilding and the dawn ledger
     rebuild, rebuildAll, rebuildCost: id => { const b = S.byId.get(id); return b && b.ruined ? rebuildCost(b) : 0; }, ruins: () => ruins().map(b => ({ id: b.id, type: b.type, level: b.level, x: b.x, y: b.y, cost: rebuildCost(b) })),
-    forecastStrip: () => forecastStrip(), ledger: () => S.ledger || null,
+    ledger: () => S.ledger || null,
     keepCost: () => { const n = KEEP.need[keep.level]; return keep.level >= 3 ? null : { scrap: KEEP.cost[keep.level], food: (n && n.food) || 0, needs: keepNeeds() }; },
     // the season's rules, the difficulty, the end of the run
     rule: id => rule(id), setDifficulty, endRun, season: () => S.season, effNight: (n = S.night) => effN(n),
@@ -53,7 +52,7 @@ export function createApi(G) {
     spawnMob: (kind, x, y, o) => { const m = spawnMob(kind, x, y); if (m && o) Object.assign(m, o); return m; }, killMob: (m, src = 'hero') => killMob(m, src),
     keepNeeds, hasTech, crewing, manned, handsMax, handsFree, powerIn, powerOut, powered, heatFloor, addHeat, difficulty: () => G.DIFF, newCost, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
-    canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, threatRatio, ratingOf, activeNests, regionInfo, canPurge,
+    canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, activeNests, regionInfo,
     towerStats: b => towerStats(b), has,
     foodPerDawn,
     incomeRate: () => G.incomeRate(), incomePerCycle: () => G.incomePerCycle(),   // [income] scrap and food per second (sim/income.js)
@@ -66,8 +65,8 @@ export function createApi(G) {
     folk: () => G.folkInfo(), setFolkBuild: on => G.setFolkBuild(on), folkVeto: () => G.folkVeto(),
     // [towers] a level 3 tower takes a role for good (content/towers.js): '' when it can, else why not
     specialise: (id, role) => G.specialise(id, role), specBlock: (id, role) => G.specBlock(S.byId.get(id), role), specCost: () => G.SPEC_COST, specRange: b => G.specRange(b),
-    // [pacify] pacified ground (a byte a cell), the home threat, the way home (Return to Camp)
-    pacifyMap: () => G.pacifyMap(), pacifiedAt: (x, y) => G.pacifiedAt(x, y), smothered: r => G.smothered(r), homeThreat: n => G.threatInfo(n), homeK: n => G.homeK(n),
+    // [pacify] pacified ground (a byte a cell), the way home (Return to Camp)
+    pacifyMap: () => G.pacifyMap(), pacifiedAt: (x, y) => G.pacifiedAt(x, y),
     homeInfo: () => G.homeInfo(), returnHome: () => G.returnHome(), cancelReturn: () => G.cancelReturn(),
     spawnAnimals: () => G.spawnAnimals(),   // [woods] the dawn top-up of the woods' game (tests, tools)
     // [econ3] the construction queue (reorder: dir -1 / +1 / 'top'; cancel refunds), harvester carts and nodes, relics

@@ -81,22 +81,14 @@ export function createHud(ui) {
       const sl = silentLine();   // [towers] silent towers stay on the strip all night
       return `<span class="ic-w">${icon('moon')}</span><span>${esc(nightLine || `Night ${S.night}`)}</span>${sl ? `<span class="sep">·</span>${sl}` : ''}`;
     }
-    let f = null;
-    if (typeof ui.game.forecastStrip === 'function') { try { f = ui.game.forecastStrip(); } catch { f = null; } }
-    const word = { safe: 'safe', risk: 'at risk', fall: 'may fall' };
-    if (f && f.hall) {
-      const bits = [`<span class="st ${f.hall}">Haven: ${word[f.hall] || f.hall}</span>`];
-      if (f.from && f.from.length) bits.push(`<span class="from">From ${f.from.length === 1 ? f.from[0] : `${f.from.slice(0, -1).join(', ')} and ${f.from[f.from.length - 1]}`}</span>`);
-      if (f.atRisk) bits.push(`<span>~${f.atRisk} ${f.atRisk === 1 ? 'building' : 'buildings'} at risk</span>`);
-      if (f.brutes) bits.push(`<span>${f.brutes} ${f.brutes === 1 ? 'Slag Brute' : 'Slag Brutes'}</span>`);
-      if (f.crew && f.crew.silent) bits.push(silentLine());   // [towers] "4 towers silent: need 6 more people"
-      else if (f.crew && f.crew.short) bits.push(`<span class="st risk">crew thin: homes may fall tonight</span>`);
-      return bits.join('<span class="sep">·</span>');
+    // by day: the horde that marches tonight (sim/hordes.js), its side and its size; the silent towers
+    const f = ui.game.forecast(), t = ui.game.map.town, sl = silentLine(), bits = [];
+    if (f.length) {
+      const h = f[0], dir = DIR8[((Math.round(Math.atan2(h.y - t.y, h.x - t.x) / (Math.PI / 4)) % 8) + 8) % 8], n = f.reduce((a, x) => a + x.count, 0);
+      bits.push(`<span class="st risk">A horde marches tonight</span>`, `<span class="from">From the ${dir}</span>`, `<span>~${n} Ash-Born</span>`);
     }
-    // without the honest forecast from the game: the threat rating and tonight's count
-    const r = ui.game.ratingOf(ui.game.threatRatio()), hall = r === 'Impossible' ? 'fall' : r === 'Hard' ? 'risk' : 'safe';
-    const dead = ui.view ? ui.view.routes().reduce((a, x) => a + x.count, 0) : 0, boss = ui.view ? ui.view.routes().some(x => x.boss) : false;
-    return [`<span class="st ${hall}">Haven: ${word[hall]}</span>`, dead ? `<span>~${dead} Ash-Born tonight</span>` : '', boss ? '<span>a boss</span>' : ''].filter(Boolean).join('<span class="sep">·</span>');
+    if (sl) bits.push(sl);
+    return bits.join('<span class="sep">·</span>');
   }
   function updateHud() {
     dockH();

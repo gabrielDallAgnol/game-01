@@ -103,7 +103,7 @@ export function createEconomy(G) {
     S.night++; newLog();
     S.noiseChoice = Math.abs(S.noiseChoice || 0) < 1 ? 0 : S.noiseChoice * (1 - NOISE.choiceFade);   // a choice's noise holds for nights, fading a fifth each dawn
     S.weather = G.rollWeather(S.night); if (S.weather !== 'clear' && !CUT.weather) toast(`Tonight: ${G.W8().name.toLowerCase()}. ${G.W8().desc}`, G.W8().kind);
-    G.planDay(S.night); G.spawnRoamers(); G.spawnAnimals(); G.scatterPickups(G.PICKUP.perDawn);
+    S.dayT = 0; G.spawnRoamers(); G.spawnAnimals(); G.scatterPickups(G.PICKUP.perDawn);
     for (const d of [...S.drops]) if (--d.ttl <= 0) { S.drops.splice(S.drops.indexOf(d), 1); ev('dropGone', { id: d.id }); }
     { const was = S.night - 1; if (isBloodMoon(was)) G.dropSupply('The Flare Night has set.'); else if (claimedNow !== null) G.dropSupply('With the Inferno Nest burned,'); else if (was >= 3 && rng.next() < 0.2) G.dropSupply('At first light,'); }
     const want = [];

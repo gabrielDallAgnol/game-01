@@ -18,7 +18,7 @@ import { KITS } from '../content/districts.js';
 import { createScavenge } from './scavenge.js';
 import { createPlanner } from './planner.js';
 import { createStory } from './story.js';
-import { createState, STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, REGEN } from './state.js';
+import { createState, STEP, PICKS_PER_DAWN, DROPS, ZONE, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, TENSION, PRESENCE, REGEN } from './state.js';
 import { createCore } from './core.js';
 import { createEconomy } from './economy.js';
 import { createBuildings } from './buildings.js';
@@ -64,7 +64,7 @@ import { createV2Core } from './v2core.js';
 import { createHordes } from './hordes.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
-export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, REGEN };
+export { STEP, PICKS_PER_DAWN, DROPS, ZONE, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, TENSION, PRESENCE, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
 const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createLoot, createDistricts, createSeasons, createHero, createSave, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome];   // [nest3] appended   // [pacify] appended
@@ -92,7 +92,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   const {
     rng, mobById, PICKUP, activeNests, addHeat, autoHero, baseDist, checkForeman, checkPower, compass, dawn, districtOffer,
     earn, edgeSpawns, ev, fail, frontier, gainXp, heroOk, hitMob, hurtHero, inZone, isBloodMoon, isWall, killMob, kitFor,
-    landmarkReach, live, mastery, metroSpot, moveToward, nestAlive, newLog, nightLen, occupy, openDistrict, placeBuilding, pop, rankOf,
+    landmarkReach, live, mastery, moveToward, newLog, nightLen, occupy, openDistrict, placeBuilding, pop, rankOf,
     refreshFlow, refreshMax, restoreSnap, reveal, revealRegion, rollOffer, rollPacks, rule, scatterPickups, senseMult, siteOf,
     spawnAnimals, spawnAtNest, spawnMob, spawnRoamers, standable, startNight, stepAllies, stepDrops, stepHeat, stepHero, stepMobs,
     stepPickups, stepProjectiles, stepTowers, syncPicks, takeSite, toast, untitle, zone
@@ -154,16 +154,13 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.picks.length && !S.offer.length) rollOffer();   // a pick added at any hour (a crate, a level) is dropped: V2 has no blessings
     if (S.phase === 'day' && S.clock && !S.over) {
       S.dayT += dt;
-      while (S.dayQueue.length && S.dayQueue[0].t <= S.dayT) { const q = S.dayQueue.shift(); if (nestAlive(q.nest) && !S.claimed.has(q.nest)) spawnAtNest(q.kind, q.nest); }
       if (S.dayT >= TIDE.dayLen && !S.story.encounters.length) startNight(true);
     }
     if (planner) planner.tick(dt);
     if (S.phase === 'night') {
       S.qT += dt; S.cur.keepMin = Math.min(S.cur.keepMin ?? 1, keep.hp / keep.maxHp);
       while (S.queue.length && S.queue[0].t <= S.qT) {
-        const q = S.queue.shift(), up = rule('metro') && !q.unique && !q.first && rng.next() < 0.15 ? metroSpot() : null, m = up ? spawnMob(q.kind, up.x, up.y) : spawnAtNest(q.kind, q.nest);
-        if (q.unique) { m.hp = m.maxHp = Math.ceil(m.maxHp * S.unique.mult); m.unique = S.unique.name; m.speed *= 0.85; ev('firstDead', { id: m.id }); toast(`[Unique Monster: ${S.unique.name}] It is here.`, 'bad'); }
-        if (q.first) { m.hp = m.maxHp = TIDE.first.hp; m.speed *= TIDE.first.speed; m.first = true; ev('firstDead', { id: m.id }); toast('Something crawls out of the dark. It is coming for the town.', 'bad'); }
+        const q = S.queue.shift(); spawnAtNest(q.kind, q.nest);   // the marching horde (sim/hordes.js v2Wave)
       }
       if (mastery('mending')) for (const b of live()) if (b.hp < b.maxHp) b.hp = Math.min(b.maxHp, b.hp + dt * 0.3);
       if (S.P.sanctuary && !keep.ruined) keep.hp = Math.min(keep.maxHp, keep.hp + 2 * dt);

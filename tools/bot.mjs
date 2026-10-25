@@ -8,25 +8,6 @@ export const STRATEGIES = {
   economy:  night => (night <= 4 ? ['food', 'house', 'house', 'upHouse', 'tower'] : ['food', 'tower', 'upTower', 'keep', 'house', 'upHouse', 'wall']),
   walls:    night => ['food', 'wall', 'tower', 'house', 'upWall', 'upTower', 'keep'],
 };
-// when to march on a nest
-export const EXPANSION = {
-  never:   () => null,
-  careful: (g, n) => pickPurge(g, n, ['Easy']),
-  bold:    (g, n) => pickPurge(g, n, ['Easy', 'Medium']),
-  reckless:(g, n) => pickPurge(g, n, ['Easy', 'Medium', 'Hard', 'Impossible']),
-};
-
-function pickPurge(g, n, ok) {
-  if (n < 3) return null;
-  const S = g.state;
-  const opts = g.map.regions.map(r => g.regionInfo(r.id)).filter(i => i && i.canPurge && ok.includes(i.rating));
-  if (!opts.length) return null;
-  opts.sort((a, b) => a.ratio - b.ratio || b.slots - a.slots);
-  // only expand when the town is mostly built
-  const free = candidates(g).filter(s => g.inZone(s.x, s.y) && !s.gate && g.canPlace('house', s.x, s.y).ok).length;
-  return free <= 3 ? opts[0].id : null;
-}
-
 function nestPoints(g) { return g.activeNests(g.state.night + 1).concat(g.activeNests()).map(r => g.map.regions[r].nest); }
 
 // candidate spots = the map's suggested lots (gates, a 4-cell street grid) plus a denser 3-cell grid,
@@ -147,23 +128,4 @@ export function scavengeTurn(g) {
   opts.sort((a, b) => b.hops - a.hops || a.die - b.die);
   const i = opts[0]; if (S.gold < i.R.kit * home.length + 8) return;
   g.scavenge.send(i.site.id, home.map(c => c.id));
-}
-export function playRun(createGame, opts) {
-  const { seed, biome, hero, strat, path, expansion, heroMode = 'active', maxNights = 40, mapSeed } = opts;
-  const g = createGame({ seed, biome, hero, mapSeed, clock: false });
-  const S = g.state;
-  while (!S.over && S.night <= maxNights) {
-    dayTurn(g, strat);
-    const target = EXPANSION[expansion](g, S.night);
-    if (target !== null) { g.planPurge(target); dayTurn(g, strat); }
-    // walk over any chests lying around before the bell
-    if (S.chests.length && heroMode === 'active') { for (let k = 0; k < 600 && S.chests.length; k++) { g.heroTo(S.chests[0].x, S.chests[0].y); g.step(); } }
-    if (opts.scavenge) scavengeTurn(g);
-    g.startNight();
-    let steps = 0;
-    while (S.phase === 'night' && steps < 60 * 400) { if (steps % 15 === 0) heroTick(g, heroMode); g.step(); steps++; }
-    if (S.phase === 'night') break; // stuck night: report as is
-    S.events.length = 0;
-  }
-  return { nights: S.over ? S.night - 1 : S.night - 1, over: S.over, log: S.log, claimed: S.claimed.size };
 }
