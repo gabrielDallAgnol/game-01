@@ -7,6 +7,8 @@
 //                   and the old core behind the quarantine fence (opened through the story)
 // A map is a square grid of cells (1 world unit each) with terrain, regions (Voronoi districts) and build slots.
 import { Rng, hashSeed, valueNoise } from './rng.js';
+// [area] next line
+import { applyArea } from './areamap.js';
 
 export const N = 448;
 const K = 1.45;          // city scale
@@ -55,7 +57,7 @@ const GRID = 4;         // lot spacing: a 3×3 building plus a one-cell street
 export const idx = (x, y) => y * N + x;
 export const inside = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
 
-export function generateMap(seed, biome) {
+export function generateMap(seed, biome, opts = {}) {
   const rng = new Rng(hashSeed(seed, biome, 'map'));
   const c = N / 2;
   const terrain = new Uint8Array(N * N).fill(T.VOID), wild = new Uint8Array(N * N), road = new Uint8Array(N * N);
@@ -150,6 +152,9 @@ export function generateMap(seed, biome) {
       if (terrain[i] === T.FOREST || terrain[i] === T.GRASS || terrain[i] === T.DIRT) { terrain[i] = T.GRASS; road[i] = 1; }
     } }
   feature.road = roadPts.filter((_, k) => k % 8 === 0);
+  // [area] begin: an engine-built town replaces the ground round the camp (only with opts.area; draws no map rng)
+  const area = opts.area ? applyArea({ N, T, idx, inside, terrain, wild, road, c, seed, keep: (x, y) => dCity(x, y) <= R + 6 }, opts.area) : null;
+  // [area] end
 
   // 5. regions: the camp, the wilds (open), the city districts (sealed)
   const seeds = [{ x: c, y: c, ring: 0 }];
@@ -297,7 +302,9 @@ export function generateMap(seed, biome) {
   for (const [gx, gy] of pts) for (const [dx, dy] of nudges) if (tryLot(ci + gx * GRID + dx, ci + gy * GRID + dy)) break;
   for (const reg of regions) reg.neighbors = [...reg.neighbors].sort((p, q) => p - q);
   for (let i = 0; i < N * N; i++) if (terrain[i] !== T.GRASS && terrain[i] !== T.DIRT) road[i] = 0;
-  return { N, seed, biome, name: BIOMES[biome].name, terrain, region, regions, slots, reach, high, ramp, lm, landmarks, road, wild, town: { x: c, y: c }, city: { x: CX, y: CY, r: R }, feature };
+  const out = { N, seed, biome, name: BIOMES[biome].name, terrain, region, regions, slots, reach, high, ramp, lm, landmarks, road, wild, town: { x: c, y: c }, city: { x: CX, y: CY, r: R }, feature };
+  if (area) out.area = area;   // [area]
+  return out;
 }
 
 /** Quick checks used by tests and by the map picker to reject weak maps. */
@@ -316,14 +323,14 @@ export function validateMap(map) {
 }
 
 /** The valid map(s) for the start screen. */
-export function mapChoices(seed) {
+export function mapChoices(seed, opts = {}) {
   const rng = new Rng(hashSeed(seed, 'choices'));
   const kinds = ['riverbend'];   // one world while we test the frontier
   const out = [];
   for (const biome of kinds) {
     for (let tries = 0; tries < 12 && !out.length; tries++) {
       const s = hashSeed(seed, biome, tries) % 1000000;
-      const m = generateMap(s, biome);
+      const m = generateMap(s, biome, opts);
       if (!validateMap(m).length) { out.push({ seed: s, biome, name: m.name }); break; }
     }
     if (out.length) break;

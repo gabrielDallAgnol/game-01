@@ -80,9 +80,9 @@ MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] ap
 MODULES.push(createConstruct, createHaul, createRelics);   // [econ3] appended
 MODULES.push(createStats, createPowers);   // [hero3] appended
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null } = {}) {
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null, area = null } = {}) {   // [area] area: an engine recipe id
   if (hero === 'steward') hero = 'merchant';
-  const map = premap && premap.seed === (mapSeed ?? seed) && premap.biome === biome ? premap : generateMap(mapSeed ?? seed, biome);   // [rig3] premap: a fresh map migrate.js already made
+  const map = premap && premap.seed === (mapSeed ?? seed) && premap.biome === biome && (premap.area ? premap.area.id : null) === area ? premap : generateMap(mapSeed ?? seed, biome, area ? { area } : {});   // [rig3] premap: a fresh map migrate.js already made
   if (map !== premap) themeMap(map, leg ?? (restore && restore.rig && restore.rig.leg) ?? 1);   // [rig3] the act's ground and props
   const HC = heroKit(hero), DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
   const c = map.town.x;

@@ -12,7 +12,8 @@ export function createSave(G) {
   const unb64 = (str, n) => { const bin = atob(str), out = new Uint8Array(n); for (let i = 0; i < bin.length; i++) { const v = bin.charCodeAt(i); for (let k = 0; k < 8; k++) if (v & (1 << k) && i * 8 + k < n) out[i * 8 + k] = 1; } return out; };
   function snapshot() {
     if (S.phase !== 'day' || S.over) return null;
-    return { v: SAVE_V, seed, mapSeed: mapSeed ?? seed, biome, hero: S.heroClass, mode: S.mode, difficulty: S.difficulty, clock: S.clock, city: map.name, savedAt: Date.now(),
+    return { v: SAVE_V, seed, mapSeed: mapSeed ?? seed, biome, ...(map.area ? { area: map.area.id } : {}),   // [area]
+      hero: S.heroClass, mode: S.mode, difficulty: S.difficulty, clock: S.clock, city: map.name, savedAt: Date.now(),
       legacy: S.legacy, night: S.night, gold: S.gold, food: S.food, kills: S.kills, stock: S.stock, survivors: S.survivors, heat: S.heat, foreman: S.foreman, builders: S.builders, autopilot: !!S.autopilot,
       inferno: G.inferno ? G.inferno.save() : null, sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, reroll: S.reroll, halfUpgrade: S.halfUpgrade,
