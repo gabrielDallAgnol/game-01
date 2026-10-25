@@ -6,6 +6,7 @@ import { heroTick, chooseStory } from './bot.mjs';
 // [rig3] the bot packs up and rolls on at the first dawn the road is open (RIG_BOT=0: it stays)
 import { migrateRun } from '../src/sim/migrate.js';
 const RIG_BOT = process.env.RIG_BOT !== '0';
+const RIG_FORCE = +(process.env.RIG_FORCE || 0);   // testing: at this dawn the road opens anyway (the bot rarely burns every hollow), so one migration is measured
 
 const diff = process.argv[2] || 'survivor', DAYS = +(process.argv[3] || 14), SEEDS = +(process.argv[4] || 4), hero = process.argv[5] || 'warrior', AUTO = process.argv[6] === 'auto';
 const biomes = ['riverbend', 'riverbend', 'riverbend', 'riverbend'];   // one world while we test
@@ -23,6 +24,7 @@ for (let s = S0; s < SEEDS; s += STRIDE) {
     if (!AUTO && steps % 15 === 0) heroTick(g, 'active');
     const n = S.night, ph = S.phase;
     g.step(); steps++;
+    if (RIG_FORCE && S.night >= RIG_FORCE && S.rig && S.rig.leg === 1 && S.phase === 'day' && S.dayT < 2) S.act = 2;
     if (RIG_BOT && g.rigBlock && S.phase === 'day' && S.dayT < 2 && !S.story.encounters.length && !g.rigBlock()) { S.events.length = 0; if (g.rigPack()) { const n0 = S.night; g = migrateRun(g); S = g.state; if (AUTO) g.setAutopilot(true); rolls.push(n0); } }   // [rig3]
     if (steps % 60 === 0) { heatSum += S.heat; heatN++; peakHeat = Math.max(peakHeat, S.heat); if (S.blackout) blackoutT++; }
     if (S.phase === 'night') minKeep = Math.min(minKeep, S.keep.hp / S.keep.maxHp);
