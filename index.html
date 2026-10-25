@@ -85,9 +85,6 @@ b,strong{font-weight:700}
 .cb.res b{min-width:1.6ch}
 .cb .rv{display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px}.cb .rt{font:700 10px/1 var(--body);font-style:normal;color:var(--good);letter-spacing:0;white-space:nowrap}.cb .rt.neg{color:var(--blood)}.cb .rt:empty{display:none}
 .cb .warn{color:var(--blood)}
-.cb.noise .nm{width:30px;height:6px;border-radius:3px;background:rgba(239,231,214,.14);position:relative;overflow:hidden}
-.cb.noise .nm i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--good),var(--amber) 55%,var(--blood));background-size:30px 100%;transition:width .3s}
-.cb.noise.hot .ic{color:var(--blood);animation:blink 1s steps(2) infinite}
 .cb.more{margin-left:auto;width:40px;justify-content:center;color:var(--muted);padding:0}.cb.more .ic{color:var(--bone);font-size:20px}
 .cbsep{width:1px;height:18px;background:var(--line);flex:none}
 .campbar{min-width:0;overflow:hidden}.cb.res{flex:0 1 auto}
@@ -188,8 +185,6 @@ b,strong{font-weight:700}
 .joy{position:fixed;left:-44px;top:-44px;width:88px;height:88px;border-radius:50%;border:2px solid rgba(239,231,214,.35);background:rgba(18,26,27,.25);pointer-events:none}
 .joy i{position:absolute;left:28px;top:28px;width:32px;height:32px;border-radius:50%;background:rgba(239,231,214,.55)}
 #autoTag{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dockH,72px) + 6px);font:600 11px var(--mono);letter-spacing:.14em;color:var(--cyan);background:rgba(6,14,26,.9);border:1px solid var(--cyan-d);border-radius:2px;padding:2px 8px;pointer-events:none}
-#blackout{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 132px);transform:translateX(-50%);display:flex;gap:10px;align-items:baseline;background:rgba(40,8,6,.92);border:1px solid var(--blood);color:#ffd2c8;border-radius:8px;padding:5px 14px 6px;pointer-events:none}
-#blackout b{font:700 18px var(--display);letter-spacing:.14em;color:#ff6a50}#blackout span{font:12px var(--mono)}
 /* the episode eyecatch and the night's title */
 #episode{position:fixed;left:50%;top:36%;transform:translate(-50%,-50%);z-index:30;pointer-events:none;text-align:center;display:grid;gap:6px;width:min(640px,100vw);padding:18px 24px;
   background:linear-gradient(90deg,transparent,rgba(8,12,18,.88) 18%,rgba(8,12,18,.88) 82%,transparent)}
@@ -427,7 +422,6 @@ table.log{border-collapse:collapse;font:13px var(--body);font-variant-numeric:ta
       <span class="cb res" id="rScrap" title="Scrap"><svg class="ic" aria-hidden="true"><use href="#i-scrap"/></svg><span class="rv"><b id="gold">12</b><i class="rt" id="goldRt"></i></span></span>
       <span class="cb res" id="rFood" title="Food"><svg class="ic" aria-hidden="true"><use href="#i-food"/></svg><span class="rv"><b id="food">4</b><i class="rt" id="foodRt"></i></span></span>
       <span class="cb res" id="rPeople" title="People"><svg class="ic" aria-hidden="true"><use href="#i-people"/></svg><b id="pop">0</b></span>
-      <span class="cb noise" id="rNoise" title="Noise: how far the Haven is heard" hidden><svg class="ic" aria-hidden="true"><use href="#i-noise"/></svg><span class="nm"><i id="noiseFill"></i></span></span>
       <button class="cb more" id="moreBtn" aria-label="More: sound, graphics, speed, autopilot"><svg class="ic" aria-hidden="true"><use href="#i-more"/></svg></button>
     </div>
     <div class="forecast" id="forecast" aria-live="polite"></div>
@@ -452,7 +446,6 @@ table.log{border-collapse:collapse;font:13px var(--body);font-variant-numeric:ta
 <div id="episode" hidden aria-live="polite"></div>
 <div id="subtitle" hidden aria-live="polite"></div>
 <div id="autoTag" hidden>[AUTOPILOT]</div>
-<div id="blackout" hidden><b>POWER DOWN</b><span id="boTxt"></span></div>
 <div id="overlay"><div class="card wide" id="card"></div></div>
 <div id="sprite"></div>
 

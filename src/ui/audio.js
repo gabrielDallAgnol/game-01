@@ -117,7 +117,6 @@ export function createAudio(store) {
         case 'evolve': break;   // the job-change sting plays on classUp (the UI's confirmation beat)
         case 'trialStart': S.first(); break;
         case 'eruptWarn': case 'breach': S.first(); break;
-        case 'blackout': S.bad(); break;
         case 'drop': S.thunder(); break;
         case 'heroDie': S.bad(); break;
         case 'firstDead': S.first(); break;

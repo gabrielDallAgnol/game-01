@@ -4,10 +4,10 @@
 // waits while he is away); with a hut the crew does it from anywhere. A patch with rock in it is the old paid clearing.
 // One job at a time (S.chop; not saved: a reload forgets a half-felled patch). Wired in game.js: MODULES + step().
 import { LOGGING } from '../content/logging.js';
-import { LOT_PAD, SIZE, NOISE } from './state.js';
+import { LOT_PAD, SIZE } from './state.js';
 import { N, T } from './mapgen.js';
 
-SIZE.lumbermill = 2; LOT_PAD.lumbermill = 1; NOISE.lumbermill = 2;   // a 2×2 shed on a lot with its path; saws are a little loud
+SIZE.lumbermill = 2; LOT_PAD.lumbermill = 1;   // a 2×2 shed on a lot with its path
 
 export function createLogging(G) {
   const { S, map, ev, earn, hasTech, owns, toast } = G;

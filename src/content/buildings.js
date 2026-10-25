@@ -18,11 +18,6 @@ export const BUILDINGS = {
     name: 'Barricade', cost: [2, 3, 4], hp: [40, 90, 160], blocks: true,
     desc: ['One barricade post · 40 hp · you walk through, the Ash-Born must chew through', 'Wrecks and sandbags · 90 hp', 'Concrete and razor wire · 160 hp'],
   },
-  // power: loud, but it keeps the lights (and the best guns) on
-  generator: {
-    name: 'Generator', cost: [8, 14], hp: [30, 45], power: [6, 10], maxLevel: 2, noise: [4, 6],
-    desc: ['+6 power · loud (+heat)', '+10 power · louder'],
-  },
   // tech: one of each, bought with scrap only, take time to build, unlock level 3
   workshop: {
     name: 'Workshop', cost: [18], hp: [60], tech: true, keep: 2, buildTime: 40, maxLevel: 1,
@@ -33,17 +28,12 @@ export const BUILDINGS = {
     desc: ['Unlocks level 3 homes and farms. Every home pays 1 more scrap.'],
   },
 };
-// (the generator is out of the build list while power is cut: CUT.power in sim/game.js; a Lights Out rule brings it back)
 // (barricades are out too: CUT.walls; BUILD_ORDER_WALLS is the list with them)
 export const BUILD_ORDER = ['house', 'farm', 'tower'];
 export const BUILD_ORDER_WALLS = ['house', 'farm', 'tower', 'wall'];
-export const BUILD_ORDER_POWER = ['house', 'farm', 'tower', 'wall', 'generator'];
-// power: what the keep makes on its own, and what each building draws (by level). Short on power = blackout:
-// every powered building switches off until supply is back (Red Alert style).
-export const POWER = { keep: [3, 4, 5], draw: { tower: [0, 1, 2], workshop: [2], market: [1] } };
 // each extra copy of a building costs more: the town has to choose, not spam. Towers climb in a straight line
 // (+25% of the base per tower you have); homes and farms climb and flatten; barricades +1 scrap per dozen posts.
-export const RISE = { house: 0.2, farm: 0.15, tower: 0.25, wall: 0, wallEvery: 12, generator: 0.5, workshop: 0, market: 0 };
+export const RISE = { house: 0.2, farm: 0.15, tower: 0.25, wall: 0, wallEvery: 12, workshop: 0, market: 0 };
 // hands: every build or upgrade needs a free pair of hands for the day: 2 + √people
 export const HANDS = { base: 2 };   // + the square root of your people (diminishing: a big town is not a fast town)
 export const TECH_ORDER = ['workshop', 'market'];

@@ -4,7 +4,7 @@
 // This file is the composition root: it builds the run's state, wires the rule modules together through one shared
 // context `G`, runs the start-of-run setup in a fixed order (the order is part of determinism: do not reorder), and
 // owns the per-frame step(). Each rule lives in its own module (createX(G) factories, see CLAUDE.md for the map):
-//   core · economy · buildings · build · waves · forecast · combat · noise · brain · loot · districts ·
+//   core · economy · buildings · build · waves · forecast · combat · brain · loot · districts ·
 //   seasons · hero · blessings · save · nests · api
 // G holds: the run's constants (S, map, c, keep, rng, mobById, seed, …), every module's functions, and five
 // late or changing slots read as G.x at call time: G.HC (the hero's class), G.DIFF (difficulty),
@@ -18,7 +18,7 @@ import { KITS } from '../content/districts.js';
 import { createScavenge } from './scavenge.js';
 import { createPlanner } from './planner.js';
 import { createStory } from './story.js';
-import { createState, STEP, PICKS_PER_DAWN, DROPS, ZONE, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, TENSION, PRESENCE, REGEN } from './state.js';
+import { createState, STEP, PICKS_PER_DAWN, DROPS, ZONE, CREW_NEED, SAVE_V, CUT, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, TENSION, PRESENCE, REGEN } from './state.js';
 import { createCore } from './core.js';
 import { createEconomy } from './economy.js';
 import { createBuildings } from './buildings.js';
@@ -26,7 +26,6 @@ import { createBuild } from './build.js';
 import { createWaves } from './waves.js';
 import { createForecast } from './forecast.js';
 import { createCombat } from './combat.js';
-import { createNoise } from './noise.js';
 import { createBrain } from './brain.js';
 import { createLoot } from './loot.js';
 import { createDistricts } from './districts.js';
@@ -64,10 +63,10 @@ import { createV2Core } from './v2core.js';
 import { createHordes } from './hordes.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
-export { STEP, PICKS_PER_DAWN, DROPS, ZONE, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, TENSION, PRESENCE, REGEN };
+export { STEP, PICKS_PER_DAWN, DROPS, ZONE, CREW_NEED, SAVE_V, CUT, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, TENSION, PRESENCE, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createLoot, createDistricts, createSeasons, createHero, createSave, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome];   // [nest3] appended   // [pacify] appended
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createBrain, createLoot, createDistricts, createSeasons, createHero, createSave, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome];   // [nest3] appended   // [pacify] appended
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
 MODULES.push(createConstruct, createSettle);   // [econ3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
@@ -90,11 +89,11 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     HC, DIFF, story: null, sc: null, api: null, v2combat: !!v2combat, v2: !!v2 };   // [combat2] v2combat   // [v2] v2
   for (const make of MODULES) Object.assign(G, make(G));
   const {
-    rng, mobById, PICKUP, activeNests, addHeat, autoHero, baseDist, checkForeman, checkPower, compass, dawn, districtOffer,
+    rng, mobById, PICKUP, activeNests, autoHero, baseDist, checkForeman, compass, dawn, districtOffer,
     earn, edgeSpawns, ev, fail, frontier, gainXp, heroOk, hitMob, hurtHero, inZone, isBloodMoon, isWall, killMob, kitFor,
     landmarkReach, live, mastery, moveToward, newLog, nightLen, occupy, openDistrict, placeBuilding, pop, rankOf,
     refreshFlow, refreshMax, restoreSnap, reveal, revealRegion, rollOffer, rollPacks, rule, scatterPickups, senseMult, siteOf,
-    spawnAnimals, spawnAtNest, spawnMob, spawnRoamers, standable, startNight, stepAllies, stepDrops, stepHeat, stepHero, stepMobs,
+    spawnAnimals, spawnAtNest, spawnMob, spawnRoamers, standable, startNight, stepAllies, stepDrops, stepHero, stepMobs,
     stepPickups, stepProjectiles, stepTowers, syncPicks, takeSite, toast, untitle, zone
   } = G;
 
@@ -124,7 +123,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   S.scav = G.sc.scav;
   // ---------- the story: its engine (sim/story.js) reaches the rules only through these hooks ----------
   const REVIVE = ['Hush', 'Echo', 'Lull', 'Old Song', 'Quill', 'Tam', 'Vesper', 'Nocturne'];
-  G.story = createStory({ api: () => G.api, S, map, rng: new Rng(hashSeed(seed, 'story')), ev, toast, earn, addHeat, openDistrict, frontier, districtOffer, siteOf, LANDMARKS, pop, refreshMax, syncPicks,
+  G.story = createStory({ api: () => G.api, S, map, rng: new Rng(hashSeed(seed, 'story')), ev, toast, earn, openDistrict, frontier, districtOffer, siteOf, LANDMARKS, pop, refreshMax, syncPicks,
     hurtHero: n => hurtHero(n), gainXp: n => gainXp(n),
     findSpot: () => G.findSpot(),   // beacons, trials and story places (sim/spots.js)
     guard: (x, y, n) => { for (let k = 0, tries = 0; k < n && tries < 40; tries++) { const a = rng.range(0, Math.PI * 2), gx = x + Math.cos(a) * rng.range(1, 2.8), gy = y + Math.sin(a) * rng.range(1, 2.8), cx = Math.floor(gx), cy = Math.floor(gy); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue; k++; const m = spawnMob(rng.pick(S.night >= 4 ? ['walker', 'runner'] : ['walker']), gx, gy, { instant: true }); m.roam = { x, y, region: -1 }; } },
@@ -173,8 +172,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     G.stepPacify(dt);   // [pacify] pacified land, hives waking on the map, the way home, the dusk warning
     G.stepWoods();   // [woods] worn trails
     G.stepLogging(dt);   // [gemini3] felling trees, the Logger's Hut
-    stepHeat(dt);
-    if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); G.story.tick(0.25); if (S.blackout) S.sawBlackout = true; }
+    if ((S.tickT = (S.tickT || 0) - dt) <= 0) { S.tickT = 0.25; checkForeman(); G.story.tick(0.25); }   // every quarter second: the Foreman, the story
     for (const b of S.buildings) if (b.built < 1 && !b.ruined && !b.cq) {   b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }   // [econ3] b.cq: the construction queue raises it
     // sunrise comes on time: the night's dead do not vanish. Far from the town they lose interest and roam where they stand.
     // No early dawn: a cleared night still lasts until the moon has crossed the sky.

@@ -35,7 +35,6 @@ export function createPlanner(g) {
     let score;
     if (type === 'tower') score = p => dRoute(p, pts) * 1.0 + Math.abs(dKeep(p) - 6) * 0.35;           // on the way in, not too far out
     else if (type === 'farm') score = p => dKeep(p) * 0.5 - Math.min(dRoute(p, pts), 8) * 0.6;          // out of the dead's way
-    else if (type === 'generator') score = p => dKeep(p) * 0.6 - Math.min(dRoute(p, pts), 8) * 0.4;   // loud: behind the town, off the routes
     else score = p => dKeep(p) - Math.min(dRoute(p, pts), 6) * 0.5;                                     // homes: a compact town
     cands.sort((a, b) => score(a) - score(b));
     for (const p of cands.slice(0, 6)) if (g.build(type, p.x, p.y)) return true;
@@ -63,7 +62,6 @@ export function createPlanner(g) {
     if (!b) return false;
     if (type === 'tower' && g.crewing().free < 1) return false;
     if (lack(g.upCostOf(b) + RESERVE)) return false;
-    if (g.raiseBlock && /power/.test(g.raiseBlock(b.id))) return ACT.power();   // never upgrade into a blackout
     return g.upgrade(b.id);
   }
   function keepUp() { const K = g.keepCost && g.keepCost(); if (!K || K.needs.length || !S.buildings.some(b => b.level >= g.keepLevel())) return false; if (lack(K.scrap)) return false; return g.upgradeKeep(); }
@@ -76,7 +74,6 @@ export function createPlanner(g) {
     upTower: () => upgradeOne('tower'),
     upHouse: () => upgradeOne('house'),
     keep: () => keepUp(),
-    power: () => (!g.cut || !g.cut.power || g.rule('lightsOut')) && can('generator') && place('generator'),
     // ruins first: a ruined tower or home is the cheapest strength the town can buy back (half its cost)
     rebuild: () => { if (S.phase !== 'day' || !g.ruins) return false; const r = g.ruins().find(x => x.type !== 'wall' && S.gold >= x.cost + RESERVE) || g.ruins().find(x => S.gold >= x.cost + RESERVE); return !!(r && g.rebuild(r.id)); },
     workshop: () => tech('workshop'),
@@ -127,7 +124,6 @@ export function createPlanner(g) {
     const focus = S.builders; if (!focus || focus === 'off') return false;   // autopilot turns the builders on
     const net = g.foodPerDawn() - g.foodNeed();
     if ((net < 0 || (net < 1 && S.food < 4)) && ACT.farm()) return true;
-    if (S.blackout && ACT.power()) return true;
     if (ACT.rebuild()) return true;
     // [income] scrap comes by the second, not in a dawn lump: the first step on the list that only lacks scrap is saved
     // for (the builders bank until it is paid, and that plan gets the first go at the purse), instead of the cheaper

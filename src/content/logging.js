@@ -4,7 +4,7 @@
 // 3×3 patch by hand (slow, he has to stand there, a scrap of timber for it); with a Logger's Hut a crew does it from
 // the hut (quick, more timber), fells a tree on your land now and then by day, and sends a little timber in at dawn.
 // Rock (a ruined block) is unchanged: scrap, a pair of hands and noise. Pure data; the rule is sim/logging.js.
-import { BUILDINGS, POWER, RISE, TECH_ORDER } from './buildings.js';
+import { BUILDINGS, RISE, TECH_ORDER } from './buildings.js';
 
 export const LOGGING = {
   on: true,            // off: trees go back to the old instant, paid clearing
@@ -22,6 +22,5 @@ BUILDINGS.lumbermill = {
   name: "Logger's Hut", cost: [10], hp: [45], tech: true, keep: 1, buildTime: 14, maxLevel: 1,
   desc: ['A crew fells trees on your land (quick, +2 timber a patch), clears a tree now and then by day, +2 scrap at dawn.'],
 };
-POWER.draw.lumbermill = [0];
 RISE.lumbermill = 0;
 if (!TECH_ORDER.includes('lumbermill')) TECH_ORDER.push('lumbermill');   // appended: the hotkeys 1–6 keep their buildings

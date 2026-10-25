@@ -1,28 +1,6 @@
-// Pacing: one new idea at a time, the way the first episodes of an anime let you look around before the plot
-// kicks in. Each system stays switched off (and out of the HUD) until its episode comes, then the System opens a
-// window that explains it in three lines. See docs/research/anime-pacing.md.
+// Pacing and seasons: the party size, the season (its rules and episodes).
 
 export const PARTY = { base: 1, keep3: 1 };   // companions at your side: one, a second once the keep reaches level 3
-
-// when each system arrives. `when(S, g)` is checked at dawn and when the keep rises.
-// `win` is the System window that introduces it (bold with **…**).
-export const FEATURES = {
-  power: {
-    when: (S, g) => g.keepLevel() >= 2,
-    win: { eyebrow: '[New system: Power]', title: 'The lights need power',
-      lines: ['Big towers now need **power** (⚡ at the top).', 'The town hall makes a little. **Generators** make more, but they are loud.', 'Not enough power: a **blackout**. Powered things stop.'] },
-  },
-  heat: {
-    when: (S, g) => S.night >= 6 && g.keepLevel() >= 2,
-    win: { eyebrow: '[New system: Noise]', title: 'The Ash-Born can hear you',
-      lines: ['**Noise** (top bar): how loud the Haven is.', 'Louder = **more Ash-Born** each night.', 'At the **red mark**, the nearest Inferno Nest **bursts**.'] },
-  },
-  routes: {
-    when: S => S.night >= 6,
-    win: { eyebrow: '[New system: Expeditions]', title: 'Beyond the fence',
-      lines: ['Every other dawn, pick **one route** into a sealed district.', 'Far districts: **bigger, richer, more dangerous**.', 'Each has one **site** to claim. Some have an **Inferno Nest**.'] },
-  },
-};
 
 // a season is an arc: a new rule, a threat that grows, a finale on its last Flare Night. After the written ones,
 // the city keeps making new seasons from the pool, so an open-ended run always has a next arc.
@@ -51,7 +29,6 @@ export const RULES = {
   // what used to be weather (sim/game.js RULE_FX sets the night for these)
   storm: { catch: 'A fifth more Ash-Born each night. A little more food.', name: 'Storm season', desc: 'Thunder every night: a fifth more Ash-Born come. The rain fills the cisterns: more food.' },
   still: { catch: 'A quarter fewer Ash-Born each night.', name: 'The still', desc: 'Quiet nights: a quarter fewer Ash-Born come.' },
-  lightsOut: { catch: 'Big towers need power again.', name: 'Lights out', desc: 'Level 2–3 towers need power again. Generators return; build too few and the lights go out.' },
 };
 // offline episode titles: one per day of the first season (Claude writes later ones when it is on)
 export const EPISODES = ['A Flatbed Full of Coworkers', 'The Thermal Pioneer', 'The Light That Went Out', 'Drawings on the Glass', 'The First Flare Night',

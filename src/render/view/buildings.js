@@ -1,5 +1,5 @@
 // Your buildings: models cached per (type, level, look) and folded into one draw each (model + pad + cheer),
-// ruins, the build pop, the upgrade sweep, the tower's NO CREW / NO POWER tags and the bars.
+// ruins, the build pop, the upgrade sweep, the tower's NO CREW tag and the bars.
 /* global THREE */
 import { N, idx } from '../../sim/mapgen.js';
 import { K } from '../kit.js';
@@ -57,15 +57,6 @@ export function createBuildings(V) {
         B.cbox('canvas', 0.9, 0.5, 0.6, x, 0.08, z, { r: 0.03, ry: -a }); B.cbox(k % 2 ? 'amber' : 'canvas', 1.05, 0.06, 0.8, x, 0.95, z, { r: 0.01, ry: -a, rx: 0.15 });
         for (const s2 of [-0.45, 0.45]) B.box('metal', 0.04, 0.9, 0.04, x + Math.cos(-a) * s2, 0.08, z + Math.sin(-a) * s2); }
       B.cbox('amberDeep', 0.35, 0.3, 0.35, 0.2, 0.08, 0.2, { r: 0.03 }); B.cbox('canvas', 0.3, 0.25, 0.3, -0.25, 0.08, -0.1, { r: 0.03, ry: 0.5 });
-      m = B.build();
-    } else if (type === 'generator') {   // a diesel genset on skids: a red housing, fuel tank, exhaust stacks, cables
-      const B = new K.B(), L2 = level >= 2;
-      B.cbox('dark', 1.7, 0.12, 1.1, 0, 0, 0, { r: 0.02 });
-      B.cbox('danger', 1.4, 0.75, 0.85, 0, 0.12, 0, { r: 0.05 }); B.cbox('amber', 1.42, 0.08, 0.87, 0, 0.62, 0, { r: 0.01 });
-      for (let k = 0; k < 5; k++) B.box('dark', 0.05, 0.4, 0.02, -0.5 + k * 0.18, 0.25, 0.44);
-      B.cyl('steel', 0.24, 0.24, 1.3, 0, 0.32, -0.75, { rz: Math.PI / 2, seg: 12 });
-      B.cyl('dark', 0.06, 0.07, 0.6, 0.45, 0.87, -0.2, { seg: 8 }); if (L2) { B.cyl('dark', 0.06, 0.07, 0.75, 0.25, 0.87, -0.2, { seg: 8 }); B.cbox('danger', 1.0, 0.6, 0.7, -0.15, 0.12, 0.85, { r: 0.05 }); }
-      B.cbox('lit', 0.12, 0.08, 0.04, -0.55, 0.5, 0.44, { r: 0.01 });
       m = B.build();
     }
     m.scale.setScalar(BSCALE[type]);
@@ -129,8 +120,7 @@ export function createBuildings(V) {
     }
     return cheerGeo[key].clone();
   }
-  const NICE = { house: '+1 Home', farm: '+1 Farm', tower: '+1 Tower', generator: '+1 Generator', workshop: 'Workshop', market: 'Market', lumbermill: "Logger's Hut" };   // [gemini3] lumbermill
-  const noPowerMat = new THREE.SpriteMaterial({ map: K.textTex('NO POWER', { w: 256, h: 64, size: 40, bg: '#3a0d08', fg: '#ff6a50', spacing: '2px' }), transparent: true, depthTest: false });
+  const NICE = { house: '+1 Home', farm: '+1 Farm', tower: '+1 Tower', workshop: 'Workshop', market: 'Market', lumbermill: "Logger's Hut" };   // [gemini3] lumbermill
   // ruins persist until rebuilt: a fallen building is drawn as its own charred, collapsed shell
   function syncBuildings() {
     const time = V.time, { makeBar } = V.bars, { dust, burst, celebrate } = V.feel;
@@ -152,10 +142,9 @@ export function createBuildings(V) {
       if (b.built < 1) { e.g.scale.set(1, 0.15 + 0.85 * b.built, 1); e.building = true; } else if (e.building) { e.building = false; e.pop = 0; burst(b.x, b.y, 1.2, '#d9843a'); }
       if (b.type === 'tower') {
         if (!e.nc) { e.nc = new THREE.Sprite(noCrewMat); e.nc.renderOrder = 9; fx.add(e.nc); }
-        const unpowered = !b.ruined && game.powered && !game.powered(b), uncrewed = !b.ruined && game.manned && !game.manned(b);
-        e.nc.material = unpowered ? noPowerMat : noCrewMat;
-        if (unpowered) e.nc.scale.set(1.0, 0.25, 1); else { const k = 1 + 0.08 * Math.sin(time * 5); e.nc.scale.set(1.7 * k, 1.06 * k, 1); }   // [towers] the silent badge breathes
-        e.nc.visible = unpowered ? Math.sin(time * 8) > -0.3 : uncrewed; if (e.nc.visible) e.nc.position.copy(Wv(b.x, b.y, unpowered ? 2.1 : 3.9 + b.level * 0.25 + Math.sin(time * 3) * 0.06));
+        const uncrewed = !b.ruined && game.manned && !game.manned(b);
+        { const k = 1 + 0.08 * Math.sin(time * 5); e.nc.scale.set(1.7 * k, 1.06 * k, 1); }   // [towers] the silent badge breathes
+        e.nc.visible = uncrewed; if (e.nc.visible) e.nc.position.copy(Wv(b.x, b.y, 3.9 + b.level * 0.25 + Math.sin(time * 3) * 0.06));
       }
       if (b.ruined && !e.ruined) { e.ruined = true; e.g.visible = false; e.rubble = ruinModel(b.type, b.level, b); e.rubble.position.copy(e.g.position); e.rubble.rotation.y = e.g.rotation.y; world.add(e.rubble); }
       if (!b.ruined && e.ruined) { e.ruined = false; world.remove(e.rubble); e.rubble = null; e.g.visible = true; e.pop = 0; e.g.scale.set(1, 0.001, 1); dust(b.x, b.y, FOOT[b.type] || 1); }

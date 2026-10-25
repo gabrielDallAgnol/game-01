@@ -35,7 +35,6 @@ export function createCards(ui) {
   // cause → consequence: every choice shows what it does as chips (green gains, red costs)
   function chipsOf(c) {
     const S = ui.game.state, out = [], add = (cls, ic, t) => out.push(`<span class="chip ${cls}">${ic ? icon(ic) : ''}${t}</span>`), sg = n => (n > 0 ? `+${n}` : `−${-n}`);
-    const noiseOn = S.noise !== undefined || S.feat.heat;
     if (c.cost && c.cost.gold) add('neg', 'scrap', `−${c.cost.gold}`);
     if (c.cost && c.cost.food) add('neg', 'food', `−${c.cost.food}`);
     const PERK = { heroDmg: ['sword', 'hero'], heroDmgMult: ['sword', 'hero'], keepHp: ['camp', 'Haven'], heroHp: ['heart', 'hero'], towerDmg: ['tower', 'towers'], heroSpeed: ['boots', 'speed'] };
@@ -43,7 +42,6 @@ export function createCards(ui) {
       if (f.op === 'gold') add(f.n > 0 ? 'pos' : 'neg', 'scrap', sg(f.n));
       else if (f.op === 'food') add(f.n > 0 ? 'pos' : 'neg', 'food', sg(f.n));
       else if (f.op === 'survivors') add(f.n > 0 ? 'pos' : 'neg', 'people', sg(f.n));
-      else if (f.op === 'heat' && noiseOn) add(f.n > 0 ? 'neg' : 'pos', 'noise', sg(f.n));
       else if (f.op === 'perk' && PERK[f.key]) add(f.mul && f.mul < 1 ? 'neg' : 'pos', PERK[f.key][0], `${PERK[f.key][1]} up`);
       else if (f.op === 'flag' && f.key === 'beacon') add('pos', 'people', '+1 later');
       else if (f.op === 'flag' && f.key === 'garden') add('pos', 'food', '+1 a day');

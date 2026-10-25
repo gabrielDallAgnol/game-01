@@ -20,7 +20,7 @@ export function createPlacing(ui) {
     const sig = [S.gold, JSON.stringify(S.stock), ui.placing && ui.placing.type, S.builders, showForeman, S.feat.power, ui.game.keepLevel(), S.buildings.length, hands > 0, ui.folkSig ? ui.folkSig() : ''].join('|');   // [econ3] the carts row   // [folk] the row's state if (sig === trayKey) return; trayKey = sig;
     const FOCUS = { defence: 'Defence', balanced: 'Balanced', growth: 'Growth', off: 'Off' };
     const bRow = showForeman ? `<div class="builders" role="group" aria-label="What your builders focus on"><span>Foreman</span>${Object.entries(FOCUS).map(([k, v]) => `<button data-focus="${k}" aria-pressed="${(S.builders || 'off') === k}">${v}</button>`).join('')}</div>` : '';
-    tray.innerHTML = bRow + (ui.folkRow ? ui.folkRow() : '') /* [folk] Let them build */ + BUILD_ORDER.filter(t => t !== 'generator' || S.feat.power).map(t => {
+    tray.innerHTML = bRow + (ui.folkRow ? ui.folkRow() : '') /* [folk] Let them build */ + BUILD_ORDER.map(t => {
       const n = S.stock[t] || 0, cost = n ? 0 : ui.game.buyCost(t), on = ui.placing && ui.placing.type === t;
       const crew = t === 'tower' ? ui.game.crewing() : null, silent = crew && crew.free < CREW_NEED[0];   // [towers] a tower needs a crew: show it on the card
       return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${(!n && S.gold < cost) || hands < 1 ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost">${icon('scrap')}${cost}</span>`}${crew ? `<span class="tcrew${silent ? ' bad' : ''}">${icon('people')}${CREW_NEED[0]} crew${silent ? ' · none free' : ''}</span>` : ''}</button>`;
@@ -44,7 +44,7 @@ export function createPlacing(ui) {
     if (t === 'tower' && ui.game.crewing().free < CREW_NEED[0]) ui.toast('[No crew free] A new tower will stand silent. Build or upgrade homes first.', 'bad');   // [towers]
     startPlacing(t);
   });
-  const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, generator: 2, lumbermill: 2 };   // [gemini3] lumbermill
+  const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, lumbermill: 2 };   // [gemini3] lumbermill
   const cellOf = (x, y) => [Math.floor(x), Math.floor(y)];
   function computeZone(type) {
     const S = ui.game.state, n = SIZE[type], off = n % 2 ? 0.5 : 0, mask = new Uint8Array(N * N), spots = [];

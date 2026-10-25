@@ -1,7 +1,6 @@
 // The dead's minds and feet: roamers and animals in the wild, scent and hunting (aggro, think), ambushes,
 // the per-frame mob step (stepMobs), separation, and walking around buildings.
 import { BRAIN, MOBS, TIDE } from '../content/mobs.js';
-import { HEAT } from './state.js';
 import { N, PASSABLE, T, idx, inside } from './mapgen.js';
 
 export function createBrain(G) {
@@ -66,7 +65,7 @@ export function createBrain(G) {
     }
     if (m.lost && Math.hypot(m.x - c, m.y - c) < 26 && !(rng.next() < 0.995)) { m.roam = null; m.lost = false; return; }   // a straggler from the night that wanders near the town again
     // now and then a roamer next to your land drifts in and walks on the town
-    if (!MOBS[m.kind].animal && S.clock && (S.night >= 2 || (G.dayDeadOk && G.dayDeadOk())) /* [gemini3] day 1 too */ && home.region >= 0 && G.baseDist(home.x, home.y) < (S.heat >= HEAT.stir ? 20 : 12) && rng.next() < TIDE.drift * (S.phase === 'day' ? TIDE.dayRef / TIDE.dayLen : 1) * Math.min(1, S.night / 6) * (S.heat >= HEAT.stir ? 2.5 : 1) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
+    if (!MOBS[m.kind].animal && S.clock && (S.night >= 2 || (G.dayDeadOk && G.dayDeadOk())) /* [gemini3] day 1 too */ && home.region >= 0 && G.baseDist(home.x, home.y) < 12 && rng.next() < TIDE.drift * (S.phase === 'day' ? TIDE.dayRef / TIDE.dayLen : 1) * Math.min(1, S.night / 6) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
     const fromHome = Math.hypot(m.x - home.x, m.y - home.y);
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), heroHome = G.inZone(idx(Math.floor(h.x), Math.floor(h.y)));
     // once a roamer has your scent it hunts you: it follows you home and joins the attack on the town

@@ -1,5 +1,5 @@
 // Light: one continuous time-of-day clock (and the blood moon), the night's light pools painted around the camera
-// (fires, homes, towers, hives, flares, the hero's lantern), windows and lenses, rim and mist, blackouts.
+// (fires, homes, towers, flares, the hero's lantern), windows and lenses, rim and mist.
 /* global THREE */
 import { K } from '../kit.js';
 import { skyAt } from '../look.js';
@@ -38,7 +38,6 @@ export function createLights(V) {
     fx2.pools.end(k);
   }
   const RIM_DAY = lc('#ffdcae'), RIM_NIGHT = lc('#8fb4ff'), MIST_DAWN = lc('#e6d2cc'), MIST_DUSK = lc('#a796b4'), MIST_NIGHT = lc('#30406a'), _rc = new THREE.Color();
-  let boK = 0;
 
   /**
    * the time of day: ONE continuous clock (game.timeOfDay: 0 sunrise … dayShare dusk … 1 sunrise) drives every light.
@@ -60,9 +59,7 @@ export function createLights(V) {
   function night(dt, skyNow) {
     const time = V.time, dark = V.dark, h = S.hero, lampGlow = V.keep.lampGlow;
     // night: windows, lenses, the light pool, the hero's lantern, the searchlight
-    // a blackout kills the town's lights, with a dying flicker
-    const boT = S.blackout ? 1 : 0; boK += (boT - boK) * Math.min(1, dt * (S.blackout ? 2.5 : 1.2));
-    const lit = (1 - boK) * (boK > 0.05 && boK < 0.95 ? (Math.sin(time * 37) > 0 ? 1 : 0.3) : 1);
+    const lit = 1;   // (a blackout once dimmed the town's lights: power was cut on Oct 25)
     for (const sp of lampGlow) sp.material.opacity = dark * 0.9 * lit;
     K.WIN.emissiveIntensity = dark * 2.4 * (0.25 + 0.75 * lit); K.LENS.emissiveIntensity = 0.2 + dark * 6 * lit;
     K.T.emitK.value = dark * 2.6 * (0.25 + 0.75 * lit);

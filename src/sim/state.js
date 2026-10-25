@@ -13,7 +13,6 @@ export const DROPS = { channel: 3, reach: 1.7, life: 2 };   // seconds to open, 
 export const ZONE = { keep: 13, building: 4.5, landmark: 7, hiveBlock: 6, hiveReach: 14 };
 export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/3
 // ---------- cuts (decided Oct 20): each system stays in the code behind a flag so it can return ----------
-// power: no generators in the build list, no blackouts (the data stays for a "Lights Out" contract rule)
 // hands: no daily hand limit · weather: never rolled at dawn, its effects live in season rules (storm, still)
 // titleStats: titles are flavour, their stat effects are undone · finalClass / secondCompanion: parked
 // trader: the Scavver meets no trader · crew: the scavenge crew generates no events or bonuses
@@ -23,20 +22,7 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 // (sim/missions.js was deleted with the road, Oct 25.)
 // the save format: v4 (Oct 20) carries ruins, Noise, tools, contracts and the road; older saves are ignored at the start screen
 export const SAVE_V = 4;
-export const CUT = { walls: true, power: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true, missions: true };
-// Heat (old name, same meter): see NOISE below. `stir`, `erupt`, `warn`, `cool`, `burst` still apply.
-export const HEAT = { floorPer: 1.4, floorMax: 70, combatMax: 77, decay: 0.1, rise: 2.5, shot: 0.03, kill: 0.15, stir: 50, erupt: 80, warn: 40, after: -35, cool: 90, burst: 9 };
-// Noise: ONE meter (0–100). It rests on a floor set by loud CHOICES (level 3 towers, the market and workshop,
-// loud sites, story choices), spikes with gunfire and fighting (the spike fades at `HEAT.decay` per second), and
-// decides three things: how far the hives hear the camp (HEAR), how many dead come (×1 → ×`mult` at 100) and,
-// at `HEAT.erupt`, a hive bursts. A story choice moves the meter for nights: it fades by `choiceFade` each dawn.
-export const NOISE = {
-  tower: [0, 0.5, 3], market: 8, workshop: 5, generator: [10, 14], wall: 0, house: 0, farm: 0,   // the floor, per building (by level)
-  site: 2,               // × a site's noise (the fuel depot pumps)
-  choiceFade: 0.2,       // a story choice's noise fades by a fifth each dawn
-  choiceMax: 40,         // story choices can move the meter by at most this much either way
-  mult: 0.5,             // wave multiplier: 1 + mult × noise/100 (≤ ×1.5)
-};
+export const CUT = { walls: true, hands: true, weather: true, titleStats: true, finalClass: false, secondCompanion: true, trader: true, crew: true, missions: true };
 // Tension: ruins persist until rebuilt by hand; the hall falls over ~30 s; dying costs the night.
 export const TENSION = { hallCap: 0.03, hallGuard: 0.5, guardR: 3, respawn: 30, downRate: 0.75, rebuild: 0.5 };
 // The hero's presence: towers near the hero shoot faster and further; whatever the hero hits is Marked for the towers.
@@ -45,7 +31,6 @@ export const PRESENCE = { r: 6, rate: 1.3, range: 2, markT: 4, mark: 1.3 };
 export const RULE_FX = {
   storm: { name: RULES.storm.name, desc: RULES.storm.desc, weather: 'storm' },
   still: { name: RULES.still.name, desc: RULES.still.desc, weather: 'still' },
-  lightsOut: { name: RULES.lightsOut.name, desc: RULES.lightsOut.desc },
 };
 // Difficulty: threat (how many dead), economy (what homes and farms give), heat (how fast attention builds).
 export const DIFFICULTY = {
@@ -71,8 +56,8 @@ export class MinHeap {
   }
 }
 export const DIRS8 = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
-export const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, generator: 2 };
-export const LOT_PAD = { house: 1, farm: 1, tower: 1, workshop: 1, market: 1, wall: 0, generator: 1 };   // the path each lot includes   // compact footprints; palisades are single posts, laid in lines
+export const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3 };
+export const LOT_PAD = { house: 1, farm: 1, tower: 1, workshop: 1, market: 1, wall: 0 };   // the path each lot includes   // compact footprints; palisades are single posts, laid in lines
 export const BIG = 1.6; // mobs at least this size count as "big game"
 
 /** the run's state at the start of day 1 (before any building, roamer or story): S */
@@ -80,7 +65,7 @@ export function createState({ seed, biome, map, hero, mode, clock, difficulty, l
   const c = map.town.x;
   const S = {
     seed, biome, map, heroClass: hero, mode, lvl: 1, xp: 0, night: 1, phase: 'day', time: 0,
-    stock: { ...PACK_RULES.start }, packs: [], difficulty: DIFFICULTY[difficulty] ? difficulty : 'survivor', handsUsed: 0, handsExtra: 0, heat: 0, noise: 0, noiseChoice: 0, noiseSpike: 0, mourned: 0, diffNight: 0, eruption: null, heatCool: 0, blackout: false, foreman: false, feat: {}, season: { n: 1, id: SEASONS[0].id, rule: SEASONS[0].rule || null, rules: SEASONS[0].rule ? [SEASONS[0].rule] : [], name: SEASONS[0].name, finale: SEASONS[0].finale, end: seasonEnd(1), start: 1, won: false },
+    stock: { ...PACK_RULES.start }, packs: [], difficulty: DIFFICULTY[difficulty] ? difficulty : 'survivor', handsUsed: 0, handsExtra: 0, mourned: 0, diffNight: 0, foreman: false, feat: {}, season: { n: 1, id: SEASONS[0].id, rule: SEASONS[0].rule || null, rules: SEASONS[0].rule ? [SEASONS[0].rule] : [], name: SEASONS[0].name, finale: SEASONS[0].finale, end: seasonEnd(1), start: 1, won: false },
     gold: START.gold, food: START.food, kills: 0, events: [],
     buildings: [], occ: new Int32Array(N * N).fill(-1), res: new Int32Array(N * N).fill(-1),
     claimed: new Set([0]), nestAlive: map.regions.map(r => !!r.nest), wake: map.regions.map(() => Infinity),

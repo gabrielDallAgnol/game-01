@@ -35,7 +35,6 @@ export function createBuildings(G) {
   function canPlace(type, x, y, rot = 0, opts = {}) {
     if (!SIZE[type]) return { ok: false, reason: 'Unknown building.', cells: [] };
     if (type === 'wall' && CUT.walls) return { ok: false, reason: 'Barricades are gone for now: the Ash-Born just walk round a line.', cells: [] };
-    if (type === 'generator' && !G.powerLive()) return { ok: false, reason: 'No one needs a generator: the Haven runs on fire and hand-cranks.', cells: [] };
     if (BUILDINGS[type].tech) { if (keep.level < BUILDINGS[type].keep) return { ok: false, reason: `Raise the Haven Rig to level ${BUILDINGS[type].keep} first.`, cells: [] }; if (S.buildings.some(b => b.type === type)) return { ok: false, reason: `You already have a ${BUILDINGS[type].name}.`, cells: [] }; }
     const { cells, lot, cx, cy } = shape(type, x, y, rot);
     const out = { ok: false, x: cx, y: cy, rot, cells: cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), lot: lot.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), reason: '' };

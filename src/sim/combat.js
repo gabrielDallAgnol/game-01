@@ -1,6 +1,6 @@
 // Damage and death: tower stats and crews, defence and hero dps, hits on buildings and the dead,
 // ruins, kills and their loot, explosions, the hero going down and coming back, projectiles, towers and the keep shooting.
-import { BIG, CREW_NEED, CUT, HEAT, LEVEL, PRESENCE, TENSION } from './state.js';
+import { BIG, CREW_NEED, CUT, LEVEL, PRESENCE, TENSION } from './state.js';
 import { BUILDINGS, KEEP, START } from '../content/buildings.js';
 import { MERC, PURSE } from '../content/heroes.js';
 import { MOBS } from '../content/mobs.js';
@@ -49,7 +49,7 @@ export function createCombat(G) {
   function defenceDps() {
     cacheNeighbours();
     let d = 0;
-    for (const b of live()) if (b.type === 'tower' && manned(b) && G.powered(b)) { const t = towerStats(b); d += b.spec ? G.specDps(b, t) : t.dmg * t.shots / t.rate; }   // [towers] a specialised tower: sim/towers.js
+    for (const b of live()) if (b.type === 'tower' && manned(b)) { const t = towerStats(b); d += b.spec ? G.specDps(b, t) : t.dmg * t.shots / t.rate; }   // [towers] a specialised tower: sim/towers.js
     if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * keepShots(keep.level - 1) + (has('ballista') ? 8 / 3 * 2 : 0);
     return d;
   }
@@ -116,7 +116,7 @@ export function createCombat(G) {
   function killMob(m, src) {
     const i = S.mobs.indexOf(m); if (i < 0) return;
     if (MOBS[m.kind].animal) { S.mobs.splice(i, 1); mobById.delete(m.id); ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: src || null, dmg: +(m.lastHit || 0).toFixed(2) }); S.food += MOBS[m.kind].food; S.stats.hunted = (S.stats.hunted || 0) + 1; ev('pickup', { id: m.id, kind: 'food', x: m.x, y: m.y, n: MOBS[m.kind].food }); if (src === 'hero') G.gainXp(1); return; }
-    S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: src || null, dmg: +(m.lastHit || 0).toFixed(2) }); G.addSpike(HEAT.kill); S.salvage = (S.salvage || 0) + START.salvage * (MOBS[m.kind].size >= BIG ? 4 : 1);
+    S.mobs.splice(i, 1); mobById.delete(m.id); S.kills++; ev('die', { id: m.id, kind: m.kind, x: m.x, y: m.y, src: src || null, dmg: +(m.lastHit || 0).toFixed(2) }); S.salvage = (S.salvage || 0) + START.salvage * (MOBS[m.kind].size >= BIG ? 4 : 1);
     S.stats.killsByKind[m.kind] = (S.stats.killsByKind[m.kind] || 0) + 1;
     if (m.kind === 'guardian' || m.kind === 'gravelord') S.stats.bosses++;
     if (m.unique && S.unique) { S.unique.slain = true; S.picks.push('nest'); syncPicks(); toast(`[Unique Monster slain: ${m.unique}] A legendary blessing waits at dawn.`, 'good'); if (G.story) { G.story.chron(`Killed ${m.unique}, the unique monster.`, 5, ['unique']); G.story.grant('uniqueSlayer'); } }
@@ -165,7 +165,7 @@ export function createCombat(G) {
   function fire(from, x0, y0, target, dmg, src, speed = 18, extra = {}) {
     if (src !== 'hero' && has('hunter') && MOBS[target.kind] && MOBS[target.kind].size >= BIG) dmg *= 1.6;
     const p = { id: S.nextId++, x: x0, y: y0, z: from, target: target.id, tx: target.x, ty: target.y, dmg, src, speed, life: 2, enemy: false, ...extra };
-    S.projectiles.push(p); ev('shot', { id: p.id, src }); if (src !== 'hero') G.addSpike(HEAT.shot);
+    S.projectiles.push(p); ev('shot', { id: p.id, src });
   }
   function spit(m, target) {
     const tid = target === S.hero ? 'hero' : target.ally ? `a${target.id}` : target.id;
@@ -180,7 +180,7 @@ export function createCombat(G) {
   }
   function stepTowers(dt) {
     for (const b of live()) {
-      if (b.type !== 'tower' || !manned(b) || !G.powered(b) || b.built < 1) continue;   // [econ3] a tower still going up does not shoot
+      if (b.type !== 'tower' || !manned(b) || b.built < 1) continue;   // [econ3] a tower still going up does not shoot
       const t = towerStats(b);
       if (mastery('rain')) { b.rainT += dt; if (b.rainT >= 6) { b.rainT = 0; for (const m of nearestMobs(b.x, b.y, t.range, 3)) fire(3, b.x, b.y, m, t.dmg, 'tower'); } }
       // [towers] begin: a specialised tower fires its own way (sim/towers.js)

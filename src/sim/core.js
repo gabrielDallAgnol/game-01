@@ -25,7 +25,7 @@ export function createCore(G) {
   const houseCap = b => BUILDINGS.house.pop[b.level - 1];
   const pop = () => Math.max(0, S.survivors + (S.homeless || 0) + S.buildings.reduce((s, b) => s + (b.type === 'house' ? (b.folk ?? houseCap(b)) : 0), 0));
   const near = (b, type, r) => S.buildings.some(o => o !== b && o.type === type && !o.ruined && Math.hypot(o.x - b.x, o.y - b.y) <= r);
-  const hasTech = t => !S.blackout && S.buildings.some(b => b.type === t && !b.ruined && b.built >= 1);
+  const hasTech = t => S.buildings.some(b => b.type === t && !b.ruined && b.built >= 1);
   const claimedCount = () => S.claimed.size;
   const isBloodMoon = n => !G.v2 && n % WAVES.bloodMoonEvery === 0;   // [v2] no Flare Nights (their bosses ride the waves)
   let liveCache = null, liveTick = -1;
@@ -53,7 +53,7 @@ export function createCore(G) {
   function compass(x, y) { const a = Math.atan2(x - c, -(y - c)); return DIRS[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]; }
   // ---------- season rules (seasons.js owns the season itself) ----------
   // a season's rules live in S.season.rules (a won contract's rules stack); S.season.rule is the newest, for old readers
-  const RULE_ALIAS = { lightsout: 'lightsOut', 'lights-out': 'lightsOut' };
+  const RULE_ALIAS = {};
   const rule = id => { if (!S.season) return false; const list = S.season.rules || [], a = RULE_ALIAS[id] || id; return list.some(r => (RULE_ALIAS[r] || r) === a) || (RULE_ALIAS[S.season.rule] || S.season.rule) === a; };
   return { ev, toast, has, combo, mastery, syncMastery, mastered, isDef, earn, houseCap, pop, near, hasTech, claimedCount, isBloodMoon, dropLive, live, owns, syncPicks, rollOffer, reveal, revealRegion, fail, compass, rule };
 }

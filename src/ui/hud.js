@@ -1,9 +1,8 @@
 // The HUD: the System strip and Camp toasts (two voices), dawn and dusk banners, the night's losses line, the top
-// bar (scrap, food, people, noise, forecast, sun dial), edge arrows (the dead;
+// bar (scrap, food, people, forecast, sun dial), edge arrows (the dead;
 // MAIN objectives big and gold with their distance, OPTIONAL ones small and only when close),
 // and the auto quality watch.
 import { $, DIR8, NUMW, ONE, PLURAL, campCopy, esc, mmss, store } from './shared.js';
-import { HEAT } from '../sim/game.js';
 import { MOBS } from '../content/mobs.js';
 import { icon } from './icons.js';
 import { DUSK_TAGS, pickLine } from '../content/solar.js';
@@ -67,7 +66,6 @@ export function createHud(ui) {
   // ---------- HUD ----------
   function dockH() { const db = $('#dock').getBoundingClientRect(); document.body.style.setProperty('--dockH', `${Math.max(64, innerHeight - db.top)}px`); }
   let lastKeep = 0, keepHitT = 0;
-  function noiseNow() { const S = ui.game.state; return typeof ui.game.noise === 'function' && S.noise !== undefined ? +ui.game.noise() || S.noise : (S.noise ?? S.heat ?? 0); }
   // [towers] towers without their full crew do not shoot: say how many, and how many more people would man them all
   function silentLine() {
     const S = ui.game.state, cw = ui.game.crewing(), up = S.buildings.filter(b => b.type === 'tower' && !b.ruined).length, silent = up - cw.manned.size;
@@ -109,13 +107,10 @@ export function createHud(ui) {
       for (const [id, v] of [['#goldRt', r.gold], ['#foodRt', r.food]]) { const el = $(id), t = S.over ? '' : f(v); if (el.textContent !== t) el.textContent = t; el.classList.toggle('neg', v < 0); } }
     $('#food').classList.toggle('warn', ui.game.foodPerDawn() + S.food < ui.game.foodNeed());
     { const cw = ui.game.crewing(); $('#pop').classList.toggle('warn', cw.need > cw.people); }
-    const noiseShown = (S.noise !== undefined || !!S.feat.heat) && !(ui.game.v2 && ui.game.v2()), nz = noiseNow();   // [v2] no noise meter
-    $('#rNoise').hidden = !noiseShown; if (noiseShown) { $('#noiseFill').style.width = `${Math.min(100, nz)}%`; $('#rNoise').classList.toggle('hot', nz >= HEAT.erupt || !!S.eruption); }
     // tonight, honestly
     const fc = $('#forecast'); const fh = S.over ? '' : forecastText(); if (fc.dataset.h !== fh) { fc.dataset.h = fh; fc.innerHTML = fh; } fc.classList.toggle('night', night); fc.hidden = !fh || (!systemHere() && S.night === 1 && !night);
     // the Camp, when you are far from it
     { const d = Math.hypot(S.hero.x - ui.game.map.town.x, S.hero.y - ui.game.map.town.y), ca = $('#campAway'); ca.hidden = d <= 25 || S.over; if (!ca.hidden) { $('#campPct').textContent = `${Math.round(kp * 100)}%`; ca.classList.toggle('hit', keepHitT > 0); ca.classList.toggle('low', kp < 0.35); } }
-    $('#blackout').hidden = !S.blackout; if (S.blackout && ui.game.powerIn) $('#boTxt').textContent = `${ui.game.powerOut()} needed · ${ui.game.powerIn()} made`;
     $('#buildBtn').style.visibility = S.over ? 'hidden' : '';
     // the thumb row's middle: the sun (or the moon), and how long you have
     if (S.over) $('#info').innerHTML = 'The window has closed';
@@ -125,7 +120,6 @@ export function createHud(ui) {
       if (S.hero.dead) mid = `${icon('heart')}<span class="soon">Back in ${Math.ceil(S.hero.respawn)}s</span>`;
       else if (night) mid = `${sunDial(ui.game.nightFrac(), false, true)}${loose ? `<span><em>${loose}</em> coming</span>` : '<span>Hold</span>'}${hunting ? `<span><em class="hunt">${hunting}</em> on you</span>` : ''}`;
       else { const dusk = ui.game.duskIn(); mid = `${sunDial(ui.game.dayFrac(), dusk <= 15)}<span class="${dusk <= 15 ? 'soon' : ''}">Dusk ${mmss(dusk)}</span>${hunting ? `<span><em class="hunt">${hunting}</em> on you</span>` : ''}`; }
-      if (S.eruption) mid = `<span class="erupt">Inferno Nest bursts ${Math.ceil(S.eruption.t)}s</span>${mid}`;
       $('#info').innerHTML = mid;
     }
     ui.renderTray();

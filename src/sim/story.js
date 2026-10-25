@@ -25,7 +25,6 @@ export function createStory(ctx) {
   const ST = S.story = { spots: [], day: 1, encounters: [], later: [], threads: {}, npcs: [], titles: [], chronicle: [], flags: {}, quests: [], power: 0, hands: 0, visited: {}, nextId: 1, lastOpen: 0, rules: [], n1: {} };
   const LM = ctx.LANDMARKS;
   const api = () => (ctx.api ? ctx.api() : null);
-  const noiseOn = () => S.noise !== undefined || !!S.feat.heat;
   // the daily quest: offered when calm, Accept / Not now, settled at dawn (sim/daily.js)
   const daily = createDaily({ S, map, rng, toast, ev, apply: (f, e) => apply(f, e), chron: (...a) => chron(...a), grant: id => grant(id), push: e => push(e), roomForQuest: () => roomForQuest() });
 
@@ -69,7 +68,6 @@ export function createStory(ctx) {
       case 'xp': if (ctx.gainXp) ctx.gainXp(f.n); break;
       case 'recruitNew': { const d = enc && enc.npc; if (!d) break; const n = { id: `n${ST.nextId++}`, role: d.role, name: d.name, epithet: d.epithet, persona: { traits: d.traits, quirk: d.quirk, want: d.want, fear: d.fear }, secret: d.secret, bond: 1, alive: true, joined: true, named: false, thread: null, chatToday: 0, memory: [], made: 'chronicler' };
         ST.npcs.push(n); toast(`[${n.name} joined] ${ROLES[n.role].post}: ${ROLES[n.role].bonus}.`, 'sys'); chron(`${n.name}, ${n.epithet}, joined the Haven as its ${ROLES[n.role].post.toLowerCase()}.`, 4, [n.id]); ev('recruit', { id: n.id }); break; }
-      case 'heat': if (ctx.addHeat) ctx.addHeat(f.n); break;
       case 'power': ST.power += f.n; break;
       case 'hands': ST.hands += f.n; break;
       case 'handsToday': S.handsUsed -= f.n; break;
@@ -153,12 +151,12 @@ export function createStory(ctx) {
     if (c.clinicHalf && clinic) return { gold: Math.ceil((c.cost.gold || 0) / 2), food: Math.ceil((c.cost.food || 0) / 2) };
     return c.cost;
   }
-  // before the noise meter is shown, choices do not talk about it
+  // there is no noise meter: choices do not talk about it
   const stripHeat = h => { if (!h || !/heat|noise/i.test(h)) return h; const t = h.replace(/\s*The radio burst is loud:?/i, '').replace(/[,;]?\s*\(?[+-]\d+ (heat|noise)( now)?\)?/gi, '').replace(/\b(Heat|Noise) -\d+( now)?(\s+and\s+)?/g, '').replace(/,?\s*and\s*\.$/, '.').replace(/\s+([.,:])/g, '$1').replace(/([.:])\s*\./g, '$1').replace(/:\s*$/, '.').trim(); return t && t.length > 2 ? t[0].toUpperCase() + t.slice(1) : 'It costs nothing you can see.'; };
   function push(enc) {
     if (S.phase === 'night' && !NIGHT_OK.has(enc.kind) && !S.over) { offer(enc, 5, 3); return; }
     enc.id = ST.nextId++; enc.ai = enc.ai || null; enc.slot = enc.slot || SLOT[enc.kind] || 'story';
-    if (!noiseOn()) for (const c of enc.choices || []) c.hint = stripHeat(c.hint);
+    for (const c of enc.choices || []) c.hint = stripHeat(c.hint);
     ST.encounters.push(enc); ev('encounter', { id: enc.id, kind: enc.kind });
   }
   /** a card for a later dawn: priority decides which one shows when two want the same slot; ttl = dawns it may wait */
@@ -487,23 +485,10 @@ export function createStory(ctx) {
     hands: () => ST.hands + comp('hands'),
     towers: () => comp('towers'),
     lullaby: () => { const n = npcByRole('revenant'); return n && n.joined && !n.withHero ? (n.named ? 0.65 : ROLES.revenant.lullaby) : 1; },
-    heat: () => (ST.flags.quiet ? 0.85 : 1),
     food: () => comp('food'),
     gold: () => comp('gold'),
     regen: () => ST.npcs.reduce((a, n) => a + (n.alive && n.joined && ROLES[n.role] && ROLES[n.role].regen || 0), 0),
   };
-  // ---------- side quests the Chronicler invents: Claude picks a template and writes it; the engine owns the effects ----------
-  const sgn = n => (n > 0 ? `+${n}` : `${n}`);
-  function describe(fx, npcData) {
-    const out = [];
-    for (const f of fx) {
-      if (f.op === 'survivors') out.push(`${sgn(f.n)} people`); else if (f.op === 'food') out.push(`${sgn(f.n)} food`); else if (f.op === 'gold') out.push(`${sgn(f.n)} scrap`);
-      else if (f.op === 'heat' && noiseOn()) out.push(`${sgn(f.n)} noise`); else if (f.op === 'flag' && f.key === 'beacon') out.push('+1 person at dawn');
-      else if (f.op === 'blessing') out.push('a rare blessing'); else if (f.op === 'hurt') out.push('you get hurt');
-      else if (f.op === 'perk' && f.key === 'heroDmg') out.push(`+${f.add} hero damage`); else if (f.op === 'recruitNew' && npcData) out.push(`${npcData.name.split(' ')[0]} joins as your ${ROLES[npcData.role].post.toLowerCase()}: ${ROLES[npcData.role].bonus}`);
-    }
-    return out.length ? `${out.join(', ')}.` : 'Nothing changes.';
-  }
   return { activeQuests, shownQuests, objectives, questCap, roomForQuest, start, dawn, tick, choose, can, bonus, chron, npc, grant,
     offerWin: w => offer({ kind: 'window', eyebrow: w.eyebrow || '[System]', title: w.title || '', lines: w.lines || [], scene: (w.lines || []).join(' '), feat: w.feat, choices: [{ id: 'ok', label: 'Got it', hint: '', fx: [] }] }, w.pri || 6, 30),
     // [acts] a System window now (by day; at night it waits for the dawn like any card)

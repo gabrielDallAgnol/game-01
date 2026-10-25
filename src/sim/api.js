@@ -1,6 +1,6 @@
 // The public game API: the one object the UI, bots and tests drive. Names and shapes are a contract
 // (see src/CONTRACT.md): add, never rename.
-import { CUT, HEAT, LEVEL } from './state.js';
+import { CUT, LEVEL } from './state.js';
 import { TIDE } from '../content/mobs.js';
 import { FOCI } from './planner.js';
 import { KEEP, START } from '../content/buildings.js';
@@ -8,15 +8,15 @@ import { LANDMARKS, idx } from './mapgen.js';
 
 export function createApi(G) {
   const {
-    S, W8, activeNests, addHeat, baseDist, build, buildLine, buildingAt, buyCost, canPlace,
+    S, W8, activeNests, baseDist, build, buildLine, buildingAt, buyCost, canPlace,
     choosePack, claimLandmark, clearRubble, companionFollow, costOf, crewing, damageBuilding,
     defenceDps, demolish, districtOffer, dropSupply, effN, endRun, foodNeed, foodPerDawn, forecast,
-    frontier, gainXp, handsFree, handsMax, has, hasTech, heatFloor, heroDps, heroPath, houseGold, hurtHero,
+    frontier, gainXp, handsFree, handsMax, has, hasTech, heroDps, heroPath, houseGold, hurtHero,
     inZone, isBloodMoon, keep, keepForRing, keepMaxHp, keepNeeds, killMob, kitFor, landmarkReach, lineCells, manned, map, mastered,
-    mastery, maxHpOf, newCost, nightLen, noise, noiseCalm, noiseFloor, openDistrict, owns, partySize, pop, powerIn,
-    powerOut, powered, prosper, raiseBlock, rebuild, rebuildAll, rebuildCost, regionInfo, rerollPacks, reveal,
+    mastery, maxHpOf, newCost, nightLen, openDistrict, owns, partySize, pop,
+    prosper, raiseBlock, rebuild, rebuildAll, rebuildCost, regionInfo, rerollPacks, reveal,
     rubbleAt, ruins, rule, setDifficulty, setHeroInput, siteOf, snapshot, spawnMob, startNight, step,
-    timeOfDay, towerStats, townDraw, trade, upCostOf, upgrade, upgradeKeep, upgradeWall, upkeep,
+    timeOfDay, towerStats, trade, upCostOf, upgrade, upgradeKeep, upgradeWall, upkeep,
     wallBudget, wallRun, zone
   } = G;
   const api = {
@@ -38,9 +38,6 @@ export function createApi(G) {
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), dayFrac: () => (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
     dropSupply,
     xpNext: () => LEVEL.xp(S.lvl), gainXp: n => gainXp(n), partySize: () => partySize(), companionFollow, snapshot, frontier, districtOffer, openDistrict, kitFor, siteOf, story: () => G.story, choose: id => G.story.choose(id),
-    // noise: one meter 0–100 (S.noise). noiseInfo: what it is made of and what it does right now
-    noise: () => Math.round(S.noise || 0),
-    noiseInfo: () => ({ noise: Math.round(S.noise || 0), floor: Math.round(noiseFloor() * noiseCalm()), choice: Math.round(S.noiseChoice || 0), spike: Math.round(S.noiseSpike || 0), mult: +townDraw().toFixed(2), erupt: HEAT.erupt, stir: HEAT.stir, live: !!S.feat.heat }),
     // tension: ruins, rebuilding and the dawn ledger
     rebuild, rebuildAll, rebuildCost: id => { const b = S.byId.get(id); return b && b.ruined ? rebuildCost(b) : 0; }, ruins: () => ruins().map(b => ({ id: b.id, type: b.type, level: b.level, x: b.x, y: b.y, cost: rebuildCost(b) })),
     ledger: () => S.ledger || null,
@@ -50,7 +47,7 @@ export function createApi(G) {
     cut: CUT, raiseBlock: id => raiseBlock(S.byId.get(id)),
     hitBuilding: (id, d) => { const b = S.byId.get(id); if (b) damageBuilding(b, d); return b ? b.hp : 0; }, hurtHero: n => hurtHero(n),   // scripted events and tests
     spawnMob: (kind, x, y, o) => { const m = spawnMob(kind, x, y); if (m && o) Object.assign(m, o); return m; }, killMob: (m, src = 'hero') => killMob(m, src),
-    keepNeeds, hasTech, crewing, manned, handsMax, handsFree, powerIn, powerOut, powered, heatFloor, addHeat, difficulty: () => G.DIFF, newCost, townDraw, noise, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
+    keepNeeds, hasTech, crewing, manned, handsMax, handsFree, difficulty: () => G.DIFF, newCost, reveal, claimLandmark, landmarkReach: id => landmarkReach(S.landmarks[id]), owns, zone, inZone: (x, y) => inZone(idx(Math.floor(x), Math.floor(y))), baseDist, keepForRing, keepLevel: () => keep.level,
     rubbleAt, clearRubble,
     canPlace, buildingAt, costOf, upCostOf, maxHpOf, keepMaxHp, pop, defenceDps, heroDps, activeNests, regionInfo,
     towerStats: b => towerStats(b), has,

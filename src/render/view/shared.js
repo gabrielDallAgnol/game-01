@@ -5,8 +5,8 @@ import { PAL } from '../palette.js';
 import { HEROES, CLASS_INFO } from '../../content/heroes.js';
 
 export const lc = hex => new THREE.Color(hex).convertSRGBToLinear();
-export const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1, generator: 1 };
-export const FOOT = { house: 2, farm: 2, tower: 1, workshop: 3, market: 3, generator: 2 };   // cells each building covers   // world units per metre of each kit model
+export const BSCALE = { house: 0.3, farm: 0.21, tower: 0.3, wall: 1 / 2.2, workshop: 1, market: 1 };
+export const FOOT = { house: 2, farm: 2, tower: 1, workshop: 3, market: 3 };   // cells each building covers   // world units per metre of each kit model
 export const HERO_OUTLINE = PAL.caution;   // [look3] caution-yellow hi-vis edge;   // the hero's edge: amber, the colour of the hero ring and the hero's bar
 /** the hero's model: the rig of its family, in its class colours (an advanced class keeps its Calling's weapon, so a
  *  Ranger who became a Vanguard still carries the crossbow: the rig follows the weapon) */

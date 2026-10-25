@@ -1,7 +1,7 @@
-// The camp's economy: what things cost (scrap, hands, power), what homes and farms give, the keep's needs,
+// The camp's economy: what things cost (scrap, hands), what homes and farms give, the keep's needs,
 // dawn (income, food, the ledger, the next day's setup), the run log, the end of the run, building packs, the trader.
-import { BUILDINGS, HANDS, KEEP, POWER, RISE, START } from '../content/buildings.js';
-import { CUT, FOREMAN, NOISE, PICKS_PER_DAWN } from './state.js';
+import { BUILDINGS, HANDS, KEEP, RISE, START } from '../content/buildings.js';
+import { CUT, FOREMAN, PICKS_PER_DAWN } from './state.js';
 import { LANDMARKS } from './mapgen.js';
 import { PACKS, PACK_RULES } from '../content/packs.js';
 import { TRADES } from '../content/heroes.js';
@@ -26,18 +26,6 @@ export function createEconomy(G) {
   const upCostOf = (b) => { const c0 = costOf(b.type, b.level + 1); return S.halfUpgrade ? Math.max(1, Math.ceil(c0 / 2)) : c0; };
   const maxHpOf = (type, level) => Math.round(BUILDINGS[type].hp[level - 1] * (1 + S.P.allHp + (type === 'wall' ? S.P.wallHp : 0)));
   const keepMaxHp = () => Math.round((KEEP.hp[keep.level - 1] + S.P.keepHp) * S.P.keepHpMult);
-  // ---------- power (CUT: only a "Lights Out" season rule brings it back) ----------
-  const powerLive = () => !CUT.power || rule('lightsOut');
-  const powerDraw = b => (powerLive() ? ((POWER.draw[b.type] || [])[b.level - 1] || 0) : 0);
-  const powerIn = () => POWER.keep[keep.level - 1] + S.buildings.reduce((a, b) => a + (b.type === 'generator' && !b.ruined ? BUILDINGS.generator.power[b.level - 1] : 0), 0) + (S.landmarks || []).reduce((a, l) => a + (l.owned && LANDMARKS[l.kind].power || 0), 0) + (G.story ? G.story.bonus.power() : 0);
-  const powerOut = () => S.buildings.reduce((a, b) => a + (b.ruined ? 0 : powerDraw(b)), 0);
-  const powered = b => powerDraw(b) === 0 || !S.blackout;
-  function checkPower() {
-    const out = powerLive() && powerIn() < powerOut();
-    if (!out && S.feat.power && powerOut() > 0 && powerIn() - powerOut() < 2 && !S.powerWarned) { S.powerWarned = true; toast('[Warning: power] Only **' + (powerIn() - powerOut()) + '** power to spare. Lose a generator and everything powered switches off.', 'bad'); }
-    if (powerIn() - powerOut() >= 3) S.powerWarned = false;
-    if (out !== S.blackout) { S.blackout = out; ev(out ? 'blackout' : 'powerBack'); toast(out ? `POWER DOWN. Your powered buildings switched off: ${powerOut()} needed, ${powerIn()} made. Build a generator or pull something down.` : 'Power restored. The lights come back on.', out ? 'bad' : 'good'); }
-  }
   const houseGold = b => Math.round(BUILDINGS.house.gold[b.level - 1] * G.DIFF.eco) + S.P.houseGold + (G.strongPay ? G.strongPay(b) : 0) /* [gemini3] compact */ + (hasTech('market') ? 1 : 0) + (mastery('tycoon') ? 1 : 0) + (has('guarded') && near(b, 'tower', 6) ? 2 : 0) + (combo('guarded', 'bastion') && near(b, 'wall', 3) ? 1 : 0);
   const farmFood = b => Math.round((BUILDINGS.farm.food[b.level - 1] * G.DIFF.eco + S.P.farmFood + (G.strongPay ? G.strongPay(b) : 0) /* [gemini3] compact */ + (b.nearWater ? 1 : 0)) * (rule('winter') ? 0.67 : 1));
   const prosper = () => (mastery('prosperity') ? 1.3 : 1);
@@ -101,7 +89,6 @@ export function createEconomy(G) {
     S.purses = [];
     if (!CUT.crew) G.sc.dawn(isBloodMoon(S.night));
     S.night++; newLog();
-    S.noiseChoice = Math.abs(S.noiseChoice || 0) < 1 ? 0 : S.noiseChoice * (1 - NOISE.choiceFade);   // a choice's noise holds for nights, fading a fifth each dawn
     S.weather = G.rollWeather(S.night); if (S.weather !== 'clear' && !CUT.weather) toast(`Tonight: ${G.W8().name.toLowerCase()}. ${G.W8().desc}`, G.W8().kind);
     S.dayT = 0; G.spawnRoamers(); G.spawnAnimals(); G.scatterPickups(G.PICKUP.perDawn);
     for (const d of [...S.drops]) if (--d.ttl <= 0) { S.drops.splice(S.drops.indexOf(d), 1); ev('dropGone', { id: d.id }); }
@@ -115,8 +102,6 @@ export function createEconomy(G) {
     if (extra) { earn(extra * 5); toast(`${extra} more ${extra === 1 ? 'chest' : 'chests'} sold for ${extra * 5} gold: two blessings a dawn is the most.`, 'good'); }
     syncPicks(); G.rollOffer();
     rollPacks();
-    if (S.sawBlackout && !S.blackout) G.story.grant('ironGrid');
-    G.checkFeatures();
     G.story.dawn();
     if (G.HC.trader && !CUT.trader) S.trade = { deals: rng.shuffle([...TRADES]).slice(0, 3).map(t => t.id), done: false };
     S.stats.peakPop = Math.max(S.stats.peakPop, pop());
@@ -176,5 +161,5 @@ export function createEconomy(G) {
     Object.assign(l, { keepEnd: Math.max(0, Math.ceil(keep.hp)), keepMax: keep.maxHp, seconds: Math.round(S.qT) }, extra);
     S.log.push(l);
   }
-  return { costOf, newCost, buyCost, handsMax, handsFree, useHand, upCostOf, maxHpOf, keepMaxHp, powerLive, powerIn, powerOut, powered, checkPower, houseGold, farmFood, prosper, upkeep, foodNeed, foodPerDawn, keepNeeds, checkForeman, dawn, endRun, trade, rollPacks, choosePack, rerollPacks, townCounts, newLog };
+  return { costOf, newCost, buyCost, handsMax, handsFree, useHand, upCostOf, maxHpOf, keepMaxHp, houseGold, farmFood, prosper, upkeep, foodNeed, foodPerDawn, keepNeeds, checkForeman, dawn, endRun, trade, rollPacks, choosePack, rerollPacks, townCounts, newLog };
 }

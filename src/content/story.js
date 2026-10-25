@@ -294,7 +294,6 @@ export const BARKS = {
 // One new idea at a time: inline callouts anchored to the HUD element they explain (never modals, never on day 1).
 // `at`: the HUD element the callout points to (see ui/app.js ANCHORS). Dismissed on tap.
 export const TIPS = [
-  { id: 'noise', at: 'noise', when: (S, g) => S.night >= 2 && S.phase === 'day' && (S.noise ?? S.heat ?? 0) > 20, text: 'Noise: the louder the Haven, the more Ash-Born come.' },
   { id: 'forecast', at: 'forecast', when: S => S.night >= 2 && S.phase === 'day', text: 'Tonight\'s forecast: what may fall tonight.' },
   { id: 'quest', at: 'strip', when: S => S.night >= 2 && S.phase === 'day' && S.dayT > 4 && !!(S.story.daily && S.story.daily.state === 'active'), text: 'Your daily quest. It ends at dawn.' },
   { id: 'street', at: 'map', when: S => S.night >= 2 && S.story.spots.length > 0 && S.phase === 'day', text: 'Blue beacon: someone needs you. A few Ash-Born guard it.' },

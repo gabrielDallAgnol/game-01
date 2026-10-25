@@ -67,7 +67,7 @@ export function startApp() {
   { const sq = new URLSearchParams(location.search).get('seed'); if (sq) setup.runSeed = +sq; }   // testing: a fixed world
   $('#sprite').innerHTML = iconSprite();
   const strip = createStrip($('#strip'), { onTap: () => { if (ui.game && !ui.card && !ui.game.state.over) ui.showStatus(); } });
-  const ANCHORS = { strip: '#strip', noise: '#rNoise', forecast: '#forecast', map: '#mini', camp: '#campHp', build: '#buildBtn' };
+  const ANCHORS = { strip: '#strip', forecast: '#forecast', map: '#mini', camp: '#campHp', build: '#buildBtn' };
   const callouts = createCallouts($('#callouts'), ANCHORS);
   const ctoast = createCampToast($('#ctoasts'));
   const systemHere = () => !!(ui.game && (ui.game.state.night >= 2 || (ui.game.state.story.n1.arrived && !ui.game.state.story.encounters.some(e => e.kind === 'arrival'))));

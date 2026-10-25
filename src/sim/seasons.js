@@ -1,7 +1,7 @@
-// The season's rules (season 1's, in S.season), weather from rules, the features that arrive one at a time (System
-// windows), titles' stat effects undone, difficulty changes. (Contracts, finales and later seasons were cut on Oct 25.)
+// The season's rules (season 1's, in S.season), weather from rules, titles' stat effects undone, difficulty changes.
+// (Contracts, finales and later seasons were cut on Oct 25.)
 import { CUT, DIFFICULTY, RULE_FX } from './state.js';
-import { FEATURES, PARTY } from '../content/season.js';
+import { PARTY } from '../content/season.js';
 import { PASSABLE, idx, inside } from './mapgen.js';
 import { Rng, hashSeed } from './rng.js';
 import { TITLES } from '../content/story.js';
@@ -21,11 +21,6 @@ export function createSeasons(G) {
     const ids = Object.keys(WEATHER); return ids[weatherRng.weighted(ids.map(k => WEATHER[k].odds))];
   }
 
-  // ---------- pacing: the systems arrive one at a time, each with its own System window ----------
-  function checkFeatures() {
-    if (G.v2) return;   // [v2] no power, no noise meter, no expeditions
-    for (const [k, F] of Object.entries(FEATURES)) if (!S.feat[k] && !(k === 'power' && CUT.power) && F.when(S, G.api)) { S.feat[k] = true; ev('window', { ...F.win, feat: k }); }
-  }
   // CUT.titleStats: titles stay as flavour; their stat effects (applied by the story) are undone here
   let titlesSeen = 0;
   const titlesRead = n => { titlesSeen = n; };   // (a restored run has read its titles already)
@@ -48,7 +43,7 @@ export function createSeasons(G) {
   /** retune the live run (never mutates the shared DIFFICULTY table) */
   function setDifficulty(key) {
     if (!DIFFICULTY[key]) return false;
-    G.DIFF = DIFFICULTY[key]; S.difficulty = key; G.dropFloor(); return true;
+    G.DIFF = DIFFICULTY[key]; S.difficulty = key; return true;
   }
-  return { W8, weatherFor, rollWeather, checkFeatures, titlesRead, untitle, metroSpot, partySize, setDifficulty };
+  return { W8, weatherFor, rollWeather, titlesRead, untitle, metroSpot, partySize, setDifficulty };
 }

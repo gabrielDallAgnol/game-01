@@ -1,6 +1,6 @@
 // What the player does by day with scrap: build, palisade lines, upgrades, demolish, rebuild ruins,
 // clear rubble, raise the keep.
-import { BUILDINGS, KEEP, MAX_LEVEL, POWER, UNLOCKS } from '../content/buildings.js';
+import { BUILDINGS, KEEP, MAX_LEVEL, UNLOCKS } from '../content/buildings.js';
 import { T, idx, inside } from './mapgen.js';
 import { TENSION } from './state.js';
 
@@ -88,7 +88,6 @@ export function createBuild(G) {
     if (b.ruined) return 'Rebuild it first.';
     if (b.level + 1 === 3 && UNLOCKS[b.type] && !hasTech(UNLOCKS[b.type])) return `Level 3 needs a ${BUILDINGS[UNLOCKS[b.type]].name}.`;
     if (b.level >= keep.level) return `Raise the Haven Rig first: nothing grows past the Haven Rig (level ${keep.level}).`;
-    if (G.powerLive()) { const more = ((POWER.draw[b.type] || [])[b.level] || 0) - ((POWER.draw[b.type] || [])[b.level - 1] || 0); if (more > 0 && G.powerIn() - G.powerOut() < more) return `Not enough power: that needs ${more} more.`; }
     return '';
   }
   function upgrade(id) {
@@ -125,7 +124,7 @@ export function createBuild(G) {
     if (b.type === 'house') { const k = Math.min(houseCap(b), S.homeless || 0); b.folk = (b.folk || 0) + k; S.homeless = (S.homeless || 0) - k; }   // the homeless move back in
     ev('rebuild', { id: b.id, cost }); return true;
   }
-  const REBUILD_ORDER = { tower: 0, house: 1, farm: 2, workshop: 3, market: 3, wall: 4, generator: 5 };
+  const REBUILD_ORDER = { tower: 0, house: 1, farm: 2, workshop: 3, market: 3, wall: 4 };
   const ruins = () => S.buildings.filter(b => b.ruined).sort((p, q) => (REBUILD_ORDER[p.type] ?? 9) - (REBUILD_ORDER[q.type] ?? 9) || p.id - q.id);
   /** rebuild every ruin you can afford, towers first, then homes, farms, barricades. Returns how many. */
   function rebuildAll(max = Infinity) {
@@ -153,7 +152,7 @@ export function createBuild(G) {
     if (S.gold < cost) return fail(`Clearing this costs ${cost} scrap.`);
     if (blocks && !G.useHand()) return false;
     S.gold -= cost; S.cur.spent += cost; S.stats.goldSpent += cost;
-    if (blocks) { G.addSpike(blocks * 1.5); S.stats.blocksDown = (S.stats.blocksDown || 0) + blocks; }
+    if (blocks) { S.stats.blocksDown = (S.stats.blocksDown || 0) + blocks; }
     for (const i of cells) map.terrain[i] = map.terrain[i] === T.ROCK ? T.DIRT : T.GRASS;
     (S.clearedIdx || (S.clearedIdx = [])).push(...cells);
     S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; S.cleared = (S.cleared || 0) + cells.length;
@@ -167,7 +166,7 @@ export function createBuild(G) {
     if (!G.useHand()) return false;
     S.gold -= cost; S.food -= (KEEP.need[keep.level] || {}).food || 0; S.cur.spent += cost;   // (no level asks for food now; if one does, keepCost() says so) S.cur.upgraded.push(`keep${keep.level + 1}`); S.stats.goldSpent += cost;
     keep.level++; const m = G.keepMaxHp(); keep.hp += m - keep.maxHp; keep.maxHp = m; keep.r = 2.3 * (1 + 0.12 * (keep.level - 1));
-    ev('keepUp'); G.checkFeatures(); return true;
+    ev('keepUp'); return true;
   }
   return { investOf, rebuildCost, build, wallBudget, buildLine, wallRun, upgradeWall, raiseBlock, upgrade, raise, demolish, rebuild, ruins, rebuildAll, rubbleAt, clearRubble, upgradeKeep };
 }
