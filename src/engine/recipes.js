@@ -4,6 +4,7 @@
 import { createRegistry } from './registry.js';
 import { CH1_ATOMS } from '../atoms/ch1.js';
 import { MILL_ATOMS } from '../atoms/milltown.js';
+import { DOWNTOWN_ATOMS } from '../atoms/downtown.js';
 import { terrainStage } from './stages/terrain.js';
 import { waterStage } from './stages/water.js';
 import { roadsStage } from './stages/roads.js';
@@ -19,6 +20,8 @@ import { millStreetsStage } from './stages/millstreets.js';
 import { millStage } from './stages/mill.js';
 import { nestStage } from './stages/nest.js';
 import { terracesStage } from './stages/terraces.js';
+import { gridStreetsStage } from './stages/gridstreets.js';
+import { civicStage } from './stages/civic.js';
 import { ALL_VALIDATORS } from './validators.js';
 import { buildWorld } from './pipeline.js';
 
@@ -33,6 +36,12 @@ export const RECIPES = {
     atoms: [...shared, ...MILL_ATOMS], stages: [terrainStage, railStage, millStreetsStage, millStage, nestStage, terracesStage, campStage, propsStage, forestStage, navStage],
     params: { terrain: { north: 0.24, west: 0.1, south: 0.12 }, props: { streetTrees: 0, kerbCars: 0.5 } },
     game: { camp: 'middle' } },   // in the game the camp is a clearing off the middle of the high street
+  downtown: { name: 'city centre', blurb: 'The old core: tall shopfront rows round square blocks, a plaza, a canal', palette: 'ch1', size: { w: 360, h: 300 },
+    atoms: [...shared, ...CH1_ATOMS.filter(a => a.id === 'tree.street.a' || a.id === 'tree.yard.a' || a.id === 'bridge.road.a'), ...DOWNTOWN_ATOMS],
+    stages: [terrainStage, waterStage, gridStreetsStage, civicStage, terracesStage, campStage, bridgesStage, propsStage, forestStage, navStage],
+    params: { terrain: { north: 0.1, west: 0.05, south: 0.1, east: 0.1 }, water: { x: [0.17, 0.2], w: 8, name: 'the cut', wiggle: 0.25 },
+      terrace: { yard: 0, front: 0.4, runMin: 6, runSpan: 8, alleyExtra: 0.5, ruin: 0, swap: 0.3 }, props: { streetTrees: 0.35, kerbCars: 0.6 } },
+    game: { camp: 'square' } },   // the camp is the plaza
 };
 
 export function recipeRegistry(id) {
