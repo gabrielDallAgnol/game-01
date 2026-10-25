@@ -36,8 +36,11 @@ export const lotsStage = {
     // industrial: Depot 9 near the west end, south of the highway
     { const { p, ang } = tangentAt(r9.pts, W.w * 0.2), depth = 44, off = STREET.highway / 2 + 1.5 + depth / 2;
       W.lots.push({ id: 'ind:depot9', kind: 'industrial', street: 'r9', x: p.x - Math.sin(ang) * off, y: p.y + Math.cos(ang) * off, w: 52, h: depth, rot: ang }); }
-    // the camp clearing, north of the highway in the west
-    { const { p } = tangentAt(r9.pts, W.campHint.x); W.camp = { x: p.x, y: p.y - W.campHint.yAbove, r: 14 }; }
+    // the camp clearing, north of the highway in the west; or (params.camp = 'square') the middle block of the grid,
+    // whose lots turn to parkland round it
+    if (W.params.camp === 'square') { const c = g.toW((g.lx(1) + g.lx(2)) / 2, (g.ly(1) + g.ly(2)) / 2); W.camp = { x: c.x, y: c.y, r: 14 };
+      W.lots.forEach(l => { if (l.kind === 'residential' && Math.hypot(l.x - c.x, l.y - c.y) < W.camp.r + 12 + Math.hypot(l.w, l.h) / 2) { l.kind = 'park'; l.street = null; } }); }
+    else { const { p } = tangentAt(r9.pts, W.campHint.x); W.camp = { x: p.x, y: p.y - W.campHint.yAbove, r: 14 }; }
     W.lotFront = l => ({ a: toWorld(l, -l.w / 2, -l.h / 2), b: toWorld(l, l.w / 2, -l.h / 2) });
     W.note('lots', `${W.lots.filter(l => l.kind === 'residential').length} residential, ${W.lots.filter(l => l.kind === 'commercial').length} commercial, ${W.lots.filter(l => l.kind === 'park').length} park`);
   },

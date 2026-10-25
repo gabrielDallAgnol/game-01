@@ -10,12 +10,15 @@ export const millStreetsStage = {
     const rng = seed.rng(), F = W.frame, at = F.at, hv = -38, mv = 40, west = -W.w / 2;
     const street = (id, a, b, ends, extra) => { const s = { id, pts: [a, b], w: STREET.local, walk: STREET.kerb, kind: 'local', marks: 'dash', ends, ...extra }; W.streets.push(s); return s; };
     const node = (id, p, deg) => W.nodes.push({ id, ...p, deg });
-    // the camp sits where the high street begins
-    W.camp = { ...at(west + 22, hv), r: 14 };
-    street('high', at(west + 36, hv), at(W.w / 2 + 12, hv), ['camp', 'edge'], { name: 'high street' });
+    // the camp sits where the high street begins; or (params.camp = 'middle') in a clearing off its middle, up a lane
+    const mid = W.params.camp === 'middle', cu0 = rng.range(-12, 12);
+    W.camp = mid ? { ...at(cu0, hv - 36), r: 14 } : { ...at(west + 22, hv), r: 14 };
+    street('high', at(mid ? west - 12 : west + 36, hv), at(W.w / 2 + 12, hv), [mid ? 'edge' : 'camp', 'edge'], { name: 'high street' });
+    if (mid) { street('lane', at(cu0, hv), at(cu0, hv - 36 + 14), ['jl', 'camp'], { name: 'camp lane' }); node('jl', at(cu0, hv), 3); }
     // side streets north, spaced like a real mill town (50–64 m), ending in the open
     const side = [];
     for (let u = west + 70 + rng.range(0, 12); u < W.w / 2 - 30; u += rng.range(50, 64)) {
+      if (mid && Math.abs(u - cu0) < 34) continue;   // the camp's clearing
       let L = rng.range(60, 105); while (L > 30 && at(u, hv - L).y < 10) L -= 5;
       if (L <= 30) continue;
       side.push(u); street(`side:${side.length}`, at(u, hv), at(u, hv - L), [`j:${side.length}`, 'end']); node(`j:${side.length}`, at(u, hv), 3);

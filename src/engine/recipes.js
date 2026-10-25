@@ -27,10 +27,12 @@ const shared = CH1_ATOMS.filter(a => ['camp', 'lamp', 'car', 'forest', 'fence'].
 
 export const RECIPES = {
   suburb: { name: 'suburb', blurb: 'Ashford Hollow: a grid of houses, Route 9, Hollow Creek', palette: 'ch1', size: { w: 370, h: 300 },
-    atoms: CH1_ATOMS, stages: [terrainStage, waterStage, roadsStage, lotsStage, buildingsStage, campStage, bridgesStage, propsStage, forestStage, navStage], params: {} },
+    atoms: CH1_ATOMS, stages: [terrainStage, waterStage, roadsStage, lotsStage, buildingsStage, campStage, bridgesStage, propsStage, forestStage, navStage], params: {},
+    game: { camp: 'square' } },   // in the game the camp is the town square, so the whole town fits round the keep
   milltown: { name: 'mill town', blurb: 'Ironvale: rowhouses by the tracks, a mill, ruins near the nest', palette: 'ch1', size: { w: 360, h: 300 },
     atoms: [...shared, ...MILL_ATOMS], stages: [terrainStage, railStage, millStreetsStage, millStage, nestStage, terracesStage, campStage, propsStage, forestStage, navStage],
-    params: { terrain: { north: 0.24, west: 0.1, south: 0.12 }, props: { streetTrees: 0, kerbCars: 0.5 } } },
+    params: { terrain: { north: 0.24, west: 0.1, south: 0.12 }, props: { streetTrees: 0, kerbCars: 0.5 } },
+    game: { camp: 'middle' } },   // in the game the camp is a clearing off the middle of the high street
 };
 
 export function recipeRegistry(id) {
@@ -40,4 +42,5 @@ export function recipeRegistry(id) {
   return R;
 }
 
-export function buildArea(id, seed, reg = recipeRegistry(id)) { const r = RECIPES[id]; return buildWorld(reg, { seed, area: id, chapter: r.palette, params: r.params, ...r.size }); }
+/** build one recipe; `extra` params override the recipe's (the game passes RECIPES[id].game) */
+export function buildArea(id, seed, reg = recipeRegistry(id), extra = null) { const r = RECIPES[id]; return buildWorld(reg, { seed, area: id, chapter: r.palette, params: extra ? { ...r.params, ...extra } : r.params, ...r.size }); }
