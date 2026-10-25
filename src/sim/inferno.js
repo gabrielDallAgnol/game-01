@@ -74,7 +74,7 @@ export function createInferno(G) {
     mk(kH, true); mk(kT, false);
     const b = n.body || n;
     ev('infernoBreak', { region: r, x: b.x, y: b.y, phase, n: kH + kT, name: P.name });
-    toast(`[${P.name} broken] The ${INF.names[heatOf(r)].toLowerCase()} fire flares: **${kH} Ash-Born** burst out at you and **${kT}** run for the town. ${phase < 2 ? INF.phases[phase + 1].name + ' is exposed.' : ''}`, 'bad');
+    toast(`[${P.name} broken] The ${INF.names[heatOf(r)].toLowerCase()} fire roars up: **${kH} Ash-Born** burst out at you and **${kT}** run for the town. ${phase < 2 ? INF.phases[phase + 1].name + ' is exposed.' : ''}`, 'bad');
   }
   /** the core is snuffed (called by the burn flow in hives.js) */
   function cleansed(r) {
