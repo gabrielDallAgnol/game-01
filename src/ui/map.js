@@ -10,8 +10,7 @@ export function createMap(ui) {
   // ---------- maps: one pixel per cell, cropped to the land ----------
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const MAPCOL = { meadow: hex('#5f7a45'), wood: hex('#2f4a2a'), street: hex('#77736b'), block: hex('#45423e'), park: hex('#3f5634'), water: hex('#2f5a6e'), ford: hex('#8d887d'), dirt: hex('#8a6a48'), road: hex('#c2a46e'), cliff: hex('#8a8378'), site: hex('#e0b050'), voidc: [11, 13, 14] };
-  // [acts] act 1: what lies behind the fence (the road past the woods, the city) is not on the map yet
-  const hidden = () => { const g = ui.game; if (!g || !g.act || g.act() >= 2) return null; const S = g.state, gate = new Set(S.actGate || []); const w = g.map.wild; return gate.size ? i => gate.has(g.map.region[i]) || (w && !w[i]) : null; };   // the far road and every street of the city
+  const hidden = () => null;
   function mapBox(m, hide) { let x0 = N, y0 = N, x1 = 0, y1 = 0; for (let i = 0; i < N * N; i++) if (m.terrain[i] !== T.VOID && !(hide && hide(i))) { const x = i % N, y = (i / N) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return { x0: Math.max(0, x0 - 3), y0: Math.max(0, y0 - 3), x1: Math.min(N - 1, x1 + 3), y1: Math.min(N - 1, y1 + 3) }; }
   function paintWorld(cv, m, seen, hide) {
     cv.width = cv.height = N; const ctx = cv.getContext('2d'), im = ctx.createImageData(N, N), d = im.data;

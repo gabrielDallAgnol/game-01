@@ -208,7 +208,6 @@ export function createStory(ctx) {
     const K = contracts.stripLine();
     if (K) out.push({ key: 'contract', kind: 'contract', priority: 'main', label: 'Contract', x: K.place ? K.place.x : undefined, y: K.place ? K.place.y : undefined,
       title: K.kind === 'hive' ? `Burn ${K.name}` : `Survive ${K.name}`, sub: `${K.left ? `${K.left} night${K.left === 1 ? '' : 's'} left` : 'Tonight'}${K.place ? ` · ${K.place.dir}` : ''}` });
-    { const A = ctx.actGoal && ctx.actGoal(); if (A && A.x !== undefined) out.push({ key: 'act', kind: 'act', priority: 'main', label: 'Hollow', x: A.x, y: A.y, title: `${A.text} · ${A.have}/${A.n}`, sub: `Nearest hollow · ${dirOf(A.x, A.y)}` }); }   // [acts] act 1: the nearest hollow is the main goal
     for (const q of ST.quests) if (q.thread && threadAtSite(q.thread)) { const T = THREADS[q.thread]; out.push({ key: `q${q.site}`, kind: 'thread', priority: 'main', label: 'Quest', site: q.site, x: q.x, y: q.y, title: T ? T.title : 'Story', sub: `Go to the ${LM[S.landmarks[q.site].kind].name} · ${dirOf(q.x, q.y)}` }); }
     for (const sp of ST.spots) if (sp.thread) { const T = THREADS[sp.thread]; out.push({ key: `s${sp.id}`, kind: 'thread', priority: 'main', label: 'Quest', spot: sp.id, x: sp.x, y: sp.y, title: T ? T.title : 'Story', sub: `Go ${dirOf(sp.x, sp.y)}` }); }
     const d = dailyProgress(); if (d) out.push({ key: 'daily', kind: 'daily', priority: d.done ? 'optional' : 'main', label: 'Daily', title: d.title, sub: d.done ? `${d.goal} · done` : `${d.goal} · ${d.have}/${d.n} · ${d.ends}`, have: d.have, n: d.n, ends: d.ends, done: d.done });
@@ -404,7 +403,6 @@ export function createStory(ctx) {
   /** the one line the strip shows: the active quest, in plain words */
   function questLine() {
     const qs = activeQuests(), d = dailyProgress();
-    const A = ctx.actGoal && ctx.actGoal(); if (A) return withContract(A);   // [acts] act 1's main goal: burn the hollows
     const th = qs.find(q => q.kind === 'thread');
     if (th) { const tid = th.site !== undefined ? (ST.quests.find(q => q.site === th.site) || {}).thread : (ST.spots.find(sp => sp.id === th.spot) || {}).thread; const T = tid && THREADS[tid]; return withContract({ tag: '[Quest]', text: `${T ? T.title : 'Story'}: go ${dirOf(th.x, th.y)}` }); }
     if (d && !d.done) return withContract({ tag: '[Daily]', have: d.have, n: d.n, text: `${d.goal} · ${d.ends}` });

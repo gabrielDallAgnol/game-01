@@ -62,8 +62,6 @@ export function createApi(G) {
     goldPerDawn: () => Math.round((START.baseIncome * G.DIFF.eco + S.P.tax + S.buildings.reduce((a, b) => a + (b.type === 'house' && !b.ruined ? houseGold(b) : 0), 0)) * prosper()) - upkeep() + S.landmarks.reduce((a, l) => a + (l.owned ? LANDMARKS[l.kind].gold || 0 : 0), 0) + (owns('tvtower') ? 3 : 0) + (G.HC.quarter ? 4 : 0),
     upkeep, foodNeed,
     forecast, mastered, mastery, isBloodMoon, drainEvents: () => S.events.splice(0),
-    // [acts] act 1 (the woods) / act 2 (the road and the city); a region held behind the fence by act 1
-    act: () => G.actNow(), actGated: r => G.actGated(r), actGoal: () => G.actGoal(),
     findSpot: () => G.findSpot(), spotOk: (x, y) => G.spotOk(x, y),   // where an objective may stand (sim/spots.js)
     logRows: () => S.log.concat(S.cur && !S.cur.closed && S.cur.waveHp ? [S.cur] : []),
     // [nests] the hive that keeps a site locked (-1: free), a hive's rage ({ rage, lv, hot, near } or null), its guards

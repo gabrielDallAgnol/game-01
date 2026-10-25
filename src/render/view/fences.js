@@ -14,10 +14,10 @@ export function createFences(V) {
   // scouted districts: a banner over each sealed district whose identity is known, in its rarity colour
   const banners = new Map(); let bannerKey = '';
   function syncBanners() {
-    const key = `${S.sealVersion}|${Object.keys(S.kits).length}|${S.act}`; if (key === bannerKey) return; bannerKey = key;
-    for (const [r, sp] of banners) if (!S.sealed[r] || !S.kits[r] || S.act === 1) { fx.remove(sp); banners.delete(r); }
+    const key = `${S.sealVersion}|${Object.keys(S.kits).length}`; if (key === bannerKey) return; bannerKey = key;
+    for (const [r, sp] of banners) if (!S.sealed[r] || !S.kits[r]) { fx.remove(sp); banners.delete(r); }
     for (const [rs, kit] of Object.entries(S.kits)) {
-      const r = +rs; if (!S.sealed[r] || banners.has(r) || S.act === 1) continue;   // [acts] act 1: no banners over the hidden city
+      const r = +rs; if (!S.sealed[r] || banners.has(r)) continue;
       const l = S.landmarks.find(q => q.region === r), name = kit === 'signature' && l ? LANDMARKS[l.kind].name : (KITS[kit] || {}).name || kit;
       const rar = kit === 'signature' ? RARITY.legendary : RARITY[(KITS[kit] || {}).rarity || 'common'];
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: K.textTex(`${rar.name.toUpperCase()} · ${name.toUpperCase()}`, { w: 512, h: 64, size: 30, bg: '#0d1418', fg: rar.color, spacing: '2px' }), transparent: true, opacity: 0.92, depthTest: false }));

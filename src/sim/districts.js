@@ -46,7 +46,7 @@ export function createDistricts(G) {
   }
   const kitInfo = r => { const k = kitFor(r); if (k === 'signature') { const l = siteOf(r); return { id: k, name: LANDMARKS[l.kind].name, rarity: 'legendary', lm: l.kind, call: 'It stands over the whole city. From up there you could see everything.' }; } return { id: k, ...KITS[k] }; };
   /** sealed districts that touch one you hold */
-  function frontier() { if (G.actNow && G.actNow() < 2) return [];   // [acts] act 1: the fences stay shut
+  function frontier() {
     if (G.v2) return [];   // [v2] sealed districts are no goal: no routes, no offers
     return map.regions.filter(r => S.sealed[r.id] && r.neighbors.some(n => !S.sealed[n])).map(r => r.id); }
   function districtOffer(r) { const k = kitInfo(r), reg = map.regions[r]; return { region: r, kit: k.id, name: k.name, rarity: k.rarity, call: k.call, lm: k.lm, dir: compass(reg.x, reg.y), nest: !!(reg.nest && S.nestAlive[r]), ring: reg.ring }; }

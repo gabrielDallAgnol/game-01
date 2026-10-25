@@ -26,22 +26,6 @@ export const CREW_BIO = [
   { id: 'gloria', name: 'Gloria Pike', role: 'Retail manager', blurb: 'Runs the Haven like a store at Christmas. Everyone gets a shift and a snack.' },
 ];
 
-// ---------- the acts (rig3 emits actStart / rigAnchor / rigMigrate; harmless if never fired) ----------
-export const ACTS = {
-  1: { name: 'The Depot Suburbs', tag: '[Act I · The Depot Suburbs]', lines: ['Cul-de-sacs, garden centres, one half-melted mall.', 'Scrap and timber lie close. The Ash-Born here are slow and confused. Learn the Rig. Learn the heat.'], done: '[Act I complete] The suburbs are picked clean. The Rig is hungry. Cooler ground waits down the highway.' },
-  2: { name: 'The Rail Yard', tag: '[Act II · The Rail Yard]', lines: ['Cracked highway, a hundred boxcars, furnaces that never went cold.', 'Past the yard, the valleys are cooler. Something in the yard is burning that should not be.'], done: '[Act II complete] The yard is quiet. The mountains are close enough to smell.' },
-};
-export const RIG_TEXT = {
-  rigAnchor: ['[Rig anchored] Outriggers down, awnings out, solar pylon humming. Build around it.', '[Rig anchored] Dee kicks a stabiliser twice. "She is not going anywhere."'],
-  rigMigrate: ['[Migration] Outriggers up. The crew salvages what it can. Next stop: cooler ground.', '[Migration] Gloria counts heads twice. Juno is already on the ridge.'],
-};
-/** words for a game event by name, or null. e: { t, act?, n?, id? } */
-export function eventText(e) {
-  if (!e) return null;
-  if (e.t === 'actStart') { const a = ACTS[e.act ?? e.n ?? e.id]; return a ? { tag: a.tag, lines: a.lines, text: `${a.tag} ${a.lines.join(' ')}` } : null; }
-  const r = RIG_TEXT[e.t]; return r ? { tag: null, lines: [r[Math.abs((e.n | 0) + (e.seed | 0)) % r.length]], text: r[Math.abs((e.n | 0) + (e.seed | 0)) % r.length] } : null;
-}
-
 // ---------- the System's voice: terse, bracketed, a little dry ----------
 export const SYS = {
   dayOne: 'Light the fire. **The heat draws them at dusk.**',

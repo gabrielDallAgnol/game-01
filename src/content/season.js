@@ -18,7 +18,7 @@ export const FEATURES = {
       lines: ['**Noise** (top bar): how loud the Haven is.', 'Louder = **more Ash-Born** each night.', 'At the **red mark**, the nearest Inferno Nest **bursts**.'] },
   },
   routes: {
-    when: S => S.act !== 1 && (S.night >= 6 || S.actOpened > 0),   // act 1 (the woods) keeps the fences shut: routes come the dawn after the road opens
+    when: S => S.night >= 6,
     win: { eyebrow: '[New system: Expeditions]', title: 'Beyond the fence',
       lines: ['Every other dawn, pick **one route** into a sealed district.', 'Far districts: **bigger, richer, more dangerous**.', 'Each has one **site** to claim. Some have an **Inferno Nest**.'] },
   },

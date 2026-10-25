@@ -1,10 +1,10 @@
 // "The Solar Flare" words: the opening shows once, the world is Ash-Born and Inferno Nests (never zombies or miasma in
-// player-facing text), the barks and the act/rig event lines exist.
+// player-facing text) and the barks exist.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { INTRO_CARDS, CANON, TONE_WORLD, ACTS, eventText, CREW_BIO, GAME_TITLE } from '../src/content/solar.js';
+import { INTRO_CARDS, CANON, TONE_WORLD, CREW_BIO, GAME_TITLE } from '../src/content/solar.js';
 import { pick, pickWho, KINDS, CREW, CITIZEN } from '../src/content/barks.js';
 import { introWanted, markIntroSeen, INTRO_KEY } from '../src/ui/intro.js';
 import { MOBS } from '../src/content/mobs.js';
@@ -35,15 +35,6 @@ test('barks: every kind has lines, pick is deterministic with a seeded rng, pick
   assert.ok(CITIZEN.haul.includes('Good haul today!') && CITIZEN.rigHolds.includes("Rig's holding!") && CITIZEN.heat.some(t => /rising to the east/.test(t)));
   assert.deepEqual(CREW.map(c => c.id).sort(), CREW_BIO.map(c => c.id).sort());
   assert.ok(CREW_BIO.some(c => /mechanic/i.test(c.role)) && CREW_BIO.some(c => /athlete/i.test(c.role)) && CREW_BIO.some(c => /manager/i.test(c.role)));
-});
-
-test('act and rig events have words (rigAnchor, rigMigrate, actStart 1 and 2); unknown events give null', () => {
-  assert.match(eventText({ t: 'actStart', act: 1 }).text, /Depot Suburbs/);
-  assert.match(eventText({ t: 'actStart', n: 2 }).text, /Rail Yard/);
-  assert.ok(eventText({ t: 'rigAnchor' }).text.startsWith('[Rig anchored]'));
-  assert.ok(eventText({ t: 'rigMigrate', n: 1 }).text.startsWith('[Migration]'));
-  assert.equal(eventText({ t: 'dawn' }), null); assert.equal(eventText({ t: 'actStart', act: 9 }), null);
-  assert.deepEqual(Object.keys(ACTS), ['1', '2']);
 });
 
 test('mob names are the Ash-Born varieties', () => {

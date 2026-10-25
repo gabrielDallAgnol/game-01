@@ -35,7 +35,6 @@ import { createSeasons } from './seasons.js';
 import { createHero } from './hero.js';
 import { createSave } from './save.js';
 import { createApi } from './api.js';
-import { createActs } from './acts.js';
 // [nest3]
 import { createInferno } from './inferno.js';
 import { createSpots } from './spots.js';
@@ -72,7 +71,7 @@ import { createHordes } from './hordes.js';
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno];   // [nest3] appended   // [pacify] appended
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createSave, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno];   // [nest3] appended   // [pacify] appended
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
 MODULES.push(createConstruct, createHaul, createSettle);   // [econ3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
@@ -119,9 +118,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   for (const l of S.landmarks) if (LANDMARKS[l.kind].signature) S.kits[l.region] = 'signature';
   // the home ward: the near districts with no hive are open from day 1 (common finds: a place to look around)
   for (const reg of map.regions) if (reg.ring >= 1 && !S.sealed[reg.id] && S.kits[reg.id] !== 'signature') { const l = siteOf(reg.id); if (l && l.kind === 'unknown') l.kind = KITS[kitFor(reg.id, reg.ring === 1 ? 'common' : undefined)].lm; }
-  // [acts] begin: act 1 fences off the road and the city until every forest hollow burns (sim/acts.js)
-  G.actSetup();
-  // [acts] end
   newLog();
   for (const r of S.claimed) revealRegion(r); reveal(c, c, 14);
   rollOffer(); rollPacks(); spawnRoamers(); spawnAnimals();
@@ -136,7 +132,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     hurtHero: n => hurtHero(n), gainXp: n => gainXp(n),
     findSpot: () => G.findSpot(),   // beacons, trials and story places (sim/spots.js)
     guard: (x, y, n) => { for (let k = 0, tries = 0; k < n && tries < 40; tries++) { const a = rng.range(0, Math.PI * 2), gx = x + Math.cos(a) * rng.range(1, 2.8), gy = y + Math.sin(a) * rng.range(1, 2.8), cx = Math.floor(gx), cy = Math.floor(gy); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue; k++; const m = spawnMob(rng.pick(S.night >= 4 ? ['walker', 'runner'] : ['walker']), gx, gy, { instant: true }); m.roam = { x, y, region: -1 }; } },
-    actGoal: () => G.actGoal(),   // [acts]
     landmarkReach, claimFree: id => { const l = S.landmarks[id]; if (l && !l.owned) { if (G.siteLocked(l)) G.promiseSite(l); else takeSite(l); } }, reviveName: () => REVIVE[rng.int(REVIVE.length)],
     risen: n => { const h = S.buildings.filter(b => b.type === 'house' && !b.ruined); const b = h.length ? h[rng.int(h.length)] : keep; for (let k = 0; k < n; k++) spawnMob('risen', b.x + rng.range(-1, 1), b.y + rng.range(-1, 1)); toast('He turned. The house fills with the Ash-Born.', 'bad'); } });
   G.story.start();
@@ -148,9 +143,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   if (G.g3api) Object.assign(G.api, G.g3api);   // [gemini3] its modules' additions to the API
   planner = createPlanner(G.api); G.api.planner = planner;
   if (restore) { restoreSnap(restore); G.mendSpots(); }   // old saves: objectives off the map move onto good ground
-  // [acts] begin
-  if (restore) G.actRestore();
-  // [acts] end
   return G.api;
 
   // ---------- simulation step ----------

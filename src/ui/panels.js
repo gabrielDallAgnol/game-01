@@ -39,13 +39,6 @@ export function createPanels(ui) {
       ui.selected.range = KEEP.range[l - 1] + S.P.towerRange;
       return;
     }
-    // [acts] begin: act 1 keeps the road and the city behind the fence until the hollows burn
-    if (ui.selected.type === 'region' && ui.game.actGated && ui.game.actGated(ui.selected.id)) {
-      const g = ui.game.actGoal(); $('#pEyebrow').textContent = 'Quarantine · the fence'; $('#pTitle').textContent = 'Beyond the fence';
-      body.innerHTML = `<div class="stat"><span>The road and the city lie past the fence.</span></div><p class="note">It comes down when the forest hollows burn${g ? `: <b>${g.have}/${g.n}</b>` : ''}.</p>`;
-      return;
-    }
-    // [acts] end
     if (ui.selected.type === 'region' && S.sealed[ui.selected.id]) {
       const known = S.kits[ui.selected.id]; $('#pEyebrow').textContent = 'The old core · sealed'; $('#pTitle').textContent = ui.names[ui.selected.id];
       body.innerHTML = `<div class="stat"><span>Behind the old cordon fence${known ? ` · scouts say: <b>${known === 'signature' ? 'a landmark' : (KITS[known] || {}).name || known}</b>` : ''}</span></div><p class="note">The old core opens through the story. You cannot walk in until then. The Ash-Born can.</p>`;

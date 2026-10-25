@@ -15,9 +15,6 @@ export function createHives(G) {
     for (const m of S.mobs) if (m.stream === r) m.stream = -1;
     if (G.nestBurned) G.nestBurned(r);   // [nests] its guards run with the horde, its sites unlock
     ev('claim', { region: r }); toast(`Inferno Nest burned: +${loot} scrap and a rare blessing.`, 'good');
-    // [acts] begin
-    if (G.actCheck) G.actCheck();
-    // [acts] end
   }
   // ---------- the stream: the dead never stop coming from awake hives, day and night ----------
   const streamAcc = {}, rage = {}, hiveDmg = S.hiveDmg || (S.hiveDmg = {});   // [nest3] hiveDmg lives in S and is saved: a broken segment never heals

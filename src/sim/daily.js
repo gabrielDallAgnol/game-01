@@ -37,7 +37,7 @@ export function createDaily(ctx) {
     if (S.night < DAILY_RULES.offerFrom || S.phase !== 'day' || (prev && prev.day === S.night)) return false;
     const pool = DAILY.filter(q => (!q.when || q.when(S, openSites())) && (!prev || q.id !== prev.id));
     const T = pool.length ? pool[rng.int(pool.length)] : null; if (!T) return false;
-    const n0 = T.n(S.night), n = T.far ? Math.min(S.act === 1 ? 60 : 70, n0) : n0;   // [acts] the long walk stays a walk you can make
+    const n0 = T.n(S.night), n = T.far ? Math.min(70, n0) : n0;   // the long walk stays a walk you can make
     const fail = DAILY_RULES.fail(S.night), fx = rewardFx(T, S.night), goal = T.goal.replace('{n}', n);
     st.daily = { id: T.id, title: T.title, goal, n, base: 0, state: 'offered', day: S.night, far: 0, back: false, fail, done: false };
     push({ kind: 'daily', eyebrow: DAILY_TEXT.offer, title: T.title, scene: DAILY_TEXT.scene.replace('{goal}', goal),

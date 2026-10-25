@@ -59,7 +59,7 @@ export function createPacify(G) {
   // wake is pushed on each check, so a save keeps it asleep too). Act 1's forest hollows are the act's quest: left alone.
   // A hive already awake when the land around it is pacified stays awake: it is on your map and can be burned.
   S.smother = S.smother || {};
-  const canSmother = r => { const reg = map.regions[r]; return live(r) && S.wake[r] > S.night && !(reg.ring <= 1 && G.actNow && G.actNow() < 2) && pacifiedAt(reg.nest.x, reg.nest.y); };
+  const canSmother = r => { const reg = map.regions[r]; return live(r) && S.wake[r] > S.night && pacifiedAt(reg.nest.x, reg.nest.y); };
   const smothered = r => !!S.smother[r] && live(r) && pacifiedAt(map.regions[r].nest.x, map.regions[r].nest.y);
   /** a region counts as pacified when it is claimed or its middle lies on pacified ground */
   const regionPacified = r => !S.sealed[r] && (S.claimed.has(r) || pacifiedAt(map.regions[r].x, map.regions[r].y));
