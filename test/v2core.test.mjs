@@ -32,9 +32,9 @@ function run(seed, opts, nights = 3) {
     while (S.story.encounters.length) { const e = S.story.encounters[0]; g.choose(e.choices[e.choices.length - 1].id); }
     if (!xpGiven && steps === 300) { xpGiven = true; g.gainXp(600); }   // levels from XP: no cards, no points
     g.step(); steps++;
-    queued += S.queue.length + (S.dayQueue || []).length;
+    queued += S.queue.filter(q => q.horde === undefined).length + (S.dayQueue || []).length;   // the hordes' march is the V2 night (test/hordes.test.mjs)
     if (S.phase === 'night' && !wasNight) nightsSeen++; wasNight = S.phase === 'night';
-    sneaky += S.mobs.filter(m => m.stream !== undefined || m.guard !== undefined || m.horde !== undefined || m.first).length;
+    sneaky += S.mobs.filter(m => m.stream !== undefined || m.guard !== undefined || m.first).length;   // (horde dead are the V2 night)
     evs.push(...S.events.splice(0));
   }
   return { g, S, evs, queued, nightsSeen, sneaky, hash: hashOf(S), steps };
@@ -53,7 +53,7 @@ test('v2: three nights with none of the old systems', () => {
   assert.equal(S.attr.pts, 0, 'no stat points'); assert.equal(g.statsOn(), false);
   assert.ok(!g.road, 'no road');
   assert.equal(g.rigInfo().on, false, 'no Haven Rig'); assert.ok(g.rigBlock(), 'the Rig never rolls');
-  assert.deepEqual(g.forecast(), [], 'no forecast');
+  assert.ok(g.forecast().every(f => S.hordes && S.hordes.spots.some(h => -1 - h.edge === f.nest)), 'the only forecast is a marching horde (the V2 night)');
   assert.equal(g.useAbility(), false, 'no class ability');
   const nest = g.map.regions.find(reg => reg.nest && S.nestAlive[reg.id]);
   if (nest) assert.equal(g.hitHive(nest.id, 999), false, 'no siege');

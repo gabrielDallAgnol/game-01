@@ -75,6 +75,8 @@ import { createSearch } from './search.js';
 import { createCombat2 } from './combat2.js';
 // [v2] next line
 import { createV2Core } from './v2core.js';
+// [v2] next line
+import { createHordes } from './hordes.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
@@ -87,6 +89,7 @@ MODULES.push(createStats, createPowers);   // [hero3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
 MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the dash (does nothing without v2combat)
 MODULES.push(createV2Core);   // [v2] appended: the V2 core switches the old systems off (does nothing without v2)
+MODULES.push(createHordes);   // [v2] appended: hordes, the V2 night (does nothing without v2)
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null, area = null, v2combat = false, v2 = false } = {}) {   // [area] area: an engine recipe id   // [combat2] v2combat: the flag   // [v2] v2: the V2 core
   if (hero === 'steward') hero = 'merchant';
@@ -244,6 +247,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [income] end
     G.stepRig(dt);   // [rig3] the Haven Rig's systems, the road-open beat, unpacking
     G.stepSearch(dt);   // [area] houses to search (only in an engine-built area)
+    if (G.stepHordes) G.stepHordes(dt);   // [v2] hordes wake, break, sleep
     // [econ3] begin: the construction queue and the harvester carts (sim/construct.js, sim/haul.js)
     G.stepConstruct(dt); G.stepHaul(dt);
     // [econ3] end

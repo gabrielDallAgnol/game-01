@@ -28,7 +28,7 @@ export function createForecast(G) {
     return pts;
   }
   function forecast(n = S.night) {
-    if (G.v2) return [];   // [v2] no wave forecast (no waves from nests)
+    if (G.v2) return (G.hordeMarch ? G.hordeMarch(n) : []).map(h => ({ nest: h.nest, x: h.x, y: h.y, count: h.count, siege: false, boss: false, path: (G.refreshFlow(), tracePath(h.x, h.y)) }));   // [v2] the marching horde's route, if one marches tonight
     G.refreshFlow();
     const src = G.nightSources(n), nests = src.nests, w = src.wts;   // the same sources the wave is drawn from (fronts included)
     const u = G.unlocked(n), wsum = u.reduce((a, [, m]) => a + m.weight, 0), avgCost = u.reduce((a, [, m]) => a + m.weight * m.cost, 0) / wsum;
