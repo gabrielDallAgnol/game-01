@@ -7,10 +7,13 @@ import { buildArea, RECIPES } from '../engine/recipes.js';
 import { obbBox, pointInObb, distToSeg } from '../engine/geom.js';
 
 export const AREAS = Object.keys(RECIPES);
+// what an atom offers → the game's site it becomes (claim it to get the site's dawn income and effect)
+export const OFFER_SITE = { medicine: 'clinic', fuel: 'fuel', iron: 'quarry', work: 'substation', shop: 'market' };
+const siteOf = def => { for (const o of Object.keys(OFFER_SITE)) if (def.offers.includes(o)) return OFFER_SITE[o]; return null; };   // the table's order is the priority
 
 export function applyArea(g, id) {
   const { N, T, idx, inside, terrain, wild, road, c, seed, keep } = g;
-  const res = buildArea(id, seed >>> 0), W = res.W;
+  const res = buildArea(id, seed >>> 0, undefined, RECIPES[id].game), W = res.W;
   const ox = Math.round(c - W.camp.x), oy = Math.round(c - W.camp.y);   // whole metres, so engine and cells line up
   const mask = new Uint8Array(N * N), x0 = Math.max(0, ox), y0 = Math.max(0, oy), x1 = Math.min(N, ox + Math.ceil(W.w)), y1 = Math.min(N, oy + Math.ceil(W.h));
   const set = (x, y, t, r) => { if (!inside(x, y) || !mask[idx(x, y)]) return; const i = idx(x, y); terrain[i] = t; road[i] = r ? 1 : 0; };
@@ -38,5 +41,10 @@ export function applyArea(g, id) {
   // 5. the camp clearing, as the frontier makes it (the keep stands at its centre)
   for (let y = Math.floor(c - 11); y <= c + 11; y++) for (let x = Math.floor(c - 11); x <= c + 11; x++) { const d = Math.hypot(x + 0.5 - c, y + 0.5 - c); if (d < 10) set(x, y, d < 6 ? T.DIRT : T.GRASS, false); }
   const nest = W.nest ? { x: W.nest.x + ox, y: W.nest.y + oy } : null;
-  return { id, name: RECIPES[id].name, ox, oy, w: W.w, h: W.h, hash: res.hash, tries: res.attempts, mask, nest, W };
+  // the buildings that are places: their footprint cells, so the map can make them claimable sites
+  const sites = [];
+  W.placed.forEach(p => { const kind = p.def.kind === 'building' && siteOf(p.def); if (!kind || sites.some(s => s.kind === kind)) return;
+    const cells = [], b = obbBox(p); for (let y = Math.floor(b[1] + oy); y <= Math.ceil(b[3] + oy); y++) for (let x = Math.floor(b[0] + ox); x <= Math.ceil(b[2] + ox); x++) if (inside(x, y) && mask[idx(x, y)] && pointInObb(p, x + 0.5 - ox, y + 0.5 - oy)) cells.push(idx(x, y));
+    if (cells.length > 6) sites.push({ kind, atom: p.id, x: p.x + ox, y: p.y + oy, w: p.w, h: p.h, rot: p.rot, cells, door: p.door ? { x: p.door.x + ox, y: p.door.y + oy } : null }); });
+  return { id, name: RECIPES[id].name, ox, oy, w: W.w, h: W.h, hash: res.hash, tries: res.attempts, mask, nest, sites, W };
 }

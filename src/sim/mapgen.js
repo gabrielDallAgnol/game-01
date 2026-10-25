@@ -210,7 +210,11 @@ export function generateMap(seed, biome, opts = {}) {
   rng.shuffle(regions.filter(r => r.ring === 1 && Math.hypot(r.x - c, r.y - c) < 60)).slice(0, 3).forEach(r => hasNest.add(r.id));
   rng.shuffle(regions.filter(r => r.ring === 2)).slice(0, 3).forEach(r => hasNest.add(r.id));
   rng.shuffle(regions.filter(r => r.ring === 3)).slice(0, 2).forEach(r => hasNest.add(r.id));
+  // [area] begin: the area's own Inferno Nest atom is a hollow, in whatever region it stands
+  const areaNest = area && area.nest && inside(Math.floor(area.nest.x), Math.floor(area.nest.y)) && region[idx(Math.floor(area.nest.x), Math.floor(area.nest.y))] >= 0 ? region[idx(Math.floor(area.nest.x), Math.floor(area.nest.y))] : -1;
+  // [area] end
   for (const reg of regions) {
+    if (reg.id === areaNest && reg.ring === 1) { reg.nest = { x: area.nest.x, y: area.nest.y, back: null, hollow: true }; continue; }   // [area]
     if (!hasNest.has(reg.id)) continue;
     let best = null, bd = Infinity;
     for (let y = Math.max(2, Math.floor(reg.y - 16)); y < Math.min(N - 2, reg.y + 16); y++) for (let x = Math.max(2, Math.floor(reg.x - 16)); x < Math.min(N - 2, reg.x + 16); x++) {
@@ -251,6 +255,9 @@ export function generateMap(seed, biome, opts = {}) {
     return false;
   };
   const around = (cx0, cy0, d0, d1, reg = null) => { const out = []; for (let y = Math.max(2, Math.floor(cy0 - d1)); y < Math.min(N - 2, cy0 + d1); y++) for (let x = Math.max(2, Math.floor(cx0 - d1)); x < Math.min(N - 2, cx0 + d1); x++) { const d = Math.hypot(x + 0.5 - cx0, y + 0.5 - cy0); if (d >= d0 && d <= d1 && (reg === null || region[idx(x, y)] === reg)) out.push([x, y, d]); } return out.sort((a, b) => a[2] - b[2]).map(([x, y]) => [x, y]); };
+  // [area] begin: the area's buildings that are places become sites first, footprint and all
+  if (area) for (const s of area.sites) { const id = landmarks.length, r = region[s.cells[0]]; if (r < 0) continue; for (const i of s.cells) { terrain[i] = T.ROCK; lm[i] = id; } landmarks.push({ id, kind: s.kind, x: s.x, y: s.y, size: Math.round(Math.max(s.w, s.h)), cells: s.cells, region: r, engine: { w: s.w, h: s.h, rot: s.rot, atom: s.atom, door: s.door } }); }
+  // [area] end
   const sig = BIOMES[biome].signature;
   if (sig === 'christ' && feature.plateaus.length) {
     const p = feature.plateaus[0], sz = LANDMARKS.christ.size, h = Math.floor(sz / 2), x0 = Math.floor(p.x), y0 = Math.floor(p.y), cells = [], id = landmarks.length;
@@ -260,7 +267,7 @@ export function generateMap(seed, biome, opts = {}) {
   let wk = rng.int(WILD_KINDS.length);
   for (const reg of regions) {
     if (reg.ring === 0 || landmarks.some(l => l.region === reg.id)) continue;
-    const cands = around(reg.x, reg.y, 0, 12, reg.id).filter(([x, y]) => dCamp(x, y) > WORLD.camp + 6);
+    const cands = around(reg.x, reg.y, 0, 12, reg.id).filter(([x, y]) => dCamp(x, y) > WORLD.camp + 6 && !(area && area.mask[idx(x, y)]));   // [area] no frontier sites inside the town
     placeLm(reg.ring === 1 ? WILD_KINDS[wk++ % WILD_KINDS.length] : 'unknown', cands);
   }
 
