@@ -2,6 +2,10 @@
 // the "previously on" recap and the Chronicler's daily quest.
 import { $, $$, AI_WAIT, FLAGS, LEGACY_KEEP, WHATS_NEW, audio, chronicler, esc, rich, saves, store } from './shared.js';
 import { BIOMES, generateMap, mapChoices } from '../sim/mapgen.js';
+// [area] next line
+import { AREA, AREA_FLAG, areaOpts } from './area-flag.js';
+import { AREAS } from '../sim/areamap.js';
+import { RECIPES } from '../engine/recipes.js';
 import { DIFFICULTY, SAVE_V, createGame } from '../sim/game.js';
 import { LEGACY } from '../content/legacy.js';
 import { QUEST_TEMPLATES, SYSTEM } from '../content/story.js';
@@ -18,7 +22,7 @@ export function createStart(ui) {
   // ---------- the start: one screen ----------
   function showStart() {
     ui.paused = true; $('#hud').hidden = true;
-    const opts = mapChoices(setup.runSeed), best = store.get('best', 0);
+    const opts = mapChoices(setup.runSeed, areaOpts()), best = store.get('best', 0);
     $('#overlay').classList.add('start');
     ui.showCard('start', `${startArt()}<div class="kick">${GAME_TITLE.kick}</div>
       <h1>${GAME_TITLE.name}<span>${GAME_TITLE.name2}</span></h1><div class="sub">${GAME_TITLE.sub}</div>
@@ -28,14 +32,16 @@ export function createStart(ui) {
         <div class="worlds">${opts.map((o, k) => `<canvas id="mm${k}" aria-hidden="true"></canvas><div><b>${esc(o.name)}</b><div class="note">${esc(BIOMES[o.biome].blurb)} · seed ${o.seed}</div><button class="btn ghost sm" id="reroll" style="margin-top:8px">Another world</button></div>`).join('')}</div>
         <label class="aitog" style="margin-top:14px"><input type="checkbox" id="aiStart" ${chronicler.enabled() ? 'checked' : ''}><span>Let the Chronicler (Claude) write your story and play your companions. It uses your Claude account and asks first. Off: the written story.</span></label>
         ${FLAGS.startDifficulty ? `<div class="opts one" style="margin-top:12px">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="opt" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><span class="nm">${d.name}</span><span class="ds">${d.blurb}</span></button>`).join('')}</div>` : '<p class="note" style="margin-top:12px">The System asks how hard it should be after your first night.</p>'}
+        ${AREA_FLAG || AREA.id ? `<div class="opts one" style="margin-top:12px">${[...AREAS, ''].map(k => `<button class="opt" data-area="${k}" aria-pressed="${(AREA.id || '') === k}"><span class="nm">${k ? RECIPES[k].name : 'the frontier'}</span><span class="ds">${k ? esc(RECIPES[k].blurb) : 'The old map: a camp in the woods, the city far away.'}</span></button>`).join('')}</div>` : ''}   <!-- [area] -->
         <button class="btn ghost sm" id="replayIntro" style="margin-top:14px">Replay the opening</button>   <!-- [story3] -->
         ${legacyHtml()}
         <div class="news"><b>What's new tonight</b><ul>${WHATS_NEW.map(t => `<li>${rich(t)}</li>`).join('')}</ul></div>
       </details>
       <div class="foot">${best ? `Your best: night ${best} · ` : ''}Drag to walk · tap to go somewhere</div>`, { cls: 'titlecard', arm: false });
-    opts.forEach((o, k) => ui.drawMinimap($(`#mm${k}`), generateMap(o.seed, o.biome)));
+    opts.forEach((o, k) => ui.drawMinimap($(`#mm${k}`), generateMap(o.seed, o.biome, areaOpts())));
     $$('[data-diff]').forEach(b => b.onclick = () => { setup.difficulty = b.dataset.diff; store.set('difficulty', setup.difficulty); $$('[data-diff]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
     $('#aiStart').onchange = e => chronicler.setEnabled(e.target.checked);
+    $$('[data-area]').forEach(b => b.onclick = () => { AREA.id = b.dataset.area || null; showStart(); $('#startMore').open = true; });   // [area]
     $$('[data-legacy]').forEach(b => b.onclick = () => { const L = store.get('legacy', { fame: 0, owned: {} }), up = LEGACY.find(x => x.id === b.dataset.legacy), n = L.owned[up.id] || 0; if (n >= up.max || L.fame < up.cost) return; L.fame -= up.cost; L.owned[up.id] = n + 1; store.set('legacy', L); audio.play('claim'); showStart(); $('#startMore').open = true; });
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); $('#startMore').open = true; };
     // [story3] the opening plays once (skippable); headless drivers skip it unless ?intro=1
@@ -76,8 +82,8 @@ export function createStart(ui) {
     if (made && ui.view) { try { ui.view.dispose(); } catch (err) { console.error(err); } ui.view = null; }
     if (made) mapSeed = made.map.seed;
     // [rig3] end
-    ui.game = made ? made : snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {} })
-      : createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty, legacy: store.get('legacy', { owned: {} }).owned });
+    ui.game = made ? made : snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {}, area: snap.area || null })
+      : createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty, legacy: store.get('legacy', { owned: {} }).owned, area: AREA.id });
     ui.names = regionNames(mapSeed, ui.game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
     if (!ui.view) { ui.view = createView($('#view'), ui.game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); }
