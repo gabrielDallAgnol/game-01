@@ -39,13 +39,14 @@ The shared stages (terrain, camp, props, forest, nav) and all the validators are
 
 ```js
 { id: 'house.suburban.a', kind: 'building', size: [11, 9], height: 6, layer: 'roof', collide: 'box',
-  roles: ['roof.warm', 'roof.warm2', 'wall.light'], roof: 'gable', setback: [4, 6],
+  roles: ['roof.warm', 'roof.warm2', 'wall.light'], look: 'gable', setback: [4, 6],
   sockets: [{ type: 'door', at: 'front' }, { type: 'drive', at: 'side' }],
   needs: ['lot.residential'], offers: ['shelter'], tags: ['house', 'ch1'] }
 ```
 
 - `needs` says where the atom can go: the buildings stage asks `reg.needing('lot.residential')`.
 - `layer` says what you walk under. `roof` and `canopy` fade around the hero.
+- `look` says how it is drawn. Atoms share looks, so a new atom needs no drawing code.
 
 ## How to grow it
 
