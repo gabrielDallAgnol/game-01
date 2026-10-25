@@ -7,6 +7,7 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2), withGltf = args.includes('--gltf');   // [assets3] --gltf: also embed the GLTF loader and the test GLBs (only then; the default build is unchanged)
 const withArea = (args.find(a => a.startsWith('--area=')) || '').slice(7);   // [area] --area=<recipe>: the run starts in that engine-built town
+const withCombat2 = args.includes('--v2combat');   // [combat2] --v2combat: telegraphed bites and the dash on by default
 const withTop = args.includes('--top');   // [top] --top: the top-down view on by default (dist/top.html; ?top=0 turns it off)
 const out = args.find(a => !a.startsWith('--')) || path.join(root, withGltf ? 'dist/index-gltf.html' : withArea ? 'dist/area.html' : withTop ? 'dist/top.html' : 'dist/index.html');
 const mods = new Map(), order = [];
@@ -23,6 +24,9 @@ function visit(file) {
   // [area] begin
   if (withArea && rel(file) === 'src/ui/area-flag.js') { const c0 = code; code = code.replace("export const AREA_FLAG = '';", `export const AREA_FLAG = '${withArea}';`); if (c0 === code) throw new Error('--area: AREA_FLAG not found'); }
   // [area] end
+  // [combat2] begin
+  if (withCombat2 && rel(file) === 'src/ui/combat2-flag.js') { const c0 = code; code = code.replace('export const COMBAT2_FLAG = false;', 'export const COMBAT2_FLAG = true;'); if (c0 === code) throw new Error('--v2combat: COMBAT2_FLAG not found'); }
+  // [combat2] end
   const exportsList = [];
   code = code.replace(/^import\s+\{([^}]*)\}\s+from\s+'([^']+)';?[ \t]*$/gm, (_, names, spec) => {
     const dep = path.resolve(path.dirname(file), spec); visit(dep);
