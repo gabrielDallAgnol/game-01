@@ -56,6 +56,9 @@ export function createHives(V) {
 
   /** once a frame (after the buildings and the contract marker) */
   function update(dt) {
+    // [v2] begin: the old hollows and hives are gone from the V2 game (nests return as infested buildings)
+    if (game.v2 && game.v2()) { for (const [, hv] of hives) { hv.g.visible = false; hv.glow = 0; } return; }
+    // [v2] end
     const time = V.time, dark = V.dark, { makeBar, setBar } = V.bars;
     // hives: live ones glow and breathe; sleeping ones next to your land stay dark; far ones stay hidden in the ruins
     const active = new Set(S.phase === 'night' ? game.activeNests() : game.activeNests(S.night));

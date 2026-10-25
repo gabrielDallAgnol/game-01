@@ -85,6 +85,7 @@ export function createInferno(V) {
 
   /** once a frame (after the old hive update) */
   function update(dt, events) {
+    if (game.v2 && game.v2()) { for (const [, q] of nests) { q.hv.g.visible = false; q.hv.glow = 0; } return; }   // [v2] no Inferno Nests in the V2 game
     const time = V.time, dark = V.dark;
     for (const e of events || []) {
       if (e.t === 'infernoBreak') { const q = nests.get(e.region); if (q) { V.feel.burst(e.x, e.y, 3.2, '#ff8a2a'); V.feel.burst(e.x, e.y, 5, '#ffd27a'); V.feel.shake && V.feel.shake(0.5); { const p = wpos(e.x, e.y, 2); fx2.emit('flash', p.x, p.y, p.z, 4, { size: 6 }); } } }
