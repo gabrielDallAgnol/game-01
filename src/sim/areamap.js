@@ -25,6 +25,9 @@ export function applyArea(g, id) {
   const fillDisc = (p, rad, t, r) => { for (let y = Math.floor(p.y - rad + oy); y <= Math.ceil(p.y + rad + oy); y++) for (let x = Math.floor(p.x - rad + ox); x <= Math.ceil(p.x + rad + ox); x++) if (Math.hypot(x + 0.5 - ox - p.x, y + 0.5 - oy - p.y) <= rad) set(x, y, t, r); };
   // 1. the ground: open grass, part of the wilds (open from day 1)
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { if (keep && keep(x, y)) continue; const i = idx(x, y); mask[i] = 1; terrain[i] = T.GRASS; wild[i] = 1; road[i] = 0; }
+  // 1b. the town's edge meets the frontier: void beyond it becomes a band of woods, so the map never ends in the dark
+  const BAND = 26;
+  for (let y = Math.max(0, y0 - BAND); y < Math.min(N, y1 + BAND); y++) for (let x = Math.max(0, x0 - BAND); x < Math.min(N, x1 + BAND); x++) { const i = idx(x, y); if (mask[i] || terrain[i] !== T.VOID) continue; terrain[i] = ((x * 7 + y * 13) % 5) ? T.FOREST : T.GRASS; wild[i] = 1; }
   // 2. the woods: canopies of the forest atoms (choppable, as in the frontier)
   W.placed.forEach(p => { if (p.def.kind === 'tree' && (p.def.tags.includes('forest') || p.def.tags.includes('forest-dead'))) fillDisc(p, (p.r || p.def.size[0] / 2) * 0.55, T.FOREST, false); });
   // 3. water, rails, then streets, drives and bridges on top
