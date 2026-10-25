@@ -1,6 +1,7 @@
-// The refactor safety net: a handful of deterministic scripted runs (seeds, heroes, difficulties, a contract, a hive burn,
-// the road, packs, a purge, a save → restore round trip), each hashing the full game state and the event stream every
-// night. Any change in behaviour changes a hash. Refactors must keep the output byte for byte.
+// The refactor safety net: a handful of deterministic scripted V2 runs (the three engine towns, heroes, difficulties,
+// hordes, the dash, building at the camp, searching houses, claiming a site, a save → restore round trip), each hashing
+// the game's core state and the event stream every night. Any change in behaviour changes a hash. Refactors must keep
+// the output byte for byte. (The V2 golden replaced the classic one on Oct 25: the old scenarios drove systems that are gone.)
 //   node tools/golden.mjs            print the lines (runs the scenarios in parallel, one process each)
 //   node tools/golden.mjs --write    record them into test/golden.json
 //   node tools/golden.mjs --check    compare with test/golden.json (exit 1 on the first difference)
@@ -9,10 +10,9 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import * as GAME from '../src/sim/game.js';
-import { heroTick, chooseStory, dayTurn, choosePerks, scavengeTurn, EXPANSION } from './bot.mjs';
+import { createGame } from '../src/sim/game.js';
+import { heroTick, dayTurn } from './bot.mjs';
 
-const { createGame } = GAME;
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const GOLDEN = ROOT + 'test/golden.json';
 
@@ -38,141 +38,117 @@ function feed(h, v, stack) {
 }
 export const hashOf = v => { const h = createHash('sha256'); feed(h, v, []); return h.digest('hex').slice(0, 16); };
 
-// ---------- what the UI and bots read: the public API's queries (same calls before and after a refactor) ----------
-function probe(g) {
-  const S = g.state, t = g.map.town, R = g.road;
-  const o = {
-    pop: g.pop(), foodPerDawn: g.foodPerDawn(), goldPerDawn: g.goldPerDawn(), foodNeed: g.foodNeed(), upkeep: g.upkeep(), defenceDps: g.defenceDps(), heroDps: g.heroDps(),
-    threat: g.threatRatio(), strip: g.forecastStrip(), forecast: g.forecast().map(f => ({ ...f, path: f.path.length })), noise: g.noiseInfo(), tools: g.tools(), crew: g.crewing(),
-    hands: [g.handsMax(), g.handsFree()], power: [g.powerIn(), g.powerOut()], heatFloor: g.heatFloor(), keepCost: g.keepCost(), ruins: g.ruins(), regions: g.map.regions.map(r => g.regionInfo(r.id)),
-    active: g.activeNests(), reroll: g.rerollCost(), xpNext: g.xpNext(), party: g.partySize(), frontier: g.frontier(), weather: g.weather(), clock: [g.nightFrac(), g.timeOfDay(), g.dayShare(), g.duskIn(), g.dayFrac(), g.bellBonus()],
-    rows: g.logRows().length, zone: g.zone(), place: ['house', 'farm', 'tower'].map(k => g.canPlace(k, t.x + 6, t.y + 5)), costs: ['house', 'farm', 'tower', 'workshop', 'market'].map(k => [g.buyCost(k), g.newCost(k), g.costOf(k)]),
-    keepNeeds: g.keepNeeds(), season: g.season(), eff: g.effNight(), ledger: g.ledger(), diff: g.difficulty(), hear: g.hearRadius(), noiseN: g.noise(), draw: g.townDraw(),
-    stations: R ? R.stations.map(st => R.tripInfo(st.x, st.y)).map(x => x && { ...x, path: x.path.length }) : null, places: R ? R.places() : null, missionF: R ? R.forecast() : null,
-    lm: S.landmarks.map(l => g.landmarkReach(l.id)), scav: S.scav ? S.scav.sites.map(s => g.scavenge.siteInfo(s.id)) : null, story: g.story() && g.story().strip ? g.story().strip() : null,
+// ---------- what the run is: the core state, picked field by field (a deleted system's leftovers never move a hash) ----------
+const pick = (o, keys) => (o ? Object.fromEntries(keys.map(k => [k, o[k]])) : null);
+const MOB = ['id', 'kind', 'x', 'y', 'hp', 'maxHp', 'horde', 'rise', 'windT'], BLD = ['id', 'type', 'x', 'y', 'rot', 'level', 'hp', 'maxHp', 'ruined', 'built'];
+function core(S) {
+  return {
+    ...pick(S, ['time', 'night', 'phase', 'dayT', 'qT', 'gold', 'food', 'kills', 'lvl', 'xp', 'over', 'survivors', 'homeless', 'nextId']),
+    hero: { ...pick(S.hero, ['x', 'y', 'hp', 'maxHp', 'dead', 'respawn', 'face']), carry: S.hero.carry },
+    keep: pick(S.keep, ['hp', 'maxHp', 'level', 'ruined']), dash: S.dash || null,
+    buildings: S.buildings.map(b => pick(b, BLD)), mobs: S.mobs.map(m => pick(m, MOB)), allies: S.allies.map(a => pick(a, ['id', 'kind', 'x', 'y', 'hp'])),
+    chests: S.chests.map(c => pick(c, ['x', 'y'])), purses: S.purses.map(c => pick(c, ['x', 'y', 'gold'])), pickups: S.pickups.map(c => pick(c, ['x', 'y', 'kind', 'n'])), shots: S.projectiles.length,
+    sites: S.landmarks.map(l => [l.kind, !!l.owned]), hordes: S.hordes || null, search: S.search || null, queue: S.queue.length,
   };
-  return o;
 }
+// ---------- what the UI and bots read: the public API's queries the V2 game keeps ----------
+function probe(g) {
+  const t = g.map.town;
+  return {
+    pop: g.pop(), foodPerDawn: g.foodPerDawn(), foodNeed: g.foodNeed(), upkeep: g.upkeep(), defenceDps: g.defenceDps(), heroDps: g.heroDps(), keepCost: g.keepCost(), ruins: g.ruins(),
+    xpNext: g.xpNext(), party: g.partySize(), clock: [g.nightFrac(), g.timeOfDay(), g.dayShare(), g.duskIn(), g.dayFrac()], income: g.incomeRate(),
+    place: ['house', 'farm', 'tower'].map(k => g.canPlace(k, t.x + 6, t.y + 5)), costs: ['house', 'farm', 'tower'].map(k => [g.buyCost(k), g.newCost(k), g.costOf(k)]),
+    forecast: g.forecast().map(f => ({ nest: f.nest, x: f.x, y: f.y, count: f.count, path: f.path.length })), dash: g.dashInfo(), searchAt: g.searchAt(), searched: g.searchHomes().filter(h => g.searched(h.id)).length,
+  };
+}
+const mapHash = m => hashOf({ terrain: m.terrain, reach: m.reach, road: m.road, slots: m.slots, landmarks: m.landmarks.map(l => pick(l, ['kind', 'x', 'y', 'size'])), town: m.town, area: m.area && pick(m.area, ['id', 'hash', 'ox', 'oy']), homes: m.area && m.area.homes });
 
 // ---------- one scenario: drives the game, emits a line per night ----------
-const snapState = S => S;   // the whole state (map included)
-function runner(name, g, opts = {}) {
+function runner(name, g) {
   const lines = [], evHash = createHash('sha256'); let evN = 0;
-  const api = g => Object.keys(g).sort().map(k => `${k}:${typeof g[k]}`).join(',');
   const step = () => { g.step(); const evs = g.state.events.splice(0); for (const e of evs) feed(evHash, e, []); evN += evs.length; };
   const mark = tag => {
-    const S = g.state;
-    const ev = evHash.copy().digest('hex').slice(0, 16);
-    lines.push(`${name} ${tag} night=${S.night} phase=${S.phase} over=${S.over} gold=${S.gold} food=${S.food} kills=${S.kills} mobs=${S.mobs.length} bld=${S.buildings.length} ev=${evN}:${ev} state=${hashOf(snapState(S))} probe=${hashOf(probe(g))}`);
+    const S = g.state, ev = evHash.copy().digest('hex').slice(0, 16);
+    lines.push(`${name} ${tag} night=${S.night} phase=${S.phase} over=${S.over} gold=${S.gold} food=${S.food} kills=${S.kills} mobs=${S.mobs.length} bld=${S.buildings.length} ev=${evN}:${ev} state=${hashOf(core(S))} probe=${hashOf(probe(g))}`);
   };
-  return { lines, step, mark, api, swap: ng => { g = ng; }, get g() { return g; } };
+  lines.push(`${name} map ${mapHash(g.map)} area=${g.map.area ? g.map.area.id : '-'} homes=${g.map.area ? g.map.area.homes.length : 0} sites=${g.state.landmarks.length}`);
+  return { lines, step, mark, swap: ng => { g = ng; }, get g() { return g; } };
 }
+// the bot's habits on top of heroTick: the last story choice, a dash away from a bite being wound up, by day a walk to
+// the nearest house not yet searched (within `far` of the camp) until the hands are full, then home
+const story = g => { const S = g.state, can = x => g.story().can(x); for (let k = 0; k < 9 && S.story.encounters.length; k++) { const e = S.story.encounters[0], last = e.choices[e.choices.length - 1]; g.choose((can(last) ? last : e.choices.find(can) || last).id); } };
+function dodge(g) {
+  const S = g.state, h = S.hero; if (h.dead) return;
+  const m = S.mobs.find(q => q.windT > 0 && Math.hypot(q.x - h.x, q.y - h.y) < 2); if (m) g.dash(h.x - m.x, h.y - m.y);
+}
+function searchTick(g, far) {
+  const S = g.state, h = S.hero, t = g.map.town; if (h.dead || S.phase !== 'day' || S.dayT < 3) return false;
+  if (h.carry.scrap + h.carry.food >= 6) { g.heroTo(t.x, t.y + 3.5); return true; }
+  const o = g.searchHomes().filter(q => !g.searched(q.id) && Math.hypot(q.x - t.x, q.y - t.y) < far).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+  if (!o) return false; g.heroTo(o.x, o.y); return true;
+}
+const NIGHTS = 7, CAP = 60 * 60 * 40;
 
 const SCEN = {
-  // the clock bot: survivor, warrior; a save → restore round trip at dawn 6; a contract comes from the story
+  // the suburb, the survivor (the UI's hero): builders on, searching by day, dashing, a save → restore round trip at dawn 4
   A() {
-    let g = createGame({ seed: 100, mapSeed: 300, biome: 'riverbend', hero: 'warrior', difficulty: 'survivor' });
-    const R = runner('A', g); R.lines.push(`A api ${hashOf(R.api(g))}`);
-    g.state.builders = 'balanced'; let steps = 0, saved = false;
-    while (!g.state.over && g.state.night <= 12 && steps < 60 * 60 * 40) {
-      const S = g.state;
-      while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]);
-      if (S.story.encounters.length) chooseStory(g);
-      if (steps % 15 === 0) heroTick(g, 'active');
+    let g = createGame({ seed: 100, mapSeed: 300, hero: 'survivor', difficulty: 'survivor', area: 'suburb' });
+    const R = runner('A', g); g.state.builders = 'balanced'; let steps = 0, saved = false;
+    while (!g.state.over && g.state.night <= NIGHTS && steps < CAP) {
+      const S = g.state; story(g);
+      if (steps % 15 === 0) { dodge(g); if (!searchTick(g, 40)) heroTick(g, 'active'); }
       const ph = S.phase; R.step(); steps++;
       if (ph === 'night' && g.state.phase === 'day') {
         R.mark('dawn');
-        if (g.state.night === 6 && !saved) {
+        if (g.state.night === 4 && !saved) {
           saved = true; g.rebuildAll();
           const snap = JSON.parse(JSON.stringify(g.snapshot())); delete snap.savedAt;
-          R.lines.push(`A snapshot ${hashOf(snap)}`);
-          g = createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {} });
+          g = createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {}, area: snap.area });
           g.state.events.length = 0; R.swap(g); R.mark('restored');
         }
       }
     }
-    R.mark('end'); R.lines.push(`A contract ${JSON.stringify(g.state.story.contract ? { id: g.state.story.contract.id, won: !!g.state.story.contract.won } : null)}`);
-    return R.lines;
+    R.mark('end'); return R.lines;
   },
-  // autopilot, veteran, archer; a hive burned by hand on day 3, then a flare and smoke against the horde
+  // the mill town, veteran, the warrior on autopilot (the planner builds, the autopilot fights)
   B() {
-    const g = createGame({ seed: 101, mapSeed: 301, biome: 'riverbend', hero: 'archer', difficulty: 'veteran' });
-    const R = runner('B', g); g.setAutopilot(true); let steps = 0, burned = false, horde = -1;
-    while (!g.state.over && g.state.night <= 12 && steps < 60 * 60 * 40) {
-      const S = g.state;
-      while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[S.offer.length - 1]);
-      if (S.story.encounters.length) chooseStory(g);
-      if (!burned && S.night === 3 && S.phase === 'day' && S.dayT > 10) {
-        const t = g.map.town, reg = g.map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.sealed[r.id] && r.ring === 1).sort((a, b) => Math.hypot(a.nest.x - t.x, a.nest.y - t.y) - Math.hypot(b.nest.x - t.x, b.nest.y - t.y))[0];
-        if (reg) { S.hero.x = reg.nest.x + 1.5; S.hero.y = reg.nest.y; S.hero.target = null; S.hero.path = null; g.hitHive(reg.id, 30); g.hitHive(reg.id, 9999); horde = steps; R.lines.push(`B burned ${reg.id} claimed=${S.claimed.has(reg.id)}`); }
-        burned = true;
-      }
-      if (horde >= 0 && steps === horde + 120) { S.gold += 10; g.useFlare(); }
-      if (horde >= 0 && steps === horde + 240) { S.food += 5; g.useSmoke(); g.heroTo(g.map.town.x, g.map.town.y + 3.5); }
+    const g = createGame({ seed: 101, mapSeed: 301, hero: 'warrior', difficulty: 'veteran', area: 'milltown' });
+    const R = runner('B', g); g.setAutopilot(true); let steps = 0;
+    while (!g.state.over && g.state.night <= NIGHTS && steps < CAP) {
+      const S = g.state; story(g);
+      if (steps % 15 === 0) dodge(g);
       const ph = S.phase; R.step(); steps++;
-      if (ph === 'night' && g.state.phase === 'day') R.mark('dawn');
+      if (ph === 'night' && S.phase === 'day') R.mark('dawn');
     }
     R.mark('end'); return R.lines;
   },
-  // the classic turn bot (no clock): packs, perk paths, a purge march, scavenging, story difficulty, the merchant
+  // downtown, nightmare: nobody builds, the hero stays home; the hordes come until the camp falls (or night 9)
   C() {
-    const g = createGame({ seed: 11, biome: 'riverbend', hero: 'merchant', mode: 'packs', difficulty: 'story', clock: false });
-    const R = runner('C', g), S = g.state;
-    choosePerks(g, 'harvest');
-    while (!S.over && S.night <= 12) {
-      dayTurn(g, 'balanced');
-      const target = EXPANSION.reckless(g, S.night); if (target !== null) { g.planPurge(target); dayTurn(g, 'balanced'); }
-      scavengeTurn(g);
-      if (S.night === 4) { const t = g.map.town; for (let d = 4; d < 14; d++) if (g.clearRubble(t.x + d, t.y - d)) break; }
-      g.startNight();
-      let steps = 0;
-      while (S.phase === 'night' && steps < 60 * 400) { if (steps % 15 === 0) heroTick(g, 'active'); R.step(); steps++; }
-      if (S.phase === 'night') break;
-      R.mark('dawn'); g.rebuildAll(); choosePerks(g, 'harvest');
-    }
-    R.mark('end'); return R.lines;
-  },
-  // the road: an outpost lit and its tower, a convoy brought home, missions (hunt, lantern, horn), nightmare medic
-  D() {
-    const g = createGame({ seed: 3, mapSeed: 3, biome: 'riverbend', hero: 'medic', difficulty: 'nightmare' });
-    const R = runner('D', g), S = g.state, road = g.road, t = g.map.town;
-    S.builders = 'balanced'; let steps = 0;
-    const tp = (x, y) => { S.hero.x = x; S.hero.y = y; S.hero.target = null; S.hero.path = null; };
-    const st = road.stations[0]; S.gold += 60; tp(st.x + 1, st.y);
-    for (let k = 0; k < 60 * 4; k++) { R.step(); steps++; }
-    R.lines.push(`D lit ${st.lit} tower ${road.buildTower(st.id)}`);
-    road.makeConvoy(3); road.go(t.x, t.y + 3.5);
-    for (let k = 0; k < 60 * 90 && road.convoys().length; k++) { if (S.story.encounters.length) chooseStory(g); R.step(); steps++; }
-    R.mark('convoy');
-    while (!S.over && S.night <= 10 && steps < 60 * 60 * 40) {
-      while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]);
-      if (S.story.encounters.length) chooseStory(g);
-      if (road.mission.choosing && S.night === 2) road.setMission('hunt');
-      if (S.phase === 'night' && S.night === 2 && S.qT > 20 && S.qT < 20 + 1 / 60) { road.setLantern(false); }
-      if (S.phase === 'night' && S.night === 2 && S.qT > 40 && S.qT < 40 + 1 / 60) { road.setLantern(true); }
-      if (road.mission.choosing && S.night === 3) road.setMission('piper');
-      if (S.phase === 'night' && S.night === 3 && S.qT > 15 && S.qT < 15 + 1 / 60) R.lines.push(`D horn ${road.horn()}`);
-      if (S.night === 5 && S.phase === 'day' && S.dayT < 1 / 60) g.setDifficulty('veteran');
-      if (S.phase === 'night' && steps % 600 === 0) g.useAbility();
-      if (steps % 15 === 0) heroTick(g, 'active');
+    const g = createGame({ seed: 7, mapSeed: 7, hero: 'survivor', difficulty: 'nightmare', area: 'downtown' });
+    const R = runner('C', g), S = g.state; let steps = 0;
+    while (!S.over && S.night <= 9 && steps < 60 * 60 * 60) {
+      story(g); if (steps % 15 === 0) heroTick(g, 'idle');
       const ph = S.phase; R.step(); steps++;
-      if (ph === 'night' && S.phase === 'day') { R.mark('dawn'); g.rebuildAll(); }
+      if (ph === 'night' && S.phase === 'day') R.mark('dawn');
+    }
+    R.mark(S.over ? 'fell' : 'end'); R.lines.push(`C log ${hashOf(S.log)} stats ${hashOf(S.stats)}`); return R.lines;
+  },
+  // the suburb, story difficulty, the archer: a hand-built camp (the bot's day turn at every dawn), a site claimed on
+  // day 2 (the hero walks to its door), searching far out, dashing
+  D() {
+    const g = createGame({ seed: 3, mapSeed: 3, hero: 'archer', difficulty: 'story', area: 'suburb' });
+    const R = runner('D', g), S = g.state, t = g.map.town; let steps = 0, claim = null;
+    S.gold += 30; dayTurn(g, 'balanced'); R.mark('built');
+    while (!S.over && S.night <= NIGHTS && steps < CAP) {
+      story(g);
+      if (S.night === 2 && S.phase === 'day' && claim === null) { claim = S.landmarks.filter(l => !l.owned).sort((a, b) => Math.hypot(a.x - t.x, a.y - t.y) - Math.hypot(b.x - t.x, b.y - t.y))[0] || false; if (claim) S.gold += 40; }
+      const going = claim && !claim.owned && S.night === 2 && S.phase === 'day';
+      if (going && steps % 30 === 0 && g.landmarkReach(claim.id)) R.lines.push(`D claim ${claim.kind} ${!!g.claimLandmark(claim.id)} at step ${steps}`);
+      if (steps % 15 === 0) { dodge(g); if (going) { const d = claim.engine && claim.engine.door; g.heroTo(d ? d.x : claim.x, d ? d.y : claim.y + claim.size / 2 + 0.6); } else if (!searchTick(g, 70)) heroTick(g, 'active'); }
+      const ph = S.phase; R.step(); steps++;
+      if (ph === 'night' && S.phase === 'day') { R.mark('dawn'); g.rebuildAll(); dayTurn(g, 'balanced'); }
     }
     R.mark('end'); return R.lines;
-  },
-  // a camp that falls: nightmare, nobody builds, the hero stays home; the hall goes down and the run ends
-  E() {
-    const g = createGame({ seed: 7, biome: 'riverbend', hero: 'survivor', difficulty: 'nightmare', clock: false });
-    const R = runner('E', g), S = g.state;
-    while (!S.over && S.night <= 30) {
-      chooseStory(g); while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]);
-      g.startNight();
-      let steps = 0;
-      while (S.phase === 'night' && steps < 60 * 400) { if (steps % 15 === 0) heroTick(g, 'idle'); R.step(); steps++; }
-      R.mark(S.over ? 'fell' : 'dawn');
-      if (S.phase === 'night') break;
-    }
-    R.mark('end'); R.lines.push(`E log ${hashOf(S.log)} stats ${hashOf(S.stats)}`); return R.lines;
   },
 };
 
@@ -181,7 +157,7 @@ if (args[0] === '--one') {
   const out = SCEN[args[1]]();
   process.stdout.write(out.join('\n') + '\n');
 } else {
-  const header = [`exports ${Object.keys(GAME).sort().join(',')}`, `consts ${hashOf(Object.fromEntries(Object.entries(GAME).filter(([, v]) => typeof v !== 'function')))}`];
+  const header = [];
   const names = Object.keys(SCEN);
   const results = await Promise.all(names.map(n => new Promise((done, fail) => {
     const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--one', n], { stdio: ['ignore', 'pipe', 'inherit'] });

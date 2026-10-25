@@ -91,7 +91,7 @@ MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the 
 MODULES.push(createV2Core);   // [v2] appended: the V2 core switches the old systems off (does nothing without v2)
 MODULES.push(createHordes);   // [v2] appended: hordes, the V2 night (does nothing without v2)
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null, area = null, v2combat = false, v2 = false } = {}) {   // [area] area: an engine recipe id   // [combat2] v2combat: the flag   // [v2] v2: the V2 core
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null, area = 'suburb', v2combat = true, v2 = true } = {}) {   // [area] area: an engine recipe id   // [combat2] v2combat: the flag   // [v2] v2: the V2 core
   if (hero === 'steward') hero = 'merchant';
   const map = premap && premap.seed === (mapSeed ?? seed) && premap.biome === biome && (premap.area ? premap.area.id : null) === area ? premap : generateMap(mapSeed ?? seed, biome, area ? { area } : {});   // [rig3] premap: a fresh map migrate.js already made
   if (map !== premap) themeMap(map, leg ?? (restore && restore.rig && restore.rig.leg) ?? 1);   // [rig3] the act's ground and props

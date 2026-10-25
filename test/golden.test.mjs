@@ -1,4 +1,4 @@
-// The refactor safety net: five scripted runs must hash exactly as recorded in test/golden.json (state + events, every
+// The refactor safety net: four scripted V2 runs must hash exactly as recorded in test/golden.json (core state + events, every
 // night). A failure means behaviour changed. If the change is intended (a rule or balance change, not a refactor),
 // re-record with: node tools/golden.mjs --write   (and say so in the commit message).
 import { test } from 'node:test';

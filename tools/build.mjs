@@ -6,11 +6,8 @@ import path from 'node:path';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2), withGltf = args.includes('--gltf');   // [assets3] --gltf: also embed the GLTF loader and the test GLBs (only then; the default build is unchanged)
-const withArea = (args.find(a => a.startsWith('--area=')) || '').slice(7);   // [area] --area=<recipe>: the run starts in that engine-built town
-const withCombat2 = args.includes('--v2combat');   // [combat2] --v2combat: telegraphed bites and the dash on by default
-const withV2 = args.includes('--v2');   // [v2] --v2: the V2 core (the old systems switched off) on by default
-const withTop = args.includes('--top');   // [top] --top: the top-down view on by default (dist/top.html; ?top=0 turns it off)
-const out = args.find(a => !a.startsWith('--')) || path.join(root, withGltf ? 'dist/index-gltf.html' : withArea ? 'dist/area.html' : withTop ? 'dist/top.html' : 'dist/index.html');
+const withArea = (args.find(a => a.startsWith('--area=')) || '').slice(7);   // [area] --area=<recipe>: the run starts in that engine-built town (default suburb)
+const out = args.find(a => !a.startsWith('--')) || path.join(root, withGltf ? 'dist/index-gltf.html' : withArea ? 'dist/area.html' : 'dist/index.html');
 const mods = new Map(), order = [];
 
 function visit(file) {
@@ -19,18 +16,9 @@ function visit(file) {
   let code = fs.readFileSync(file, 'utf8');
   // [gemini3] the build time on the start screen (src/version.js keeps 'dev'; only the bundle gets the stamp)
   if (rel(file) === 'src/version.js') code = code.replace("time: 'dev'", () => `time: '${new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Berlin' }).slice(0, 16)}'`);
-  // [top] begin
-  if (withTop && rel(file) === 'src/render/top.js') { const c0 = code; code = code.replace('export const TOP_FLAG = false;', 'export const TOP_FLAG = true;'); if (c0 === code) throw new Error('--top: TOP_FLAG not found'); }
-  // [top] end
   // [area] begin
-  if (withArea && rel(file) === 'src/ui/area-flag.js') { const c0 = code; code = code.replace("export const AREA_FLAG = '';", `export const AREA_FLAG = '${withArea}';`); if (c0 === code) throw new Error('--area: AREA_FLAG not found'); }
+  if (withArea && rel(file) === 'src/ui/area-flag.js') { const c0 = code; code = code.replace("export const AREA_FLAG = 'suburb';", `export const AREA_FLAG = '${withArea}';`); if (c0 === code) throw new Error('--area: AREA_FLAG not found'); }
   // [area] end
-  // [combat2] begin
-  if (withCombat2 && rel(file) === 'src/ui/combat2-flag.js') { const c0 = code; code = code.replace('export const COMBAT2_FLAG = false;', 'export const COMBAT2_FLAG = true;'); if (c0 === code) throw new Error('--v2combat: COMBAT2_FLAG not found'); }
-  // [combat2] end
-  // [v2] begin
-  if (withV2 && rel(file) === 'src/ui/v2-flag.js') { const c0 = code; code = code.replace('export const V2_FLAG = false;', 'export const V2_FLAG = true;'); if (c0 === code) throw new Error('--v2: V2_FLAG not found'); }
-  // [v2] end
   const exportsList = [];
   code = code.replace(/^import\s+\{([^}]*)\}\s+from\s+'([^']+)';?[ \t]*$/gm, (_, names, spec) => {
     const dep = path.resolve(path.dirname(file), spec); visit(dep);
