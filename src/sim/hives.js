@@ -48,9 +48,6 @@ export function createHives(G) {
     const reg = map.regions[r];
     if (keep.level < G.keepForRing(reg.ring)) { if (!S.nightFlags.keepWarn) { S.nightFlags.keepWarn = true; fail(`This Inferno Nest is too strong: raise the Haven Rig to level ${G.keepForRing(reg.ring)} first.`); } return false; }
     if (!hiveDmg[r]) { toast('You strike the Inferno Nest. It wakes and pours out its Ash-Born!', 'bad'); if (S.wake[r] > S.night) S.wake[r] = S.night; }
-    // [road] begin
-    if (G.road) d *= G.road.hiveMult(r);
-    // [road] end
     // [nest3] begin
     if (G.inferno && G.inferno.on()) { G.inferno.arm(r, hiveBase(r)); d = G.inferno.clamp(r, hiveDmg[r] || 0, d * (S.story && S.story.flags.hiveTip ? 1.15 : 1)) / (S.story && S.story.flags.hiveTip ? 1.15 : 1); }
     // [nest3] end

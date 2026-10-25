@@ -8,7 +8,7 @@
 //   seasons · hero · blessings · save · nests · api
 // G holds: the run's constants (S, map, c, keep, rng, perkRng, mobById, seed, …), every module's functions, and five
 // late or changing slots read as G.x at call time: G.HC (the hero's class, changes on evolve), G.DIFF (difficulty),
-// G.story, G.sc (scavenging), G.road, G.api.
+// G.story, G.sc (scavenging), G.api.
 import { Rng, hashSeed } from './rng.js';
 import { generateMap, PASSABLE, idx, inside, LANDMARKS } from './mapgen.js';
 import { BUILDINGS, KEEP } from '../content/buildings.js';
@@ -18,9 +18,6 @@ import { KITS } from '../content/districts.js';
 import { createScavenge } from './scavenge.js';
 import { createPlanner } from './planner.js';
 import { createStory } from './story.js';
-// [road] begin
-import { createRoad } from './road.js';
-// [road] end
 import { createState, STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN } from './state.js';
 import { createCore } from './core.js';
 import { createEconomy } from './economy.js';
@@ -104,7 +101,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- the shared context: run constants, then every module's functions ----------
   const G = { S, map, c, keep, seed, mapSeed, biome, mode, clock, restore, legacy,
     rng: new Rng(hashSeed(seed, 'run')), perkRng: new Rng(hashSeed(seed, 'perks')), mobById: new Map(),
-    HC, DIFF, story: null, sc: null, road: null, api: null, v2combat: !!v2combat, v2: !!v2 };   // [combat2] v2combat   // [v2] v2
+    HC, DIFF, story: null, sc: null, api: null, v2combat: !!v2combat, v2: !!v2 };   // [combat2] v2combat   // [v2] v2
   for (const make of MODULES) Object.assign(G, make(G));
   const {
     rng, mobById, PICKUP, activeNests, addHeat, addPath, autoHero, baseDist, checkForeman, checkPower, compass, dawn, districtOffer,
@@ -118,13 +115,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- start of the run (order matters: it draws from the seeded streams) ----------
   let planner = null;
   occupy(keep);
-  // [road] begin: stations, convoys, ambushes and night missions live in src/sim/road.js and src/sim/missions.js
-  // [v2] the V2 core has no road (G.road stays null; every road hook checks it)
-  if (!G.v2) G.road = createRoad({ S, map, ev, toast, rng: new Rng(hashSeed(seed, 'road')), LANDMARKS, mobById, story: () => G.story, fail: m => fail(m), earn: g => earn(g), gainXp: n => gainXp(n), reveal, compass: (x, y) => compass(x, y),
-    placeBuilding, isWall: id => isWall(id), spawnMob, killMob, hitMob, hurtHero, moveToward, standable, heroOk: i => heroOk(i), inZone: i => inZone(i), zone: () => zone(), rankOf: m => rankOf(m), senseMult: m => senseMult(m),
-    heroSpeed: () => G.HC.speed * S.P.heroSpeed, addNoise: v => addHeat(v), removeMob: m => { const i = S.mobs.indexOf(m); if (i >= 0) { S.mobs.splice(i, 1); mobById.delete(m.id); } }, hiveInReach: (x, y, r) => G.hiveInReach(x, y, r) });
-  // [road] end
-  // the deep woods at the edge, where the dead come from once every hive is burned (after the road: its glades change map.reach)
+  // the deep woods at the edge, where the dead come from once every hive is burned 
   for (let k = 0; k < 8; k++) {
     const a = k * Math.PI / 4;
     let at = null;   // the deep woods: open ground the camp can reach, clear of the void round the world (spotOk), else any reachable cell
@@ -164,7 +155,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   G.story.start();
   // legacy edges from earlier runs
   { const Lg = S.legacy; if (!restore) { S.gold += 10 * (Lg.scrap || 0); S.food += 6 * (Lg.food || 0); } S.P.heroDmgMult *= 1 + 0.08 * (Lg.dmg || 0); S.P.keepHp += 25 * (Lg.keep || 0); refreshMax(); keep.hp = keep.maxHp; }
-  // ---------- the public API, the builder AI, a restored save, the road's hooks ----------
+  // ---------- the public API, the builder AI, a restored save ----------
   G.step = step;
   G.api = createApi(G);
   if (G.g3api) Object.assign(G.api, G.g3api);   // [gemini3] its modules' additions to the API
@@ -173,9 +164,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // [acts] begin
   if (restore) G.actRestore();
   // [acts] end
-  // [road] begin
-  if (G.road) { G.road.attach(G.api); if (restore && restore.road) G.road.load(restore.road); }
-  // [road] end
   if (carry) G.rigArrive(carry);   // [rig3] the next act: what rode along on the Haven Rig
   return G.api;
 
@@ -218,9 +206,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     stepStream(dt);
     G.stepNests(dt);   // [nests] the hives defend themselves
     G.stepPacify(dt);   // [pacify] pacified land, hives waking on the map, the way home, the dusk warning
-    // [road] begin
-    if (G.road) G.road.tick(dt);
-    // [road] end
     G.stepWoods();   // [woods] worn trails
     G.stepLogging(dt);   // [gemini3] felling trees, the Logger's Hut
     stepHeat(dt);

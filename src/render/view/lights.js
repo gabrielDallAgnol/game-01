@@ -13,7 +13,7 @@ export function createLights(V) {
   // ---------- the night's light pools: every warm (and rot-green) source near the camera paints the light texture ----------
   const AMBER = lc('#ffa64d'), WARM = lc('#ffc070'), ROT = lc('#9dff4a'), REDL = lc('#ff5a3a'), FLARE = lc('#ff7a3a'), SIEGE = lc('#e3a54a'), LANT = lc('#ffc890');
   function paintLights(k, lit) {
-    const time = V.time, camTarget = V.camTarget, keepFires = V.keep.fires, hives = V.hives.hives, flares = V.flares, roadView = V.roadView;
+    const time = V.time, camTarget = V.camTarget, keepFires = V.keep.fires, hives = V.hives.hives, flares = V.flares;
     // [top] begin: from above the pool texture is centred on the camera and covers the whole frustum
     if (TOP.on) fx2.pools.begin(camTarget.x, camTarget.z, Math.max(76, 2 * Math.max(V.cam.half.w, V.cam.half.h) + 8));
     // [top] end
@@ -35,10 +35,6 @@ export function createLights(V) {
       for (const d of S.drops) fx2.pools.light(d.x - C, d.y - C, 2.4, REDL, 0.5);
       const h = S.hero; if (!h.dead) fx2.pools.light(h.x - C, h.y - C, 4.2, LANT, 0.55 * fl(0), 0.25);
       if (V.atoms) V.atoms.lights(fx2.pools, lit, fl, camTarget);   // [area] the town's lamps and lit windows
-      if (opts.lights) opts.lights(fx2.pools, k);   // [road] stations and convoys can add their fires here
-      // [road] begin: lit station fires paint into the night light texture
-      if (roadView) for (const l of roadView.lights()) fx2.pools.light(l.x - C, l.y - C, l.d * 0.7, AMBER, 1.6 * fl(l.x | 0));
-      // [road] end
     }
     fx2.pools.end(k);
   }

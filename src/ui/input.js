@@ -37,7 +37,7 @@ export function createInput(ui) {
     }
     if (down && down.id === e.pointerId && down.touch) {
       const dx = e.clientX - down.x, dy = e.clientY - down.y, d = Math.hypot(dx, dy);
-      if (!down.joy && d > JOY_PX) { down.joy = true; joy.hidden = false; joy.style.transform = `translate(${down.x}px, ${down.y}px)`; ui.game.state.hero.target = null; if (ui.roadUI) ui.roadUI.closeTrip(); }
+      if (!down.joy && d > JOY_PX) { down.joy = true; joy.hidden = false; joy.style.transform = `translate(${down.x}px, ${down.y}px)`; ui.game.state.hero.target = null; }
       if (down.joy) { const k = Math.min(1, d / 60), nx = dx / (d || 1), ny = dy / (d || 1); joyIn.x = nx * k; joyIn.y = ny * k; joy.firstChild.style.transform = `translate(${nx * Math.min(d, 40)}px, ${ny * Math.min(d, 40)}px)`; }
     }
     if (e.pointerType === 'mouse') { const p = ui.view.pick(e.clientX, e.clientY); canvas.style.cursor = p && p.type !== 'ground' ? 'pointer' : ''; }
@@ -61,7 +61,6 @@ export function createInput(ui) {
     }
     const p = ui.view.pick(e.clientX, e.clientY); if (!p) return;
     const S = ui.game.state;
-    // [road] taps on road stations are handled by road-ui before falling through to here
     if (p.type === 'landmark') { const l = S.landmarks[p.id]; if (!l.owned) goTo(l.x, l.y + l.size / 2 + 1); ui.openSel({ type: 'landmark', id: p.id }); return; }
     if (p.type === 'rubble') { goTo(p.x, p.y); ui.openSel({ type: 'rubble', x: p.x, y: p.y }); return; }
     if (p.type === 'building' || p.type === 'keep') { ui.openSel(p.type === 'building' ? { type: 'building', id: p.id } : { type: 'keep' }); return; }
@@ -77,7 +76,7 @@ export function createInput(ui) {
     const k = e.key.toLowerCase();
     if (k === 'escape') { if (ui.placing && ui.placing.start) { ui.placing.start = null; ui.updateGhost(); } else if (ui.placing) ui.stopPlacing(); else ui.closePanel(); }
     if (e.target.closest && e.target.closest('button,input') && (k === ' ' || k === 'enter')) return;
-    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) { keys[k] = true; e.preventDefault(); if (ui.roadUI) ui.roadUI.closeTrip(); }
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) { keys[k] = true; e.preventDefault(); }
     if (!ui.game) return;
     if (k === 'l' && FLAGS.runLog) ui.showLog();
     if (k === 'm' && !ui.card) ui.showMap();

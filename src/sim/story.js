@@ -15,7 +15,6 @@ import { createContracts } from './contracts.js';
 import { siteOk } from './spots.js';
 import { CLASS_TIERS, CLASS_INFO, CALLINGS, finalDelta, LEGENDS } from '../content/heroes.js';
 import { createDaily } from './daily.js';
-import { ROAD, CONVOY, STATION_SCENES } from '../content/road.js';
 
 export const DAY_ONE = TIDE.dayOne;   // seconds: day 1 is short (TIDE.dayLen stays the rule for every other day: the story gives day 1 a head start)
 // which slot each kind of card takes in the dawn budget
@@ -318,19 +317,14 @@ export function createStory(ctx) {
     return sc[best] >= 1 ? best : null;
   }
 
-  // ---------- how people arrive: at the Camp now, a convoy you escort, or on their own by dawn ----------
-  // The same test the road uses when the choice lands (road.syncPeople): far from the Camp, a group walks home as a
-  // convoy the dead hunt. Read by the card (ui/cards.js) for every choice; the Chronicler cannot drop it.
+  // ---------- how people arrive: at the Camp now, or on their own by dawn (read by the card, ui/cards.js) ----------
   function arrivalOf(enc, c) {
     if (!c || !Array.isArray(c.fx)) return null;
     const n = c.fx.reduce((a, f) => a + (f.op === 'survivors' && +f.n > 0 ? +f.n : 0), 0);
     const later = c.fx.filter(f => f.op === 'flag' && f.key === 'beacon').length;
     const joins = c.fx.some(f => f.op === 'recruit' || f.op === 'recruitNew');
     if (!n && !later && !joins) return null;
-    const h = S.hero, t = map.town, d = Math.hypot(h.x - t.x, h.y - t.y), far = !h.dead && !S.autopilot && d > ROAD.out;
-    const sc = enc && enc.road && STATION_SCENES[enc.road], rc = sc && (sc.choices.find(x => x.id === c.id) || {}).road, cart = !!(rc && rc.cart);
     const more = n && later ? ARRIVE.more.replace('{n}', later) : '';
-    if (n && far && n >= CONVOY.min - (cart ? 1 : 0)) { const A = ARRIVE.convoy; return { mode: 'convoy', icon: A.icon, tag: A.tag, text: A.text.replace('{dir}', dirOf(h.x, h.y)).replace('{d}', Math.round(d)) + more }; }
     if (n) return { mode: 'now', icon: ARRIVE.now.icon, tag: ARRIVE.now.tag, text: ARRIVE.now.text + more };
     if (later) return { mode: 'dawn', icon: ARRIVE.dawn.icon, tag: ARRIVE.dawn.tag, text: ARRIVE.dawn.text };
     return { mode: 'now', icon: ARRIVE.join.icon, tag: ARRIVE.join.tag, text: ARRIVE.join.text.replace('{who}', (c.npcName || 'They').replace(/ joins$/, '')) };

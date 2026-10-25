@@ -5,7 +5,7 @@
 //
 // This file is the composition root: it holds the `ui` context every UI module shares, creates the modules
 // (createX(ui) factories, see CLAUDE.md for the map), and runs the frame loop. Context slots that change while the
-// page runs (ui.game, ui.view, ui.card, ui.paused, ui.selected, ui.placing, ui.roadUI, …) are always read as ui.x;
+// page runs (ui.game, ui.view, ui.card, ui.paused, ui.selected, ui.placing, …) are always read as ui.x;
 // everything else (functions, the strip, callouts, keys) is fixed once created and modules destructure it.
 import { DIFFICULTY, STEP } from '../sim/game.js';
 import { MOBS } from '../content/mobs.js';
@@ -60,7 +60,6 @@ export function startApp() {
     game: null, view: null, names: [],   // the run, its 3D view, the region names
     selected: null, placing: null,       // the open panel's subject; the building being placed
     paused: true, card: null,            // paused: the sim waits (a card is open, the start screen); card: which card is open
-    roadUI: null,                        // [road] the road's UI (road-ui.js)
     speed: 1, touchUI: matchMedia('(pointer: coarse)').matches,
     lastSave: null,                      // { day, where } of the last dawn save
     pendingLedger: null, dawnLine: '', ledgerUp: false,   // the dawn's ledger hand-off between the loop and the toasts
@@ -115,14 +114,12 @@ export function startApp() {
       if (e.t === 'ruin') noteLoss(e.id);
       if (e.t === 'difficulty' && typeof ui.game.setDifficulty !== 'function') { const D = ui.game.difficulty && ui.game.difficulty(); if (D && DIFFICULTY[e.key]) Object.assign(D, DIFFICULTY[e.key]); }   // one game per page: the shared table is safe to retune
       if (e.t === 'claim' && ui.selected && ui.selected.type === 'region') closePanel();
-      if (e.t === 'dawn') { holdCards(DAWN_DELAY); endJoy(); const ll = lossLine(), L = ui.pendingLedger; ui.pendingLedger = null; if (ui.roadUI && L && (L.fell.length || L.ruins || L.piper)) { ui.ledgerUp = true; setTimeout(() => { if (ui.roadUI) ui.roadUI.showLedger(L, ll, ui.dawnLine); ui.ledgerUp = false; }, 600); } else if (ll) setTimeout(() => ctoast.show(ll, 'bad', 'skull'), 400); const snap = ui.game.snapshot(); if (snap) saves.save(snap).then(w => { ui.lastSave = { day: snap.night, where: w }; }); }
+      if (e.t === 'dawn') { holdCards(DAWN_DELAY); endJoy(); const ll = lossLine(); ui.pendingLedger = null; if (ll) setTimeout(() => ctoast.show(ll, 'bad', 'skull'), 400); const snap = ui.game.snapshot(); if (snap) saves.save(snap).then(w => { ui.lastSave = { day: snap.night, where: w }; }); }
       if (e.t === 'over') { saves.clear(); { const L = store.get('legacy', { fame: 0, owned: {} }); S.fameEarned = fameOf(S); L.fame += S.fameEarned; store.set('legacy', L); } endT = now + 2600; ui.paused = false; closePanel(); stopPlacing(); hideCard(); if (ui.view.startOrbit) ui.view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && ui.selected && ui.selected.type === 'building' && !S.byId.get(ui.selected.id)) closePanel();
-      // [road] road-ui reads the same events here
       if (e.t === 'ledger') ui.pendingLedger = e;
       if (e.t === 'classUp') classBeat(e);
     }
-    if (ui.roadUI && events.length) ui.roadUI.onEvents(events);
     if (events.length) solarVoice(ui, events);   // [story3]
     if (windowAtDawn) ui.game.story().release();
     // decisions wait for a calm moment: never while the hero fights or the dead are close (the night-1 arrival may
@@ -136,9 +133,6 @@ export function startApp() {
     if (ui.placing && ui.placing.zone.ver !== S.occVersion) { refreshZone(); updateGhost(); }
     ui.view.frame(dt, { events, selected: ui.selected, ghost: ui.placing && ui.placing.ghost, zone: ui.placing && ui.placing.zoneMask });
     edgeMarks(); watchFrames(raw);
-    // [road] begin
-    if (ui.roadUI) ui.roadUI.tick(dt);
-    // [road] end
     tickMini(dt);
     ui.folkTick(dt, events);   // [folk]
     ui.infernoTick(dt);   // [nest3]

@@ -1,5 +1,5 @@
 // Maps: the world painted one pixel per cell (fog of war from S.seen), the minimap that follows the hero, and the
-// big map card (tap a place to plan a trip: road-ui.js).
+// big map card.
 import { $, esc } from './shared.js';
 import { N, T, idx } from '../sim/mapgen.js';
 import { icon } from './icons.js';
@@ -70,9 +70,6 @@ export function createMap(ui) {
     if (big && ui.game.hearRadius) { const r = ui.game.hearRadius() * s; ctx.save(); ctx.setLineDash([7, 6]); ctx.strokeStyle = 'rgba(240,166,73,.75)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc((m.town.x - ox) * s, (m.town.y - oy) * s, r, 0, 7); ctx.stroke(); ctx.restore();
     }
     dot(m.town.x, m.town.y, big ? 7 : 4, '#f0a649');
-    // [road] begin
-    if (ui.roadUI) ui.roadUI.marks(ctx, ox, oy, s, big);
-    // [road] end
     const h = S.hero; dot(h.x, h.y, big ? 6 : 4, '#ffffff'); dot(h.x, h.y, big ? 9 : 6, 'rgba(255,255,255,.5)', true);
   }
   function tickMini(dt) { if ((miniT -= dt) <= 0) { miniT = 0.4; drawMini(); } }
@@ -124,9 +121,6 @@ export function createMap(ui) {
     marks(ctx, b.x0, b.y0, s, true);
     const lbl = (x, y, t) => { ctx.font = 'bold 22px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(t, (x - b.x0) * s, (y - b.y0) * s); ctx.fillStyle = '#fff1d6'; ctx.fillText(t, (x - b.x0) * s, (y - b.y0) * s); };
     lbl(ui.game.map.town.x, ui.game.map.town.y - 8, 'CAMP'); const c = !act1 && ui.game.map.city; if (c) lbl(c.x, c.y + 4, 'THE CITY');
-    // [road] begin
-    if (ui.roadUI) ui.roadUI.onMap(cv, b.x0, b.y0, s);
-    // [road] end
     mainTags(ctx, b.x0, b.y0, s, [ui.game.map.town.x, ui.game.map.town.y - 8]);
     $('#mapOk').onclick = $('#mapX').onclick = () => { ui.hideCard(); ui.paused = false; };
   }

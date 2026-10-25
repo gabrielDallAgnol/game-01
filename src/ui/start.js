@@ -12,7 +12,6 @@ import { RECIPES } from '../engine/recipes.js';
 import { DIFFICULTY, SAVE_V, createGame } from '../sim/game.js';
 import { LEGACY } from '../content/legacy.js';
 import { SYSTEM } from '../content/story.js';
-import { createRoadUI } from './road-ui.js';
 import { createView } from '../render/view.js';
 import { regionNames } from '../content/names.js';
 // [story3] the Solar Flare title and the opening
@@ -90,11 +89,6 @@ export function createStart(ui) {
     if (!ui.view) { ui.view = createView($('#view'), ui.game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); }
     window.__game = ui.game; window.__view = ui.view; window.__openSel = sel => ui.openSel(sel);
     window.__ui = { strip, callouts, ctoast, showStatus: ui.showStatus, showMore: ui.showMore, showMap: ui.showMap, cards: () => ui.card, toast: ui.toast };
-    // [road] begin
-    if (ui.roadUI) ui.roadUI.dispose();
-    ui.roadUI = createRoadUI({ game: ui.game, view: ui.view, toast: (m, k) => ui.toast(m, k), hideCard: () => { ui.hideCard(); ui.paused = false; }, isBusy: () => ui.paused || !!ui.card || !!ui.placing, systemHere: () => systemHere() });
-    window.__roadUI = ui.roadUI;
-    // [road] end
     $('#hud').hidden = false; ui.hideCard(); ui.paused = false; ui.selected = null; ui.placing = null; ui.closePanel();
     $('#ability').hidden = true;
     if (made) { /* [rig3] the Rig's arrival speaks for itself */ }

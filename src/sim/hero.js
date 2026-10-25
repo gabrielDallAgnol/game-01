@@ -222,9 +222,6 @@ export function createHero(G) {
       const reach = A.reach + S.P.heroRange, dmg = G.heroDmg() * (S.nightFlags.lastT > 0 ? 2 : 1);
       let best = null, bd = reach;
       for (const m of S.mobs) { if (m.rise < 1) continue; const d = Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size; if (d < bd) { bd = d; best = m; } }
-      // [road] begin
-      if (best && G.road && G.road.preferHive(best, reach)) best = null;   // lantern off on a Hunt: leave the sleeping dead, strike the hive
-      // [road] end
       if (!best) {
         // nothing to fight: strike a hive in reach
         const hv = G.hiveInReach(h.x, h.y, reach);   // reach is measured to the hive's edge: you strike it from outside, never from inside the model

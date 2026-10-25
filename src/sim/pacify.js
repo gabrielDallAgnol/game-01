@@ -8,7 +8,7 @@
 //    Hives awake and loud: the old curve. It is a ratio layer only (homeK, applied in waves.js nightBudget): whatever
 //    the curve itself becomes (fix-towers' late tuning), this reads that same curve at an earlier night; it never
 //    raises a night (homeK ≤ 1), and leaves hp (WAVES.hpScale), blood moons, weather and the purge as they are.
-// 3. The way home: by day, standing at a lit road fire or a site you hold, far from the Camp and out of the fight, the
+// 3. The way home: by day, standing at a site you hold, far from the Camp and out of the fight, the
 //    hero can Return to Camp (a short channel, broken by moving or being hit; a cooldown). A dusk warning comes once a
 //    day when the walk home takes longer than the light left.
 import { MOBS, TIDE, WAVES } from '../content/mobs.js';
@@ -22,7 +22,7 @@ export const PACIFY = {
   hear: [0, 3, 4, 5],    // load (curve-nights) of an awake hive that hears the Camp, by ring
   door: [0, 2, 3, 3],    // load of an awake hive that does not hear the Camp but touches your land (ZONE.hiveReach)
   far: 0.5,              // load of an awake hive far off (its dead mostly fill the city)
-  home: { channel: 2.5, cd: 45, far: 25, site: 6, fire: 2 },   // Return to Camp: channel s, cooldown s, min cells from the Camp, reach of a held site / a lit fire's ring
+  home: { channel: 2.5, cd: 45, far: 25, site: 6 },   // Return to Camp: channel s, cooldown s, min cells from the Camp, reach of a held site
   warn: { margin: 12, far: 30, speed: 1.3 },   // dusk warning: s of spare light, min cells from the Camp, path detour factor
 };
 
@@ -122,11 +122,9 @@ export function createPacify(G) {
   // ---------- the way home ----------
   const H = S.homeward = { cd: 0, ch: 0, hp: 0 };
   const campDist = () => Math.hypot(S.hero.x - c, S.hero.y - c - 3.5);
-  /** where the hero may set out for home from: a lit road fire or a site you hold (null when neither is near) */
+  /** where the hero may set out for home from: a site you hold (null when neither is near) */
   function homeFrom() {
     const h = S.hero;
-    const st = G.road && G.road.inLitRing ? G.road.inLitRing(h.x, h.y, PACIFY.home.fire) : null;
-    if (st) return { kind: 'fire', name: st.name };
     for (const l of S.landmarks) if (l.owned && Math.hypot(l.x - h.x, l.y - h.y) < (l.size || 4) / 2 + PACIFY.home.site) return { kind: 'site', id: l.id };
     return null;
   }
@@ -145,7 +143,7 @@ export function createPacify(G) {
     else if (h.fightT > 0 || mobsOn()) why = 'fight';
     return { ok: !why, why, from, cd: Math.ceil(H.cd), cdMax: PACIFY.home.cd, channel: H.ch > 0 ? +(1 - H.ch / PACIFY.home.channel).toFixed(2) : 0, walk: Math.round(walkHome()), far };
   }
-  /** start the channel (by day, from a fire or a held site, out of the fight) */
+  /** start the channel (by day, from a held site, out of the fight) */
   function returnHome() {
     const i = homeInfo();
     if (!i.ok) {

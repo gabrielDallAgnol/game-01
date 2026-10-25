@@ -71,9 +71,6 @@ export function createBrain(G) {
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), heroHome = G.inZone(idx(Math.floor(h.x), Math.floor(h.y)));
     // once a roamer has your scent it hunts you: it follows you home and joins the attack on the town
     const sight = Math.max(R.sight, BRAIN.sense[rank]) * senseMult(m), lose = Math.max(R.lose, sight * BRAIN.forget[rank]);
-    // [road] begin
-    if (G.road && !m.hunt && hd < sight && G.road.unseen(hd, sight)) return;   // lantern off: it stops and sniffs the air
-    // [road] end
     if (m.kind !== 'deer' && !m.hunt && !h.dead && !(m.giveUp > S.time) && hd < (MOBS[m.kind].sight ? (m.markT > 0 ? 14 : MOBS[m.kind].sight) : sight) - (S.story.flags.quiet ? 1.5 : 0) && !heroHome && (m.warden || huntN < huntCap()) && (!m.warden || Math.hypot(h.x - home.x, h.y - home.y) < R.leash)) { aggro(m); if (G.huntCommit) G.huntCommit(m); }   // [gemini3] it commits
     if (m.hunt && (h.dead || (hd > lose && !(G.committed && G.committed(m))) || Math.hypot(m.x - home.x, m.y - home.y) > (m.warden ? R.leash + 4 : 30))) { m.hunt = false; m.giveUp = S.time + (G.giveUpT ? G.giveUpT() : 8);   /* [gemini3] no leash line to dance on */ m.wp = { x: home.x, y: home.y }; }   // nobody follows you more than 30 cells from its ground (and it walks home before it tries again)
     if (m.hunt && !m.warden && heroHome && G.baseDist(m.x, m.y) < 4) { if (S.night < 4 || MOBS[m.kind].animal || rng.next() < 0.7) { m.hunt = false; m.wp = { x: home.x, y: home.y }; } else { m.roam = null; m.hunt = false; ev('drift', { id: m.id }); return; } }
@@ -117,9 +114,6 @@ export function createBrain(G) {
   const senseMult = m => (S.hero.noiseT > 0 ? 1.4 : 1) * (m.smoke > 0 ? 0.3 : 1) * (S.phase === 'night' ? 1.15 : 1) * (S.story.flags.quiet ? 0.85 : 1);
   function think(m, hd, dt) {
     const h = S.hero, rank = rankOf(m);
-    // [road] begin
-    if (G.road) hd = G.road.perceive(m, hd);
-    // [road] end
     if (m.smoke > 0) m.smoke -= dt;
     if (m.lure) { m.lure.t -= dt; if (m.lure.t <= 0 || hd < 1.5) m.lure = null; else return Math.hypot(m.lure.x - m.x, m.lure.y - m.y) < 1 ? { wait: true } : m.lure; }
     if (MOBS[m.kind].burst || m.kind === 'gravelord') return null;
@@ -173,9 +167,6 @@ export function createBrain(G) {
       const ci = idx(Math.floor(m.x), Math.floor(m.y));
       const lull = G.story && Math.abs(m.x - c) < 7 && Math.abs(m.y - c) < 7 ? G.story.bonus.lullaby() : 1;
       const speed = (rule('winter') ? 0.9 : 1) * lull * m.speed * m.boost * G.W8().speed * (inTar ? 0.6 : 1) * (m.slowUntil > S.time ? m.slowK : 1) / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
-      // [road] begin
-      if (G.road && G.road.drive(m, dt, speed)) continue;
-      // [road] end
       if (G.v2combat && m.windT > 0 && G.melee2(m, h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), dt)) continue;   // [combat2] a wind-up once begun ends in a bite or a whiff, whatever it thinks next
       if (m.roam) { stepRoamer(m, dt, speed); continue; }
       const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);

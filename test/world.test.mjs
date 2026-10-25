@@ -1,11 +1,10 @@
-// The world outside the walls: wildlife in the woods, worn trails, the quiet stretch of road. Fast and headless.
+// The world outside the walls: wildlife in the woods and worn trails. Fast and headless.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, CUT } from '../src/sim/game.js';
+import { createGame } from '../src/sim/game.js';
 import { mapChoices, idx, T } from '../src/sim/mapgen.js';
 import { MOBS, TIDE } from '../src/content/mobs.js';
 import { WOODS } from '../src/content/woods.js';
-import { AMBUSH } from '../src/content/road.js';
 
 function make(seed = 3) {
   const ch = mapChoices(seed)[0];
@@ -49,25 +48,4 @@ test('trails: walking the same woods a few times over wears a trail; it is saved
   const fresh = make(3), R = fresh.g.snapshot(); assert.ok(R, 'no snapshot'); R.trails = S.trails.slice();
   const g2 = createGame({ seed: 3, mapSeed: mapChoices(3)[0].seed, biome: mapChoices(3)[0].biome, hero: 'survivor', restore: R });
   for (let k = 1; k < 5; k++) assert.equal(g2.map.terrain[idx(A.x + k, A.y)], T.DIRT, 'trail lost on restore');
-});
-
-test('road: no ambush on the stretch from the Camp to the Ranger Tower; at most one a trip farther out', () => {
-  CUT.earlyRoad = false;
-  try {
-    const { g, S, c } = make(3), road = g.road;
-    S.night = 4;
-    const st = road.stations.find(s => s.id === 'ranger');
-    S.hero.x = st.x; S.hero.y = st.y + 2; S.road.outT = 60; S.road.ambushCd = 0;
-    road.go(c, c + 3.5);
-    for (let i = 0; i < 60 * 20; i++) { g.step(); while (S.story.encounters.length) S.story.encounters.shift(); }
-    assert.equal(S.events.filter(e => e.t === 'roadAmbush').length, 0, 'an ambush on the near stretch');
-    const far = road.stations[3];
-    S.hero.x = far.x; S.hero.y = far.y + 2; S.hero.target = null; S.hero.path = null; S.road.outT = 60; S.road.ambushCd = 0;
-    road.go(c, c + 3.5);
-    let n = 0;
-    for (let i = 0; i < 60 * 60 && !S.over; i++) { g.step(); while (S.story.encounters.length) S.story.encounters.shift(); if (S.road.ambushes.length) { for (const m of S.mobs.filter(m => m.roadAmbush)) g.killMob(m, 'hero'); } S.road.ambushCd = Math.min(S.road.ambushCd, 1); }
-    n = S.events.filter(e => e.t === 'roadAmbush').length;
-    assert.ok(n <= AMBUSH.perTrip, `${n} ambushes on one trip`);
-    for (const e of S.events.filter(e => e.t === 'roadAmbush')) { const along = (e.x - c) * Math.cos(g.map.feature.angle) + (e.y - c) * Math.sin(g.map.feature.angle); assert.ok(along >= AMBUSH.quiet, `ambush at ${along}`); }
-  } finally { CUT.earlyRoad = true; }
 });

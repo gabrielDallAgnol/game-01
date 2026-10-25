@@ -39,9 +39,6 @@ export function createBuildings(G) {
     if (BUILDINGS[type].tech) { if (keep.level < BUILDINGS[type].keep) return { ok: false, reason: `Raise the Haven Rig to level ${BUILDINGS[type].keep} first.`, cells: [] }; if (S.buildings.some(b => b.type === type)) return { ok: false, reason: `You already have a ${BUILDINGS[type].name}.`, cells: [] }; }
     const { cells, lot, cx, cy } = shape(type, x, y, rot);
     const out = { ok: false, x: cx, y: cy, rot, cells: cells.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), lot: lot.filter(([a, b]) => inside(a, b)).map(([a, b]) => idx(a, b)), reason: '' };
-    // [road] begin
-    { const why = G.road && G.road.placeRule(type, cx, cy); if (why) { out.reason = why; return out; } }
-    // [road] end
     if (out.cells.length !== cells.length || out.lot.length !== lot.length) { out.reason = 'Too close to the edge.'; return out; }
     const own = new Set(out.cells);
     for (const i of out.lot) {

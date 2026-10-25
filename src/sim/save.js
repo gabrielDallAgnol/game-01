@@ -1,5 +1,5 @@
 // Saving: a dawn snapshot (what you built, chose and met; the dead are not saved) and restoring it.
-// The format is SAVE_V (state.js); the road adds its own block (road.js attach).
+// The format is SAVE_V (state.js).
 import { N, T } from './mapgen.js';
 import { SAVE_V } from './state.js';
 import { heroKit } from '../content/heroes.js';

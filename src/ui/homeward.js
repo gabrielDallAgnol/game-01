@@ -1,5 +1,5 @@
 // The way home on the HUD: under the "Camp 100%" pill (shown when the hero is far from the Camp), the walk home in
-// minutes, and at a lit fire or a site you hold by day a "Return to Camp" button (a short channel: stand still).
+// minutes, and at a site you hold by day a "Return to Camp" button (a short channel: stand still).
 // The rules and the dusk warning live in sim/pacify.js; this only shows them and taps the API (homeInfo, returnHome).
 import { $ } from './shared.js';
 import { icon } from './icons.js';
@@ -34,7 +34,7 @@ export function createHomeward(ui) {
     const late = day && S.clock && g.duskIn() < i.walk;
     const wt = !ca.hidden && i.far ? `· ${mmss(i.walk)}` : '';
     if (walk.textContent !== wt) walk.textContent = wt; walk.classList.toggle('late', late);
-    // the button: at a fire or a held site, by day
+    // the button: at a held site, by day
     const show = !S.over && !S.hero.dead && i.far && day && (i.channel > 0 || (i.from && i.why !== 'nowhere'));
     let label = '', off = false;
     if (show) {

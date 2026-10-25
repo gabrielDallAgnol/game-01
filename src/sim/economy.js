@@ -122,9 +122,6 @@ export function createEconomy(G) {
     if (S.sawBlackout && !S.blackout) G.story.grant('ironGrid');
     G.checkFeatures();
     if (S.night - 1 === seasonEnd(S.season.n)) { if (!S.season.won) G.finale(false); G.startSeason(S.season.n + 1); }
-    // [road] begin
-    if (G.road) G.road.dawn();
-    // [road] end
     G.story.dawn();
     if (G.inferno) G.inferno.dawn();   // [nest3] hotter nests, embers before a nest wakes
     G.checkEvolution();

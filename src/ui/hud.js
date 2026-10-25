@@ -163,21 +163,6 @@ export function createHud(ui) {
     const a = Math.PI * (1 - t), x = 22 + Math.cos(a) * 17, y = 19 - Math.sin(a) * 15;
     return `<span class="sundial${soon ? ' soon' : ''}${moon ? ' moon' : ''}"><svg viewBox="0 0 44 22" width="36" height="18" aria-hidden="true"><path d="M5 19 A17 15 0 0 1 39 19" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="2" y1="19.5" x2="42" y2="19.5" stroke="currentColor" stroke-opacity=".5"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" class="sun"/></svg></span>`;
   }
-  // ---------- the contract's place: tap its arrow (or the strip while it has a place) to plan a trip there ----------
-  let kTripEl = null;
-  function contractTrip() {
-    const K = ui.game && ui.game.story().contracts.stripLine(); if (!K || !K.place || !ui.game.road || !ui.game.road.tripInfo) return false;
-    const x = K.place.x, y = K.place.y + 2.4, info = ui.game.road.tripInfo(x, y); if (!info) return false;
-    if (!kTripEl) { kTripEl = document.createElement('div'); kTripEl.className = 'kTrip'; document.body.appendChild(kTripEl); }
-    const cls = info.late ? 'late' : info.risky ? 'risky' : 'ok';
-    kTripEl.innerHTML = `<div class="t"><b>${icon('flame')}Contract: burn ${esc(K.name)}</b><span><em class="${cls}">${esc(info.label)}</em>${info.late ? ' · <em class="late">back after dark</em>' : ''}</span></div><button class="btn sm" data-go>Go</button><button class="x" data-x aria-label="Close">${icon('close')}</button>`;
-    kTripEl.hidden = false; ui.game.road.preview = { path: info.path };
-    const close = () => { kTripEl.hidden = true; if (ui.game.road) ui.game.road.preview = null; clearTimeout(kTripEl._t); };
-    kTripEl.querySelector('[data-go]').onclick = () => { if (ui.game.road.go(x, y)) { close(); toast(`[Trip] On the way to ${K.name}. Touch the stick to take over.`, 'sys'); } };
-    kTripEl.querySelector('[data-x]').onclick = close; clearTimeout(kTripEl._t); kTripEl._t = setTimeout(close, 12000);
-    return true;
-  }
-  document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('.ar.kontract'); if (a && ui.game && !ui.card) contractTrip(); });
   // ---------- edge arrows ----------
   const edge = { top: 60, bot: 100, pool: [], tags: [] }, EDGE_NEAR = 28;   // optional places get an arrow within this many metres
   function edgeMarks() {

@@ -23,7 +23,7 @@ export const CREW_NEED = [1, 2, 3];        // people a tower needs at level 1/2/
 // walls: barricades are out of the build list. Measured (Oct 20, same camp on night 8, 4 seeds): 25 posts laid
 // across the routes soaked 50 damage in all; the dead walk round a line. They come back with a ring-building tool.
 // missions: the dusk choice (Hold / The Hunt / The Pied Piper) is gone; every night is a plain hold. The code in
-// sim/missions.js stays (traps, embers, the captain still work); only the offer and the choice are switched off.
+// (sim/missions.js was deleted with the road, Oct 25.)
 // tools: the Flare and Smoke buttons are gone (Oct 20: "no idea what they do"); useFlare/useSmoke fail quietly,
 // the code, the fx and the tuning stay in sim/hives.js and TOOLS below.
 // earlyRoad: the road and the city are no longer open from day 1. Act 1 is the woods (burn every forest hollow); the

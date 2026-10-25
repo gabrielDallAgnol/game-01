@@ -64,9 +64,6 @@ import { createTopPop } from './view/toppop.js';
 // [topnests] next line
 import { createTopNests } from './view/topnests.js';
 // [top] end
-// [road] begin
-import { createRoadView } from './road-view.js';
-// [road] end
 
 export function createView(canvas, game, opts = {}) {
   const S = game.state, map = game.map, C = map.town.x;
@@ -109,9 +106,6 @@ export function createView(canvas, game, opts = {}) {
   const loot = createLoot(V);
   const placing = createPlacing(V);
   const folk = V.folk = createFolk(V);
-  // [road] begin: stations, fires, the convoy, ambush marks (src/render/road-view.js)
-  const roadView = V.roadView = createRoadView({ world, fx, game, W: V.W, K, lc, makeBar: bars.makeBar, setBar: bars.setBar, burst: feel.burst, floatLabel: feel.floatLabel, heroLight, bakedWalker, camera });
-  // [road] end
   const cam = V.cam = TOP.on ? createTopCamera(V) : createCamera(V);   // [top]
   const weather = createWeather(V);
   const lights = createLights(V);
@@ -179,9 +173,6 @@ export function createView(canvas, game, opts = {}) {
     weather.ambient(dt, frozen, R);
     fx2.blobs.end(0.42 - 0.12 * V.dark);
     fx2.update(V.animT, 1 - 0.78 * V.dark);
-    // [road] begin
-    if (roadView) roadView.frame(dt, V.time, V.dark, ui.events);
-    // [road] end
     if (topFlat) topFlat.update();   // [top]
     if (V.topMarks) V.topMarks.update();   // [top]
     if (V.atoms) V.atoms.update(cam.camTarget);   // [area]
