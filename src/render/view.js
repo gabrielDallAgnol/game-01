@@ -61,6 +61,8 @@ import { createHordeMarks } from './view/hordes.js';
 import { createTelegraph } from './view/telegraph.js';
 // [toppop] next line
 import { createTopPop } from './view/toppop.js';
+// [topnests] next line
+import { createTopNests } from './view/topnests.js';
 // [top] end
 // [road] begin
 import { createRoadView } from './road-view.js';
@@ -129,6 +131,7 @@ export function createView(canvas, game, opts = {}) {
   V.hordeMarks = createHordeMarks(V);   // [v2] where the hordes sleep (null without v2)
   const telegraph = createTelegraph(V);   // [combat2] wind-up rings, whiffs, the dash streak (null without ?v2combat=1)
   V.topPop = createTopPop(V);   // [toppop] the hero, your buildings and the dead pop from above (null without ?top=1)
+  V.topNests = createTopNests(V);   // [topnests] the nests as infested buildings in the flat style (null without ?top=1)
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -185,6 +188,7 @@ export function createView(canvas, game, opts = {}) {
     if (V.hordeMarks) V.hordeMarks.update();   // [v2]
     if (telegraph) telegraph.update(dt, ui.events);   // [combat2]
     if (V.topPop) V.topPop.update();   // [toppop]
+    if (V.topNests) V.topNests.update(dt);   // [topnests]
     look.render(V.time);
   }
 
