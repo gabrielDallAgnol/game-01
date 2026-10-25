@@ -93,7 +93,7 @@ In every root, creation order and per-frame call order are load-bearing:
 | `road.js`, `missions.js` | the road, stations, convoys, night missions (`[road]` feature) |
 | `folk-build.js` | the folk build by themselves: needs, the village fund (a share of income), one project a day, props, beauty (`[folk]` hooks) |
 | `woods.js` | worn trails: woods the hero keeps walking through turn to dirt (`[woods]` hooks in game.js, save.js) |
-| `construct.js` | `[econ3]` the construction queue: a placed building is a blueprint (scaffold, attackable, does nothing yet); upgrades and carts are jobs too; crews (1 + one per 7 people) work it top down, skipping a site with the dead close by; reorder and cancel (full refund) |
+| `construct.js` | `[econ3]` the construction queue: a placed building is a blueprint (scaffold, attackable, does nothing yet); upgrades and carts are jobs too; crews (1 + one per 5 people) work it top down, skipping a site with the dead close by; reorder and cancel (full refund) |
 | `haul.js` | `[econ3]` harvester carts and resource nodes: timber stands and scrap heaps in three bands that run dry; carts drive from the keep's yard, load, drive home and unload (the main scrap income; the trickle keeps `TRICKLE`); the dead go for a passing cart; more carts by Camp level |
 | `relics.js` | `[econ3]` no blessing cards: every pick becomes a find (relic, stat tome, blueprint: `content/relics.js`); the dawn Settlement report pays XP for a well-run town |
 | `mapgen.js`, `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | map generation, flow fields, town builders, scavenging, seeded RNG |

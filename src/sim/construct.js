@@ -1,5 +1,5 @@
 // [econ3] The construction queue: building takes time. A placed building is a blueprint on its lot (a scaffold that
-// holds the ground and can be attacked); upgrades and new carts are jobs too. Crews (1 + one per 7 people) work the
+// holds the ground and can be attacked); upgrades and new carts are jobs too. Crews (1 + one per 5 people) work the
 // queue top down; a job whose site has the dead close by waits (its crew runs) and the crew takes the next one. Night
 // does not stop the queue. A building under construction does not work: no shots, no pay, no food, no family yet.
 // The player reorders and cancels jobs (a cancel refunds what was paid); a scaffold torn down by the dead is lost.
