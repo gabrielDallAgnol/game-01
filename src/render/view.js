@@ -56,6 +56,7 @@ import { createTopFlat } from './view/topflat.js';
 import { createTopMarks } from './view/topmarks.js';
 // [area] next line
 import { createAtoms } from './view/atoms.js';
+import { createTelegraph } from './view/telegraph.js';
 // [top] end
 // [road] begin
 import { createRoadView } from './road-view.js';
@@ -121,6 +122,7 @@ export function createView(canvas, game, opts = {}) {
   const topFlat = createTopFlat(V);   // [top] the flat look's light (null without ?top=1)
   V.topMarks = createTopMarks(V);   // [top] bars and tags toward screen-up (null without ?top=1)
   V.atoms = createAtoms(V);   // [area] the engine-built town in its own flat looks (null without an area)
+  const telegraph = createTelegraph(V);   // [combat2] wind-up rings, whiffs, the dash streak (null without ?v2combat=1)
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -174,6 +176,7 @@ export function createView(canvas, game, opts = {}) {
     if (topFlat) topFlat.update();   // [top]
     if (V.topMarks) V.topMarks.update();   // [top]
     if (V.atoms) V.atoms.update(cam.camTarget);   // [area]
+    if (telegraph) telegraph.update(dt, ui.events);   // [combat2]
     look.render(V.time);
   }
 

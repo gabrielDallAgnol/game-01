@@ -40,5 +40,5 @@ export function migrateRun(api, opts = {}) {
   const leg = (S.rig.leg || 1) + 1, carry = packCarry(api), biome = api.map.biome;
   const seed = opts.seed ?? hashSeed(S.seed, 'act', leg) % 1000000;
   const nm = opts.mapSeed !== undefined ? { seed: opts.mapSeed, map: null } : nextMap(api.map.seed, biome, leg);
-  return createGame({ seed, mapSeed: nm.seed, biome, hero: S.heroClass, mode: S.mode, clock: S.clock, difficulty: S.difficulty, legacy: S.legacy, carry, leg, premap: nm.map });
+  return createGame({ seed, mapSeed: nm.seed, biome, hero: S.heroClass, mode: S.mode, clock: S.clock, difficulty: S.difficulty, legacy: S.legacy, carry, leg, premap: nm.map, v2combat: api.combat2 ? api.combat2() : false });   // [combat2] the flag rides into the next act
 }

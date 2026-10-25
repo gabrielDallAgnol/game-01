@@ -1,7 +1,7 @@
 [
  "exports CREW_NEED,CUT,DIFFICULTY,DROPS,FOREMAN,HEAT,LEVEL,NEST,NIGHT_TAIL,NOISE,PICKS_PER_DAWN,PRESENCE,RATING,REGEN,RULE_FX,SAVE_V,STEP,STREAM,TENSION,TOOLS,TOWN_DRAW,ZONE,createGame",
  "consts 613f9c2788e710fd",
- "A api 7630a6408f20eb48",
+ "A api c7c4e161613d05cc",
  "A dawn night=2 phase=day over=false gold=10 food=11 kills=9 mobs=40 bld=6 ev=201:14338d97dd99ba5c state=dfc87ff18dc1c92a probe=e80cb919bc273eec",
  "A dawn night=3 phase=day over=false gold=11 food=12 kills=20 mobs=48 bld=9 ev=423:c3fbec09e0fecd78 state=547f359cc5c34ca6 probe=506b2c2f09d4c758",
  "A dawn night=4 phase=day over=false gold=10 food=14 kills=39 mobs=55 bld=9 ev=739:caf28fbdc6f7203c state=90625ad21eb2775f probe=c70ff6e1ddf86482",

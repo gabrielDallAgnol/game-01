@@ -89,6 +89,8 @@ export function createApi(G) {
     // [hero3] end
     // [area] the engine town's houses: the list, whether one is searched today, the one being searched (-1)
     searchHomes: () => G.searchHomes(), searched: id => G.searched(id), searchAt: () => G.searchAt(),
+    // [combat2] telegraphed bites and the dash (?v2combat=1): is it on, dash (dx, dy: optional; true when it went), its state
+    combat2: () => !!G.v2combat, dash: (dx, dy) => G.dash(dx, dy), dashInfo: () => G.dashInfo(),
   };
   return api;
 }

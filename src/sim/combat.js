@@ -155,6 +155,7 @@ export function createCombat(G) {
   }
   function hurtHero(d) {
     const h = S.hero; if (h.dead) return;
+    if (G.heroIframed && G.heroIframed()) return;   // [combat2] mid-dash: nothing lands
     if (h.guardT > 0) d *= 1 - G.HC.ability.guard;
     if (G.attrHurt) { d = G.attrHurt(d); if (d <= 0) return; }   // [hero3] AGI's dodge, Unbreakable
     if (has('last') && !S.nightFlags.lastUsed && h.hp - d < h.maxHp * 0.3) { S.nightFlags.lastUsed = true; S.nightFlags.lastT = 4; ev('lastStand'); toast('Last Stand!', 'good'); }

@@ -6,7 +6,7 @@
   "description": "Hold Hollowmere: a browser town-defence game against the dead. Endless nights, generated maps, zero runtime dependencies besides three.js from a CDN.",
   "scripts": {
     "dev": "npx --yes serve -l 5173 .",
-    "test": "node --test test/golden.test.mjs test/ai.test.mjs test/classes.test.mjs test/econ3.test.mjs test/folk.test.mjs test/gemini3.test.mjs test/income.test.mjs test/mobground.test.mjs test/model.test.mjs test/nest3.test.mjs test/nesthit.test.mjs test/pacify.test.mjs test/palette.test.mjs test/rig.test.mjs test/road.test.mjs test/sim.test.mjs test/spots.test.mjs test/stats.test.mjs test/story.test.mjs test/story3.test.mjs test/towers.test.mjs test/world.test.mjs test/engine.test.mjs test/area.test.mjs",
+    "test": "node --test test/golden.test.mjs test/ai.test.mjs test/classes.test.mjs test/econ3.test.mjs test/folk.test.mjs test/gemini3.test.mjs test/income.test.mjs test/mobground.test.mjs test/model.test.mjs test/nest3.test.mjs test/nesthit.test.mjs test/pacify.test.mjs test/palette.test.mjs test/rig.test.mjs test/road.test.mjs test/sim.test.mjs test/spots.test.mjs test/stats.test.mjs test/story.test.mjs test/story3.test.mjs test/towers.test.mjs test/world.test.mjs test/engine.test.mjs test/area.test.mjs test/combat2.test.mjs",
     "test:balance": "node --test test/balance.test.mjs",
     "balance": "node tools/balance.mjs --runs 2 --max 45",
     "build": "node tools/build.mjs"
