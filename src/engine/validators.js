@@ -2,6 +2,7 @@
 // next seed in its own stream, so a bad roll never ships. Each returns {name, ok, fatal, msg}.
 import { obbOverlap, obbBox, segBox, distToPoly, toLocal } from './geom.js';
 import { createHash } from './spatial.js';
+import { reachNodes } from './network.js';
 import { gapFor } from './sockets.js';
 import { SPEED, PACE } from './units.js';
 import { reachFrom } from './stages/nav.js';
@@ -74,4 +75,30 @@ export const partyWalls = {
   },
 };
 
-export const ALL_VALIDATORS = [noOverlap, doorsReach, lotsFaceStreets, fencesSkipFronts, crossTime, railsClear, partyWalls];
+
+// [town] begin: promises a town plan makes (they pass trivially where there is no plan)
+// the ring street (where the wall stood) is one closed loop: every ring junction joins exactly two ring pieces
+export const ringClosed = {
+  name: 'the ring street is closed', fatal: true,
+  run(W) {
+    const R = W.streets.filter(s => s.ring); if (!W.town) return { ok: true, msg: 'no ring here', count: 0 };
+    if (R.length < 3) return { ok: false, msg: `only ${R.length} ring pieces`, count: 1 };
+    const deg = new Map(); R.forEach(s => s.ends.forEach(e => deg.set(e, (deg.get(e) || 0) + 1)));
+    const odd = [...deg].filter(([, d]) => d !== 2), seen = reachNodes(R, R[0].ends[0]);
+    const ok = !odd.length && seen.size === deg.size;
+    return { ok, msg: ok ? `${R.length} pieces, one loop` : `${odd.length} broken ring junctions, ${seen.size}/${deg.size} reached`, count: odd.length + deg.size - seen.size };
+  },
+};
+// every district has a street the church square reaches, and every landmark found its site
+export const districtsReach = {
+  name: 'every district reachable from the square', fatal: true,
+  run(W) {
+    if (!W.districts || !W.town) return { ok: true, msg: 'no districts here', count: 0 };
+    const seen = reachNodes(W.streets, W.town.hub), bad = W.districts.filter(d => !W.streets.some(s => s.ends && seen.has(s.ends[0]) && W.districtAt((s.pts[0].x + s.pts[1].x) / 2, (s.pts[0].y + s.pts[1].y) / 2) === d));
+    const miss = W.sitesMissing || [];
+    return { ok: !bad.length && !miss.length, msg: bad.length || miss.length ? `${bad.map(d => d.name).join(', ') || 'all reached'}${miss.length ? `; no site for ${miss.join(', ')}` : ''}` : `${W.districts.length} districts on one network, ${Object.keys(W.sites || {}).length} sites built`, count: bad.length + miss.length };
+  },
+};
+// [town] end
+
+export const ALL_VALIDATORS = [noOverlap, doorsReach, lotsFaceStreets, fencesSkipFronts, crossTime, railsClear, partyWalls, ringClosed, districtsReach];

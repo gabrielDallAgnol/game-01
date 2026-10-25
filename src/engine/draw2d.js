@@ -48,11 +48,40 @@ const OVER = {
   tower(d, p, P) { const R = p.def.roles, r = p.w / 2; d.beginPath(); d.arc(p.x, p.y, r, 0, Math.PI * 2); d.fillStyle = P(R[0]); d.fill(); d.beginPath(); d.arc(p.x - SUN.x * r * 0.25, p.y - SUN.y * r * 0.25, r * 0.55, 0, Math.PI * 2); d.fillStyle = P(R[1]); d.fill(); d.beginPath(); d.arc(p.x, p.y, r * 0.15, 0, Math.PI * 2); d.fillStyle = P(R[2] || 'metal'); d.fill(); },
   tree(d, p, P) { const r = p.r || p.def.size[0] / 2, k = p.k || 0, R = p.def.roles, lobes = 3 + Math.floor(k * 3); d.beginPath(); for (let i = 0; i < lobes; i++) { const a = i / lobes * Math.PI * 2 + k * 6, dd = r * 0.36, rr = r * (0.62 + 0.12 * Math.sin(i * 2.1 + k * 9)); d.moveTo(p.x + Math.cos(a) * dd + rr, p.y + Math.sin(a) * dd); d.arc(p.x + Math.cos(a) * dd, p.y + Math.sin(a) * dd, rr, 0, Math.PI * 2); }
     d.fillStyle = P(R[0]); d.fill(); d.fillStyle = P(R[1]); d.beginPath(); d.arc(p.x - SUN.x * r * 0.3, p.y - SUN.y * r * 0.3, r * 0.6, 0, Math.PI * 2); d.fill(); d.fillStyle = P(R[2]); d.beginPath(); d.arc(p.x + SUN.x * r * 0.42, p.y + SUN.y * r * 0.42, r * 0.28, 0, Math.PI * 2); d.fill(); },
+  // a church: the nave a gable with a rounded east end, the tower at the west end with its spire in four facets
+  church(d, p, P) { const R = p.def.roles, tw = Math.min(p.h * 0.95, p.w * 0.3), hw = p.w / 2, hh = p.h / 2, c = Math.cos(p.rot), s = Math.sin(p.rot), lit = (nx, ny) => (nx * c - ny * s) * SUN.x + (nx * s + ny * c) * SUN.y > 0;
+    d.save(); d.translate(p.x, p.y); d.rotate(p.rot);
+    d.beginPath(); d.roundRect(-hw + tw * 0.7, -hh, p.w - tw * 0.7, p.h, [0, hh * 0.9, hh * 0.9, 0]); d.fillStyle = P(R[0]); d.fill();
+    d.save(); d.clip(); d.fillStyle = P(R[1]); d.fillRect(-hw, lit(0, -1) ? 0 : -hh, p.w, hh); d.restore();
+    d.fillStyle = 'rgba(0,0,0,0.22)'; d.fillRect(-hw + tw, -0.15, p.w - tw - hh * 0.6, 0.3);
+    const tx = -hw + tw / 2, q = tw / 2, F = [[0, -1, [-q, -q], [q, -q]], [1, 0, [q, -q], [q, q]], [0, 1, [q, q], [-q, q]], [-1, 0, [-q, q], [-q, -q]]];
+    d.fillStyle = P(R[2]); d.fillRect(tx - q - 0.3, -q - 0.3, tw + 0.6, tw + 0.6);
+    F.forEach(([nx, ny, a, b]) => { d.beginPath(); d.moveTo(tx + a[0], a[1]); d.lineTo(tx + b[0], b[1]); d.lineTo(tx, 0); d.closePath(); d.fillStyle = P(R[2]); d.fill(); if (!lit(nx, ny)) { d.fillStyle = 'rgba(0,0,0,0.3)'; d.fill(); } });
+    d.beginPath(); d.arc(tx, 0, 0.45, 0, Math.PI * 2); d.fillStyle = P('accent.glow'); d.fill();
+    d.translate(tw * 0.35, 0); label(d, p, P); d.restore(); },
+  // a lattice radio mast on three guy wires (def.guy = anchor radius): the wires, the anchors, the lattice, the red tip
+  mast(d, p, P) { const R = p.def.roles, g = p.def.guy || 0, hw = p.w / 2; d.save(); d.translate(p.x, p.y); d.rotate(p.rot);
+    d.strokeStyle = P(R[2] || R[0]); d.lineWidth = 0.09; d.globalAlpha = 0.7;
+    for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + 0.5, ax = Math.cos(a), ay = Math.sin(a); [0.55, 1].forEach(f => { d.beginPath(); d.moveTo(ax * hw * 0.5, ay * hw * 0.5); d.lineTo(ax * g * f, ay * g * f); d.stroke(); }); d.fillStyle = P(R[2] || R[0]); d.fillRect(ax * g - 0.5, ay * g - 0.5, 1, 1); }
+    d.globalAlpha = 1; d.strokeStyle = P(R[0]); d.lineWidth = 0.22; d.strokeRect(-hw, -hw, p.w, p.w); d.beginPath(); d.moveTo(-hw, -hw); d.lineTo(hw, hw); d.moveTo(hw, -hw); d.lineTo(-hw, hw); d.stroke();
+    d.lineWidth = 0.16; d.strokeRect(-hw * 0.55, -hw * 0.55, p.w * 0.55, p.w * 0.55);
+    d.beginPath(); d.arc(0, 0, 0.6, 0, Math.PI * 2); d.fillStyle = P(R[1]); d.fill(); d.restore(); },
+  // a building the Ash-Born have taken: its roof under lumps of ash-flesh, ember veins and glowing sores spilling past the walls
+  infested(d, p, P) { const R = p.def.roles, k = p.k || 0.37, fr = i => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+    d.save(); d.translate(p.x, p.y); d.rotate(p.rot); d.beginPath(); d.roundRect(-p.w / 2, -p.h / 2, p.w, p.h, 0.3); d.fillStyle = P(R[0]); d.fill();
+    d.fillStyle = P(R[1]); for (let x = -p.w / 2 + 2; x < p.w / 2 - 2; x += 4.5) d.fillRect(x, -p.h / 2 + 0.6, 1.4, p.h - 1.2);
+    const n = Math.round(p.w * p.h / 40), L = []; d.fillStyle = P(R[1]);
+    for (let i = 0; i < n; i++) { const x = (fr(i) - 0.5) * p.w * 1.08, y = (fr(i + 97) - 0.5) * p.h * 1.12, r = 1 + fr(i + 191) * 2.8; L.push({ x, y, r }); d.beginPath(); d.arc(x, y, r, 0, Math.PI * 2); d.fill(); }
+    d.fillStyle = 'rgba(20,10,10,0.35)'; L.forEach(l => { d.beginPath(); d.arc(l.x + 0.3, l.y + 0.3, l.r * 0.6, 0, Math.PI * 2); d.fill(); });
+    d.strokeStyle = P(R[3] || R[2]); d.lineWidth = 0.3; d.lineCap = 'round'; d.globalAlpha = 0.85;
+    for (let i = 0; i < L.length - 1; i += 2) { const a = L[i], b = L[i + 1]; d.beginPath(); d.moveTo(a.x, a.y); d.quadraticCurveTo((a.x + b.x) / 2 + (fr(i + 7) - 0.5) * 4, (a.y + b.y) / 2 + (fr(i + 11) - 0.5) * 4, b.x, b.y); d.stroke(); }
+    d.globalAlpha = 1; d.fillStyle = P(R[2]); L.forEach((l, i) => { if (i % 3) return; d.beginPath(); d.arc(l.x, l.y, 0.45 + fr(i + 3) * 0.4, 0, Math.PI * 2); d.fill(); });
+    label(d, p, P); d.restore(); },
   deadtree(d, p, P) { const r = p.r || p.def.size[0] / 2, k = p.k || 0, R = p.def.roles, n = 5 + Math.floor(k * 3); d.strokeStyle = P(R[0]); d.lineCap = 'round';
     for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + k * 5, l = r * (0.7 + 0.3 * Math.sin(i * 3.1 + k * 7)), mx = p.x + Math.cos(a) * l * 0.55, my = p.y + Math.sin(a) * l * 0.55; d.lineWidth = 0.32; line(d, [p, { x: mx, y: my }, { x: p.x + Math.cos(a) * l, y: p.y + Math.sin(a) * l }]); d.stroke(); d.lineWidth = 0.18; line(d, [{ x: mx, y: my }, { x: mx + Math.cos(a + 0.8) * l * 0.35, y: my + Math.sin(a + 0.8) * l * 0.35 }]); d.stroke(); }
     d.beginPath(); d.arc(p.x, p.y, 0.45, 0, Math.PI * 2); d.fillStyle = P(R[1] || R[0]); d.fill(); },
 };
-function label(d, p, P) { const L = p.def.label; if (!L) return; const big = p.w > 30; d.fillStyle = P(p.def.labelRole || 'wall.light'); d.font = `500 ${big ? 2.6 : 0.9}px 'IBM Plex Mono', monospace`; d.textAlign = 'center'; d.textBaseline = 'middle'; d.fillText(L.toUpperCase(), 0, big ? 1.5 : p.h / 2 - 0.6); }
+function label(d, p, P) { const L = p.def.label; if (!L) return; const big = p.w > 30; if (Math.cos(p.rot) < -0.2) d.rotate(Math.PI);   /* never upside down */ d.fillStyle = P(p.def.labelRole || 'wall.light'); d.font = `500 ${big ? 2.6 : 0.9}px 'IBM Plex Mono', monospace`; d.textAlign = 'center'; d.textBaseline = 'middle'; d.fillText(L.toUpperCase(), 0, big ? 1.5 : p.h / 2 - 0.6); }
 // a soft field from a mask function: sampled every 2 m into a tiny image, scaled up smoothly
 function paintMask(c, f, R, W, color, lo, k) {
   const st = 2, x0 = Math.max(0, Math.floor(R.x0 / st) * st), y0 = Math.max(0, Math.floor(R.y0 / st) * st), x1 = Math.min(W.w, R.x1 + st), y1 = Math.min(W.h, R.y1 + st), nx = Math.ceil((x1 - x0) / st), ny = Math.ceil((y1 - y0) / st); if (nx < 1 || ny < 1) return;
@@ -64,11 +93,14 @@ export const DRAWN_LOOKS = ['none', ...Object.keys(LOW), ...Object.keys(OVER)];
 
 export function paintWorld(c, d, W, chapter, R) {
   const P = role => resolve(chapter, role), sh = h => ({ dx: -SUN.x * h * SHADOW_K, dy: -SUN.y * h * SHADOW_K * 0.8 });
-  const M = 14, near = p => p.x > R.x0 - M && p.x < R.x1 + M && p.y > R.y0 - M && p.y < R.y1 + M;   // M covers the largest atom
+  const M = 14;   // the least margin round the window; big atoms (and mast guys) widen their own
   const span = (a, b, st, lo, hi) => [Math.max(lo, Math.floor(a / st) * st), Math.min(hi, b)];
-  const placed = W.placed.filter(p => near(p) || p.w > 2 * M);
+  const reach = p => Math.max(M, Math.hypot(p.w, p.h) / 2 + (p.def.guy || 0) + 2), placed = W.placed.filter(p => { const m = reach(p); return (p.x > R.x0 - m && p.x < R.x1 + m && p.y > R.y0 - m && p.y < R.y1 + m) || p.w > 2 * M; });
+  // [town] districts: a role remap per district (old town red tile, the works slate); atoms without a district use P
+  const PD = W.districts ? W.districts.map(dd => { const m = (dd.palette && dd.palette.roofs) || {}; return role => resolve(chapter, m[role] || role); }) : null, PF = p => (PD && p.district != null && p.def.kind === 'building' ? PD[p.district] : P);
   // ground and the land's character
   c.fillStyle = P('ground.base'); c.fillRect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0);
+  (W.districts || []).forEach(dd => { const L = dd.palette; if (!L || !L.tint || !L.alpha) return; poly(c, dd.poly); c.globalAlpha = L.alpha; c.fillStyle = P(L.tint); c.fill(); c.globalAlpha = 1; });
   { const [ya, yb] = span(R.y0 - 8, R.y1 + 2, 6, 0, W.h), [xa, xb] = span(R.x0 - 8, R.x1 + 2, 6, 0, W.w); c.fillStyle = P('ground.field'); c.globalAlpha = 0.45; for (let y = ya; y < yb; y += 6) for (let x = xa; x < xb; x += 6) if (W.terrain.field(x, y) > 0.6) { c.beginPath(); c.arc(x + 3, y + 3, 4.6, 0, Math.PI * 2); c.fill(); } c.globalAlpha = 1; }
   { const [ya, yb] = span(R.y0 - 5, R.y1 + 2, 3, 0, W.h), [xa, xb] = span(R.x0 - 5, R.x1 + 2, 3, 0, W.w); c.fillStyle = P('ground.forest'); for (let y = ya; y < yb; y += 3) for (let x = xa; x < xb; x += 3) if (W.terrain.woods(x, y) > 0.6) { c.beginPath(); c.arc(x + 1.5, y + 1.5, 2.6, 0, Math.PI * 2); c.fill(); } }
   if (W.terrain.scorch) paintMask(c, W.terrain.scorch, R, W, P('ground.gravel'), 0.45, 2.2);
@@ -83,8 +115,10 @@ export function paintWorld(c, d, W, chapter, R) {
   (W.rails || []).forEach(r => { c.lineCap = 'butt'; c.lineJoin = 'round'; line(c, r.pts); c.strokeStyle = P('ground.gravel'); c.lineWidth = 3.6; c.stroke(); line(c, r.pts); c.strokeStyle = P('road.kerb'); c.lineWidth = 2.6; c.setLineDash([0.22, 0.48]); c.stroke(); c.setLineDash([]);
     [-0.72, 0.72].forEach(o => { line(c, offsetLine(r.pts, o)); c.strokeStyle = P('metal'); c.lineWidth = 0.12; c.stroke(); }); });
   // streets: pavement, kerb, asphalt, markings
-  const S = W.streets;
+  const S = W.streets.filter(s => s.kind !== 'path');
   c.lineCap = 'round'; c.lineJoin = 'round';
+  // footpaths: a gravel edge and a pale walk, under the streets
+  W.streets.forEach(s => { if (s.kind !== 'path') return; line(c, s.pts); c.strokeStyle = P('ground.gravel'); c.lineWidth = s.w + 0.6; c.stroke(); line(c, s.pts); c.strokeStyle = P('road.walk'); c.lineWidth = s.w; c.stroke(); });
   S.forEach(s => { line(c, s.pts); if (s.walk) { c.strokeStyle = P('road.walk'); c.lineWidth = s.w + 2 * s.walk; } else { c.strokeStyle = P('road.kerb'); c.lineWidth = s.w + 1.2; } c.stroke(); });
   S.forEach(s => { if (!s.walk) return; line(c, s.pts); c.strokeStyle = P('road.kerb'); c.lineWidth = s.w + 0.35; c.stroke(); });
   S.forEach(s => { line(c, s.pts); c.strokeStyle = P('road.asphalt'); c.lineWidth = s.w; c.stroke(); });
@@ -99,7 +133,7 @@ export function paintWorld(c, d, W, chapter, R) {
   // camp ground
   if (W.camp) { c.beginPath(); c.arc(W.camp.x, W.camp.y, W.camp.r, 0, Math.PI * 2); c.fillStyle = P('ground.field'); c.fill(); }
   // flat looks that sit on the ground (pools, ruins' floors, craters) go under the shadows
-  placed.forEach(p => { const f = LOW[p.def.look]; if (f && !p.def.height) f(c, p, P); });
+  placed.forEach(p => { const f = LOW[p.def.look]; if (f && !p.def.height) f(c, p, PF(p)); });
   // shadows of everything with height
   c.fillStyle = P('shadow');
   placed.forEach(p => { const h = p.def.height; if (!h || p.def.kind === 'street') return; const s = sh(h);
@@ -111,12 +145,12 @@ export function paintWorld(c, d, W, chapter, R) {
   // segment shadows: walls cast a thin band
   W.fences.forEach(f => { if (!f.def || !f.def.height || f.def.height < 2) return; const s = sh(f.def.height); poly(c, [f.a, f.b, { x: f.b.x + s.dx, y: f.b.y + s.dy }, { x: f.a.x + s.dx, y: f.a.y + s.dy }]); c.fill(); });
   // low props with height: lamps, cars, rings, nests
-  placed.forEach(p => { const f = LOW[p.def.look]; if (f && p.def.height) f(c, p, P); });
+  placed.forEach(p => { const f = LOW[p.def.look]; if (f && p.def.height) f(c, p, PF(p)); });
   // fences and walls (segment atoms): a line plus posts
   W.fences.forEach(f => { const def = f.def; c.strokeStyle = P(def ? def.roles[0] : 'fence'); c.lineWidth = def && def.thick ? def.thick : 0.16; c.lineCap = def && def.thick ? 'square' : 'butt'; line(c, [f.a, f.b]); c.stroke();
     if (def && def.posts === false) return; c.fillStyle = c.strokeStyle; const L = Math.hypot(f.b.x - f.a.x, f.b.y - f.a.y); for (let k = 0; k <= L; k += 2) { const t = k / L; c.fillRect(f.a.x + (f.b.x - f.a.x) * t - 0.13, f.a.y + (f.b.y - f.a.y) * t - 0.13, 0.26, 0.26); } });
   // overhead: roofs, then canopies
-  placed.forEach(p => { if (p.def.layer === 'roof') { const f = OVER[p.def.look]; if (f) f(d, p, P); } });
+  placed.forEach(p => { if (p.def.layer === 'roof') { const f = OVER[p.def.look]; if (f) f(d, p, PF(p)); } });
   placed.forEach(p => { if (p.def.layer === 'canopy') { const f = OVER[p.def.look]; if (f) f(d, p, P); } });
 }
 

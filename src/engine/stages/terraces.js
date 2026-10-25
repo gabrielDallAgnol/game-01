@@ -27,7 +27,8 @@ export const terracesStage = {
     let units = 0, ruins = 0;
     W.streets.filter(s => s.kind === 'local').forEach(s => {
       const [a, b] = s.pts, L = dist(a, b), th = Math.atan2(b.y - a.y, b.x - a.x), front = s.w / 2 + s.walk + P.front;
-      for (const side of [1, -1]) {
+      const pool = s.rowTag ? houses.filter(h => h.tags.includes(s.rowTag)) : houses, kinds = pool.length ? pool : houses;   // a plan may say which rows a street gets
+      for (const side of s.sides || [1, -1]) {
         const key = `${s.id}:${side}`, nx = -Math.sin(th) * side, ny = Math.cos(th) * side, rot = side > 0 ? th : th + Math.PI;
         // a lot's local x runs with the street on side +1 and against it on side -1
         const slot = (u, w, h) => { const c = { x: a.x + Math.cos(th) * u + nx * (front + h / 2), y: a.y + Math.sin(th) * u + ny * (front + h / 2) }; return { x: c.x, y: c.y, w, h, rot }; };
@@ -38,8 +39,8 @@ export const terracesStage = {
             if (P.yard > 0) { wall(yardWall, bl, br, run.id); wall(yardWall, toWorld(first.lotRef, -side * first.w / 2, -yd / 2 + DEPTH), bl, run.id); wall(yardWall, toWorld(last.lotRef, side * last.w / 2, -yd / 2 + DEPTH), br, run.id); } }
           run = null; };
         while (u < L - 4) {
-          if (!run) { const def = rng.pick(houses); run = { id: `run:${key}:${k++}`, key, def, left: P.runMin + rng.int(P.runSpan), units: [], from: u, to: u }; }
-          const def = rng.chance(P.swap) ? rng.pick(houses) : run.def, w = def.size[0], yd = YD;
+          if (!run) { const def = rng.pick(kinds); run = { id: `run:${key}:${k++}`, key, def, left: P.runMin + rng.int(P.runSpan), units: [], from: u, to: u }; }
+          const def = rng.chance(P.swap) ? rng.pick(kinds) : run.def, w = def.size[0], yd = YD;
           const lot = { id: `ter:${key}:${Math.round(u * 10)}`, kind: 'terrace', street: s.id, ...slot(u + w / 2, w, yd) };
           if (blocked(lot, s.id)) { if (run.units.length) { close(); u += ALLEY; } else { run = null; u += 1; } continue; }
           const heat = W.terrain.scorch ? Math.max(0, W.terrain.scorch(lot.x, lot.y)) : 0, burnt = ruin && rng.chance(P.ruin + heat * 0.55);

@@ -46,6 +46,19 @@ export const PALETTES = {
     'ink': '#2B2B30', 'label': 'rgba(40,40,44,0.75)' },
 };
 
+// District looks: roles only, so every chapter palette tints them. `tint` washes the district's ground at `alpha`;
+// `roofs` remaps building roles there (old town: red tile; the works: slate and soot). The renderer reads them
+// from W.districts[i].palette; recipes without districts are untouched.
+export const DISTRICT_LOOKS = {
+  oldtown: { tint: 'ground.gravel', alpha: 0.3, roofs: { 'roof.sage': 'roof.warm2', 'roof.sage2': 'roof.warm', 'roof.cream': 'roof.sand', 'roof.cream2': 'roof.sand2' } },
+  suburb: { tint: 'ground.lawn', alpha: 0.14, roofs: {} },
+  rail: { tint: 'ground.gravel', alpha: 0.45, roofs: { 'roof.warm': 'roof.slate', 'roof.warm2': 'roof.slate2', 'roof.sand': 'roof.cream2' } },
+  industry: { tint: 'road.lot', alpha: 0.32, roofs: { 'roof.warm': 'roof.slate', 'roof.warm2': 'roof.slate2', 'roof.sand': 'roof.slate', 'roof.sand2': 'roof.slate2', 'roof.sage': 'roof.slate2', 'roof.sage2': 'roof.slate', 'roof.cream': 'roof.cream2' } },
+  park: { tint: 'ground.forest', alpha: 0.4, roofs: {} },
+  barns: { tint: 'ground.field', alpha: 0.5, roofs: { 'roof.sage': 'roof.warm2', 'roof.cream': 'roof.sand2' } },
+  field: { tint: 'ground.field', alpha: 0.4, roofs: {} },
+};
+
 export function resolve(chapter, role) {
   const p = PALETTES[chapter] || PALETTES.ch1;
   if (!(role in p)) throw new Error(`palette ${chapter} has no role ${role}`);

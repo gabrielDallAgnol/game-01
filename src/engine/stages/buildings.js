@@ -12,7 +12,7 @@ export const buildingsStage = {
     const once = new Set(), yardAtoms = reg.needing('yard'), yardExtras = yardAtoms.filter(d => d.kind !== 'tree'), yardTree = yardAtoms.find(d => d.kind === 'tree');
     W.lots.forEach(lot => {
       const ls = seed.child(lot.id), rng = ls.rng();
-      if (lot.kind === 'park') return;
+      if (lot.kind === 'park' || lot.building) return;   // a site stage may have built it already
       let pool = reg.needing(`lot.${lot.kind}`).filter(d => fits(d, lot) && !(d.tags.includes('poi') && once.has(d.id)));
       if (lot.kind === 'commercial') { const poi = pool.filter(d => d.tags.includes('poi') || d.tags.includes('canopy')); if (poi.length && rng.chance(0.6)) pool = poi; }
       if (!pool.length) { W.note('buildings', `${lot.id}: nothing fits ${lot.w.toFixed(1)}×${lot.h.toFixed(1)}`); return; }

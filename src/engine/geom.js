@@ -54,6 +54,18 @@ export function segIntersect(p1, p2, p3, p4) {
 // A straight street piece as an oriented box (for overlap checks), with kerbs included.
 export function segBox(a, b, width) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, w: Math.hypot(b.x - a.x, b.y - a.y), h: width, rot: Math.atan2(b.y - a.y, b.x - a.x) }; }
 
+export function pointInPoly(x, y, poly) { let inside = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) inside = !inside; } return inside; }
+export function polyArea(poly) { let s = 0; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) s += (poly[j].x + poly[i].x) * (poly[j].y - poly[i].y); return Math.abs(s) / 2; }
+export function polyCentroid(poly) { let x = 0, y = 0, a = 0; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const f = poly[j].x * poly[i].y - poly[i].x * poly[j].y; x += (poly[j].x + poly[i].x) * f; y += (poly[j].y + poly[i].y) * f; a += f; } return a ? { x: x / (3 * a), y: y / (3 * a) } : poly[0]; }
+// Sutherland–Hodgman: a polygon clipped to the rect [x0, x1] × [y0, y1]
+export function clipPolyRect(poly, x0, y0, x1, y1) {
+  const edges = [[p => p.x >= x0, (a, b) => ({ x: x0, y: a.y + (b.y - a.y) * (x0 - a.x) / (b.x - a.x) })], [p => p.x <= x1, (a, b) => ({ x: x1, y: a.y + (b.y - a.y) * (x1 - a.x) / (b.x - a.x) })],
+    [p => p.y >= y0, (a, b) => ({ x: a.x + (b.x - a.x) * (y0 - a.y) / (b.y - a.y), y: y0 })], [p => p.y <= y1, (a, b) => ({ x: a.x + (b.x - a.x) * (y1 - a.y) / (b.y - a.y), y: y1 })]];
+  let out = poly;
+  for (const [inside, cut] of edges) { const src = out; out = []; for (let i = 0; i < src.length; i++) { const a = src[(i + src.length - 1) % src.length], b = src[i]; if (inside(b)) { if (!inside(a)) out.push(cut(a, b)); out.push(b); } else if (inside(a)) out.push(cut(a, b)); } if (!out.length) break; }
+  return out;
+}
+
 export function catmull(pts, step) {
   const out = [];
   for (let i = 0; i < pts.length - 1; i++) {

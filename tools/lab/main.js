@@ -9,7 +9,7 @@ import { pointInObb } from '../../src/engine/geom.js';
 const $ = id => document.getElementById(id);
 const cv = $('c'), ctx = cv.getContext('2d');
 const regs = {}, regFor = id => regs[id] || (regs[id] = recipeRegistry(id));
-const st = { seed: 7, area: 'suburb', chapter: 'ch1', ov: { sockets: false, nav: false, collision: false, lots: false }, viewM: 50, res: null, win: null, zoomAt: 0, hero: { x: 0, y: 0, vx: 0, vy: 0, face: { x: 0, y: 1 }, walk: 0 }, cam: { x: 0, y: 0 }, keys: {}, joy: { on: false, x: 0, y: 0 }, pick: null, t: 0 };
+const st = { map: false, seed: 7, area: 'suburb', chapter: 'ch1', ov: { sockets: false, nav: false, collision: false, lots: false }, viewM: 50, res: null, win: null, zoomAt: 0, hero: { x: 0, y: 0, vx: 0, vy: 0, face: { x: 0, y: 1 }, walk: 0 }, cam: { x: 0, y: 0 }, keys: {}, joy: { on: false, x: 0, y: 0 }, pick: null, t: 0 };
 
 function build() {
   const t0 = performance.now();
@@ -66,8 +66,8 @@ function step(dt) {
   if (free(nx, h.y)) h.x = nx; else h.vx = 0;
   if (free(h.x, ny)) h.y = ny; else h.vy = 0;
   const s = Math.hypot(h.vx, h.vy); if (s > 0.3) h.face = { x: h.vx / s, y: h.vy / s }; h.walk += s * dt * 1.6;
-  st.cam.x += (h.x + h.vx * 0.35 - st.cam.x) * Math.min(1, dt * 4); st.cam.y += (h.y + h.vy * 0.35 - st.cam.y) * Math.min(1, dt * 4);
-  $('pos').textContent = `${h.x.toFixed(0)}, ${h.y.toFixed(0)} m · ${s.toFixed(1)} m/s`;
+  if (st.map) { st.cam.x = st.res.W.w / 2; st.cam.y = st.res.W.h / 2; } else { st.cam.x += (h.x + h.vx * 0.35 - st.cam.x) * Math.min(1, dt * 4); st.cam.y += (h.y + h.vy * 0.35 - st.cam.y) * Math.min(1, dt * 4); }
+  const dd = st.res.W.districtAt && st.res.W.districtAt(h.x, h.y); $('pos').textContent = `${h.x.toFixed(0)}, ${h.y.toFixed(0)} m · ${s.toFixed(1)} m/s${dd ? ` · ${dd.name}` : ''}`;
 }
 const underOverhead = (x, y) => st.res.W.placed.some(p => (p.def.layer === 'roof' && pointInObb(p, x, y)) || (p.def.kind === 'tree' && Math.hypot(p.x - x, p.y - y) < (p.r || p.def.size[0] / 2) * 0.9));
 
@@ -99,13 +99,18 @@ function render() {
   if (st.pick) { const p = st.pick; ctx.save(); ctx.translate(ox + p.x * s, oy + p.y * s); ctx.rotate(p.rot); ctx.strokeStyle = resolve(st.chapter, 'accent.system'); ctx.lineWidth = 2; ctx.setLineDash([6, 4]); const pw = p.def.kind === 'tree' ? (p.r || p.def.size[0] / 2) * 2 : p.w, ph = p.def.kind === 'tree' ? pw : p.h; ctx.strokeRect(-pw / 2 * s, -ph / 2 * s, pw * s, ph * s); ctx.restore(); }
   // vignette
   const vg = ctx.createRadialGradient(R.width / 2, R.height / 2, Math.min(R.width, R.height) * 0.4, R.width / 2, R.height / 2, Math.max(R.width, R.height) * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,10,20,0.16)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, R.width, R.height);
+  // map mode: district names and the finale, in screen space
+  if (st.map && W.districts) { ctx.font = "500 10px 'IBM Plex Mono', monospace"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tag = (x, y, t, col) => { const w = ctx.measureText(t).width + 10; ctx.fillStyle = 'rgba(20,21,26,0.72)'; ctx.beginPath(); ctx.roundRect(x - w / 2, y - 8, w, 16, 8); ctx.fill(); ctx.fillStyle = col || '#F2EEE2'; ctx.fillText(t, x, y); };
+    W.districts.forEach(d => tag(ox + d.at.x * s, oy + d.at.y * s, d.name));
+    if (W.finale) tag(ox + W.finale.x * s, oy + W.finale.y * s - 18, 'finale', resolve(st.chapter, 'accent.ember')); }
 }
 
 // ---- input ----
 addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; st.keys[e.key.toLowerCase()] = true; if (e.key.startsWith('Arrow')) e.preventDefault(); });
 addEventListener('keyup', e => { st.keys[e.key.toLowerCase()] = false; });
 cv.addEventListener('wheel', e => { e.preventDefault(); setView(st.viewM * (1 + e.deltaY * 0.0012)); }, { passive: false });
-function setView(m) { st.viewM = Math.max(30, Math.min(90, m)); st.zoomAt = performance.now(); $('zoom').value = st.viewM; }
+function setView(m) { const W = st.res && st.res.W; st.viewM = Math.max(30, Math.min(st.map && W ? fitM() * 1.1 : 90, m)); st.zoomAt = performance.now(); $('zoom').value = st.viewM; }
 const pts = new Map(); let pinch0 = 0, view0 = 50, down = null;
 cv.addEventListener('pointerdown', e => { try { cv.setPointerCapture(e.pointerId); } catch (_) {} pts.set(e.pointerId, e); if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); view0 = st.viewM; st.joy.on = false; $('jb').hidden = true; return; }
   down = { x: e.clientX, y: e.clientY, t: performance.now() }; const R = cv.getBoundingClientRect();
@@ -134,10 +139,14 @@ $('pal').addEventListener('change', e => { st.chapter = e.target.value; repaint(
 document.querySelectorAll('[data-ov]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.ov; st.ov[k] = !st.ov[k]; b.setAttribute('aria-pressed', String(st.ov[k])); repaint(); }));
 $('zoom').addEventListener('input', e => setView(+e.target.value));
 $('fold').onclick = () => { const p = $('panel'); p.classList.toggle('folded'); $('fold').textContent = p.classList.contains('folded') ? 'show' : 'hide'; };
+$('map').onclick = () => setMap(!st.map);
+// the view (metres across the longer screen side) that fits the whole world on screen
+function fitM() { const R = cv.getBoundingClientRect(), W = st.res.W, L = Math.max(R.width, R.height); return Math.max(W.w * L / R.width, W.h * L / R.height) * 1.02; }
+function setMap(v) { st.map = v; $('map').setAttribute('aria-pressed', String(v)); setView(v ? fitM() : 50); }
 $('camp').onclick = () => { const W = st.res.W; st.hero.x = W.camp.x + 3; st.hero.y = W.camp.y - 4; };
 
 let last = performance.now();
 function loop(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; st.t += dt; step(dt); render(); requestAnimationFrame(loop); }
 const start = () => { $('seed').value = st.seed; if (innerWidth < 700) $('panel').classList.add('folded'), $('fold').textContent = 'show'; build(); requestAnimationFrame(loop); };
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(start); else start();
-window.__lab = { st, build, regFor, setArea: a => { st.area = a; $('area').value = a; build(); }, setSeed: n => { st.seed = n; $('seed').value = n; build(); }, setChapter: k => { st.chapter = k; $('pal').value = k; repaint(); }, setOverlay: (k, v) => { st.ov[k] = v; repaint(); }, setView, teleport: (x, y) => { st.hero.x = x; st.hero.y = y; st.cam.x = x; st.cam.y = y; }, info: () => ({ seed: st.seed, hash: st.res.hash, tries: st.res.attempts, results: st.res.results }) };
+window.__lab = { st, build, regFor, setArea: a => { st.area = a; $('area').value = a; build(); }, setSeed: n => { st.seed = n; $('seed').value = n; build(); }, setChapter: k => { st.chapter = k; $('pal').value = k; repaint(); }, setOverlay: (k, v) => { st.ov[k] = v; repaint(); }, setView, setMap, teleport: (x, y) => { st.hero.x = x; st.hero.y = y; st.cam.x = x; st.cam.y = y; }, info: () => ({ seed: st.seed, hash: st.res.hash, tries: st.res.attempts, results: st.res.results }) };
