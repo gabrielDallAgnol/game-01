@@ -4,9 +4,9 @@
 import { K, CFG } from './kit.js';
 import { PAL } from './palette.js';
 // [top]
-import { TOP } from './top.js';
+import { TOP, TOP_FIG } from './top.js';
 
-export const PEOPLE = 0.6;          // world units per metre for people (buildings use 0.3: people read a bit larger)
+export const PEOPLE = TOP.on ? 0.6 * TOP_FIG : 0.6;   // [toppop] ×1.8 from above (top.js)          // world units per metre for people (buildings use 0.3: people read a bit larger)
 
 const tmpM = new THREE.Matrix4(), inv = new THREE.Matrix4(), col = new THREE.Color();
 /** merge every mesh under obj into one geometry with a colour attribute; glowing parts go to `glow` */

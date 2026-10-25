@@ -6,10 +6,11 @@
 // the half span of the screen's SHORT side in metres at zoom 1 (1 cell ≈ 1 m): a phone shows ~24 m across, a
 // desktop ~32 m top to bottom; zoom runs 0.45 … 4 (pull back to ~100 m across)
 const SPAN_PORTRAIT = 12, SPAN_LANDSCAPE = 16, ZMIN = 0.45, ZMAX = 4, HEIGHT = 80;
+const ZSTART = 1.25;   // [toppop] the opening view: ~30 m across a phone (pinch out to ~100 m)
 
 export function createTopCamera(V) {
   const { S, C, canvas, camera, look, W, Wv, opts } = V;
-  let zoom = 1, zoomCur = 1, aspect = 1; const camTarget = new THREE.Vector3(0, 0, 3);
+  let zoom = ZSTART, zoomCur = ZSTART, aspect = 1; const camTarget = new THREE.Vector3(0, 0, 3);
   V.camTarget = camTarget;
   const half = { w: 10, h: 10 };   // the frustum's half extents in metres this frame (view.js streams props to it)
   const touch = matchMedia('(pointer: coarse)').matches;

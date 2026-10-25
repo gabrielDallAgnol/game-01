@@ -4,3 +4,5 @@
 export const TOP_FLAG = false;
 export const TOP = { on: false };
 try { const q = new URLSearchParams(location.search).get('top'); TOP.on = q === '1' || (TOP_FLAG && q !== '0'); } catch (e) { /* no location (node) */ }
+// [toppop] from above people are drawn bigger than true scale (the world stays true): hero, dead, folk and allies ×1.8
+export const TOP_FIG = 1.8;

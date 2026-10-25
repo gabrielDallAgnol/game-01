@@ -7,12 +7,13 @@
 /* global THREE */
 import { MOBS } from '../../content/mobs.js';
 import { outlineMat } from '../figures.js';
-import { TOP } from '../top.js';
+import { TOP, TOP_FIG } from '../top.js';
 import { READ } from '../readable.js';
 import { K } from '../kit.js';
 import { lc, FOOT, HERO_OUTLINE } from './shared.js';
 
-const Y = 0.075;   // the tokens' height: over the town's ground plane (0.04), under every figure
+const Y = 0.075, FIG = Math.sqrt(TOP_FIG);   // tokens grow with the bigger figures, a little less than they do
+   // the tokens' height: over the town's ground plane (0.04), under every figure
 
 export function createTopPop(V) {
   if (!TOP.on) return null;
@@ -87,13 +88,13 @@ export function createTopPop(V) {
     hero.visible = !h.dead;
     if (!h.dead) {
       hero.position.copy(Wv(h.x, h.y, Y));
-      const s = Math.min(1.9, 0.85 + 0.35 * kk); hRing.scale.setScalar(s); tickG.scale.setScalar(s); tickG.rotation.y = h.face || 0;
+      const s = Math.min(2.4, (0.85 + 0.35 * kk) * FIG); hRing.scale.setScalar(s); tickG.scale.setScalar(s); tickG.rotation.y = h.face || 0;
       hDay.material.opacity = 0.5 * (1 - dark); hNight.material.opacity = (0.55 + 0.08 * Math.sin(time * 2.4)) * dark;
-      hDay.scale.setScalar(0.8 + 0.25 * kk); hNight.scale.setScalar(0.85 + 0.25 * kk);
+      hDay.scale.setScalar((0.8 + 0.25 * kk) * FIG); hNight.scale.setScalar((0.85 + 0.25 * kk) * FIG);
       if (V.markers && V.markers.heroRing) V.markers.heroRing.visible = false;   // the old cream ring: the token replaces it
     }
     // the dead
-    let n = 0; const ps = Math.min(1.8, 0.8 + 0.3 * kk), gA = 0.5 * dark;
+    let n = 0; const ps = Math.min(2.4, (0.8 + 0.3 * kk) * FIG), gA = 0.5 * dark;
     for (const m of S.mobs) {
       if (n >= CAP) break;
       const def = MOBS[m.kind]; if (!def || def.animal || !seenAt(m.x, m.y)) continue;
