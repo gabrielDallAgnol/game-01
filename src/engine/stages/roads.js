@@ -3,6 +3,7 @@
 // junctions (the street.end socket), so nothing overlaps by accident.
 import { STREET } from '../units.js';
 import { catmull, lerp, distToPoly } from '../geom.js';
+import { nameStreets } from '../names.js';
 
 export const roadsStage = {
   name: 'roads',
@@ -36,6 +37,7 @@ export const roadsStage = {
     [1, 2].forEach(i => { const a = g.toW(g.lx(i), g.ly(g.nrow - 1)); let p = { ...a }; for (let k = 0; k < 400; k++) { p = { x: p.x + down.x, y: p.y + down.y }; if (distToPoly(p.x, p.y, r9) < STREET.highway / 2) break; }
       W.streets.push({ id: `c:${i}`, pts: [a, p], w: STREET.connector, walk: STREET.kerb, kind: 'local', marks: 'dash', ends: [node(i, g.nrow - 1), 'r9'] }); });
     W.grid = g;
+    nameStreets(W, seed.child('names').rng(), 'suburb');
     W.note('roads', `${W.streets.length} streets, ${W.nodes.length} junctions`);
   },
 };

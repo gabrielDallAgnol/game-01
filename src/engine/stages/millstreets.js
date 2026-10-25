@@ -3,6 +3,7 @@
 // mill road on the far side. Streets meet only at junctions, as in every layout.
 import { STREET } from '../units.js';
 import { segIntersect } from '../geom.js';
+import { nameStreets } from '../names.js';
 
 export const millStreetsStage = {
   name: 'streets',
@@ -32,6 +33,7 @@ export const millStreetsStage = {
     street('mill', at(cuSafe, mv), at(W.w / 2 + 12, mv), ['jm', 'edge'], { name: 'mill road' });
     // level crossings: where any street meets a rail
     W.streets.forEach(s => W.rails.forEach(r => { for (let i = 0; i < r.pts.length - 1; i++) { const h = segIntersect(s.pts[0], s.pts[1], r.pts[i], r.pts[i + 1]); if (h) W.crossings.push({ x: h.x, y: h.y, rot: F.rot, len: s.w + 2 * s.walk, street: s.id, rail: r.id }); } }));
+    nameStreets(W, seed.child('names').rng(), 'milltown');
     W.millRoad = { v: mv, from: cuSafe }; W.highStreet = { v: hv };
     W.note('streets', `${W.streets.length} streets, ${side.length} side streets, ${W.crossings.length} level crossings`);
   },

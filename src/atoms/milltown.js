@@ -14,7 +14,7 @@ export const MILL_ATOMS = [
   terrace('terrace.brick.c', 6.4, 9, 'roof.sand2', 'roof.sand'),
   terrace('terrace.brick.d', 5.8, 9, 'roof.slate2', 'roof.slate'),
   { id: 'ruin.terrace.a', look: 'ruin', kind: 'building', size: [6, 9], height: 0, layer: 'low', collide: 'none', roles: ['road.lot', 'ground.gravel', 'roof.slate2'],
-    sockets: [{ type: 'party.wall', at: 'left' }, { type: 'party.wall', at: 'right' }, { type: 'door', at: 'front' }], needs: ['lot.terrace'], tags: ['ruin', 'milltown'] },
+    sockets: [{ type: 'party.wall', at: 'left' }, { type: 'party.wall', at: 'right' }, { type: 'door', at: 'front' }], needs: ['lot.terrace'], offers: ['salvage'], tags: ['ruin', 'milltown'] },
   { id: 'wall.ruin.a', look: 'none', kind: 'prop', size: [1, 0.4], height: 2.6, layer: 'low', collide: 'segment', roles: ['roof.cream2'], tags: ['wall', 'milltown'], thick: 0.4, posts: false },
   { id: 'wall.yard.a', look: 'none', kind: 'prop', size: [1, 0.3], height: 1.8, layer: 'low', collide: 'segment', roles: ['roof.cream2'], tags: ['wall', 'yard-wall', 'milltown'], thick: 0.3, posts: false },
   { id: 'mill.ironvale.a', look: 'flat', kind: 'building', size: [44, 20], height: 12, layer: 'roof', collide: 'box', roles: ['roof.slate', 'roof.slate2', 'metal'],
