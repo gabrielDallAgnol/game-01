@@ -7,6 +7,8 @@ import { PACKS, PACK_RULES } from '../content/packs.js';
 import { REROLL } from '../content/perks.js';
 import { TRADES } from '../content/heroes.js';
 import { seasonEnd } from '../content/season.js';
+// [econ3] a flat tower price
+import { ECON } from '../content/econ.js';
 
 export function createEconomy(G) {
   const { S, combo, dropLive, earn, ev, fail, has, hasTech, isBloodMoon, isDef, keep, mastery, near, owns, pop, rng, rule, syncPicks, toast } = G;
@@ -15,7 +17,7 @@ export function createEconomy(G) {
   const copies = type => S.buildings.filter(b => b.type === type).length;
   // towers climb in a straight line (every copy +25% of the base: more towers is a real choice against better ones);
   // everything else climbs and flattens; barricade posts get dearer by one scrap per dozen
-  const newCost = type => Math.max(1, Math.round(type === 'tower' ? costOf(type) * (1 + RISE.tower * copies(type))
+  const newCost = type => Math.max(1, Math.round(type === 'tower' ? costOf(type) * (1 + (ECON.flatTower ? 0 : RISE.tower * copies(type)))   // [econ3] a tower always costs the same
     : type === 'wall' ? costOf(type) + Math.floor(copies(type) / (RISE.wallEvery || 12))
     : costOf(type) * (1 + 2 * (RISE[type] || 0) * Math.sqrt(copies(type)))));
   const buyCost = type => newCost(type) * (S.mode === 'packs' && !BUILDINGS[type].tech ? PACK_RULES.premium : 1);
@@ -91,7 +93,7 @@ export function createEconomy(G) {
     for (const b of S.buildings) { if (!b.ruined) b.hp = b.maxHp; b.fell = false; }
     dropLive();
     if (S.hero.dead) G.heroBack();   // the dead hero is back at dawn at the latest
-    { const left = S.buildings.filter(b => b.ruined); S.ledger = { night: S.night, fell: fellB, rose: roseB, held, people: roseB.reduce((a, r) => a + r.people, 0), ruins: left.length, rebuildAll: left.reduce((a, b) => a + G.rebuildCost(b), 0), kills: Object.values(S.cur.kills || {}).reduce((a, b) => a + b, 0), heroDowns: S.cur.heroDeaths || 0, ...(G.road ? G.road.missions.report() : {}), ...(G.folkLedger ? G.folkLedger() : {}) };   // [folk] what the folk kept and built
+    { const left = S.buildings.filter(b => b.ruined); S.ledger = { night: S.night, fell: fellB, rose: roseB, held, people: roseB.reduce((a, r) => a + r.people, 0), ruins: left.length, rebuildAll: left.reduce((a, b) => a + G.rebuildCost(b), 0), kills: Object.values(S.cur.kills || {}).reduce((a, b) => a + b, 0), heroDowns: S.cur.heroDeaths || 0, ...(G.road ? G.road.missions.report() : {}), ...(G.folkLedger ? G.folkLedger() : {}), ...(G.settleLedger ? G.settleLedger() : {}) };   // [econ3] the Settlement report   // [folk] what the folk kept and built
       ev('ledger', S.ledger); }
     keep.hp = Math.min(keep.maxHp, keep.hp + keep.maxHp * 0.25);
     S.hero.hp = S.hero.maxHp; S.hero.guardT = 0;

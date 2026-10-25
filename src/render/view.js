@@ -45,6 +45,8 @@ import { createVillage } from './view/village.js';
 // [rig3] the Haven Rig in motion, an act's look
 import { createHaven } from './view/haven.js';
 import { createLegs } from './view/legs.js';
+// [econ3] nodes, carts, scaffolds on the queue
+import { createHaul } from './view/haul.js';
 // [road] begin
 import { createRoadView } from './road-view.js';
 // [road] end
@@ -102,6 +104,7 @@ export function createView(canvas, game, opts = {}) {
   const birds = V.birds = createBirds(V);   // [woods] birds flushed from the trees
   const haven = V.haven = createHaven(V);   // [rig3] the Rig folds, drives and unfolds
   const legs = V.legs = createLegs(V);   // [rig3] the act's ground colours and props
+  const haul = V.haul = createHaul(V);   // [econ3] nodes, carts, scaffolds on the queue
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -138,6 +141,7 @@ export function createView(canvas, game, opts = {}) {
     rest.update(dt);
     village.update(dt, ui.events);   // [folk]
     birds.update(dt, ui.events);   // [woods]
+    haul.update(dt);   // [econ3]
     routes.update();
     markers.updateSelection(dt, ui.selected);
     placing.setGhost(ui.ghost || null); placing.setZone(ui.zone || null);

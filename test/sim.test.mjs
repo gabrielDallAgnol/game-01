@@ -115,6 +115,10 @@ test('the dead never end up inside walls or water', () => {
 
 import { spaceStats } from '../tools/space.mjs';
 import { PERKS } from '../src/content/perks.js';
+// [econ3] this suite pins the v55 rules (instant building, blessings, rising tower prices, the full trickle); they stay
+// in the code behind the ECON flags. The Solar Flare economy is tested in econ3.test.mjs.
+import { ECON } from '../src/content/econ.js';
+Object.assign(ECON, { queue: false, carts: false, relics: false, flatTower: false, settle: false });
 // tests of the districts and the city: the fence down from day 1 (act 2 at once; CUT.earlyRoad off, see sim/acts.js)
 const withOpenRoad = fn => () => { CUT.earlyRoad = false; try { return fn(); } finally { CUT.earlyRoad = true; } };
 test('towns use their space: enough lots, little dead land, a street around every building', () => {

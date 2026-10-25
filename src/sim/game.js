@@ -63,6 +63,10 @@ import { createLogging } from './logging.js';
 import { createStronghold } from './stronghold.js';
 import { createPressure } from './pressure.js';
 // [gemini3] end
+// [econ3] the construction queue, harvester carts on resource nodes, relics instead of blessings, the dawn Settlement
+import { createConstruct } from './construct.js';
+import { createHaul } from './haul.js';
+import { createRelics } from './relics.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
@@ -70,6 +74,7 @@ export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_
 // the rule modules, in creation order (core first: the others destructure its helpers)
 const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno, createRig];   // [nest3] appended   // [pacify] appended
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
+MODULES.push(createConstruct, createHaul, createRelics);   // [econ3] appended
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null } = {}) {
   if (hero === 'steward') hero = 'merchant';
@@ -203,7 +208,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     G.stepLogging(dt);   // [gemini3] felling trees, the Logger's Hut
     stepHeat(dt);
     if ((S.powerT = (S.powerT || 0) - dt) <= 0) { S.powerT = 0.25; checkPower(); checkForeman(); G.story.tick(0.25); if (S.blackout) S.sawBlackout = true; }
-    for (const b of S.buildings) if (b.built < 1 && !b.ruined) { b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }
+    for (const b of S.buildings) if (b.built < 1 && !b.ruined && !b.cq) {   b.built = Math.min(1, b.built + dt / BUILDINGS[b.type].buildTime); if (b.built >= 1) { ev('built', { id: b.id }); toast(`The ${BUILDINGS[b.type].name} is finished. ${BUILDINGS[b.type].desc[0]}`, 'good'); } }   // [econ3] b.cq: the construction queue raises it
     // sunrise comes on time: the night's dead do not vanish. Far from the town they lose interest and roam where they stand.
     // No early dawn: a cleared night still lasts until the moon has crossed the sky.
     if (S.phase === 'night' && !S.over && !S.queue.length && S.qT >= nightLen()) {
@@ -224,5 +229,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     G.stepIncome(dt);
     // [income] end
     G.stepRig(dt);   // [rig3] the Haven Rig's systems, the road-open beat, unpacking
+    // [econ3] begin: the construction queue and the harvester carts (sim/construct.js, sim/haul.js)
+    G.stepConstruct(dt); G.stepHaul(dt);
+    // [econ3] end
   }
 }

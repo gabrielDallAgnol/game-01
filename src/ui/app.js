@@ -42,6 +42,9 @@ import { createVersion } from './version.js';
 import { createLoggingUi } from './logging-ui.js';
 
 MODULES.push(createVersion, createLoggingUi);   // [gemini3] appended
+// [econ3] the construction queue chip, the carts row, the Settlement report
+import { createEconUi } from './econ-ui.js';
+MODULES.push(createEconUi);   // [econ3] appended
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
@@ -133,6 +136,7 @@ export function startApp() {
     ui.folkTick(dt, events);   // [folk]
     ui.infernoTick(dt);   // [nest3]
     ui.rigTick(dt, events);   // [rig3] the Rig rolls, the next act is swapped in
+    ui.econTick(dt, events);   // [econ3]
     hudT -= dt; if (hudT <= 0) { updateHud(); ui.tickHome();   /* [pacify] the way home */ hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
   }
   requestAnimationFrame(frame);

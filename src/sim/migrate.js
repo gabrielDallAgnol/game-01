@@ -28,6 +28,7 @@ export function packCarry(api) {
   const S = api.state, C = { S: {}, hero: {} };
   for (const k of CARRY.concat(RIG_CARRY)) if (S[k] !== undefined) C.S[k] = clone(S[k]);
   for (const k of Object.keys(S.hero)) { const v = S.hero[k]; if (typeof v !== 'function') C.hero[k] = clone(v); }
+  if (S.econ) { const E = S.econ; C.S.econ = clone({ relics: E.relics, bps: E.bps, tomes: E.tomes, rolls: E.rolls, mods: E.mods }); }   // [econ3] relics, blueprints and tomes ride in the hold (queue, carts and nodes stay with the old map)
   C.story = clone(S.story); C.rig = clone(S.rig); C.homeless = S.homeless || 0; C.keepLvl = S.keep.level;
   return C;
 }

@@ -59,7 +59,7 @@ export function createPlanner(g) {
   const can = type => (S.stock[type] || 0) > 0 || !lack(g.buyCost(type) + RESERVE);
   function upgradeOne(type) {
     const cap = Math.min(3, g.keepLevel());
-    const cands = S.buildings.filter(x => x.type === type && !x.ruined && x.level < cap && !(x.level === 2 && UNL[type] && !g.hasTech(UNL[type]))).sort((a, c) => a.level - c.level || a.id - c.id), b = cands[0];
+    const cands = S.buildings.filter(x => x.type === type && !x.ruined && x.level < cap && !(x.level === 2 && UNL[type] && !g.hasTech(UNL[type])) && !x.cq && !((S.econ && S.econ.q) || []).some(j => j.bid === x.id))   /* [econ3] not one still in the queue */.sort((a, c) => a.level - c.level || a.id - c.id), b = cands[0];
     if (!b) return false;
     if (type === 'tower' && g.crewing().free < 1) return false;
     if (lack(g.upCostOf(b) + RESERVE)) return false;

@@ -80,6 +80,9 @@ export function createApi(G) {
     spawnAnimals: () => G.spawnAnimals(),   // [woods] the dawn top-up of the woods' game (tests, tools)
     // [rig3] the Haven Rig: its systems and cargo (info), why it cannot roll ('' when it can), pack up (salvage + roll)
     rigInfo: () => G.rigInfo(), rigBlock: () => G.rigBlock(), rigPack: () => G.rigPack(), salvagePct: id => { const b = S.byId.get(id); return b ? G.salvagePct(b) : 0; },
+    // [econ3] the construction queue (reorder: dir -1 / +1 / 'top'; cancel refunds), harvester carts and nodes, relics
+    queue: () => G.queueInfo(), queueMove: (id, dir) => G.queueMove(id, dir), queueCancel: id => G.queueCancel(id), crews: () => G.crews(),
+    haul: () => G.haulInfo(), buyCart: () => G.buyCart(), cartDock: () => G.cartDock(), relics: () => G.relicsInfo(),
   };
   return api;
 }
