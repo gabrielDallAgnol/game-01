@@ -73,6 +73,8 @@ import { createPowers } from './powers.js';
 // [area] next line
 import { createSearch } from './search.js';
 import { createCombat2 } from './combat2.js';
+// [v2] next line
+import { createV2Core } from './v2core.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
@@ -84,8 +86,9 @@ MODULES.push(createConstruct, createHaul, createRelics);   // [econ3] appended
 MODULES.push(createStats, createPowers);   // [hero3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
 MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the dash (does nothing without v2combat)
+MODULES.push(createV2Core);   // [v2] appended: the V2 core switches the old systems off (does nothing without v2)
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null, area = null, v2combat = false } = {}) {   // [area] area: an engine recipe id   // [combat2] v2combat: the flag
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null, area = null, v2combat = false, v2 = false } = {}) {   // [area] area: an engine recipe id   // [combat2] v2combat: the flag   // [v2] v2: the V2 core
   if (hero === 'steward') hero = 'merchant';
   const map = premap && premap.seed === (mapSeed ?? seed) && premap.biome === biome && (premap.area ? premap.area.id : null) === area ? premap : generateMap(mapSeed ?? seed, biome, area ? { area } : {});   // [rig3] premap: a fresh map migrate.js already made
   if (map !== premap) themeMap(map, leg ?? (restore && restore.rig && restore.rig.leg) ?? 1);   // [rig3] the act's ground and props
@@ -98,7 +101,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- the shared context: run constants, then every module's functions ----------
   const G = { S, map, c, keep, seed, mapSeed, biome, mode, clock, restore, legacy,
     rng: new Rng(hashSeed(seed, 'run')), perkRng: new Rng(hashSeed(seed, 'perks')), mobById: new Map(),
-    HC, DIFF, story: null, sc: null, road: null, api: null, v2combat: !!v2combat };   // [combat2] v2combat
+    HC, DIFF, story: null, sc: null, road: null, api: null, v2combat: !!v2combat, v2: !!v2 };   // [combat2] v2combat   // [v2] v2
   for (const make of MODULES) Object.assign(G, make(G));
   const {
     rng, mobById, PICKUP, activeNests, addHeat, addPath, autoHero, baseDist, checkForeman, checkPower, compass, dawn, districtOffer,
@@ -113,7 +116,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   let planner = null;
   occupy(keep);
   // [road] begin: stations, convoys, ambushes and night missions live in src/sim/road.js and src/sim/missions.js
-  G.road = createRoad({ S, map, ev, toast, rng: new Rng(hashSeed(seed, 'road')), LANDMARKS, mobById, story: () => G.story, fail: m => fail(m), earn: g => earn(g), gainXp: n => gainXp(n), reveal, compass: (x, y) => compass(x, y),
+  // [v2] the V2 core has no road (G.road stays null; every road hook checks it)
+  if (!G.v2) G.road = createRoad({ S, map, ev, toast, rng: new Rng(hashSeed(seed, 'road')), LANDMARKS, mobById, story: () => G.story, fail: m => fail(m), earn: g => earn(g), gainXp: n => gainXp(n), reveal, compass: (x, y) => compass(x, y),
     placeBuilding, isWall: id => isWall(id), spawnMob, killMob, hitMob, hurtHero, moveToward, standable, heroOk: i => heroOk(i), inZone: i => inZone(i), zone: () => zone(), rankOf: m => rankOf(m), senseMult: m => senseMult(m),
     heroSpeed: () => G.HC.speed * S.P.heroSpeed, addNoise: v => addHeat(v), removeMob: m => { const i = S.mobs.indexOf(m); if (i >= 0) { S.mobs.splice(i, 1); mobById.delete(m.id); } }, hiveInReach: (x, y, r) => G.hiveInReach(x, y, r) });
   // [road] end

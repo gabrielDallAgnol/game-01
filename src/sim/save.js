@@ -13,6 +13,7 @@ export function createSave(G) {
   function snapshot() {
     if (S.phase !== 'day' || S.over) return null;
     return { v: SAVE_V, seed, mapSeed: mapSeed ?? seed, biome, ...(map.area ? { area: map.area.id } : {}),   // [area]
+      ...(G.v2 ? { v2: true } : {}),   // [v2] the V2 core rides in the save
       hero: S.heroClass, mode: S.mode, difficulty: S.difficulty, clock: S.clock, city: map.name, savedAt: Date.now(),
       legacy: S.legacy, night: S.night, gold: S.gold, food: S.food, kills: S.kills, stock: S.stock, survivors: S.survivors, heat: S.heat, foreman: S.foreman, builders: S.builders, autopilot: !!S.autopilot,
       inferno: G.inferno ? G.inferno.save() : null, sealed: [...S.sealed], kits: S.kits, claimed: [...S.claimed], nestAlive: S.nestAlive, wake: S.wake.map(w => (Number.isFinite(w) ? w : -1)),
