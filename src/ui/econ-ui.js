@@ -6,7 +6,8 @@ import { icon } from './icons.js';
 import { esc } from './shared.js';
 
 const CSS = `
-.eq-chip{pointer-events:auto;flex-direction:column;align-items:stretch!important}
+.eq-chip{pointer-events:auto;flex-direction:column;align-items:stretch!important;height:auto!important;min-height:46px;box-sizing:border-box;max-width:100%}
+.eq-chip .eq-top{width:100%}
 .eq-chip .eq-top{display:flex;align-items:center;gap:8px;min-height:36px;cursor:pointer}
 .eq-chip .lb{flex:1 1 auto;min-width:0;display:grid;gap:1px}
 .eq-chip .lb b{font:700 14px/1.15 var(--display);letter-spacing:.03em;color:var(--bone);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -14,11 +15,11 @@ const CSS = `
 .eq-bar{flex:none;width:34px;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}.eq-bar i{display:block;height:100%;background:#ffc24a}
 .eq-chip .tg{flex:none;font:700 12px/1 var(--display);letter-spacing:.06em;color:var(--muted);padding:0 6px}
 .eq-list{display:grid;gap:4px;margin-top:6px;max-height:40vh;overflow:auto}
-.eq-row{display:flex;align-items:center;gap:6px;padding:4px 0 4px 2px;border-top:1px solid rgba(255,255,255,.07);font:500 13px/1.2 var(--body);color:var(--bone)}
+.eq-row{display:flex;align-items:center;gap:4px;padding:4px 0 4px 2px;border-top:1px solid rgba(255,255,255,.07);font:500 13px/1.2 var(--body);color:var(--bone)}
 .eq-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .eq-row .nm small{color:var(--muted);margin-left:6px;font-variant-numeric:tabular-nums}
 .eq-row .nm small.fled{color:#ff8a6a}
-.eq-row button{min-width:34px;min-height:34px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--bone);font:700 14px/1 var(--body);display:grid;place-items:center;padding:0}
+.eq-row button{min-width:30px;min-height:32px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--bone);font:700 14px/1 var(--body);display:grid;place-items:center;padding:0}
 .eq-row button:disabled{opacity:.3}
 .eq-row button.x{color:#ffb39a}
 .econrow{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:0 2px 2px;font:500 13px/1.2 var(--body);color:var(--muted)}
