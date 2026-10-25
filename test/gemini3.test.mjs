@@ -9,6 +9,9 @@ import { BUILD } from '../src/version.js';
 import { MATURITY, COMPACT, GARRISON } from '../src/content/stronghold.js';
 import { LOGGING } from '../src/content/logging.js';
 import { N } from '../src/sim/mapgen.js';
+// [econ3] these cases predate the construction queue: buildings stand at once here
+import { ECON } from '../src/content/econ.js';
+Object.assign(ECON, { queue: false });
 
 const clear = g => { const S = g.state; for (let k = 0; k < 20 && S.story.encounters.length; k++) { const e = S.story.encounters[0]; g.choose((e.choices && e.choices[0] && e.choices[0].id) || 'ok'); } };
 function placeNear(g, type, n = 1) {

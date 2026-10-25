@@ -9,12 +9,12 @@ export const RELICS = [
   { id: 'vest',     rarity: 'c', name: 'Hi-Vis Vest',         perk: 'skin',    desc: '+12 max health; mend 1 a second at night.' },
   { id: 'thermos',  rarity: 'c', name: 'Dented Thermos',      perk: 'bandage', desc: 'Mend 1.5 health a second at night.' },
   { id: 'sneakers', rarity: 'r', name: 'Track Spikes',        perk: 'nimble',  desc: 'Run 20% faster and mend while running.' },
-  { id: 'cleaver',  rarity: 'r', name: 'Butcher Cleaver',     perk: 'execute', desc: 'Your hits finish the dead left below 25%.' },
+  { id: 'cleaver',  rarity: 'r', name: 'Butcher Cleaver',     perk: 'execute', desc: 'Your hits finish Ash-Born left below 25%.' },
   // the towers and the walls
-  { id: 'scope',    rarity: 'c', name: 'Cracked Rifle Scope', perk: 'eyes',    desc: 'Towers and the keep reach 1.5 further.' },
+  { id: 'scope',    rarity: 'c', name: 'Cracked Rifle Scope', perk: 'eyes',    desc: 'Towers and the Haven Rig reach 1.5 further.' },
   { id: 'feathers', rarity: 'c', name: 'Bundle of Fletching', perk: 'fletch',  desc: 'Towers hit 20% harder.' },
   { id: 'crank',    rarity: 'c', name: 'Greased Crank',       perk: 'draw',    desc: 'Towers shoot 15% faster.' },
-  { id: 'mortar',   rarity: 'c', name: 'Bag of Quick-Set',    perk: 'mortar',  desc: 'Buildings +20% health, the keep +20.' },
+  { id: 'mortar',   rarity: 'c', name: 'Bag of Quick-Set',    perk: 'mortar',  desc: 'Buildings +20% health, the Haven Rig +20.' },
   { id: 'flint',    rarity: 'r', name: 'Road Flare Bundle',   perk: 'fire',    desc: 'Every 5th tower bolt sets its target burning.' },
   { id: 'tusk',     rarity: 'r', name: 'Brute Tooth',         perk: 'hunter',  desc: 'Towers hit brutes and bosses 60% harder.' },
   // the town
@@ -27,9 +27,9 @@ export const RELICS = [
   { id: 'plating',  rarity: 'r', name: 'Bolt-On Plating',     econ: { cartHp: 1.6 }, desc: 'Carts have 60% more health.' },
   { id: 'shelter',  rarity: 'r', name: 'Fallout Shelter Key', perk: 'shelter', desc: 'When a home falls its families hide instead of rising.' },
   // a burned Inferno Nest: run-changers
-  { id: 'core',     rarity: 'l', name: 'Cooled Nest Core',    perk: 'ballista', desc: 'Every 3 s the keep fires a bolt through a whole line: 8 damage, range 12.' },
-  { id: 'bell',     rarity: 'l', name: 'Last Siren',          perk: 'bell',     desc: 'Once a run the keep holds at 30% when it would fall, and blasts the dead near it.' },
-  { id: 'heart',    rarity: 'l', name: 'Ember Heart',         perk: 'sanct',    desc: 'The keep mends 2 health a second at night.' },
+  { id: 'core',     rarity: 'l', name: 'Cooled Nest Core',    perk: 'ballista', desc: 'Every 3 s the Haven Rig fires a bolt through a whole line: 8 damage, range 12.' },
+  { id: 'bell',     rarity: 'l', name: 'Last Siren',          perk: 'bell',     desc: 'Once a run the Haven Rig holds at 30% when it would fall, and blasts the Ash-Born near it.' },
+  { id: 'heart',    rarity: 'l', name: 'Ember Heart',         perk: 'sanct',    desc: 'The Haven Rig mends 2 health a second at night.' },
   { id: 'crown',    rarity: 'l', name: "Foreman's Hard Hat",  perk: 'guild',    desc: 'Every dawn a tower is raised free for each 4 homes.' },
   { id: 'saw',      rarity: 'l', name: 'Molten Chainsaw',     perk: 'last',     desc: 'Once a night below 30% health: double damage, and you cannot fall for 4 s.' },
 ];
