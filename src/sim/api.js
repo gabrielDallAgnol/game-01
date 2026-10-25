@@ -87,6 +87,8 @@ export function createApi(G) {
     statsOn: () => G.statsOn(), statsInfo: () => G.statsInfo(), spendStat: (id, n) => G.spendStat(id, n), addStatPoints: (n, why) => G.addStatPoints(n, why),
     autoStats: () => G.autoSpend(), setStatAuto: on => { S.attr.auto = !!on; }, usePower: id => G.usePower(id), powersAuto: () => G.powersAuto(), powersInfo: () => G.powersInfo(),
     // [hero3] end
+    // [area] the engine town's houses: the list, whether one is searched today, the one being searched (-1)
+    searchHomes: () => G.searchHomes(), searched: id => G.searched(id), searchAt: () => G.searchAt(),
   };
   return api;
 }

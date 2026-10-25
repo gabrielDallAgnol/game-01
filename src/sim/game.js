@@ -70,6 +70,8 @@ import { createRelics } from './relics.js';
 // [hero3] stat points, threshold and hybrid abilities
 import { createStats } from './stats.js';
 import { createPowers } from './powers.js';
+// [area] next line
+import { createSearch } from './search.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
@@ -79,6 +81,7 @@ const MODULES = [createCore, createEconomy, createBuildings, createBuild, create
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
 MODULES.push(createConstruct, createHaul, createRelics);   // [econ3] appended
 MODULES.push(createStats, createPowers);   // [hero3] appended
+MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null, area = null } = {}) {   // [area] area: an engine recipe id
   if (hero === 'steward') hero = 'merchant';
@@ -233,6 +236,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     G.stepIncome(dt);
     // [income] end
     G.stepRig(dt);   // [rig3] the Haven Rig's systems, the road-open beat, unpacking
+    G.stepSearch(dt);   // [area] houses to search (only in an engine-built area)
     // [econ3] begin: the construction queue and the harvester carts (sim/construct.js, sim/haul.js)
     G.stepConstruct(dt); G.stepHaul(dt);
     // [econ3] end

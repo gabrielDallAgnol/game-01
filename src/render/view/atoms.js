@@ -48,5 +48,15 @@ export function createAtoms(V) {
     if (!(Math.abs(ex - cx) < KEEP && Math.abs(ey - cy) < KEEP)) paint(ex, ey);
     const h = S.hero; hero.value.set(h.x - C, h.y - C, h.dead ? 0 : 1);
   }
-  return { update, repaint: () => { cx = NaN; } };
+  // houses still to search: a soft ring at the door of each one near the hero (it fills while he searches)
+  const homes = V.game.searchHomes ? V.game.searchHomes() : [], ringGeo = new THREE.RingGeometry(0.55, 0.75, 24), fillGeo = new THREE.CircleGeometry(0.5, 24);
+  const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd27a').convertSRGBToLinear().multiplyScalar(1.4), transparent: true, opacity: 0.8, depthWrite: false });
+  const pool = Array.from({ length: 14 }, () => { const g = new THREE.Group(), r = new THREE.Mesh(ringGeo, ringMat), f = new THREE.Mesh(fillGeo, ringMat); r.rotation.x = f.rotation.x = -Math.PI / 2; g.add(r, f); g.visible = false; g.renderOrder = 6; world.add(g); return { g, f }; });
+  function marks() {
+    const h = S.hero, at = V.game.searchAt(), near = h.dead ? [] : homes.filter(o => Math.abs(o.x - h.x) < 22 && Math.abs(o.y - h.y) < 22 && !V.game.searched(o.id));
+    near.sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y));
+    pool.forEach((p, k) => { const o = near[k]; p.g.visible = !!o; if (!o) return; p.g.position.set(o.x - C, 0.09, o.y - C);
+      const s = o.id === at ? Math.min(1, (S.search ? S.search.t : 0) / 1.4) : 0; p.f.scale.setScalar(Math.max(0.001, s)); p.f.visible = s > 0; p.g.scale.setScalar(1 + 0.08 * Math.sin(V.time * 4 + o.id)); });
+  }
+  return { update: t => { update(t); if (homes.length) marks(); }, repaint: () => { cx = NaN; } };
 }
