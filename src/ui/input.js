@@ -80,7 +80,6 @@ export function createInput(ui) {
     if (!ui.game) return;
     if (k === 'l' && FLAGS.runLog) ui.showLog();
     if (k === 'm' && !ui.card) ui.showMap();
-    if (k === 'q' || k === ' ') { e.preventDefault(); ui.useAbility(); }
     if (k === 'enter' && ui.placing) ui.placeNow();
     if (['1', '2', '3', '4', '5', '6'].includes(k) && !ui.paused) { const t = [...BUILD_ORDER, ...TECH_ORDER][+k - 1]; if (ui.placing && ui.placing.type === t) ui.stopPlacing(); else ui.startPlacing(t); }
     if ((k === '=' || k === '+') && ui.view) ui.view.setZoom(ui.view.getZoom() * 0.8);

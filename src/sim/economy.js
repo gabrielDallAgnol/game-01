@@ -101,7 +101,7 @@ export function createEconomy(G) {
     if (S.allies.length && !S.P.loyal) { for (const a of S.allies.filter(q => !q.comp)) ev('allyGone', { id: a.id }); S.allies = S.allies.filter(q => q.comp); }
     for (const a of S.allies) if (a.comp) a.hp = a.maxHp;
     if (G.story) for (const n of S.story.npcs) if (n.withHero && n.alive && n.joined && !S.allies.some(a => a.comp === n.id)) G.spawnCompanion(n);
-    S.purses = []; S.ability.cd = 0;
+    S.purses = [];
     if (!CUT.crew) G.sc.dawn(isBloodMoon(S.night));
     S.night++; newLog();
     S.noiseChoice = Math.abs(S.noiseChoice || 0) < 1 ? 0 : S.noiseChoice * (1 - NOISE.choiceFade);   // a choice's noise holds for nights, fading a fifth each dawn
@@ -124,7 +124,6 @@ export function createEconomy(G) {
     if (S.night - 1 === seasonEnd(S.season.n)) { if (!S.season.won) G.finale(false); G.startSeason(S.season.n + 1); }
     G.story.dawn();
     if (G.inferno) G.inferno.dawn();   // [nest3] hotter nests, embers before a nest wakes
-    G.checkEvolution();
     if (G.HC.trader && !CUT.trader) S.trade = { deals: rng.shuffle([...TRADES]).slice(0, 3).map(t => t.id), done: false };
     S.stats.peakPop = Math.max(S.stats.peakPop, pop());
     ev('dawn', { goldIn, foodIn, need, fed });
@@ -152,7 +151,7 @@ export function createEconomy(G) {
     if (id === 'sellfood') { S.food -= t.food; earn(t.give); }
     if (id === 'halfup') S.halfUpgrade = true;
     if (id === 'mend') keep.hp = Math.min(keep.maxHp, keep.hp + keep.maxHp * 0.25);
-    S.trade.done = true; G.addPath('scavver', 0.6); toast(`Deal: ${t.name.toLowerCase()}.`, 'good'); return true;
+    S.trade.done = true; toast(`Deal: ${t.name.toLowerCase()}.`, 'good'); return true;
   }
 
   // ---------- building packs ----------

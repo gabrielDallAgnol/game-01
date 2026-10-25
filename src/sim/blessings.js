@@ -70,13 +70,13 @@ export function createBlessings(G) {
   function famOk(f) {
     const F = FAMILIES[f]; if (!F.hero) return true;
     const cls = S.heroClass, H = HEROES[cls];
-    if (cls === 'survivor' || !H.base && !S.evo.final) return true;
-    return [H.base || cls, S.evo.second, S.evo.calling].includes(F.hero);   // the Calling's family stays open: tiers stack
+    if (cls === 'survivor' || !H.base) return true;
+    return [H.base || cls].includes(F.hero);
   }
   function famWeight(f) {
     const F = FAMILIES[f]; if (!F.hero) return f === 'bow' ? 0.7 : 1;
     const cls = S.heroClass; if (cls === 'survivor') return 1.3;
-    return F.hero === (HEROES[cls].base || cls) || F.hero === S.evo.calling ? 2 : 0.6;
+    return F.hero === (HEROES[cls].base || cls) ? 2 : 0.6;
   }
   function reroll() {
     if (!S.offer.length || S.offerSource.startsWith('mastery:')) return false;
@@ -97,8 +97,6 @@ export function createBlessings(G) {
       pk.fx(S.P); S.P.taken[id] = (S.P.taken[id] || 0) + 1; S.P.fam[pk.fam]++; S.cur.perks.push(id); S.stats.blessings++;
       for (const sy of SYNERGIES) if ((sy.a === id && has(sy.b)) || (sy.b === id && has(sy.a))) toast(`Combo! ${sy.text}`, 'good');
       if (S.P.fam[pk.fam] === 3 && !S.P.mastery[pk.fam] && !(pk.fam === 'hero' && !G.HC.attack)) S.picks.splice(1, 0, `mastery:${pk.fam}`);
-      if (G.PATH_FAMS.includes(pk.fam)) G.addPath(pk.fam, 0.5);
-      G.checkEvolution();
     }
     for (const b of S.buildings) { const m = G.maxHpOf(b.type, b.level); if (!b.ruined) b.hp += m - b.maxHp; b.maxHp = m; }
     const km = G.keepMaxHp(); keep.hp = Math.min(km, keep.hp + Math.max(0, km - keep.maxHp)); keep.maxHp = km;

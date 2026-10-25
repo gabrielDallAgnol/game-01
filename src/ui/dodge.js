@@ -1,5 +1,4 @@
-// [combat2] The dash on screen (?v2combat=1): Space or Shift on a keyboard (Space leaves the class ability to Q
-// while the flag is on), and on touch a small round button at the bottom right whose rim fills back as the
+// [combat2] The dash on screen (?v2combat=1): Space or Shift on a keyboard, and on touch a small round button at the bottom right whose rim fills back as the
 // cooldown runs out. Without the flag it adds nothing to the page. It drives the game only through api.dash().
 import { COMBAT2 } from './combat2-flag.js';
 
@@ -23,7 +22,7 @@ export function createDodge(ui) {
     if (e.key !== ' ' && e.key !== 'Shift') return;
     if (!ui.game || (e.target.closest && e.target.closest('button,input,textarea'))) return;
     if (e.repeat) { e.preventDefault(); e.stopPropagation(); return; }
-    e.preventDefault(); e.stopPropagation(); go();   // capture, so input.js never turns this Space into the class ability
+    e.preventDefault(); e.stopPropagation(); go();   // capture: the dash owns Space
   }, { capture: true });
   function dodgeTick() {
     const g = ui.game, show = !!(g && g.dashInfo && ui.touchUI && !g.state.over && !ui.card);

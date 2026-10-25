@@ -2,11 +2,6 @@
 // kicks in. Each system stays switched off (and out of the HUD) until its episode comes, then the System opens a
 // window that explains it in three lines. See docs/research/anime-pacing.md.
 
-// the hero earns a class through a trial, not by picking two cards
-// three tiers by hero level (the XP curve, LEVEL in sim/game.js, lands them around nights 8–10, 20–25 and 35–40)
-export const CALLING_LVL = 15;  // tier 1: the Calling
-export const FINAL_LVL = 30;    // tier 2: the advanced class (a Calling plus a second family)
-export const LEGEND_LVL = 45;   // tier 3: the legendary form
 export const PARTY = { base: 1, keep3: 1 };   // companions at your side: one, a second once the keep reaches level 3
 
 // when each system arrives. `when(S, g)` is checked at dawn and when the keep rises.

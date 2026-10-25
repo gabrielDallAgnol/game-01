@@ -1,4 +1,4 @@
-// Ground markers: the selection and range rings, the move mark, the hero and bounty rings, and the MAIN objective
+// Ground markers: the selection and range rings, the move mark, the hero ring, and the MAIN objective
 // marker (a gold beam, ring and "MAIN" System tag over each objective the System requires).
 /* global THREE */
 import { lc, ringGeo } from './shared.js';
@@ -14,8 +14,6 @@ export function createMarkers(V) {
   moveMark.rotation.x = -Math.PI / 2; moveMark.position.y = 0.07; fx.add(moveMark);
   const heroRing = new THREE.Mesh(ringGeo(0.42, 0.5), new THREE.MeshBasicMaterial({ color: lc('#fff1d6'), transparent: true, opacity: 0.75, depthWrite: false }));
   heroRing.rotation.x = -Math.PI / 2; heroRing.renderOrder = 4; fx.add(heroRing);
-  const bountyRing = new THREE.Mesh(ringGeo(0.97, 1), new THREE.MeshBasicMaterial({ color: lc('#f0c050').multiplyScalar(1.4), transparent: true, opacity: 0, depthWrite: false }));
-  bountyRing.rotation.x = -Math.PI / 2; bountyRing.renderOrder = 4; fx.add(bountyRing);
 
   // ---------- MAIN objectives: what the System requires (the contract, the trial, a story quest's step) ----------
   // One look for all of them, so "required" reads at a glance: a gold beam, a pulsing gold ring and a System tag
@@ -77,5 +75,5 @@ export function createMarkers(V) {
     if (moveMark.material.opacity > 0) { moveMark.material.opacity = Math.max(0, moveMark.material.opacity - dt * 1.5); moveMark.scale.multiplyScalar(1 + dt * 0.8); }
   }
   function showMove(x, y) { moveMark.position.copy(Wv(x, y, 0.07)); moveMark.scale.set(1, 1, 1); moveMark.material.opacity = 0.9; }
-  return { heroRing, bountyRing, updateMain, updateSelection, showMove };
+  return { heroRing, updateMain, updateSelection, showMove };
 }

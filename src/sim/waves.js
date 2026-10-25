@@ -148,7 +148,7 @@ export function createWaves(G) {
     if (S.phase !== 'day' || S.over || S.story.encounters.length) return false;   // no bell: dusk comes with the sun (tests and bots may still skip ahead)
     S.dayQueue = [];
     G.refreshFlow(); G.cacheNeighbours();
-    S.phase = 'night'; G.dropCrew(); G.crewing(); S.queue = makeWave(S.night); S.qT = 0; S.nightFlags = {}; S.ability.hires = 0; S.trade = null;
+    S.phase = 'night'; G.dropCrew(); G.crewing(); S.queue = makeWave(S.night); S.qT = 0; S.nightFlags = {}; S.trade = null;
     for (const b of S.buildings) b.fell = false;
     const purgeReg = S.purge;
     Object.assign(S.cur, {

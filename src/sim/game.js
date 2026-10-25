@@ -7,13 +7,13 @@
 //   core · economy · buildings · build · waves · forecast · combat · noise · brain · hives · loot · districts ·
 //   seasons · hero · blessings · save · nests · api
 // G holds: the run's constants (S, map, c, keep, rng, perkRng, mobById, seed, …), every module's functions, and five
-// late or changing slots read as G.x at call time: G.HC (the hero's class, changes on evolve), G.DIFF (difficulty),
+// late or changing slots read as G.x at call time: G.HC (the hero's class), G.DIFF (difficulty),
 // G.story, G.sc (scavenging), G.api.
 import { Rng, hashSeed } from './rng.js';
 import { generateMap, PASSABLE, idx, inside, LANDMARKS } from './mapgen.js';
 import { BUILDINGS, KEEP } from '../content/buildings.js';
 import { TIDE } from '../content/mobs.js';
-import { HEROES, heroKit } from '../content/heroes.js';
+import { heroKit } from '../content/heroes.js';
 import { KITS } from '../content/districts.js';
 import { createScavenge } from './scavenge.js';
 import { createPlanner } from './planner.js';
@@ -96,8 +96,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     HC, DIFF, story: null, sc: null, api: null, v2combat: !!v2combat, v2: !!v2 };   // [combat2] v2combat   // [v2] v2
   for (const make of MODULES) Object.assign(G, make(G));
   const {
-    rng, mobById, PICKUP, activeNests, addHeat, addPath, autoHero, baseDist, checkForeman, checkPower, compass, dawn, districtOffer,
-    earn, edgeSpawns, ev, evolve, fail, frontier, gainXp, heroOk, hitMob, hurtHero, inZone, isBloodMoon, isWall, killMob, kitFor,
+    rng, mobById, PICKUP, activeNests, addHeat, autoHero, baseDist, checkForeman, checkPower, compass, dawn, districtOffer,
+    earn, edgeSpawns, ev, fail, frontier, gainXp, heroOk, hitMob, hurtHero, inZone, isBloodMoon, isWall, killMob, kitFor,
     landmarkReach, live, mastery, metroSpot, moveToward, nestAlive, newLog, nightLen, occupy, openDistrict, placeBuilding, pop, rankOf,
     refreshFlow, refreshMax, restoreSnap, reveal, revealRegion, rollOffer, rollPacks, rule, scatterPickups, senseMult, siteOf,
     spawnAnimals, spawnAtNest, spawnMob, spawnRoamers, standable, startNight, stepAllies, stepDrops, stepHeat, stepHero, stepMobs,
@@ -133,12 +133,8 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   S.scav = G.sc.scav;
   // ---------- the story: its engine (sim/story.js) reaches the rules only through these hooks ----------
   const REVIVE = ['Hush', 'Echo', 'Lull', 'Old Song', 'Quill', 'Tam', 'Vesper', 'Nocturne'];
-  G.story = createStory({ api: () => G.api, heroes: HEROES, evolve: cls => evolve(cls), S, map, rng: new Rng(hashSeed(seed, 'story')), ev, toast, earn, addHeat, openDistrict, frontier, districtOffer, siteOf, LANDMARKS, pop, refreshMax, syncPicks,
-    hurtHero: n => hurtHero(n), gainXp: n => gainXp(n), addPath: (f, n) => addPath(f, n),
-    // the trial warden: tougher than a brute, hits softer than one, never leaves its ground
-    spawnTrial: tr => { const m = spawnMob('brute', tr.x, tr.y, { instant: true }); m.hp = m.maxHp = Math.round((10 + 4 * S.lvl) * Math.min(1.3, G.DIFF.threat)); m.dmgK = tr.second ? 0.8 : 0.5; m.trial = { cls: tr.cls, from: tr.from, second: tr.second }; m.roam = { x: tr.x, y: tr.y, region: -1 }; m.warden = true;
-      for (let k = 0; k < 3; k++) { const a = rng.range(0, 6.28), w = spawnMob(k === 2 && S.night >= 4 ? 'runner' : 'walker', tr.x + Math.cos(a) * 2, tr.y + Math.sin(a) * 2, { instant: true }); w.roam = { x: tr.x, y: tr.y, region: -1 }; w.hunt = true; }
-      ev('trial', { id: m.id }); },
+  G.story = createStory({ api: () => G.api, S, map, rng: new Rng(hashSeed(seed, 'story')), ev, toast, earn, addHeat, openDistrict, frontier, districtOffer, siteOf, LANDMARKS, pop, refreshMax, syncPicks,
+    hurtHero: n => hurtHero(n), gainXp: n => gainXp(n),
     findSpot: () => G.findSpot(),   // beacons, trials and story places (sim/spots.js)
     guard: (x, y, n) => { for (let k = 0, tries = 0; k < n && tries < 40; tries++) { const a = rng.range(0, Math.PI * 2), gx = x + Math.cos(a) * rng.range(1, 2.8), gy = y + Math.sin(a) * rng.range(1, 2.8), cx = Math.floor(gx), cy = Math.floor(gy); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue; k++; const m = spawnMob(rng.pick(S.night >= 4 ? ['walker', 'runner'] : ['walker']), gx, gy, { instant: true }); m.roam = { x, y, region: -1 }; } },
     actGoal: () => G.actGoal(),   // [acts]
@@ -163,8 +159,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.over) return;
     S.time += dt;
     refreshFlow();
-    if (S.ability.cd > 0) S.ability.cd = Math.max(0, S.ability.cd - dt);
-    if (S.bountyT > 0) S.bountyT = Math.max(0, S.bountyT - dt);
     if (S.autopilot) autoHero(dt);
     stepHero(dt);
     G.stepCombat2(dt);   // [combat2] the dash (no-op without the flag)

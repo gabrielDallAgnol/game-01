@@ -1,5 +1,5 @@
 // The HUD: the System strip and Camp toasts (two voices), dawn and dusk banners, the night's losses line, the top
-// bar (scrap, food, people, noise, forecast, sun dial), the ability button, the contract trip, edge arrows (the dead;
+// bar (scrap, food, people, noise, forecast, sun dial), edge arrows (the dead;
 // MAIN objectives big and gold with their distance, OPTIONAL ones small and only when close),
 // and the auto quality watch.
 import { $, DIR8, NUMW, ONE, PLURAL, campCopy, esc, mmss, store } from './shared.js';
@@ -62,24 +62,6 @@ export function createHud(ui) {
     const avg = perf.t / perf.n; perf.t = 0; perf.n = 0;
     perf.slow = avg > 34 ? perf.slow + 1 : 0;
     if (perf.slow >= 2) { const q = ui.view.quality() === 'high' ? 'medium' : 'low'; ui.view.setQuality(q); store.set('autoq', q); perf.slow = 0; perf.wait = 4; }
-  }
-
-  // ---------- ability ----------
-  function useAbility() {
-    if (!ui.game || ui.paused || $('#ability').hidden) return;
-    const ok = ui.game.useAbility();
-    if (ok && ui.game.heroDef.ability.id === 'hire') toast('Sellswords join you.', 'good');
-  }
-  $('#ability').onclick = useAbility;
-  function renderAbility() {
-    const A = ui.game.heroDef.ability, S = ui.game.state, el = $('#ability');
-    if (!A || !systemHere()) { el.hidden = true; return; }
-    el.hidden = false;
-    const cd = S.ability.cd, cost = ui.game.abilityCost();
-    el.querySelector('.an').textContent = A.name;
-    el.querySelector('.ac').innerHTML = cd > 0 ? `${Math.ceil(cd)}s` : cost ? `${icon('scrap')}${cost}` : 'ready';
-    el.classList.toggle('cool', cd > 0 || S.hero.dead || (cost && S.gold < cost));
-    el.style.setProperty('--cd', cd > 0 ? (cd / A.cooldown) : 0);
   }
 
   // ---------- HUD ----------
@@ -154,9 +136,9 @@ export function createHud(ui) {
       if (S.eruption) mid = `<span class="erupt">Inferno Nest bursts ${Math.ceil(S.eruption.t)}s</span>${mid}`;
       $('#info').innerHTML = mid;
     }
-    ui.renderTray(); renderAbility();
+    ui.renderTray();
     const tb = $('.topbar').getBoundingClientRect(), db = $('#dock').getBoundingClientRect();
-    edge.top = tb.bottom + 10; edge.bot = innerHeight - db.top + 92;   // clear of the map and the ability button
+    edge.top = tb.bottom + 10; edge.bot = innerHeight - db.top + 92;   // clear of the map and the dash button
     callouts.place();
   }
   function sunDial(t, soon, moon = false) {
@@ -226,5 +208,5 @@ export function createHud(ui) {
     for (; i < edge.pool.length; i++) edge.pool[i].hidden = true;
     if (S.over) for (const el of [...edge.pool, ...edge.tags]) el.hidden = true;
   }
-  return { toast, noteLoss, lossLine, showEpisode, showDusk, watchFrames, useAbility, dockH, updateHud, edgeMarks };
+  return { toast, noteLoss, lossLine, showEpisode, showDusk, watchFrames, dockH, updateHud, edgeMarks };
 }

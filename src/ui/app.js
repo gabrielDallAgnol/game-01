@@ -76,7 +76,7 @@ export function startApp() {
   Object.assign(ui, { holdCards, keys, setup, strip, callouts, ctoast, systemHere, firstRun });
   for (const make of MODULES) Object.assign(ui, make(ui));
   const {
-    classBeat, closePanel, dockH, edgeMarks, endJoy, hideCard, joyIn, lossLine, noteLoss, refreshPanel,
+    closePanel, dockH, edgeMarks, endJoy, hideCard, joyIn, lossLine, noteLoss, refreshPanel,
     refreshZone, showDusk, showEncounter, showEnd, showEpisode, showStart, stopPlacing, tickMini, toast, updateGhost,
     updateHud, watchFrames, cinemaFrame
   } = ui;
@@ -113,7 +113,6 @@ export function startApp() {
       if (e.t === 'over') { saves.clear(); { const L = store.get('legacy', { fame: 0, owned: {} }); S.fameEarned = fameOf(S); L.fame += S.fameEarned; store.set('legacy', L); } endT = now + 2600; ui.paused = false; closePanel(); stopPlacing(); hideCard(); if (ui.view.startOrbit) ui.view.startOrbit(); }
       if ((e.t === 'remove' || e.t === 'ruin') && ui.selected && ui.selected.type === 'building' && !S.byId.get(ui.selected.id)) closePanel();
       if (e.t === 'ledger') ui.pendingLedger = e;
-      if (e.t === 'classUp') classBeat(e);
     }
     if (events.length) solarVoice(ui, events);   // [story3]
     if (windowAtDawn) ui.game.story().release();

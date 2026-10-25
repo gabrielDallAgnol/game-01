@@ -364,19 +364,19 @@ export const STREET_GEN = {
 // Ignore it and the next dawn brings a penalty quest; ignore that too and the Camp pays.
 export const DAILY = [
   { id: 'cull', title: 'Strength Training', goal: 'Put down {n} of the Ash-Born', n: d => Math.min(30, 6 + 2 * d), stat: S => S.kills,
-    reward: d => [{ op: 'xp', n: 15 + 4 * d }, { op: 'lean', fam: 'hero', n: 0.6 }] },
+    reward: d => [{ op: 'xp', n: 15 + 4 * d }] },
   { id: 'salvage', title: 'The Gatherer\'s Round', goal: 'Carry {n} salvage home', n: d => Math.min(8, 3 + Math.floor(d / 3)), stat: S => (S.stats.pickups || 0),
-    reward: d => [{ op: 'xp', n: 10 + 3 * d }, { op: 'gold', n: 4 + Math.floor(d / 2) }, { op: 'lean', fam: 'scavver', n: 0.6 }] },
+    reward: d => [{ op: 'xp', n: 10 + 3 * d }, { op: 'gold', n: 4 + Math.floor(d / 2) }] },
   { id: 'hunt', title: 'Hunting Rights', goal: 'Hunt {n} deer or wolves', n: d => Math.min(3, 1 + Math.floor(d / 5)), stat: S => (S.stats.hunted || 0), when: S => S.night >= 2,
-    reward: d => [{ op: 'xp', n: 10 + 3 * d }, { op: 'food', n: 4 + Math.floor(d / 2) }, { op: 'lean', fam: 'ranger', n: 0.6 }] },
+    reward: d => [{ op: 'xp', n: 10 + 3 * d }, { op: 'food', n: 4 + Math.floor(d / 2) }] },
   { id: 'raise', title: 'Foundations', goal: 'Raise {n} buildings', n: d => Math.min(4, 2 + Math.floor(d / 5)), stat: S => (S.stats.built || 0),
-    reward: d => [{ op: 'xp', n: 10 + 3 * d }, { op: 'gold', n: 5 + Math.floor(d / 2) }, { op: 'lean', fam: 'heart', n: 0.4 }] },
+    reward: d => [{ op: 'xp', n: 10 + 3 * d }, { op: 'gold', n: 5 + Math.floor(d / 2) }] },
   { id: 'range', title: 'The Long Walk', goal: 'Walk {n} paces out, then come home', n: d => Math.min(70, 30 + 3 * d), stat: (S, ST) => (ST.daily && ST.daily.back ? 1e6 : 0), far: true,
-    reward: d => [{ op: 'xp', n: 15 + 4 * d }, { op: 'lean', fam: 'ranger', n: 0.6 }] },
+    reward: d => [{ op: 'xp', n: 15 + 4 * d }] },
   { id: 'beacon', title: 'A Light in the Woods', goal: 'Reach a blue beacon', n: () => 1, stat: (S, ST) => (ST.streetDone || 0), when: S => S.story.spots.length > 0,
-    reward: d => [{ op: 'xp', n: 15 + 3 * d }, { op: 'food', n: 3 }, { op: 'lean', fam: 'heart', n: 0.6 }] },
+    reward: d => [{ op: 'xp', n: 15 + 3 * d }, { op: 'food', n: 3 }] },
   { id: 'claim', title: 'Claim and Hold', goal: 'Claim a site', n: () => 1, stat: S => (S.stats.sites || 0), when: (S, open) => open > 0,
-    reward: d => [{ op: 'xp', n: 15 + 3 * d }, { op: 'gold', n: 6 }, { op: 'lean', fam: 'scavver', n: 0.5 }] },
+    reward: d => [{ op: 'xp', n: 15 + 3 * d }, { op: 'gold', n: 6 }] },
 ];
 export const DAILY_TEXT = {
   offer: '[Daily quest offered]',

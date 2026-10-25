@@ -1,5 +1,5 @@
 // Cards: the one modal at a time (showCard / hideCard, arming against stray taps), and the story's windows:
-// encounters and their choice chips, the arrival, System windows, skills, jobs (class evolution), contracts, victory.
+// encounters and their choice chips, the arrival, System windows, skills, contracts, victory.
 // The engine decides effects and words (the written story in content/story.js).
 import { $, $$, ARM_MS, audio, chronLine, esc, rich, store } from './shared.js';
 import { CONTRACT_COPY } from '../content/contracts.js';
@@ -79,7 +79,6 @@ export function createCards(ui) {
     const isNew = !st.opened; st.opened = true;
     if (enc.kind === 'arrival') return showArrival(enc);
     if (enc.kind === 'contract') return showContract(enc, st, swap || !isNew);
-    if (enc.kind === 'evolve' && enc.jobs) return showJob(enc, st, !isNew);
     if (enc.kind === 'victory') return showVictory(enc, st);
     if (enc.kind === 'skill') return showSkill(enc);
     if (enc.kind === 'window' || enc.kind === 'chapter') return showWindow(enc);
@@ -130,7 +129,6 @@ export function createCards(ui) {
     });
   }
   function revealSystem() {
-    const ab = $('#ability'); if (ui.game.heroDef.ability) { ab.hidden = false; ab.classList.remove('reveal'); void ab.offsetWidth; ab.classList.add('reveal'); }
     strip.say('[System online] Every choice is written down.', 'sys', true);
   }
   // a blessing is a skill: one line, one icon, one a dawn
@@ -154,39 +152,6 @@ export function createCards(ui) {
     showCard('info', `<div class="eyebrow"><span id="iEb"></span></div>${w.title ? `<h1 class="sm">${esc(w.title)}</h1>` : ''}<ul class="lines">${w.lines.map(l => `<li>${rich(l)}</li>`).join('')}</ul><div class="cardrow foot end"><button class="btn big" id="iOk">Go on</button></div>`, { sys: true });
     typeOn($('#iEb'), w.eyebrow, 60);
     $('#iOk').onclick = onArmed(() => { hideCard(); ui.paused = false; });
-  }
-  // ---------- the job change: a System event, bigger with each tier ----------
-  // tier 1 (Lv 15) the window opens over a dimmed world; tier 2 (Lv 30) it cracks; tier 3 (Lv 45) the whole screen
-  function showJob(enc, st, again) {
-    const t = enc.tier || 1, sel = st.sel || null, J = enc.jobs, pick = sel && J.find(j => j.cls === sel);
-    const crack = t >= 2 ? `<svg class="jcrack" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M50 0 L46 18 L54 27 L44 41 L52 52 L41 66 L49 78 L43 100" /><path d="M46 18 L30 22 L18 15" /><path d="M44 41 L62 44 L74 36" /><path d="M41 66 L26 70 L12 64" />${t >= 3 ? '<path d="M54 27 L70 20 L88 26" /><path d="M52 52 L66 58 L84 54" /><path d="M49 78 L62 84 L80 80" />' : ''}</svg>` : '';
-    const jcard = j => `<button class="jcard${j.yours ? ' yours' : ''}" data-job="${j.cls}" aria-pressed="${sel === j.cls}">
-        <span class="jhead"><span class="jglyph">${icon(j.icon || 'star')}</span><span class="jname">${esc(j.name)}</span></span>
-        ${j.famName ? `<span class="jfam${j.yours ? ' on' : ''}">${j.yours ? 'Your path · ' : ''}${esc(j.famName)} ${j.pct}%</span>` : ''}
-        <span class="jwho">${esc(j.who)}</span>
-        ${j.gain ? `<span class="jlab gain">You gain</span><ul class="jperks gain">${j.gain.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
-        <span class="jlab keep">You keep${j.keepFrom ? ` · ${esc(j.keepFrom)}` : ''}</span><ul class="jperks keep">${j.keep.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`
-          : `<ul class="jperks">${j.perks.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`}</button>`;
-    showCard('enc', `<div class="job t${t}${again ? ' shown' : ''}">${crack}
-      <div class="eyebrow"><span id="jEb"></span></div>
-      <h1 class="jt">${esc(enc.title)}</h1>
-      <p class="jpath">Your path: <b>${esc(enc.path)}</b></p>
-      <p class="jscene">${rich(enc.scene)}</p>
-      <div class="jobs n${J.length}">${J.map(jcard).join('')}</div>
-      <p class="jboss">${icon('skull')}<span>Trial: beat <b>${esc(enc.boss)}</b> at the gold MAIN marker, by day.</span></p>
-      <div class="cardrow foot spread"><button class="btn ghost sm" id="jWait">Not yet</button><button class="btn big" id="jGo" ${pick ? '' : 'disabled'}>${pick ? `Take the trial: ${esc(pick.name)}` : J.length > 1 ? 'Pick a class' : `Take the trial: ${esc(J[0].name)}`}</button></div></div>`, { sys: true, cls: `jobw jt${t}`, arm: !again, anim: !again });
-    if (J.length === 1 && !sel) { st.sel = J[0].cls; $('#jGo').disabled = false; }
-    const eb = $('#jEb'); if (again || st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; audio.play('jobOpen', t); typeOn(eb, enc.eyebrow, t >= 3 ? 26 : 40); }
-    $$('[data-job]').forEach(b => b.onclick = onArmed(() => { st.touched = true; st.sel = b.dataset.job; const y = $('#card').scrollTop; showJob(enc, st, true); $('#card').scrollTop = y; }));
-    $('#jWait').onclick = onArmed(() => { if (ui.game.choose('wait')) { encState.delete(enc.id); afterEncounter(); } });
-    $('#jGo').onclick = onArmed(() => { if (!st.sel) return; if (ui.game.choose(`trial-${st.sel}`)) { audio.play('claim'); encState.delete(enc.id); afterEncounter(); } });
-  }
-  /** the class is yours: the screen flashes in the tier's colour, the System stamps the name, the hero changes */
-  function classBeat(e) {
-    const t = e.tier || 1; let el = $('#jobBeat'); if (!el) { el = document.createElement('div'); el.id = 'jobBeat'; document.body.appendChild(el); }
-    el.className = `jb t${t}`; el.innerHTML = `<div class="jbin"><div class="jbe">${t >= 3 ? '[LEGENDARY CLASS ACQUIRED]' : '[Class acquired]'}</div><div class="jbn">${esc(e.name || '')}</div>${t >= 2 ? `<div class="jbs">${t >= 3 ? 'The city will learn this name.' : 'You are more than you were.'}</div>` : ''}</div>`;
-    el.hidden = false; void el.offsetWidth; el.classList.add('go'); audio.play('classUp', t);
-    clearTimeout(el._t); el._t = setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.hidden = true; }, 600); }, [2200, 3000, 4200][t - 1]);
   }
   // ---------- seasons as contracts ----------
   function showContract(enc, st, swap) {
@@ -226,5 +191,5 @@ export function createCards(ui) {
     const eb = $('#vEb'); if (st.ebDone) eb.innerHTML = sysRich(enc.eyebrow); else { st.ebDone = true; typeOn(eb, enc.eyebrow, 60); }
     $('#vOk').onclick = onArmed(() => { st.touched = true; if (ui.game.choose('take')) { const L = store.get('legacy', { fame: 0, owned: {} }); L.fame += enc.reward.fame; store.set('legacy', L); audio.play('claim'); afterEncounter(); } });
   }
-  return { showCard, onArmed, hideCard, showEncounter, showInfo, classBeat };
+  return { showCard, onArmed, hideCard, showEncounter, showInfo };
 }

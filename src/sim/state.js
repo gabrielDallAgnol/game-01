@@ -94,7 +94,7 @@ export const BIG = 1.6; // mobs at least this size count as "big game"
 export function createState({ seed, biome, map, hero, mode, clock, difficulty, legacy, HC }) {
   const c = map.town.x;
   const S = {
-    seed, biome, map, heroClass: hero, mode, evo: { calling: null, offered: {} }, path: { hero: 0, ranger: 0, scavver: 0, heart: 0 }, lvl: 1, xp: 0, night: 1, phase: 'day', time: 0,
+    seed, biome, map, heroClass: hero, mode, lvl: 1, xp: 0, night: 1, phase: 'day', time: 0,
     stock: { ...PACK_RULES.start }, packs: [], difficulty: DIFFICULTY[difficulty] ? difficulty : 'survivor', handsUsed: 0, handsExtra: 0, heat: 0, noise: 0, noiseChoice: 0, noiseSpike: 0, mourned: 0, diffNight: 0, tools: { flare: 0, smoke: 0 }, eruption: null, heatCool: 0, blackout: false, foreman: false, feat: {}, season: { n: 1, id: SEASONS[0].id, rule: SEASONS[0].rule || null, rules: SEASONS[0].rule ? [SEASONS[0].rule] : [], name: SEASONS[0].name, finale: SEASONS[0].finale, end: seasonEnd(1), start: 1, won: false },
     gold: START.gold, food: START.food, kills: 0, events: [],
     buildings: [], occ: new Int32Array(N * N).fill(-1), res: new Int32Array(N * N).fill(-1),
@@ -102,7 +102,7 @@ export function createState({ seed, biome, map, hero, mode, clock, difficulty, l
     mobs: [], projectiles: [], chests: [], purses: [], allies: [], nextId: 1, queue: [], qT: 0, purge: null, nightFlags: {},
     P: freshPerkState(), picks: [], pendingPicks: 0, offer: [], offerSource: null, chestsHeld: 0, dawns: 0,
     reroll: { free: REROLL.free, cost: REROLL.base }, trade: null, halfUpgrade: false,
-    ability: { cd: 0, hires: 0 }, weather: 'clear', clock, dayT: 0, dayQueue: [], drops: [], landmarks: map.landmarks.map(l => ({ ...l, owned: false })), seen: new Uint8Array(N * N), seenVersion: 0, builders: null, survivors: START.survivors,
+    weather: 'clear', clock, dayT: 0, dayQueue: [], drops: [], landmarks: map.landmarks.map(l => ({ ...l, owned: false })), seen: new Uint8Array(N * N), seenVersion: 0, builders: null, survivors: START.survivors,
     log: [], cur: null, over: false, won: false,
     sealed: Uint8Array.from(map.regions, r => (r.ring > 2 ? 1 : 0)) /* only the old core is behind the quarantine fence */, kits: {}, pickups: [], sealVersion: 0, legacy: { ...legacy },
     hero: { x: c, y: c + 3.5, r: 0.4, hp: HC.hp, maxHp: HC.hp, cd: 0, dead: false, respawn: 0, target: null, input: { x: 0, y: 0 }, face: 0, swing: 0, guardT: 0, attacks: 0, carry: { scrap: 0, food: 0 } },

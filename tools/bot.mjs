@@ -130,19 +130,10 @@ const PERK_PACT = {};
 for (const p of PERKS) { PERK_FAM[p.id] = p.fam; PERK_PACT[p.id] = !!p.pact; }
 
 /** steer the hero for one decision tick: fight what threatens the town, else rest at the keep */
-function useAbilityBot(g) {
-  const S = g.state, h = S.hero, t = g.map.town, A = g.heroDef.ability;
-  if (!A || S.phase !== 'night' || S.ability.cd > 0 || h.dead) return;
-  if (A.id === 'bounty') { if (S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) < 9).length >= 4) g.useAbility(); }
-  else if (A.id === 'hire') { const near = S.mobs.filter(m => Math.hypot(m.x - t.x, m.y - t.y) < 9).length; if (near >= 4 && S.gold >= g.abilityCost() + 6) g.useAbility(); }
-  else if (A.id === 'warcry') { if (S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) < 5).length >= 4 && h.hp > h.maxHp * 0.5) g.useAbility(); }
-  else if (A.id === 'volley') { if (S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) < 10).length >= 4) g.useAbility(); }
-}
 export function heroTick(g, mode) {
   const S = g.state, h = S.hero, t = g.map.town;
   if (h.dead) return;
   if (g.heroDef.collects && mode !== 'idle') {
-    useAbilityBot(g);
     const p = S.purses.filter(q => Math.hypot(q.x - t.x, q.y - t.y) < 12).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
     if (p) g.heroTo(p.x, p.y); else if (S.chests.length) g.heroTo(S.chests[0].x, S.chests[0].y); else g.heroTo(t.x, t.y + 3.5);
     return;
@@ -152,7 +143,6 @@ export function heroTick(g, mode) {
     if (S.chests.length) { const ch = S.chests[0]; g.heroTo(ch.x, ch.y); } else g.heroTo(t.x, t.y + 3.5);
     return;
   }
-  useAbilityBot(g);
   const lowHp = h.hp < h.maxHp * 0.3;
   const threats = S.mobs.filter(m => m.rise >= 1 && Math.hypot(m.x - t.x, m.y - t.y) < 16).sort((a, b) => Math.hypot(a.x - t.x, a.y - t.y) - Math.hypot(b.x - t.x, b.y - t.y));
   if (lowHp) { g.heroTo(t.x, t.y + 3.5); return; }

@@ -86,7 +86,6 @@ export function createStart(ui) {
     window.__game = ui.game; window.__view = ui.view; window.__openSel = sel => ui.openSel(sel);
     window.__ui = { strip, callouts, ctoast, showStatus: ui.showStatus, showMore: ui.showMore, showMap: ui.showMap, cards: () => ui.card, toast: ui.toast };
     $('#hud').hidden = false; ui.hideCard(); ui.paused = false; ui.selected = null; ui.placing = null; ui.closePanel();
-    $('#ability').hidden = true;
     if (snap) { previouslyOn(); }
     else setTimeout(() => subtitle(SYSTEM.dayOne), 2700);
     holdCards(0.3);

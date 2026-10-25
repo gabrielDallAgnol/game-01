@@ -52,7 +52,6 @@ test('v2: three nights with none of the old systems', () => {
   assert.deepEqual(S.picks, []); assert.deepEqual(S.offer, []);
   assert.ok(!g.road, 'no road');
   assert.ok(g.forecast().every(f => S.hordes && S.hordes.spots.some(h => -1 - h.edge === f.nest)), 'the only forecast is a marching horde (the V2 night)');
-  assert.equal(g.useAbility(), false, 'no class ability');
   const nest = g.map.regions.find(reg => reg.nest && S.nestAlive[reg.id]);
   if (nest) assert.equal(g.hitHive(nest.id, 999), false, 'no siege');
   assert.ok(!evs.some(e => e.t === 'toast' && /blessing|Stat Point|Haven Rig|Contract|Inferno Nest awake|Flare Night|come in force/.test(e.msg)), 'no toast from the cut systems');

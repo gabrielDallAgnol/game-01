@@ -115,12 +115,7 @@ b,strong{font-weight:700}
 #info .soon{color:var(--ember)}#info .trip{color:var(--bone)}#info .trip.late{color:var(--blood)}
 #info .erupt{color:#fff;background:var(--blood);border-radius:10px;padding:1px 8px}
 .sundial{display:inline-flex;color:var(--bone)}.sundial .sun{fill:#ffd27a;filter:drop-shadow(0 0 3px #ffb347)}.sundial.soon .sun{fill:var(--ember)}.sundial.moon .sun{fill:#cfe0ff;filter:drop-shadow(0 0 3px #9fc0ff)}
-.ability{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--dockH,72px) + 12px);width:68px;height:68px;border-radius:50%;
   background:conic-gradient(rgba(10,14,15,.72) calc(var(--cd,0) * 360deg),transparent 0),var(--amber);color:#1f1407;border:2px solid rgba(255,236,200,.55);display:grid;place-content:center;gap:2px;text-align:center;box-shadow:0 6px 18px rgba(0,0,0,.45)}
-.ability .an{font:700 14px/1 var(--display);letter-spacing:.04em;text-transform:uppercase;padding:0 6px}
-.ability .ac{font:600 13px/1 var(--display);display:inline-flex;gap:3px;align-items:center;justify-content:center}
-.ability.cool{background:conic-gradient(rgba(240,166,73,.35) calc(var(--cd,0) * 360deg),transparent 0),var(--camp-solid);color:var(--bone);border-color:var(--line)}
-.ability.reveal{animation:reveal .7s var(--ease-b)}@keyframes reveal{0%{transform:scale(.2);opacity:0}100%{transform:none;opacity:1}}
 #mini{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(var(--dockH,72px) + 12px);width:68px;height:68px;border-radius:14px;border:1.5px solid rgba(255,236,200,.4);background:#0b0d0e;pointer-events:auto;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.45);image-rendering:pixelated}
 /* panels and the build drawer (solid: no blur) */
 #panel{pointer-events:auto;width:min(560px,100%);max-height:46vh;overflow:auto;background:var(--camp-solid);border:1px solid var(--line);border-radius:16px;padding:8px 12px 12px}
@@ -273,7 +268,7 @@ b,strong{font-weight:700}
 @keyframes bopen{from{transform:scaleY(.006)}to{transform:none}}
 @keyframes bfade{from{opacity:0}to{opacity:1}}
 .card.closing{animation:bclose .1s ease-in both}@keyframes bclose{to{transform:scaleY(.01);opacity:0}}
-@media (prefers-reduced-motion:reduce){.card.beat-line,.card.beat-open,.card.beat-open>*,.card.closing,#episode.go,#subtitle.go,.ctoast,.callout,.sysbar.beat,.ability.reveal{animation:none!important}.caret{display:none}#episode.go{opacity:1}}
+@media (prefers-reduced-motion:reduce){.card.beat-line,.card.beat-open,.card.beat-open>*,.card.closing,#episode.go,#subtitle.go,.ctoast,.callout,.sysbar.beat{animation:none!important}.caret{display:none}#episode.go{opacity:1}}
 /* the arrival: the window types itself into the air */
 .arrival .lines{font-size:16px;line-height:23px}
 .arrival .gifts{display:grid;gap:8px;margin-top:8px}
@@ -450,7 +445,6 @@ table.log{border-collapse:collapse;font:13px var(--body);font-variant-numeric:ta
     <div class="bar"><button class="btn" id="buildBtn" aria-expanded="false" aria-controls="tray"><svg class="ic" aria-hidden="true"><use href="#i-build"/></svg><span>Build</span></button><div id="info"></div></div>
   </div>
 </div>
-<button id="ability" class="ability" hidden><span class="an"></span><span class="ac"></span></button>
 <div id="joy" class="joy" hidden><i></i></div>
 <div id="edge"></div>
 <div id="ctoasts" aria-live="polite"></div>
