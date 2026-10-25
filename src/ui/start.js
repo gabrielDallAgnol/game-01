@@ -70,9 +70,13 @@ export function createStart(ui) {
     const list = LEGACY.filter(u => FLAGS.legacyAll || LEGACY_KEEP.includes(u.id));
     return `<h2 style="font:600 12px var(--mono);letter-spacing:.12em;text-transform:uppercase;margin:18px 0 0">Legacy · ${L.fame} fame</h2><div class="legacy">${list.map(u => { const n = L.owned[u.id] || 0; return `<button class="opt" data-legacy="${u.id}" ${n >= u.max || L.fame < u.cost ? 'disabled' : ''}><span class="nm">${u.name} ${n ? `${n}/${u.max}` : ''}<span class="cost">${n >= u.max ? 'max' : `${u.cost} fame`}</span></span><span class="ds">${u.desc.replace(/town hall/i, 'Haven')}</span></button>`; }).join('')}</div>`;
   }
-  function begin(mapSeed, biome, snap = null) {
+  function begin(mapSeed, biome, snap = null, made = null) {
     $('#overlay').classList.remove('start');
-    ui.game = snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {} })
+    // [rig3] begin: the next act's game, made by sim/migrate.js: a fresh view for its map (the old one is let go)
+    if (made && ui.view) { try { ui.view.dispose(); } catch (err) { console.error(err); } ui.view = null; }
+    if (made) mapSeed = made.map.seed;
+    // [rig3] end
+    ui.game = made ? made : snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {} })
       : createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty, legacy: store.get('legacy', { owned: {} }).owned });
     ui.names = regionNames(mapSeed, ui.game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
@@ -86,7 +90,8 @@ export function createStart(ui) {
     // [road] end
     $('#hud').hidden = false; ui.hideCard(); ui.paused = false; ui.selected = null; ui.placing = null; ui.closePanel();
     $('#ability').hidden = true;
-    if (snap) { previouslyOn(); }
+    if (made) { /* [rig3] the Rig's arrival speaks for itself */ }
+    else if (snap) { previouslyOn(); }
     else setTimeout(() => subtitle(SYSTEM.dayOne), 2700);
     holdCards(0.3);
   }
@@ -110,5 +115,5 @@ export function createStart(ui) {
     inventToday.busy = true;
     chronicler.invent(ui.game.story().fullContext(), QUEST_TEMPLATES).then(q => { inventToday.busy = false; if (q && ui.game && !ui.game.state.over) ui.game.story().invent(q); });
   }
-  return { showStart, inventToday };
+  return { showStart, inventToday, beginRun: begin };   // [rig3] beginRun: the act change swaps the game in
 }

@@ -78,6 +78,8 @@ export function createApi(G) {
     hiveEdge: (r, x, y) => G.nestEdge(map.regions[r], x, y), hiveInReach: (x, y, reach) => { const r = G.hiveInReach(x, y, reach); return r ? r.id : -1; },   // [nests] reach is measured to the edge; a strike needs clear sight
     infernoInfo: r => G.inferno.info(r), infernoNearest: (x, y, d) => G.inferno.nearest(x, y, d),   // [nest3] a nest's three-phase siege
     spawnAnimals: () => G.spawnAnimals(),   // [woods] the dawn top-up of the woods' game (tests, tools)
+    // [rig3] the Haven Rig: its systems and cargo (info), why it cannot roll ('' when it can), pack up (salvage + roll)
+    rigInfo: () => G.rigInfo(), rigBlock: () => G.rigBlock(), rigPack: () => G.rigPack(), salvagePct: id => { const b = S.byId.get(id); return b ? G.salvagePct(b) : 0; },
   };
   return api;
 }

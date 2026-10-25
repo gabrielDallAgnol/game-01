@@ -14,6 +14,7 @@ import { bake, vcMat } from './figures.js';
 
 // ground colours (sRGB): soft pastel-earthy by day; the grade and the night light do the rest
 const GROUND = PAL.ground;   // [look3] tokens live in palette.js
+export const GROUND_TINT = GROUND;   // [rig3] an act tints the ground (view/legs.js); paint() reads it at call time
 const FLOOR = 0.85, GROUND_FLOOR = 1.05;
 export const HIGH = 1.1;     // height of the plateaus (high ground)
 const GCH = 64;              // ground chunk size (cells)

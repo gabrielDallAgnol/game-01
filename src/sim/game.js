@@ -55,16 +55,20 @@ import { createWoods } from './woods.js';
 import { createTowers } from './towers.js';
 // [income] scrap and food by the second
 import { createIncome } from './income.js';
+// [rig3] the Haven Rig (the keep that moves) and an act's map theme
+import { createRig } from './rig.js';
+import { themeMap } from './legmap.js';
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, NIGHT_TAIL, STREAM, ZONE, TOWN_DRAW, CREW_NEED, SAVE_V, CUT, HEAT, NOISE, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, RATING, TENSION, PRESENCE, TOOLS, NEST, REGEN };
 
 // the rule modules, in creation order (core first: the others destructure its helpers)
-const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno];   // [nest3] appended   // [pacify] appended
+const MODULES = [createCore, createEconomy, createBuildings, createBuild, createWaves, createForecast, createCombat, createNoise, createBrain, createHives, createLoot, createDistricts, createSeasons, createHero, createBlessings, createSave, createActs, createSpots, createNests, createPacify, createFolkBuild, createSteer, createWoods, createTowers, createIncome, createInferno, createRig];   // [nest3] appended   // [pacify] appended
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {} } = {}) {
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, carry = null, leg = null, premap = null } = {}) {
   if (hero === 'steward') hero = 'merchant';
-  const map = generateMap(mapSeed ?? seed, biome);
+  const map = premap && premap.seed === (mapSeed ?? seed) && premap.biome === biome ? premap : generateMap(mapSeed ?? seed, biome);   // [rig3] premap: a fresh map migrate.js already made
+  if (map !== premap) themeMap(map, leg ?? (restore && restore.rig && restore.rig.leg) ?? 1);   // [rig3] the act's ground and props
   const HC = heroKit(hero), DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
   const c = map.town.x;
   const S = createState({ seed, biome, map, hero, mode, clock, difficulty, legacy, HC });
@@ -144,6 +148,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // [road] begin
   if (G.road) { G.road.attach(G.api); if (restore && restore.road) G.road.load(restore.road); }
   // [road] end
+  if (carry) G.rigArrive(carry);   // [rig3] the next act: what rode along on the Haven Rig
   return G.api;
 
   // ---------- simulation step ----------
@@ -210,5 +215,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [income] begin: scrap and food trickle in by the second (sim/income.js)
     G.stepIncome(dt);
     // [income] end
+    G.stepRig(dt);   // [rig3] the Haven Rig's systems, the road-open beat, unpacking
   }
 }
