@@ -31,7 +31,7 @@ export function createEconUi(ui) {
     if (chip && chip.isConnected) return chip;
     const host = document.querySelector('.rd-dock');
     chip = document.createElement('div'); chip.className = 'rd-chip mini warm eq-chip'; chip.hidden = true;
-    if (host) host.appendChild(chip); else { chip.style.cssText = 'position:fixed;left:16px;right:16px;bottom:calc(var(--dockH,72px) + 10px);z-index:5'; document.body.appendChild(chip); }
+    if (host) host.appendChild(chip); else { chip.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);width:min(200px,50vw);bottom:calc(var(--dockH,72px) + 12px);z-index:5;background:rgba(14,18,24,.82);border:1px solid rgba(255,200,120,.35);border-radius:12px;padding:4px 8px;font-size:12px;color:#f4ead2'; document.body.appendChild(chip); }
     chip.addEventListener('click', e => {
       if (!has()) return;
       const g = ui.game, mv = e.target.closest('[data-mv]'), cx = e.target.closest('[data-cx]');
