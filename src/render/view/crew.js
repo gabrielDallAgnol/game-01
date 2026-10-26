@@ -79,7 +79,7 @@ export function createCrewView(V) {
       o.fig.material.map = s.state === 'away' && Math.floor(time * 2) % 2 ? o.texWave : o.texIdle;
       o.help.position.copy(p); o.help.visible = s.state === 'away'; o.help.scale.setScalar(1 + 0.15 * Math.sin(time * 3));
       o.esc.position.copy(p); o.esc.visible = walking; o.esc.scale.setScalar(1 + 0.1 * Math.sin(time * 6));
-      const seen = V.seenAt(o.x, o.y), tp = Wv(o.x, o.y, 4.2); tp.z -= 1.9 * k;
+      const seen = V.seenAt(o.x, o.y), tp = Wv(o.x, o.y, 4.2); tp.z += 1.7 * k;   // under the figure: the System's lines stack above
       o.tag.visible = seen && !walking; o.tagWalk.visible = seen && walking;
       for (const tg of [o.tag, o.tagWalk]) { tg.position.copy(tp); tg.scale.set((tg === o.tag ? 5.4 : 8.4) * k, 1.22 * k, 1); }
       o.fig.visible = seen;
