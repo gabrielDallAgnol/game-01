@@ -16,7 +16,7 @@ export const HORDES = {
   marches: n => [0, 1, 1, 1, 1, 2, 1][n - 1] ?? 2,
   marchSize: n => [0, 5, 7, 8, 10, 8, 12][n - 1] ?? 10 + 2 * (n - 7),
   brutes: n => (n >= 5 ? 1 : 0),   // Slag Brutes at the head of every march from night 5
-  press: 7,            // a march grows by this many seconds of the camp's tower fire (in Cinders): the guns are a match, not a wall
+  press: 4,            // a march grows by this many seconds of the camp's tower fire (in Cinders): the guns are a match, not a wall
   spacing: 0.35,       // seconds between the dead of a march leaving (a clump, not a queue: 0.7 before Oct 26)
   marchFrom: 70,       // a far horde's march sets off this far from the camp, on its way in (m): ~50 s at a Cinder's pace
 };
