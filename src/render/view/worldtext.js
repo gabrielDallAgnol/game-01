@@ -12,16 +12,24 @@ export function createWorldTextView(V) {
   const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
   // ---------- graffiti: words split into lines, sprayed onto a ground decal ----------
   function wrap(text, n) { const out = []; let line = ''; for (const w of text.split(' ')) { if ((line + ' ' + w).trim().length > n && line) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); } if (line) out.push(line); return out; }
+  // [polish] a short, fitted tag: lines of ~11 letters (2–3 lines), letters ~0.55 m tall, the decal sized to its words
+  // (nothing clipped), sprayed: a soft overspray halo, a dark edge that reads on pale paving, a bright fill for asphalt
+  const LETTER = 0.66, FPX = 72;
   function decal(g) {
-    const lines = wrap(g.text, 16), col = SPRAY[hash(g.id) % SPRAY.length], W = 512, H = 96 + 78 * lines.length;
+    let lines = wrap(g.text, 11); if (lines.length > 3) lines = wrap(g.text, Math.ceil(g.text.length / 3) + 2);
+    const col = SPRAY[hash(g.id) % SPRAY.length], font = `900 ${FPX}px "Permanent Marker", "Arial Black", Impact, sans-serif`;
+    const probe = document.createElement('canvas').getContext('2d'); probe.font = font;
+    const tw = Math.max(...lines.map(l => probe.measureText(l).width)), LH = FPX * 1.02, pad = 40;
+    const W = Math.ceil(tw + pad * 2), H = Math.ceil(LH * lines.length + pad * 2);
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const x = cv.getContext('2d');
-    x.translate(W / 2, H / 2); x.rotate(g.rot); x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round';
-    x.font = '900 64px "Permanent Marker", "Arial Black", Impact, sans-serif';
-    lines.forEach((l, k) => { const y = (k - (lines.length - 1) / 2) * 78; x.lineWidth = 14; x.strokeStyle = 'rgba(10,8,10,0.75)'; x.strokeText(l, 0, y); x.fillStyle = col; x.fillText(l, 0, y);
-      x.globalAlpha = 0.35; for (let d = 0; d < 6; d++) { const dx = ((hash(g.id + l + d) % 300) - 150), dy = y + 30 + (hash(l + d) % 30); x.fillRect(dx, dy, 3, 8 + (hash(l + g.id + d) % 26)); } x.globalAlpha = 1; });   // drips
+    x.translate(W / 2, H / 2); x.textAlign = 'center'; x.textBaseline = 'middle'; x.lineJoin = 'round'; x.font = font;
+    lines.forEach((l, k) => { const y = (k - (lines.length - 1) / 2) * LH;
+      x.save(); x.shadowColor = col; x.shadowBlur = 10; x.globalAlpha = 0.3; x.fillStyle = col; x.fillText(l, 0, y); x.restore();   // overspray
+      x.lineWidth = 10; x.strokeStyle = 'rgba(12,10,14,0.9)'; x.strokeText(l, 0, y); x.fillStyle = col; x.fillText(l, 0, y);
+      x.globalAlpha = 0.5; x.fillStyle = col; for (let d = 0; d < 4; d++) { const dx = ((hash(g.id + l + d) % 1000) / 1000 - 0.5) * tw * 0.9, dy = y + FPX * 0.42 + (hash(l + d) % 10); x.fillRect(dx, dy, 4, 8 + (hash(l + g.id + d) % 20)); } x.globalAlpha = 1; });   // drips
     const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, color: new THREE.Color(1, 1, 1) });   // on the pavement: roofs and trees cover it
-    const w = 5.2, geo = new THREE.PlaneGeometry(w, w * H / W); geo.rotateX(-Math.PI / 2);
+    const k = LETTER / FPX, geo = new THREE.PlaneGeometry(W * k, H * k); geo.rotateX(-Math.PI / 2); geo.rotateY(-g.rot);
     const m = new THREE.Mesh(geo, mat); m.position.copy(Wv(g.x, g.y, 0.1)); m.userData.at = { x: g.x, y: g.y }; m.renderOrder = 4; world.add(m);
     return m;
   }
