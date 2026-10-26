@@ -35,3 +35,16 @@ test('graffiti: every tag stands on open ground, apart from the others', () => {
   const sq = L.filter(q => q.id.startsWith('g.square'));
   for (const a of sq) for (const b of sq) if (a !== b) assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= 9, 'the opening tags do not overlap');
 });
+
+test('opening fixes: no folk tithe in chapter 1, the bunks objective points somewhere, one [Party] line a rescue', () => {
+  const g = make(), S = g.state;
+  assert.equal(S.folk.on, false, 'nobody builds farms in chapter 1');
+  assert.ok(g.chapterJump('q2.bunks'));
+  S.gold = 50; S.parts = 0; let o = g.chapter().objective;
+  assert.ok(o.x !== null && /parts/.test(o.text), `short of parts: points at a car to strip (${o.text})`);
+  S.parts = 10; o = g.chapter().objective;
+  assert.equal(o.x, S.keep.x, 'affordable: points at the Rig');
+  S.rig.lv.bunks = 1; g.drainEvents(); g.chapterJump('q2.hold'); for (let k = 0; k < 30; k++) g.step();
+  const party = g.drainEvents().filter(e => e.t === 'sys1' && /^\[Party: 2\]/.test(e.text));
+  assert.equal(party.length, 1, 'Lotte home: one [Party: 2]');
+});

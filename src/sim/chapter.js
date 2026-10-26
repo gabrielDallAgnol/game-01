@@ -11,6 +11,7 @@ import { PACE, WORK, PACKS, NEST1, FINALE } from '../content/ch1tune.js';
 import { TIDE } from '../content/mobs.js';
 
 const BYID = Object.fromEntries(STEPS.map(s => [s.id, s]));
+const RIG_MOD = { bunks: 'bunks', roofTurret: 'roofTurret' };   // [polish] build goals that are Rig modules
 // what a goal reads as over Kai (the step's own sys line wins)
 const PLACE_WORD = { watertower: 'the water tower', townhall: 'the town hall', shed: 'the goods shed', garage: 'your garage', hut: 'the hut at Mast Two', rig: 'the Rig', works: 'the Engine Works', cinema: 'the cinema' };
 export function goalText(s) {
@@ -188,6 +189,7 @@ export function createChapter(G) {
     // the old card engine is quiet in chapter 1: the story is told in the world
     G.story.tick = () => {}; G.story.dawn = () => {};
     for (let i = S.events.length - 1; i >= 0; i--) if (S.events[i].t === 'episode') S.events.splice(i, 1);
+    if (!S.restored && S.folk) { S.folk.on = false; S.folk.ver = (S.folk.ver || 0) + 1; }   // [polish] no townsfolk build farms in chapter 1 (they kept a share of Kai's scrap)
     if (!S.restored) { S.dayT = 0; for (const l of SYS1.wake) sys(l); for (const s of STEPS) if (s.trigger.on === 'start') open(s.id); }
     else { for (const [id, p] of Object.entries(ch().packs)) if (id !== 'chase' && p.left) { const left = p.left; delete ch().packs[id]; spawnPack(id, p.x, p.y, left, { kind: p.kind }); } }
   }
@@ -202,7 +204,18 @@ export function createChapter(G) {
     if (ch().roll > 0) ch().roll -= dt;
     checkGoals();
   }
-  const objective = () => { const o = ch() && ch().open.map(id => BYID[id]).filter(s => !s.optional && s.goal.op !== 'survive'); const s = o && o[o.length - 1]; if (!s) return null; const g = s.goal, p = P(), pl = p[g.place || g.nest || (g.horde === 'townhall' ? 'townhall' : g.horde === 'works' ? 'works' : g.op === 'carry' ? 'rig' : '')]; let w = ch().work.find(q => q.step === s.id); if (!w && g.op === 'salvage' && g.what === 'car' && G.salvageSpots) { const h = hero(); w = G.salvageSpots().filter(q => /car|van|bus|tractor/.test(q.kind) && !G.salvaged(q.id)).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0]; } return { id: s.id, text: goalText(s), x: w ? w.x : pl ? pl.at.x : null, y: w ? w.y : pl ? pl.at.y : null, n: g.n || 0, have: ch().prog[s.id] || 0 }; };
+  const objective = () => { const o = ch() && ch().open.map(id => BYID[id]).filter(s => !s.optional && s.goal.op !== 'survive'); const s = o && o[o.length - 1]; if (!s) return null; const g = s.goal, p = P(), pl = p[g.place || g.nest || (g.horde === 'townhall' ? 'townhall' : g.horde === 'works' ? 'works' : g.op === 'carry' ? 'rig' : '')]; let w = ch().work.find(q => q.step === s.id); if (!w && g.op === 'salvage' && g.what === 'car' && G.salvageSpots) { const h = hero(); w = G.salvageSpots().filter(q => /car|van|bus|tractor/.test(q.kind) && !G.salvaged(q.id)).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0]; } // [polish] begin: a Rig module to build points at the Rig; short of scrap or parts it points at the nearest car to strip
+    let text = goalText(s);
+    if (!w && !pl && g.op === 'build' && RIG_MOD[g.what] && G.rigBlock) {
+      const why = G.rigBlock(RIG_MOD[g.what]), short = /^Needs \d+ (scrap|parts)/.exec(why || '');
+      if (short && G.salvageSpots) { const h = hero(), want = short[1] === 'parts' ? /bus|tractor|machine|van/ : /car|van|bus|tractor/;
+        const near = list => list.filter(q => !G.salvaged(q.id)).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+        w = near(G.salvageSpots().filter(q => want.test(q.kind))) || near(G.salvageSpots().filter(q => /car|van|bus|tractor/.test(q.kind)));
+        text = `${text} ${why} Salvage.`; }
+      else if (!why) w = { x: keep.x, y: keep.y };
+    }
+    // [polish] end
+    return { id: s.id, text, x: w ? w.x : pl ? pl.at.x : null, y: w ? w.y : pl ? pl.at.y : null, n: g.n || 0, have: ch().prog[s.id] || 0 }; };
   const chapterInfo = () => (S.ch ? { open: ch().open.slice(), done: ch().done.slice(), objective: objective(), work: ch().work.map(w => ({ id: w.id, x: w.x, y: w.y, t: w.t, time: w.time, label: w.label, at: ch().at === w.id })), item: ch().item, roll: ch().roll, district: ch().district, ended: !!ch().ended, stats: ch().stats || null } : null);
   /** tests and screenshots: close every step before `id` (paying its reward) and open `id`, the night moved up to its beat */
   function chapterJump(id) {

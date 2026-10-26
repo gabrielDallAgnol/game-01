@@ -93,14 +93,14 @@ export const STEPS = [
   { id: 'q2.bunks', night: 2, trigger: { on: 'enter', place: 'watertower' }, world: { notes: ['n.tower.1', 'n.tower.2'], graffiti: ['g.tower.1'] },
     goal: { op: 'build', what: 'bunks' }, reward: { xp: 2 } },
   { id: 'q2.ladder', night: 2, trigger: { on: 'done', step: 'q2.bunks' }, world: { cue: 'the fallen ladder at the tower foot sparks' },
-    goal: { op: 'repair', place: 'watertower', time: 5, cost: { scrap: 4 } }, reward: { survivor: 'lotte', xp: 4 }, sys: '[Party: 2]' },
+    goal: { op: 'repair', place: 'watertower', time: 5, cost: { scrap: 4 } }, reward: { survivor: 'lotte', xp: 4 } },   // [polish] the rescue says [Party: n] itself (survivors.js)
   { id: 'q2.hold', night: 2, trigger: { on: 'dusk', night: 2 }, world: { radio: ['r.2'] }, goal: { op: 'survive' }, reward: { scrap: 5, xp: 5 } },
 
   // ---- night 3: stamped and filed ----
   { id: 'q3.stamps', night: 3, trigger: { on: 'search', district: 'main', n: 1 }, world: { notes: ['n.main.1', 'n.main.2', 'n.main.3'], graffiti: ['g.main.1'] },
     goal: { op: 'reach', place: 'townhall' }, reward: { xp: 2 } },
   { id: 'q3.steps', night: 3, trigger: { on: 'enter', place: 'townhall' }, world: { cue: 'a horde sleeps on the town hall steps; a blind twitches upstairs' },
-    goal: { op: 'break', horde: 'townhall', size: 6 }, reward: { survivor: 'benno', scrap: 6, xp: 5 }, sys: '[Party: 3]' },
+    goal: { op: 'break', horde: 'townhall', size: 6 }, reward: { survivor: 'benno', scrap: 6, xp: 5 } },   // [polish] the rescue says [Party: n] itself (survivors.js)
   { id: 'q3.roof', night: 3, trigger: { on: 'event', event: 'marchSurvived', n: 1 }, world: { notes: ['n.rig.2'] },
     goal: { op: 'build', what: 'roofTurret' }, reward: { xp: 3 } },
   { id: 'q3.glow', night: 3, trigger: { on: 'dusk', night: 3 }, world: { graffiti: ['g.west.1'], radio: ['r.3'], cue: 'the cinema sign flickers orange all night' },
@@ -116,7 +116,7 @@ export const STEPS = [
 
   // ---- night 5: mast two (Gus is optional; the chain does not wait for him) ----
   { id: 'q5.gus', night: 5, optional: true, trigger: { on: 'done', step: 'q4.voice' }, world: { notes: ['n.masts.1', 'n.masts.2'], graffiti: ['g.masts.1'], radio: ['r.5'] },
-    goal: { op: 'repair', place: 'hut', time: 6, cost: { scrap: 6, parts: 2 } }, reward: { survivor: 'gus', unlock: ['radio'], xp: 5 }, sys: '[Party: 4]' },
+    goal: { op: 'repair', place: 'hut', time: 6, cost: { scrap: 6, parts: 2 } }, reward: { survivor: 'gus', unlock: ['radio'], xp: 5 } },   // [polish] the rescue says [Party: n] itself (survivors.js)
   { id: 'q5.order', night: 5, trigger: { on: 'dawn', night: 5 }, world: { notes: ['n.main.9'], cue: 'Benno waves a yellow form at the Rig door' },
     goal: { op: 'reach', place: 'shed' }, reward: { xp: 2 } },
   { id: 'q5.hold', night: 5, trigger: { on: 'dusk', night: 5 }, world: { radio: ['r.6', 'r.7'] }, goal: { op: 'survive' }, reward: { scrap: 8, xp: 7 } },
