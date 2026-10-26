@@ -49,7 +49,7 @@ export function createPanels(ui) {
     }
     if (ui.selected.type === 'landmark') {
       const l = S.landmarks[ui.selected.id], L = LANDMARKS[l.kind], near = ui.game.landmarkReach(ui.selected.id);
-      $('#pEyebrow').textContent = l.owned ? 'Yours · a forward base' : L.signature ? 'Landmark of the city' : 'A place out there';
+      $('#pEyebrow').textContent = l.owned ? 'Yours · a forward base' : 'A place out there';
       $('#pTitle').textContent = L.name;
       let html = `<div class="stat"><span>${L.desc}</span><span>${l.owned ? 'You can build around it.' : 'Claim it and you can build around it too.'}</span></div>`;
       if (!l.owned) html += `<div class="opts one">${opt('opt-claim', 'data-claim="1"', near ? `Claim the ${L.name}` : 'Walk up to it first', near ? L.cost : null, near ? 'Yours for good: its bonus and a build zone around it.' : 'Your hero is on the way. Tap again when you are next to it.', !near || S.gold < L.cost || !day)}</div>`;

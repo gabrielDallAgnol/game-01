@@ -11,7 +11,7 @@ import { TIDE } from '../content/mobs.js';
 import { LANDMARKS } from './mapgen.js';
 
 export function createIncome(G) {
-  const { S, ev, has, owns } = G;
+  const { S, ev, has } = G;
   const NIGHT_W = TIDE.nightIncome;
   const fresh = () => ({ g: 0, f: 0, dayAcc: 0, nightAcc: 0, ph: S.phase, made: 0, ate: 0, gold: 0, fedW: 0, w: 0, rr: 0, tickG: 0, tickF: 0 });
   const I = () => S.inc || (S.inc = fresh());
@@ -32,8 +32,6 @@ export function createIncome(G) {
     let gold = Math.round((START.baseIncome * G.DIFF.eco * tk.base + S.P.tax + hg * tk.house * fed) * pr) - G.upkeep() + storyGold();
     if (has('granary')) gold += Math.floor(S.food / 5);
     for (const l of S.landmarks) if (l.owned) gold += LANDMARKS[l.kind].gold || 0;
-    if (owns('tvtower')) gold += 3;
-    if (G.HC.quarter) gold += 4;
     return { gold, made, need, fed };
   }
   let cache = null, cacheT = -1;

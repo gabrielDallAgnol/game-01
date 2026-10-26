@@ -1,10 +1,10 @@
-// The world of "The Solar Flare": canon, the opening, the crew, the acts and the System's voice. Pure words (no numbers):
+// The world of "The Solar Flare": canon, the opening, the crew and the turn-of-day lines. Pure words (no numbers):
 // the engine owns every number. Player-facing names live here and in the other content files; code ids
-// (walker, hive, keep…) are never renamed. The Chronicler (ui/story-ai.js) gets CANON so its text stays on-world.
+// (walker, hive, keep…) are never renamed. CANON is the world in a paragraph for writers.
 
 export const GAME_TITLE = { kick: '[Thermal Pioneer System]', name: 'Hold', name2: 'Hollowmere', sub: 'The Solar Flare', pitch: 'The sky flared and the town burned. You took the charge. Now hold the Haven.' };
 
-// the world in a paragraph, for the Chronicler (never contains numbers) and for new writers
+// the world in a paragraph, for new writers (never contains numbers)
 export const CANON = `WORLD: A hot summer afternoon. At a suburban shipping depot the Solar Zenith Flare fried every electronic and left roughly four in ten people with Sudden Thermal Shock: they became the Ash-Born, charcoal-black husks with glowing orange cracks, frenzied, drawn to heat, fuel and living warmth (they are NOT rotting zombies; never write zombie, undead, walker or miasma). The hero is a quiet logistics worker who, trapped under a fallen rack shielding coworkers, absorbed the charge instead of burning; a blue System window woke ("THERMAL PIONEER SYSTEM", terse, in square brackets, with stat points). The base is the Haven Rig: a caution-yellow diesel flatbed hauler that survived the blast, armoured with scrap by the crew (outriggers, orange awnings, a humming solar pylon, halogen lights); the settlement around it is the Haven. When the suburbs run dry the Rig migrates along cracked highways toward cooler mountain valleys where a government bunker is rumoured to survive. Inferno Nests are Ash-Born gathered round heat sources (gas stations, substations, boilers); killing the core snuffs the fire and opens the road. Crew: Dee Okafor (auto mechanic, dry humour), Juno Reyes (high-school track athlete, scout, fast and cheerful), Gloria Pike (retail manager, runs the Haven, relentless optimist). Mobs: Cinder (basic), Flicker (fast), Ember Crawler, Slag Brute (big), Spark Spitter, Boiler Bloat (bursts), Siren (screams), Husk (risen), Inferno Warden and Cinder Lord (bosses). A bad night is a Flare Night. Acts: I The Depot Suburbs, II The Rail Yard.`;
 export const TONE_WORLD = 'Tone: colourful, warm, hopeful-but-tense frontier adventure (World of Warcraft and Red Alert 2 colours, Shangri-La Frontier, Solo Leveling\'s System): vivid, concrete, short sentences; PG-13, no gore detail; never grim or hopeless; no real brands or real people; never mention AI or that this is a game. The System speaks only inside [square brackets], terse and a little dry.';
 
@@ -26,16 +26,6 @@ export const CREW_BIO = [
   { id: 'gloria', name: 'Gloria Pike', role: 'Retail manager', blurb: 'Runs the Haven like a store at Christmas. Everyone gets a shift and a snack.' },
 ];
 
-// ---------- the System's voice: terse, bracketed, a little dry ----------
-export const SYS = {
-  dayOne: 'Light the fire. **The heat draws them at dusk.**',
-  levelUp: lvl => `[LEVEL UP · ${lvl}] The Thermal Pioneer System approves.`,
-  quest: t => `[QUEST] ${t}`,
-  warn: t => `[WARNING] ${t}`,
-  heatWarn: '[WARNING] Heat signature rising. The Ash-Born are drawn to it.',
-  nestWake: '[ALERT] An Inferno Nest is burning hot. Its fire spreads to the road.',
-  nestDown: '[INFERNO NEST SNUFFED] The road ahead is a little cooler.',
-};
 // banners and lines for the turn of the day (picked by ui; any one is fine)
 export const DUSK_TAGS = ['Dusk · the heat drains', 'Dusk · the long shadows', 'Dusk · the glow rises', 'Dusk · the sirens start'];
 export const DAWN_LINES = ['The sun is back. So is your appetite.', 'Another dawn. The Haven is still standing.', 'Light on the Rig. Gloria is already making a list.', 'The sky is gold, not white. Take the win.'];

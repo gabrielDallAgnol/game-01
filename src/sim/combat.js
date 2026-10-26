@@ -19,7 +19,7 @@ export function createCombat(G) {
     const h = S.hero, hd = h.dead ? Infinity : Math.hypot(h.x - b.x, h.y - b.y);
     // the hero's presence (everyone, from day 1): towers near you shoot faster and further. Rallying Cry widens and deepens it.
     const presR = PRESENCE.r + (has('rally') ? 3 : 0), near = hd < presR || (combo('rally', 'watch') && b.paired && !h.dead);
-    let range = (B.range[l] + S.P.towerRange + (owns('eiffel') ? 1.5 : 0) + (has('watch') && b.paired ? 2 : 0) + (map.high[idx(Math.floor(b.x), Math.floor(b.y))] ? 2 : 0) + (near ? PRESENCE.range : 0) - (rule('fog') && S.phase === 'night' ? 2 : 0)) * (S.phase === 'night' ? G.W8().range : 1);
+    let range = (B.range[l] + S.P.towerRange + (has('watch') && b.paired ? 2 : 0) + (map.high[idx(Math.floor(b.x), Math.floor(b.y))] ? 2 : 0) + (near ? PRESENCE.range : 0) - (rule('fog') && S.phase === 'night' ? 2 : 0)) * (S.phase === 'night' ? G.W8().range : 1);
     let dmg = B.dmg[l] * towerMult() * (has('bastion') && b.walled ? 1.4 : 1);
     let rate = B.rate[l] / S.P.towerRate;
     if (G.HC.marshal && hd < 6) rate /= G.HC.marshal;

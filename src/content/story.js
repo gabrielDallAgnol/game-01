@@ -266,7 +266,7 @@ export const TIPS = [
 ];
 
 // Out in the open districts: people and places you stumble on. A marker appears; walk there to see what it is.
-// They are guarded by a few dead. Each happens once per run; the Chronicler rewrites them to fit your story.
+// They are guarded by a few dead. Each happens once per run.
 export const STREET = [
   { id: 'carroof', eyebrow: '[Survivor detected]', title: 'Stranded on a bus roof',
     scene: 'A courier is **stuck on a bus roof**. **Very thirsty.**',
@@ -295,7 +295,7 @@ export const STREET = [
 ];
 
 // When the hand-written street finds run out, the city keeps making them: people, places, and a reason to care.
-// Slots are filled from these lists; the Chronicler (if on) rewrites the result in your run's voice.
+// Slots are filled from these lists.
 export const STREET_GEN = {
   who: [
     { name: 'a bus driver', trait: 'still wears the cap' }, { name: 'two sisters', trait: 'finish each other\'s sentences' }, { name: 'a retired boxer', trait: 'one broken hand, one good one' },

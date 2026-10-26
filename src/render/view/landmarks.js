@@ -1,7 +1,6 @@
-// Landmarks and district sites: intact buildings to claim (the city's signature one rises above the shroud), their
+// Landmarks and district sites: intact buildings to claim, their
 // lot frames and icons, quiet quest marks (MAIN ones get markers.js's gold marker); and the (retired) scavenge-site caches.
 /* global THREE */
-import { LANDMARKS } from '../../sim/mapgen.js';
 import { K, CFG } from '../kit.js';
 import { lc } from './shared.js';
 
@@ -38,52 +37,11 @@ export function createLandmarks(V) {
     for (const m of sites) if (m.g.visible) { m.dia.position.y = 1.9 + Math.sin(t * 2.2 + m.st.id) * 0.12; m.dia.rotation.y = t * 1.2; m.lamp.material.opacity = 0.6 + Math.sin(t * 7 + m.st.id) * 0.15; }
   }
 
-  // ---------- landmarks: intact buildings to claim; the city's signature one rises above the shroud ----------
+  // ---------- landmarks: intact buildings to claim ----------
   const LMAT = {
     iron: new THREE.MeshStandardMaterial({ color: lc('#6b5a48'), roughness: 0.7, metalness: 0.3 }),
-    steel: new THREE.MeshStandardMaterial({ color: lc('#c9ccd0'), roughness: 0.35, metalness: 0.6 }),
-    stone: new THREE.MeshStandardMaterial({ color: lc('#e3ddd0'), roughness: 0.85 }),
-    red: new THREE.MeshStandardMaterial({ color: lc('#c4473a'), roughness: 0.6 }),
-    concrete: new THREE.MeshStandardMaterial({ color: lc('#b9b4aa'), roughness: 0.9 }),
   };
   const part = (geo, mat, x, y, z, o = {}) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (o.rx) m.rotation.x = o.rx; if (o.rz) m.rotation.z = o.rz; if (o.ry) m.rotation.y = o.ry; m.castShadow = true; m.receiveShadow = true; return m; };
-  function eiffel() {
-    const g = new THREE.Group(), H = 13;
-    for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {   // four curved legs as three tapering segments
-      let px = 2.1 * sx, pz = 2.1 * sz, py = 0;
-      for (const [len, k, w] of [[3.4, 0.62, 0.42], [3.2, 0.42, 0.3], [5.2, 0.12, 0.2]]) {
-        const nx = px * k, nz = pz * k, ny = py + len, mx = (px + nx) / 2, mz = (pz + nz) / 2, l = Math.hypot(nx - px, len, nz - pz);
-        const leg = part(new THREE.BoxGeometry(w, l, w), LMAT.iron, mx, py + len / 2, mz);
-        leg.lookAt(nx, ny, nz); leg.rotateX(Math.PI / 2); g.add(leg);
-        px = nx; pz = nz; py = ny;
-      }
-    }
-    g.add(part(new THREE.BoxGeometry(3.4, 0.25, 3.4), LMAT.iron, 0, 3.4, 0));
-    g.add(part(new THREE.BoxGeometry(1.9, 0.2, 1.9), LMAT.iron, 0, 6.6, 0));
-    g.add(part(new THREE.BoxGeometry(0.5, 0.5, 0.5), LMAT.iron, 0, 11.8, 0));
-    g.add(part(new THREE.CylinderGeometry(0.03, 0.08, 1.6, 6), LMAT.iron, 0, 12.8, 0));
-    for (const [sx] of [[1], [-1]]) g.add(part(new THREE.TorusGeometry(1.35, 0.09, 6, 16, Math.PI), LMAT.iron, 0, 0.05, 2.1 * sx, { ry: sx > 0 ? 0 : Math.PI }));
-    return g;
-  }
-  function tvtower() {
-    const g = new THREE.Group();
-    g.add(part(new THREE.CylinderGeometry(0.32, 0.55, 10, 16), LMAT.concrete, 0, 5, 0));
-    g.add(part(new THREE.SphereGeometry(1.15, 24, 16), LMAT.steel, 0, 10.4, 0));
-    g.add(part(new THREE.CylinderGeometry(0.5, 0.6, 0.35, 16), LMAT.concrete, 0, 9.1, 0));
-    g.add(part(new THREE.CylinderGeometry(0.12, 0.18, 2.4, 10), LMAT.concrete, 0, 12.6, 0));
-    for (let k = 0; k < 4; k++) g.add(part(new THREE.CylinderGeometry(0.05, 0.06, 0.45, 6), k % 2 ? LMAT.stone : LMAT.red, 0, 13.9 + k * 0.45, 0));
-    for (let k = 0; k < 3; k++) { const a = k * Math.PI * 2 / 3; g.add(part(new THREE.BoxGeometry(1.8, 0.7, 0.35), LMAT.concrete, Math.cos(a) * 1.0, 0.35, Math.sin(a) * 1.0, { ry: -a })); }
-    return g;
-  }
-  function christ() {
-    const g = new THREE.Group();
-    g.add(part(new THREE.BoxGeometry(1.4, 1.6, 1.4), LMAT.stone, 0, 0.8, 0));
-    g.add(part(new THREE.CylinderGeometry(0.42, 0.62, 2.6, 12), LMAT.stone, 0, 2.9, 0));
-    g.add(part(new THREE.BoxGeometry(3.6, 0.42, 0.38), LMAT.stone, 0, 3.95, 0));
-    g.add(part(new THREE.CylinderGeometry(0.3, 0.42, 0.7, 10), LMAT.stone, 0, 4.35, 0));
-    g.add(part(new THREE.SphereGeometry(0.27, 14, 10), LMAT.stone, 0, 4.85, 0));
-    return g;
-  }
   const fitTo = (m, size) => { const b = new THREE.Box3().setFromObject(m), w = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) || 1; m.scale.multiplyScalar(size * 0.92 / w); return m; };
   const flagGeo = new THREE.PlaneGeometry(0.7, 0.42), flagMat = new THREE.MeshBasicMaterial({ color: lc('#d9843a').multiplyScalar(1.3), side: THREE.DoubleSide });
   // district sites: what they look like depends on what the story made them
@@ -119,7 +77,7 @@ export function createLandmarks(V) {
   }
   // special buildings read at a glance: a glowing frame round the lot in the colour of what it gives, and an icon
   const SITE_LOOK = { substation: ['#ffd84a', '⚡'], fuel: ['#ffd84a', '⛽'], allotment: ['#8fe36a', '❀'], flats: ['#ff8ac0', '⌂'], school: ['#ff8ac0', '✎'], police: ['#ff5a4a', '★'],
-    market: ['#f0a040', '$'], clinic: ['#7fffd0', '✚'], radio: ['#7fd4ff', '◉'], eiffel: ['#f0b04a', '♛'], tvtower: ['#f0b04a', '♛'], christ: ['#f0b04a', '♛'], unknown: ['#8a8a8a', '?'],
+    market: ['#f0a040', '$'], clinic: ['#7fffd0', '✚'], radio: ['#7fd4ff', '◉'], unknown: ['#8a8a8a', '?'],
     farmstead: ['#8fe36a', '❀'], lodge: ['#8fe36a', '❀'], lumber: ['#f0a040', '$'], quarry: ['#f0a040', '$'], cabin: ['#ff8ac0', '⌂'] };   // the wild sites (a hollow may have taken one)
   const iconMats = {};
   const iconMat = kind => { const [col, ch] = SITE_LOOK[kind] || SITE_LOOK.unknown; return iconMats[kind] || (iconMats[kind] = new THREE.SpriteMaterial({ map: K.textTex(ch, { w: 96, h: 96, size: 62, bg: '#101418', fg: col }), transparent: true, depthTest: false })); };
@@ -132,13 +90,12 @@ export function createLandmarks(V) {
   const lmViews = S.landmarks.map(l => {
     const g = new THREE.Group(); g.position.copy(Wv(l.x, l.y)); g.rotation.y = Math.atan2(C - l.x, C - l.y);
     let m;
-    if (l.kind === 'eiffel') m = eiffel(); else if (l.kind === 'tvtower') m = tvtower(); else if (l.kind === 'christ') m = christ();
-    else if (l.engine) { m = new THREE.Group(); g.rotation.y = 0; }   // [area] the engine town draws the building itself (view/atoms.js)
+    if (l.engine) { m = new THREE.Group(); g.rotation.y = 0; }   // [area] the engine town draws the building itself (view/atoms.js)
     else m = siteModel(l.kind, l.size, l.id * 7);
     g.add(m);
     const pole = new THREE.Group(); pole.add(part(new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6), LMAT.iron, 0, 0.8, 0)); const flag = new THREE.Mesh(flagGeo, flagMat); flag.position.set(0.36, 1.35, 0); pole.add(flag);
     pole.position.set(l.size / 2 + 0.3, 0, 0); pole.visible = false; g.add(pole);
-    const mark = new THREE.Mesh(diaGeoL, diaWhite); mark.position.y = l.kind === 'eiffel' || l.kind === 'tvtower' ? 2.5 : l.kind === 'christ' ? 6 : 3.2; g.add(mark);
+    const mark = new THREE.Mesh(diaGeoL, diaWhite); mark.position.y = 3.2; g.add(mark);
     const frame = l.engine ? siteFrame(l.engine.w, l.engine.h) : siteFrame(l.size); frame.rotation.y = l.engine ? -l.engine.rot : -g.rotation.y; g.add(frame);   // [area] engine sites: their own rectangle
     const icon = new THREE.Sprite(iconMat(l.kind)); icon.scale.set(1.1, 1.1, 1); icon.position.y = mark.position.y + 1.1; icon.renderOrder = 9; g.add(icon);
     world.add(g); return { l, g, pole, flag, mark, m, kind: l.kind, frame, icon };
@@ -150,12 +107,12 @@ export function createLandmarks(V) {
     const objs = (S.story && game.story && game.story() && game.story().objectives) ? game.story().objectives() : [];
     for (const v of lmViews) {
       if (v.kind !== v.l.kind && !v.l.engine) { v.g.remove(v.m); v.m = siteModel(v.l.kind, v.l.size, v.l.id * 7); v.g.add(v.m); v.kind = v.l.kind; v.icon.material = iconMat(v.l.kind); }
-      const locked = game.siteLock && game.siteLock(v.l.id) >= 0;   // [nests] a living hive guards it: a dull red frame, no claim marker
+      const locked = false;   // (hives that locked a site are gone)
       { const open = !v.l.stripped && v.l.kind !== 'unknown', col = v.l.owned ? '#d9843a' : locked ? '#8a3a30' : (SITE_LOOK[v.l.kind] || SITE_LOOK.unknown)[0], U = v.frame.userData;
         v.frame.visible = open; v.icon.visible = open && !v.l.owned;
         if (open) { U.mat.color.copy(lc(col)).multiplyScalar(v.l.owned ? 1.2 : locked ? 1 : 1.6 + 0.4 * Math.sin(t * 3 + v.l.id)); U.fill.color.copy(lc(col)); U.fill.opacity = v.l.owned ? 0.06 : 0.12; } }
       const main = objs.some(q => q.site === v.l.id && q.priority === 'main'), opt = !main && objs.some(q => q.site === v.l.id);
-      v.g.visible = LANDMARKS[v.l.kind].signature || seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned;
+      v.g.visible = seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned;
       v.mark.visible = !main && !v.l.owned && !v.l.stripped && v.l.kind !== 'unknown' && S.phase === 'day' && (!locked || opt);
       v.mark.scale.setScalar(opt ? 0.9 + Math.sin(t * 3) * 0.06 : 0.75);
       if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3;

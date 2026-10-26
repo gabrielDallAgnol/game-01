@@ -9,7 +9,7 @@ import { TRADES } from '../content/heroes.js';
 import { ECON } from '../content/econ.js';
 
 export function createEconomy(G) {
-  const { S, combo, dropLive, earn, ev, fail, has, hasTech, isDef, keep, mastery, near, owns, pop, rng, rule, syncPicks, toast } = G;
+  const { S, combo, dropLive, earn, ev, fail, has, hasTech, isDef, keep, mastery, near, pop, rng, rule, syncPicks, toast } = G;
   const costOf = (type, level = 1) => Math.max(1, Math.floor(BUILDINGS[type].cost[level - 1] * (1 - (G.HC.discount || 0))) - (isDef(type) ? S.P.defDiscount : S.P.ecoDiscount));
   // a new building costs more for every one of its kind you already have
   const copies = type => S.buildings.filter(b => b.type === type).length;
@@ -94,7 +94,6 @@ export function createEconomy(G) {
     for (const d of [...S.drops]) if (--d.ttl <= 0) { S.drops.splice(S.drops.indexOf(d), 1); ev('dropGone', { id: d.id }); }
     { const was = S.night - 1; if (was >= 3 && rng.next() < 0.2) G.dropSupply('At first light,'); }
     const want = [];
-    if (owns('christ') && S.night % 3 === 0) want.push('chest');   // no dawn blessings: they come from hives (epic loot) and key levels
     if (nestPick) want.push('nest');
     for (let k = 0; k < S.chestsHeld; k++) want.push('chest');
     const keepPicks = Math.max(1, PICKS_PER_DAWN), extra = want.slice(keepPicks).filter(x => x === 'chest').length;
