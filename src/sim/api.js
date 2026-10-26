@@ -74,6 +74,10 @@ export function createApi(G) {
     combat2: () => true, dash: (dx, dy) => G.dash(dx, dy), dashInfo: () => G.dashInfo(),
     // [v2] the V2 core: always on now (kept for old callers)
     v2: () => true,
+    // [mech] the Mechanic: parts, salvage spots, the turret line; the Haven Rig's modules (sim/mechanic.js, sim/rig.js)
+    parts: () => G.parts(), addParts: n => G.addParts(n), mechanic: () => G.mechInfo(), turretSlots: () => G.turretSlots(), turretInfo: lv => G.turretInfo(lv), turretField: (x, y) => G.turretField(idx(Math.floor(x), Math.floor(y))), partsFor: (type, lv) => G.partsFor(type, lv),
+    salvageSpots: () => G.salvageSpots(), salvaged: id => G.salvaged(id), salvageAt: () => G.salvageAt(), salvageT: () => G.salvageT(),
+    rigHas: id => G.rigHas(id), rigLevel: id => G.rigLevel(id), rigModules: () => G.rigModules(), rigBuild: id => G.rigBuild(id), rigBlock: id => G.rigBlock(id), rigBeds: () => G.rigBeds(), rigGun: () => G.rigGun(), rigReady: () => G.rigReady(), rigFixEngine: () => G.rigFixEngine(),
   };
   return api;
 }

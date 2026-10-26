@@ -14,7 +14,7 @@ export function createConstruct(G) {
   const Q = () => E().q || (E().q = []);
   const on = () => ECON.queue && !S.instantBuild;
   const timeOf = (type, level) => { const t = CONSTRUCT.time[type]; return (Array.isArray(t) ? t[level - 1] ?? t[t.length - 1] : t) || 8; };
-  const speed = () => ((E().mods && E().mods.buildSpeed) || 1) * (1 + (G.govBuild ? G.govBuild() : 0));   // [v56] GOV's builders work the queue faster
+  const speed = () => ((E().mods && E().mods.buildSpeed) || 1) * (1 + (G.govBuild ? G.govBuild() : 0)) * (G.rigBuildSpeed ? G.rigBuildSpeed() : 1);   // [mech] the Rig's Workshop   // [v56] GOV's builders work the queue faster
   const crews = () => CONSTRUCT.crews(G.pop()) + ((E().mods && E().mods.crews) || 0);
   const nameOf = j => `${(BUILDINGS[j.type] || {}).name || j.type}${j.kind === 'up' ? ` → level ${j.level}` : ''}`;
   const full = () => Q().length >= CONSTRUCT.maxJobs;

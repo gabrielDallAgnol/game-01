@@ -34,6 +34,7 @@ export function createBuildings(G) {
   /** Can `type` go here? x, y: wanted centre (snapped to cells); rot for palisades. */
   function canPlace(type, x, y, rot = 0, opts = {}) {
     if (!SIZE[type]) return { ok: false, reason: 'Unknown building.', cells: [] };
+    if (G.slotBlock && G.slotBlock(type)) return { ok: false, reason: G.slotBlock(type), cells: [] };   // [mech] turret slots
     if (type === 'wall' && CUT.walls) return { ok: false, reason: 'Barricades are gone for now: the Ash-Born just walk round a line.', cells: [] };
     if (BUILDINGS[type].tech) { if (keep.level < BUILDINGS[type].keep) return { ok: false, reason: `Raise the Haven Rig to level ${BUILDINGS[type].keep} first.`, cells: [] }; if (S.buildings.some(b => b.type === type)) return { ok: false, reason: `You already have a ${BUILDINGS[type].name}.`, cells: [] }; }
     const { cells, lot, cx, cy } = shape(type, x, y, rot);
@@ -46,7 +47,8 @@ export function createBuildings(G) {
     }
     for (const i of out.cells) {
       const t = map.terrain[i], r = map.region[i];
-      if (r < 0 || !inZone(i)) { out.reason = 'Too far from your base: build near the Haven Rig or your other buildings.'; return out; }
+      if (r < 0 || (!inZone(i) && !(type === 'tower' && G.turretField && G.turretField(i)))) {   // [mech] a turret goes up out in the town too
+        out.reason = 'Too far from your base: build near the Haven Rig or your other buildings.'; return out; }
       if (type === 'wall' ? !(t === T.GRASS || t === T.DIRT || t === T.FORD || t === T.FOREST) : !(t === T.GRASS || t === T.DIRT)) { out.reason = type === 'wall' ? 'Barricades need ground, rubble or a ford.' : t === T.FOREST ? 'Rubble in the way. Tap it to clear it first.' : 'Needs open ground.'; return out; }
       if (S.occ[i] >= 0) { out.reason = 'Something is already built here.'; return out; }
       if (map.ramp[i] && type !== 'wall') { out.reason = 'Keep the ramp clear (a barricade can close it).'; return out; }

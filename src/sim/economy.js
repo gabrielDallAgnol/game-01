@@ -25,7 +25,7 @@ export function createEconomy(G) {
   const useHand = () => { if (CUT.hands) return true; if (handsFree() < 1) return fail('No free hands today. More people (homes) means more hands; they rest at dawn.'); S.handsUsed++; return true; };
   const upCostOf = (b) => { const c0 = costOf(b.type, b.level + 1); return S.halfUpgrade ? Math.max(1, Math.ceil(c0 / 2)) : c0; };
   const maxHpOf = (type, level) => Math.round(BUILDINGS[type].hp[level - 1] * (1 + S.P.allHp + (type === 'wall' ? S.P.wallHp : 0)));
-  const keepMaxHp = () => Math.round((KEEP.hp[keep.level - 1] + S.P.keepHp) * S.P.keepHpMult);
+  const keepMaxHp = () => Math.round((KEEP.hp[keep.level - 1] + S.P.keepHp) * S.P.keepHpMult * (G.rigHpMult ? G.rigHpMult() : 1));   // [mech] Plating
   const houseGold = b => Math.round(BUILDINGS.house.gold[b.level - 1] * G.DIFF.eco) + S.P.houseGold + (G.strongPay ? G.strongPay(b) : 0) /* [gemini3] compact */ + (hasTech('market') ? 1 : 0) + (mastery('tycoon') ? 1 : 0) + (has('guarded') && near(b, 'tower', 6) ? 2 : 0) + (combo('guarded', 'bastion') && near(b, 'wall', 3) ? 1 : 0);
   const farmFood = b => Math.round((BUILDINGS.farm.food[b.level - 1] * G.DIFF.eco + S.P.farmFood + (G.strongPay ? G.strongPay(b) : 0) /* [gemini3] compact */ + (b.nearWater ? 1 : 0)) * (rule('winter') ? 0.67 : 1));
   const prosper = () => (mastery('prosperity') ? 1.3 : 1);

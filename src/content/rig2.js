@@ -37,3 +37,7 @@ export const CREW2 = {
   benno: { name: 'Benno Scholz', post: 'Stores', fx: { searchFood: 1, partsDawn: 1 }, line: '+1 food a house you search. Files one spare part each dawn.' },
   gus: { name: 'Gus Lindner', post: 'Radio', fx: { radio: true, repairRig: 2 }, line: 'Runs the Rig Radio. Mends the Rig by 2 hp/s at night when it is hit.' },
 };
+
+// [mech] until the chapter-1 quest engine opens modules by its steps (a G.questDone(step) hook), a module unlocks on
+// this night instead (the module's own `unlock` step, or its upgrade's). Bunks and the Roof Turret come first.
+export const UNLOCK_NIGHT = { 'q2.light': 1, 'q3.roof': 1, 'q2.hold': 2, 'q4.garage': 2, 'q4.cinema': 3, 'q5.gus': 3, 'q6.shed': 4 };

@@ -1,6 +1,6 @@
 // The hero: levels and xp, walking and pathing, the autopilot,
 // attacking, companions and sellswords, max health.
-import { BIG, DIRS8, LEVEL, MinHeap, REGEN } from './state.js';
+import { DIRS8, LEVEL, MinHeap, REGEN } from './state.js';
 import { MERC } from '../content/heroes.js';
 import { MOBS, TIDE } from '../content/mobs.js';
 import { N, T, idx, inside } from './mapgen.js';
@@ -10,7 +10,7 @@ export function createHero(G) {
   const heroMax = () => Math.round((G.HC.hp + S.P.heroHp + LEVEL.hp * ((S.lvl || 1) - 1) + (mastery('champion') ? 25 : 0)) * S.P.heroHpMult);
   function gainXp(n) {
     if (S.lvl >= LEVEL.max) return; S.xp += n;
-    while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] +${Math.round(LEVEL.dmg * 100)}% damage, +${Math.round(LEVEL.hp)} health.`, 'good'); }
+    while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); G.levelUp(S.lvl); }   // [mech] the System's lines (sim/mechanic.js)
   }
 
   // ---------- walking: the hero's ground and paths round buildings ----------
@@ -122,30 +122,7 @@ export function createHero(G) {
       h.face = Math.atan2(dx, dy); h.moving = true;
     } else h.moving = false;
     h.cd -= dt; h.swing = Math.max(0, h.swing - dt);
-    const A = G.HC.attack;
-    if (A && h.cd <= 0) {
-      const reach = A.reach + S.P.heroRange, dmg = G.heroDmg() * (S.nightFlags.lastT > 0 ? 2 : 1);
-      let best = null, bd = reach;
-      for (const m of S.mobs) { if (m.rise < 1) continue; const d = Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size; if (d < bd) { bd = d; best = m; } }
-      if (best) {
-        h.cd = G.heroRate(); h.swing = 0.25; h.attacks++; h.noiseT = 3; h.fightT = REGEN.combat; if (!moving) h.face = Math.atan2(best.x - h.x, best.y - h.y);
-        const cleave = mastery('whirlwind') || (has('wardance') && h.attacks % 3 === 0);
-        if (A.kind === 'melee') {
-          if (cleave) S.mobs.filter(m => Math.hypot(m.x - h.x, m.y - h.y) - 0.3 * MOBS[m.kind].size < reach).forEach(m => G.hitMob(m, dmg, 'hero'));
-          else { G.hitMob(best, dmg, 'hero'); if (G.HC.twin) { const sec = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - h.x, o.y - h.y) - 0.3 * MOBS[o.kind].size < reach); if (sec) G.hitMob(sec, dmg * 0.7, 'hero'); } }
-          ev('swing');
-        } else {
-          const shot = m => G.fire(1.4, h.x, h.y, m, dmg * (mastery('sniper') && m.hp >= m.maxHp ? 2 : 1) * (G.HC.bruteCrit && MOBS[m.kind].size >= BIG ? G.HC.bruteCrit : 1), 'hero', 24);
-          shot(best);
-          if (G.HC.pierce) {   // the Deadeye: the bolt goes through, into the next dead behind (and the next)
-            let from = best; const hit = [best];
-            for (let k = 0; k < G.HC.pierce + (S.P.pierce ? 1 : 0); k++) { let nx = null, nd = 1.8; for (const o of S.mobs) { if (o.rise < 1 || hit.includes(o)) continue; const d = Math.hypot(o.x - from.x, o.y - from.y); if (d < nd && Math.hypot(o.x - h.x, o.y - h.y) >= Math.hypot(from.x - h.x, from.y - h.y) - 0.5) { nd = d; nx = o; } } if (!nx) break; hit.push(nx); shot(nx); from = nx; }
-          } else if (S.P.pierce) { const behind = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - best.x, o.y - best.y) < 1.8); if (behind) shot(behind); }
-          if (G.HC.twin) { const sec = S.mobs.find(o => o !== best && o.rise >= 1 && Math.hypot(o.x - h.x, o.y - h.y) < reach); if (sec) G.fire(1.4, h.x, h.y, sec, dmg * 0.7, 'hero', 24); }
-          if (cleave || (S.P.sentinel && !moving && h.attacks % 3 === 0)) for (const m of S.mobs.filter(o => o !== best && Math.hypot(o.x - h.x, o.y - h.y) < reach).slice(0, 2)) shot(m);
-        }
-      }
-    }
+    G.wrench(moving);   // [mech] the wrench hits by itself (sim/mechanic.js)
     regen(dt);
     for (const ch of [...S.chests]) {
       if (Math.hypot(ch.x - h.x, ch.y - h.y) > 1.3) continue;

@@ -19,7 +19,8 @@ export function createSave(G) {
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, halfUpgrade: S.halfUpgrade,
       landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),
       feat: S.feat, mourned: S.mourned || 0, diffNight: S.diffNight || 0, carry: S.hero.carry, ledger: S.ledger || null, pickups: S.pickups, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], trails: S.trails || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT, inc: S.inc || null,
-      buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0, b.ruined ? 1 : 0, b.type === 'house' ? (b.folk ?? -1) : -1, b.spec || 0]), homeless: S.homeless || 0, keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)], econ: S.econ ? JSON.parse(JSON.stringify(S.econ)) : null };   // [econ3] queue, carts, nodes, relics
+      buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0, b.ruined ? 1 : 0, b.type === 'house' ? (b.folk ?? -1) : -1, b.spec || 0]), homeless: S.homeless || 0, keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)], econ: S.econ ? JSON.parse(JSON.stringify(S.econ)) : null,
+      parts: S.parts || 0, mech: S.mech ? JSON.parse(JSON.stringify(S.mech)) : null, rig: S.rig ? JSON.parse(JSON.stringify(S.rig)) : null };   // [mech] parts, salvage done today, the Rig's modules   // [econ3] queue, carts, nodes, relics
   }
   function restoreSnap(R) {
     Object.assign(S, { night: R.night, gold: R.gold, food: R.food, kills: R.kills, stock: R.stock, survivors: R.survivors, foreman: R.foreman, builders: R.builders, autopilot: R.autopilot,
@@ -46,6 +47,7 @@ export function createSave(G) {
     if (!S.season.rules) S.season.rules = S.season.rule ? [S.season.rule] : [];
     G.titlesRead((S.story.titles || []).length);
     S.nextId = Math.max(R.nextId, S.nextId);
+    if (R.rig) { S.rig = R.rig; S.rig.job = S.rig.job || null; } if (R.mech) S.mech = { ...R.mech, at: -1, t: 0 }; S.parts = R.parts || 0;   // [mech] before the keep's health: Plating raises it
     keep.level = R.keep[0]; keep.r = 2.3 * (1 + 0.12 * (keep.level - 1)); G.refreshMax(); keep.hp = Math.min(keep.maxHp, R.keep[1]);
     G.refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, R.heroAt[0]); S.hero.x = R.heroAt[1]; S.hero.y = R.heroAt[2]; G.unstickHero();
     for (const m of S.mobs) mobById.delete(m.id); S.mobs.length = 0; S.animalsInit = false; S.projectiles.length = 0; S.drops = []; S.chests = []; S.purses = [];
