@@ -52,7 +52,7 @@ export function applyArea(g, id) {
   const sites = [];
   W.placed.forEach(p => { const kind = p.def.kind === 'building' && siteOf(p.def); if (!kind || sites.some(s => s.kind === kind)) return;
     const cells = [], b = obbBox(p); for (let y = Math.floor(b[1] + oy); y <= Math.ceil(b[3] + oy); y++) for (let x = Math.floor(b[0] + ox); x <= Math.ceil(b[2] + ox); x++) if (inside(x, y) && mask[idx(x, y)] && pointInObb(p, x + 0.5 - ox, y + 0.5 - oy)) cells.push(idx(x, y));
-    if (cells.length > 6) sites.push({ kind, atom: p.id, x: p.x + ox, y: p.y + oy, w: p.w, h: p.h, rot: p.rot, cells, door: p.door ? { x: p.door.x + ox, y: p.door.y + oy } : null }); });
+    if (cells.length > 6) sites.push({ kind, label: p.def.label || null, atom: p.id, x: p.x + ox, y: p.y + oy, w: p.w, h: p.h, rot: p.rot, cells, door: p.door ? { x: p.door.x + ox, y: p.door.y + oy } : null }); });
   // houses to search: every building with a door that offers a home or a shop (and is not a site); the door is the spot
   const homes = [], STREETS = {}; W.streets.forEach(s => { STREETS[s.id] = s.name; });
   W.placed.forEach(p => { if (p.def.kind !== 'building' || !p.door || sites.some(s => s.atom === p.id && Math.hypot(s.x - p.x - ox, s.y - p.y - oy) < 1)) return;

@@ -12,19 +12,20 @@ for (let s = S0; s < SEEDS; s += STRIDE) {
   const t0 = Date.now();
   const g = createGame({ seed: 100 + s, mapSeed: 300 + s, hero, difficulty: diff, area }), S = g.state;
   S.builders = 'balanced'; if (AUTO) g.setAutopilot(true);
-  let steps = 0, minKeep = 1, heroDeaths = 0, searched = 0;
+  let steps = 0, minKeep = 1, heroDeaths = 0, searched = 0, fell = 0, worst = 1;   // fell, worst: buildings lost tonight, the worst-hit building
   const nights = [];
-  while (!S.over && S.night <= DAYS && steps < 60 * 60 * 60) {
+  while (!S.over && S.night <= DAYS && steps < 60 * 60 * 100) {   // (Oct 26: 60 → 100 min of sim, chapter 1 days are 420 s)
     storyTurn(g);
     if (steps % 15 === 0) { dodge(g); if (!AUTO && !searchTick(g, 40)) heroTick(g, 'active'); }
     const n = S.night, ph = S.phase;
     g.step(); steps++;
     if (S.phase === 'night') minKeep = Math.min(minKeep, S.keep.hp / S.keep.maxHp);
-    for (const e of S.events) { if (e.t === 'heroDie') heroDeaths++; if (e.t === 'search') searched++; }
+    for (const e of S.events) { if (e.t === 'heroDie') heroDeaths++; if (e.t === 'search') searched++; if (e.t === 'ruin' && S.phase === 'night') fell++; }
+    if (S.phase === 'night' && (steps & 31) === 0) for (const b of S.buildings) if (!b.ruined) worst = Math.min(worst, b.hp / b.maxHp);
     S.events.length = 0;
     if ((ph === 'night' && S.phase === 'day') || (S.over && ph === 'night')) {
-      nights.push({ n, keep: +Math.max(0, minKeep).toFixed(2), march: (S.hordes.plan[n] ?? -1) >= 0, bld: S.buildings.length, pop: g.pop(), gold: S.gold, food: S.food, mobs: S.mobs.length });
-      minKeep = 1;
+      nights.push({ n, keep: +Math.max(0, minKeep).toFixed(2), march: (S.hordes.plan[n] ?? -1) >= 0, bld: S.buildings.length, pop: g.pop(), gold: S.gold, food: S.food, mobs: S.mobs.length, fell, worst: +worst.toFixed(2) });
+      minKeep = 1; fell = 0; worst = 1;
     }
   }
   console.log(JSON.stringify({ seed: 100 + s, hero, diff, area, reached: S.night - 1, fell: !!S.over, kills: S.kills, lvl: S.lvl, heroDeaths, searched, nights, ms: Date.now() - t0 }));
