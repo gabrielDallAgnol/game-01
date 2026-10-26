@@ -24,31 +24,52 @@ export function createMap(ui) {
     }
     ctx.putImageData(im, 0, 0); return cv;
   }
-  // [pacify] begin: pacified ground is washed warm, with a thin amber edge where the quiet land ends
-  function tintPacified(cv, pz, hide) {
-    const ctx = cv.getContext('2d'), im = ctx.getImageData(0, 0, N, N), d = im.data, W = [255, 196, 120];
-    for (let i = 0; i < N * N; i++) {
-      if (!pz[i] || (hide && hide(i))) continue;
-      const x = i % N, y = (i / N) | 0, edge = x === 0 || y === 0 || x === N - 1 || y === N - 1 || !pz[i - 1] || !pz[i + 1] || !pz[i - N] || !pz[i + N];
-      const k = edge ? 0.62 : 0.16;
-      for (let ch = 0; ch < 3; ch++) d[i * 4 + ch] = d[i * 4 + ch] * (1 - k) + W[ch] * k * (edge ? 1 : 0.85);
-    }
-    ctx.putImageData(im, 0, 0);
-  }
-  // [pacify] end
   function drawMinimap(canvas, m) {
     const b = mapBox(m), w = b.x1 - b.x0 + 1, h = b.y1 - b.y0 + 1, src = paintWorld(document.createElement('canvas'), m, null), s = 2;
     canvas.width = w * s; canvas.height = h * s; const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
     ctx.drawImage(src, b.x0, b.y0, w, h, 0, 0, w * s, h * s);
     ctx.fillStyle = '#f0a649'; ctx.beginPath(); ctx.arc((m.town.x - b.x0) * s, (m.town.y - b.y0) * s, 6, 0, 7); ctx.fill();
   }
-  let worldCv = null, worldV = -1, worldB = null, miniT = 0;
+  // The world map is kept painted and patched where it changed: a building or a step into the dark reveals a few
+  // hundred cells, and repainting all N×N of them (with a read-back for the quiet ground) froze the phone each time.
+  let worldCv = null, worldV = -1, worldB = null, miniT = 0, wMap = null, wIm = null, wSeen = null, wPz = null;
+  const cellRGB = (m, seen, pz, i, out) => {
+    const t = m.terrain[i], wild = m.wild && m.wild[i];
+    const c = t === T.VOID ? MAPCOL.voidc : m.lm[i] >= 0 ? MAPCOL.site : m.road[i] && wild ? MAPCOL.road : t === T.WATER ? MAPCOL.water : t === T.FORD ? MAPCOL.ford : t === T.CLIFF ? MAPCOL.cliff : t === T.DIRT ? MAPCOL.dirt
+      : wild ? (t === T.FOREST ? MAPCOL.wood : MAPCOL.meadow) : t === T.ROCK ? MAPCOL.block : t === T.FOREST ? MAPCOL.park : MAPCOL.street;
+    const k = seen && !seen[i] && t !== T.VOID ? (m.road[i] && wild ? 0.55 : wild ? 0.28 : 0.42) : 1;
+    let r = c[0] * k, g = c[1] * k, b = c[2] * k;
+    if (pz && pz[i]) {   // [pacify] the same wash as tintPacified, per cell
+      const x = i % N, y = (i / N) | 0, edge = x === 0 || y === 0 || x === N - 1 || y === N - 1 || !pz[i - 1] || !pz[i + 1] || !pz[i - N] || !pz[i + N];
+      const q = edge ? 0.62 : 0.16, w = edge ? 1 : 0.85;
+      r = r * (1 - q) + 255 * q * w; g = g * (1 - q) + 196 * q * w; b = b * (1 - q) + 120 * q * w;
+    }
+    out[i * 4] = r; out[i * 4 + 1] = g; out[i * 4 + 2] = b; out[i * 4 + 3] = 255;
+  };
   function worldNow() {
-    const S = ui.game.state;
+    const S = ui.game.state, m = ui.game.map;
     const pz = ui.game.pacifyMap ? ui.game.pacifyMap() : null;   // [pacify]
-    const hide = hidden(), key = `${S.seenVersion}|${hide ? 1 : 2}|${S.pacifyVersion || 0}`;
-    if (!worldCv) { worldCv = document.createElement('canvas'); worldV = -1; }
-    if (worldV !== key) { worldV = key; worldB = mapBox(ui.game.map, hide); paintWorld(worldCv, ui.game.map, S.seen, hide); if (pz) tintPacified(worldCv, pz, hide); }
+    const key = `${S.seenVersion}|${S.pacifyVersion || 0}`;
+    if (!worldCv) worldCv = document.createElement('canvas');
+    if (wMap !== m) {   // a new game: paint it all once
+      wMap = m; worldB = mapBox(m, null); worldCv.width = worldCv.height = N; wIm = worldCv.getContext('2d').createImageData(N, N);
+      wSeen = S.seen ? Uint8Array.from(S.seen) : null; wPz = pz ? Uint8Array.from(pz) : null;
+      for (let i = 0; i < N * N; i++) cellRGB(m, S.seen, pz, i, wIm.data);
+      worldCv.getContext('2d').putImageData(wIm, 0, 0); worldV = key; return worldCv;
+    }
+    if (worldV === key) return worldCv;
+    worldV = key;
+    let x0 = N, y0 = N, x1 = -1, y1 = -1; const d = wIm.data;
+    const touch = i => { cellRGB(m, S.seen, pz, i, d); const x = i % N, y = (i / N) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; };
+    for (let i = 0; i < N * N; i++) {
+      const sv = S.seen ? S.seen[i] : 0, pv = pz ? pz[i] : 0;
+      if ((wSeen && wSeen[i] !== sv) || (wPz ? wPz[i] !== pv : pv)) {
+        if (wSeen) wSeen[i] = sv;
+        if (wPz ? wPz[i] !== pv : pv) { if (!wPz) wPz = new Uint8Array(N * N); wPz[i] = pv; touch(i); if (i % N) touch(i - 1); if (i % N < N - 1) touch(i + 1); if (i >= N) touch(i - N); if (i < N * N - N) touch(i + N); }   // the edge of the quiet ground moves with it
+        else touch(i);
+      }
+    }
+    if (x1 >= 0) worldCv.getContext('2d').putImageData(wIm, 0, 0, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
     return worldCv;
   }
   function marks(ctx, ox, oy, s, big) {

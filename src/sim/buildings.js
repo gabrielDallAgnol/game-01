@@ -127,7 +127,9 @@ export function createBuildings(G) {
   function refreshFlow() {
     if (!S.flowDirty) return;
     S.flow = computeFlow(map.terrain, S.occ, isWall, WALL_COST); S.flowNext = computeNext(map.terrain, S.flow, S.occ);
-    S.climb = computeFlow(map.terrain, S.occ, isWall, 0.6); S.climbNext = computeNext(map.terrain, S.climb, S.occ);
+    // with no palisade standing the climbers' field is the same field (wall cost never applies): share it, half the work
+    const walls = S.buildings.some(b => b.type === 'wall' && b.cells && b.cells.length);
+    if (walls) { S.climb = computeFlow(map.terrain, S.occ, isWall, 0.6); S.climbNext = computeNext(map.terrain, S.climb, S.occ); } else { S.climb = S.flow; S.climbNext = S.flowNext; }
     S.flowDirty = false; S.flowVersion = (S.flowVersion || 0) + 1;
   }
   // ---------- the build zone (Red Alert style): you build near the keep and near your own buildings ----------
