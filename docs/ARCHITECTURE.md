@@ -59,15 +59,24 @@ In every root, creation order and per-frame call order are load-bearing:
 
 ## The map
 
-`sim/mapgen.js` always builds an engine area (`DEFAULT_AREA = 'suburb'`; `createGame({ area })` picks another
+`sim/mapgen.js` always builds an engine area (`DEFAULT_AREA = 'hollowmere'`, chapter 1's town; `createGame({ area })` picks another
 recipe). `sim/areamap.js` rasterises the engine's world onto the square grid round the camp: terrain, the
 town's houses (`map.area.homes`, searched by day), its sites (landmarks you claim) and its nest. The grid is
-`N` cells a side, one exported constant in `mapgen.js` (448 today): raise it there and nowhere else. Regions are
+`N` cells a side, one exported constant in `mapgen.js` (672 today, so the 600 × 500 m Hollowmere fits): raise it there and nowhere else. Regions are
 the camp plus eight sectors in two bands (all ring 1). The map keeps its old fields (`terrain`, `reach`,
 `region`, `regions`, `slots`, `landmarks`, `town`, `high`, `lm`…), so the rules read it as before.
 
-The start screen offers the recipes in `AREAS` (`sim/areamap.js`; `hollowmere` is left out until it is ready);
-`?area=` in the URL picks one (`ui/area-flag.js`).
+Chapter 1 starts in Hollowmere; the start screen offers the other recipes in `AREAS` (`sim/areamap.js`) only when
+`?area=` is in the URL, which also picks one (`ui/area-flag.js`).
+
+## Chapter 1
+
+In Hollowmere `sim/chapter.js` runs the chain in `content/story1.js` (numbers in `content/ch1tune.js`): the story
+is told only in the world (notes on search, graffiti, radios: `content/notes.js`), plus short [bracketed] System
+lines over Kai (`sys1` events). The old card engine (`sim/story.js`) is quiet there. `tools/ch1bot.mjs` plays the
+chapter through (`test/chapter1.test.mjs`); `api.chapterJump(id)` skips ahead for tests and screenshots. The
+Mechanic class and the Rig's modules come from another branch: the chapter reads them through guarded hooks
+(`G.salvage`, `G.rigHas`, `G.rigBeds`, `G.addParts`, `G.partsHave`, `G.rigUnlock`) and passes without them.
 
 ## Module map
 
@@ -121,6 +130,9 @@ seed tree (`seeds.js`), retrying when a fatal validator fails. `schema.js` (atom
 | `folk-build.js` | the folk build by themselves: needs, the village fund, one project a day |
 | `woods.js`, `logging.js`, `pressure.js`, `stronghold.js` | worn trails; felling trees; committed hunters; small and strong |
 | `save.js` | dawn snapshot and restore (`SAVE_V`) |
+| `places.js` | [ch1] Hollowmere's sites and borrowed buildings as the story's places (a spot at each door), the story district under a point |
+| `chapter.js` | [ch1] the chapter-1 quest engine: story1 STEPS (triggers, goals, rewards), work spots, packs, the finale, the end; `S.tide` day and night lengths |
+| `worldtext.js`, `survivors.js`, `chnests.js` | [ch1] notes, graffiti spots, radios; Lotte, Benno, Gus; the cinema, goods shed and Works as Ash Hearts with halls |
 | `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | flow fields, the town builders, scavenging, seeded RNG |
 
 ### `src/render/`: the three.js view
@@ -136,6 +148,7 @@ than true scale (`render/top.js`).
 | `view/atoms.js` | the engine town drawn in its own flat looks (`engine/draw2d.js`) |
 | `view/topdown.js` | the top-down camera: follow spring, lead, dusk dolly, cinema, shake, resize |
 | `view/topflat.js`, `view/topmarks.js`, `view/toppop.js`, `view/topnests.js` | the flat light; bars and tags toward screen-up; the hero, buildings and dead popping from above; the nest as an infested building |
+| `view/worldtext.js`, `view/chapter.js` | [ch1] graffiti decals, radio lines, the System over Kai; jobs, hearts, survivors, radios, the torch, the objective beacon, the Rig rolling out |
 | `view/hordes.js`, `view/routes.js`, `view/telegraph.js` | where the hordes sleep; tonight's march chevrons; wind-up rings, whiffs and the dash streak |
 | `view/feel.js`, `view/events.js` | fx hooks (`burst`, `dust`, `celebrate`, `floatLabel`, hit-stop, trauma); drained events → feedback |
 | `view/keep.js` | the camp's heart: the Haven Rig truck model (`K.haven`), its fires, smoke, beacon and hum |
@@ -159,6 +172,7 @@ than true scale (`render/top.js`).
 | `hud.js`, `system.js`, `solar-voice.js` | the System strip and toasts, banners, top bar; the System's voice; one crew bark a dawn |
 | `cards.js`, `status.js`, `panels.js` | the one modal (story cards, System windows); the Status window and More sheet; the selection panel |
 | `placing.js`, `econ-ui.js`, `folk-ui.js`, `logging-ui.js` | the build tray and placing; the construction queue chip; the folk's project chip; the trees panel |
+| `chapter-ui.js` | [ch1] the district, the objective line, the notes drawer, the chapter's end card |
 | `input.js`, `dodge.js`, `homeward.js` | touch, mouse and keys; the dash key and button; the walk home and Return to Camp |
 | `map.js`, `cinema.js` | world map and minimap; first-time look-at shots |
 | `icons.js`, `audio.js`, `saves.js`, `version.js` | the icon set, synthesised sound, cloud saves, the build tag |

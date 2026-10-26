@@ -54,7 +54,7 @@ export function createWorldTextView(V) {
     const flat = K.T && K.T.flat ? K.T.flat.value : null;
     for (const m of decals.values()) { if (flat) m.material.color.copy(flat).multiplyScalar(1.15); m.visible = V.seenAt ? V.seenAt(m.userData.at.x, m.userData.at.y) : true; }
     // the System's lines over Kai, one at a time, a beat apart
-    if ((sysT -= dt) <= 0 && sysQ.length) { const e = sysQ.shift(); sysT = 1.1; float(e.text, 0, 0, { col: e.kind === 'bad' ? '#ffb4a0' : e.kind === 'win' ? '#ffe08a' : '#bfefff', bg: 'rgba(8,20,34,0.72)', edge: 'rgba(127,227,255,0.7)', life: 3.6, follow: true, w: 8.5, wrap: 30, lift: 3.4 }); }
+    if ((sysT -= dt) <= 0 && sysQ.length) { const e = sysQ.shift(); sysT = 1.1; float(e.text, 0, 0, { col: e.kind === 'bad' ? '#ffb4a0' : e.kind === 'win' ? '#ffe08a' : '#bfefff', bg: 'rgba(8,20,34,0.72)', edge: 'rgba(127,227,255,0.7)', life: 3.8, follow: true, w: 11, wrap: 26, lift: 3.4 }); }
     const half = V.cam && V.cam.half ? Math.min(V.cam.half.w, V.cam.half.h) : 12, k = half / 12;
     let stack = 0;
     for (let i = floats.length - 1; i >= 0; i--) {

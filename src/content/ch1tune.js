@@ -31,7 +31,7 @@ export const CREW = {
 };
 export const FINALE = {
   duskLeft: 75,               // when the Heart breaks, dusk comes early: this many seconds of day left
-  chase: 12,                  // the last march, while Kai fits the crankshaft
+  chase: 12, chaseFrom: 42,   // the last march, while Kai fits the crankshaft: this many, from this far north of the Rig (m)
   fit: 20, slow: 0.7,         // hold-to-fit at the Rig (s); Kai's speed with the crankshaft
   roll: 8,                    // seconds the Rig takes to roll out of the square before the end
 };

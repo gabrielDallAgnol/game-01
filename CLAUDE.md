@@ -3,7 +3,7 @@
 A browser town-defence game against the dead. It is built from zero-dependency ES modules on three.js r128,
 which loads from a CDN as the global `THREE`. Read `docs/ARCHITECTURE.md` for the full module map and the data flow.
 
-There is one game, V2: an engine-built town (`src/engine`, recipe `suburb` by default), seen from straight above,
+There is one game, V2: an engine-built town (`src/engine`, recipe `hollowmere` by default: chapter 1), seen from straight above,
 hordes by night, the dash, searching houses and claiming sites by day. The old frontier game's systems were
 deleted on Oct 25 (git history keeps them); do not bring one back behind a flag.
 

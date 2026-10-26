@@ -77,7 +77,7 @@ export function createApi(G) {
     // [ch1] chapter 1: its quest state, places, the district under a point, the words in the world, survivors, nests
     chapter: () => G.chapterInfo(), places: () => G.places(), districtName: (x, y) => G.districtName(x, y), districtOf: (x, y) => G.districtOf(x, y),
     notes: () => (S.ch ? S.ch.notes.slice() : []), heard: () => (S.ch ? S.ch.heard.slice() : []), graffiti: () => (G.graffiti ? G.graffiti() : []), radios: () => (G.radios ? G.radios() : []), radioDue: src => (G.radioDue ? G.radioDue(src) : false),
-    survivors: () => (G.survivors ? G.survivors() : []), chNests: () => (G.chNests ? G.chNests() : []),
+    survivors: () => (G.survivors ? G.survivors() : []), chNests: () => (G.chNests ? G.chNests() : []), chapterJump: id => (G.chapterJump ? G.chapterJump(id) : false),   // (tests, screenshots)
   };
   return api;
 }

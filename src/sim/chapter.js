@@ -92,13 +92,16 @@ export function createChapter(G) {
     if (g.op === 'break' && g.horde === 'townhall' && p.townhall) spawnPack('townhall', p.townhall.at.x, p.townhall.at.y, PACKS.townhall);
     if (g.op === 'destroy' || (g.op === 'break' && g.horde === 'works')) G.nestWake(g.nest || 'works', id);
     if (g.op === 'carry') { ch().item = g.item; S.P.heroSpeed *= FINALE.slow; ch().slowed = true; }
-    if (g.op === 'repair' && g.place === 'rig') { const w = p.works; if (w) for (let k = 0; k < FINALE.chase; k++) { const a = rng.range(0, Math.PI * 2); const m = G.spawnMob(kindsFor()[rng.weighted(kindsFor().map(q => q[1]))][0], w.at.x + Math.cos(a) * 3, w.at.y + Math.sin(a) * 3, { instant: true }); m.chPack = 'chase'; } ev('hordeMarch', { horde: -1, x: w ? w.at.x : c, y: w ? w.at.y : c, n: FINALE.chase }); sys(SYS1.march('north')); }
+    if (g.op === 'repair' && g.place === 'rig') {   // the last march: out of the north streets, close enough to reach the Rig while Kai works
+      const w = G.groundNear(c, c - FINALE.chaseFrom, 12); for (let k = 0; k < FINALE.chase; k++) { const a = rng.range(0, Math.PI * 2); const m = G.spawnMob(kindsFor()[rng.weighted(kindsFor().map(q => q[1]))][0], w.x + Math.cos(a) * 3, w.y + Math.sin(a) * 3, { instant: true }); m.chPack = 'chase'; }
+      ev('hordeMarch', { horde: -1, x: w.x, y: w.y, n: FINALE.chase }); sys(SYS1.march('north')); }
     if (g.op === 'leave') { ch().roll = FINALE.roll; ev('rigRoll', { dur: FINALE.roll }); }
     if (g.op === 'build') checkBuild(s);
   }
   function close(id) {
     const s = BYID[id]; if (!isOpen(id)) return;
     ch().open = ch().open.filter(x => x !== id); ch().done.push(id); ch().work = ch().work.filter(w => w.step !== id);
+    if (s.goal.op === 'carry' && ch().slowed) { S.P.heroSpeed /= FINALE.slow; ch().slowed = false; ch().item = null; }
     ev('chStep', { id, state: 'done', night: S.night });
     if (s.sys && s.goal.op !== 'reach') sys(s.sys.startsWith('[Objective]') ? `[Objective complete] ${goalText(s)}` : s.sys, 'win'); else if (s.goal.op !== 'survive') sys(SYS1.done(goalText(s).replace(/\.$/, '')), 'win');
     reward(s.reward || {});
@@ -134,7 +137,7 @@ export function createChapter(G) {
       else if (g.op === 'break' && g.horde === 'townhall' && ch().packs.townhall && !packLeft('townhall')) close(id);
       else if (g.op === 'break' && g.horde === 'works' && G.nestHalls('works') === 0) close(id);
       else if (g.op === 'destroy' && G.nestBroken(g.nest)) close(id);
-      else if (g.op === 'carry' && !h.dead && Math.hypot(h.x - c, h.y - c) < 6) { if (ch().slowed) { S.P.heroSpeed /= FINALE.slow; ch().slowed = false; } ch().item = null; close(id); }
+      else if (g.op === 'carry' && !h.dead && Math.hypot(h.x - c, h.y - c) < 6) close(id);
       else if (g.op === 'leave' && ch().roll <= 0) close(id);
     }
   }
@@ -200,5 +203,12 @@ export function createChapter(G) {
   }
   const objective = () => { const o = ch() && ch().open.map(id => BYID[id]).filter(s => !s.optional && s.goal.op !== 'survive'); const s = o && o[o.length - 1]; if (!s) return null; const g = s.goal, p = P(), pl = p[g.place || g.nest || (g.horde === 'townhall' ? 'townhall' : g.horde === 'works' ? 'works' : g.op === 'carry' ? 'rig' : '')]; const w = ch().work.find(q => q.step === s.id); return { id: s.id, text: goalText(s), x: w ? w.x : pl ? pl.at.x : null, y: w ? w.y : pl ? pl.at.y : null, n: g.n || 0, have: ch().prog[s.id] || 0 }; };
   const chapterInfo = () => (S.ch ? { open: ch().open.slice(), done: ch().done.slice(), objective: objective(), work: ch().work.map(w => ({ id: w.id, x: w.x, y: w.y, t: w.t, time: w.time, label: w.label, at: ch().at === w.id })), item: ch().item, roll: ch().roll, district: ch().district, ended: !!ch().ended, stats: ch().stats || null } : null);
-  return { stepChapter, chapterStart, chapterInfo, chapterOn: () => true, chOpen: open, chClose: close, chIsOpen: isOpen, chIsDone: isDone, spawnPack, packLeft, chSys: sys, chRng: rng };
+  /** tests and screenshots: close every step before `id` (paying its reward) and open `id`, the night moved up to its beat */
+  function chapterJump(id) {
+    if (!S.ch || !BYID[id] || S.phase !== 'day') return false;
+    for (const s of STEPS) { if (s.id === id) break; if (isDone(s.id) || s.optional && s.id !== id) continue; open(s.id); close(s.id); }
+    if (S.night < BYID[id].night) { S.night = BYID[id].night; S.tide = tideFor(S.night); G.nestDawn(); }
+    open(id); return true;
+  }
+  return { chapterJump, stepChapter, chapterStart, chapterInfo, chapterOn: () => true, chOpen: open, chClose: close, chIsOpen: isOpen, chIsDone: isDone, spawnPack, packLeft, chSys: sys, chRng: rng };
 }
