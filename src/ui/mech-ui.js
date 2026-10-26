@@ -33,7 +33,7 @@ export function createMechUi(ui) {
     const g = ui.game, S = g.state, k = S.keep, day = !S.over;
     $('#pEyebrow').textContent = 'Your home · Hilde'; $('#pTitle').textContent = 'The Haven Rig';
     const mods = g.rigModules(), beds = g.rigBeds(), gun = g.rigGun();
-    let html = `<div class="stat"><span>Health <b>${Math.ceil(k.hp)} / ${k.maxHp}</b></span><span>${beds ? `Beds <b>${beds}</b> · ` : ''}${gun ? `Roof Turret <b>range ${gun.range}</b>` : 'No gun on the roof yet'}</span></div><div class="opts two rigmods">`;
+    let html = `<div class="stat"><span>Health <b>${Math.ceil(k.hp)} / ${k.maxHp}</b></span><span>${beds ? `Beds <b>${beds}</b> · ` : ''}${gun ? `Roof Turret <b>range ${gun.range}</b>` : 'No gun on the roof yet'}</span></div><div class="opts one rigmods">`;
     for (const m of mods) {
       const full = m.lv >= m.max, fitting = m.fitting !== null;
       const name = `${m.name}${m.max > 1 ? `<small class="lv">Lv ${m.lv}/${m.max}</small>` : m.lv ? '<small class="lv">fitted</small>' : ''}`;
