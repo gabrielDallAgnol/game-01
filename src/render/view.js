@@ -52,6 +52,9 @@ import { createTelegraph } from './view/telegraph.js';
 import { createTopPop } from './view/toppop.js';
 // [topnests] next line
 import { createTopNests } from './view/topnests.js';
+// [mech] the Rig's modules on the truck; salvage rings on cars and machines
+import { createRigMods } from './view/rigmods.js';
+import { createSalvageMarks } from './view/salvage.js';
 // [top] end
 
 export function createView(canvas, game, opts = {}) {
@@ -111,6 +114,8 @@ export function createView(canvas, game, opts = {}) {
   const telegraph = createTelegraph(V);   // [combat2] wind-up rings, whiffs, the dash streak
   V.topPop = createTopPop(V);   // [toppop] the hero, your buildings and the dead pop from above
   V.topNests = createTopNests(V);   // [topnests] the nests as infested buildings in the flat style
+  V.rigMods = createRigMods(V);   // [mech]
+  V.salvageMarks = createSalvageMarks(V);   // [mech]
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -160,6 +165,8 @@ export function createView(canvas, game, opts = {}) {
     if (telegraph) telegraph.update(dt, ui.events);   // [combat2]
     if (V.topPop) V.topPop.update();   // [toppop]
     if (V.topNests) V.topNests.update(dt);   // [topnests]
+    if (V.rigMods) V.rigMods.update();   // [mech]
+    if (V.salvageMarks) V.salvageMarks.update(ui.events);   // [mech]
     look.render(V.time);
   }
 

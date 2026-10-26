@@ -22,8 +22,8 @@ export function createPlacing(ui) {
     const bRow = showForeman ? `<div class="builders" role="group" aria-label="What your builders focus on"><span>Foreman</span>${Object.entries(FOCUS).map(([k, v]) => `<button data-focus="${k}" aria-pressed="${(S.builders || 'off') === k}">${v}</button>`).join('')}</div>` : '';
     tray.innerHTML = bRow + (ui.folkRow ? ui.folkRow() : '') /* [folk] Let them build */ + BUILD_ORDER.map(t => {
       const n = S.stock[t] || 0, cost = n ? 0 : ui.game.buyCost(t), on = ui.placing && ui.placing.type === t;
-      const crew = t === 'tower' ? ui.game.crewing() : null, silent = crew && crew.free < CREW_NEED[0];   // [towers] a tower needs a crew: show it on the card
-      return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${(!n && S.gold < cost) || hands < 1 ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost">${icon('scrap')}${cost}</span>`}${crew ? `<span class="tcrew${silent ? ' bad' : ''}">${icon('people')}${CREW_NEED[0]} crew${silent ? ' · none free' : ''}</span>` : ''}</button>`;
+      const crew = t === 'tower' && !ui.turretTray ? ui.game.crewing() : null, silent = crew && crew.free < CREW_NEED[0], full = t === 'tower' && ui.turretFull && ui.turretFull();   // [mech] turrets: slots, no crew   // [towers] a tower needs a crew: show it on the card
+      return `<button class="tb ${t}${on ? ' on' : ''}${n ? ' have' : ''}" data-tray="${t}" ${(!n && S.gold < cost) || hands < 1 || full ? 'aria-disabled="true"' : ''}><i></i><span class="tn">${SHORT[t]}</span>${n ? `<span class="tc">×${n}</span>` : `<span class="cost">${icon('scrap')}${cost}</span>`}${crew ? `<span class="tcrew${silent ? ' bad' : ''}">${icon('people')}${CREW_NEED[0]} crew${silent ? ' · none free' : ''}</span>` : ''}${t === 'tower' && ui.turretTray ? ui.turretTray() : ''}</button>`;
     }).join('') + TECH_ORDER.map(t => {
       const have = S.buildings.some(b => b.type === t), locked = ui.game.keepLevel() < BUILDINGS[t].keep, cost = ui.game.buyCost(t), on = ui.placing && ui.placing.type === t;
       if (have || ui.game.keepLevel() < Math.min(2, BUILDINGS[t].keep)) return '';   // [gemini3] the Logger's Hut shows from Camp 1
@@ -41,7 +41,8 @@ export function createPlacing(ui) {
     if (BUILDINGS[t].tech && ui.game.keepLevel() < BUILDINGS[t].keep) { ui.toast(`Raise the Haven to level ${BUILDINGS[t].keep} to build a ${SHORT[t]}.`, 'bad'); return; }
     if (!(ui.game.state.stock[t] > 0) && ui.game.state.gold < ui.game.buyCost(t)) { ui.toast(`A ${SHORT[t].toLowerCase()} costs ${ui.game.buyCost(t)} scrap.`, 'bad'); return; }
     if (handsLeft() < 1) { ui.toast('Everyone is busy today. More people, more hands.', 'bad'); return; }
-    if (t === 'tower' && ui.game.crewing().free < CREW_NEED[0]) ui.toast('[No crew free] A new tower will stand silent. Build or upgrade homes first.', 'bad');   // [towers]
+    if (t === 'tower' && ui.turretFull && ui.turretFull()) { ui.toast(ui.game.canPlace('tower', 0, 0).reason || 'All turret slots in use.', 'bad'); return; }   // [mech]
+    if (t === 'tower' && !ui.turretTray && ui.game.crewing().free < CREW_NEED[0]) ui.toast('[No crew free] A new tower will stand silent. Build or upgrade homes first.', 'bad');   // [towers]
     startPlacing(t);
   });
   const SIZE = { house: 2, farm: 2, tower: 1, wall: 1, workshop: 3, market: 3, lumbermill: 2 };   // [gemini3] lumbermill
@@ -49,7 +50,7 @@ export function createPlacing(ui) {
   function computeZone(type) {
     const S = ui.game.state, n = SIZE[type], off = n % 2 ? 0.5 : 0, mask = new Uint8Array(N * N), spots = [];
     for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
-      if (!ui.game.zone()[idx(x, y)]) continue;
+      if (!ui.game.zone()[idx(x, y)] && !(type === 'tower' && ui.game.turretField && ui.game.turretField(x + 0.5, y + 0.5))) continue;   // [mech] turrets go up out in the town too
       const p = ui.game.canPlace(type, x + off, y + off, 0); if (!p.ok) continue;
       spots.push({ x: p.x, y: p.y, cells: p.cells }); for (const c of p.cells) mask[c] = 1;
     }

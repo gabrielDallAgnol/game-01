@@ -44,6 +44,8 @@ import { createEconUi } from './econ-ui.js';
 MODULES.push(createEconUi);   // [econ3] appended
 import { createDodge } from './dodge.js';
 MODULES.push(createDodge);   // [combat2] appended: the dash keys and button 
+import { createMechUi } from './mech-ui.js';
+MODULES.push(createMechUi);   // [mech] appended: parts, the Rig panel, the turret panel
 // [v2] the V2 core hides the switched-off systems' UI
 
 export function startApp() {
@@ -61,7 +63,7 @@ export function startApp() {
   let calmT = 0, waitT = 0;   // seconds of calm (no dead near the hero or the Camp), seconds a card has waited
   const holdCards = sec => { dawnAt = Math.max(dawnAt, performance.now() + sec * 1000); };
   const keys = {};
-  const setup = { hero: 'survivor', mode: 'classic', difficulty: store.get('difficulty', 'survivor'), runSeed: Math.floor(Math.random() * 1e6), pick: 0 };
+  const setup = { hero: 'mechanic', mode: 'classic', difficulty: store.get('difficulty', 'survivor'), runSeed: Math.floor(Math.random() * 1e6), pick: 0 };
   { const sq = new URLSearchParams(location.search).get('seed'); if (sq) setup.runSeed = +sq; }   // testing: a fixed world
   $('#sprite').innerHTML = iconSprite();
   const strip = createStrip($('#strip'), { onTap: () => { if (ui.game && !ui.card && !ui.game.state.over) ui.showStatus(); } });
@@ -127,6 +129,7 @@ export function startApp() {
     ui.folkTick(dt, events);   // [folk]
     ui.econTick(dt, events);   // [econ3]
     ui.dodgeTick(dt);   // [combat2]
+    ui.mechTick();   // [mech] parts in the top bar
     hudT -= dt; if (hudT <= 0) { updateHud(); ui.tickHome();   /* [pacify] the way home */ hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
   }
   requestAnimationFrame(frame);

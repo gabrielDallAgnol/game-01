@@ -48,6 +48,7 @@ const P = {
   horn: '<path d="M3.5 9.6v4.8h3.2L16 19.6V4.4L6.7 9.6z"/><path d="M18.6 9c.9.8 1.4 1.8 1.4 3s-.5 2.2-1.4 3"/><path d="M6.7 14.4l1.1 5.1h2.6l-.8-4"/>',
   lantern: '<path d="M12 2.6v2M9.2 4.6h5.6"/><path d="M8.4 7.2l.8-2.6h5.6l.8 2.6"/><rect x="6.8" y="7.2" width="10.4" height="11" rx="2.2"/><path d="M9 21h6M12 18.2V21"/><path d="M12 9.8c-1.4 1.6-1.8 2.9-.7 4.5 1-.5 1.9-1.6.7-4.5z"/>',
   pin: '<path d="M12 21s-6.2-6.2-6.2-11a6.2 6.2 0 0 1 12.4 0c0 4.8-6.2 11-6.2 11z"/><circle cx="12" cy="10" r="2.2"/>',
+  part: '<circle cx="12" cy="12" r="2.8"/><circle cx="12" cy="12" r="6.4"/><path d="M12 2.8v2.8M12 18.4v2.8M2.8 12h2.8M18.4 12h2.8M5.5 5.5l2 2M16.5 16.5l2 2M5.5 18.5l2-2M16.5 7.5l2-2"/>',   // [mech] a part: a gear
 };
 export const ICONS = Object.keys(P);
 /** the sprite, injected once into the page */
