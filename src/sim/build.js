@@ -85,6 +85,7 @@ export function createBuild(G) {
   /** why this building cannot go up a level right now ('' = it can): the one rule for upgrades, wall lines and the Guild */
   function raiseBlock(b) {
     if (!b || b.type === 'keep' || b.level >= (BUILDINGS[b.type].maxLevel || MAX_LEVEL)) return 'Cannot upgrade.';
+    if (b.type === 'tower' && G.turretBlock) return G.turretBlock(b);   // [mech] a turret's tier: the Rig's Workshop and parts
     if (b.ruined) return 'Rebuild it first.';
     if (b.level + 1 === 3 && UNLOCKS[b.type] && !hasTech(UNLOCKS[b.type])) return `Level 3 needs a ${BUILDINGS[UNLOCKS[b.type]].name}.`;
     if (b.level >= keep.level) return `Raise the Haven Rig first: nothing grows past the Haven Rig (level ${keep.level}).`;
@@ -100,6 +101,7 @@ export function createBuild(G) {
     if (queued && G.queueFull()) return fail('The work queue is full: let the crews finish something first.');
     // [econ3] end
     if (!G.useHand()) return false;
+    if (G.partsFor) S.parts -= G.partsFor(b.type, b.level + 1);   // [mech] tiers cost parts (turretBlock checked there are enough)
     S.gold -= cost; S.halfUpgrade = false; S.cur.spent += cost; S.cur.upgraded.push(`${b.type}${b.level + 1}`); S.stats.upgraded++; S.stats.goldSpent += cost;
     if (queued) return G.queueUp(b, cost);   // [econ3]
     raise(b); return true;

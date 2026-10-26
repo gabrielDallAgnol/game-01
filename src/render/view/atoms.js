@@ -14,6 +14,7 @@ const PER_FRAME = 1, BUDGET = 6, POOL = 48;   // at least one tile a frame, more
 export function createAtoms(V) {
   const A = V.map.area; if (!A) return null;
   const { world, S, C, map } = V, Wd = A.W, palette = Wd.chapter || 'ch1';
+  const Wpaint = { ...Wd, placed: Wd.placed.filter(p => !p.def.tags.includes('camp.rig')) };   // [mech] the Rig is drawn by view/keep.js (Hilde and her modules), not as a flat atom
   const hero = { value: new THREE.Vector3(0, 0, 0) };   // xz: the hero in world space; z of the vec: hole on (1) / off (0)
   const geo = new THREE.PlaneGeometry(TILE, TILE);
   const layer = over => {
@@ -31,7 +32,7 @@ export function createAtoms(V) {
   function paintTile(T) {
     const x0 = T.tx * TILE, y0 = T.ty * TILE, R = { x0, y0, x1: Math.min(Wd.w, x0 + TILE), y1: Math.min(Wd.h, y0 + TILE) };
     for (const L of [T.g, T.o]) { L.ctx.setTransform(1, 0, 0, 1, 0, 0); L.ctx.clearRect(0, 0, RES, RES); L.ctx.setTransform(PX, 0, 0, PX, -x0 * PX, -y0 * PX); L.ctx.save(); L.ctx.beginPath(); L.ctx.rect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0); L.ctx.clip(); }
-    paintWorld(T.g.ctx, T.o.ctx, Wd, palette, R);
+    paintWorld(T.g.ctx, T.o.ctx, Wpaint, palette, R);
     for (const L of [T.g, T.o]) L.ctx.restore();
     // cells the area left to the frontier (the far city) stay the frontier's
     for (let y = y0; y < R.y1; y++) for (let x = x0; x < R.x1; x++) { const mx = x + A.ox, my = y + A.oy; if (mx < 0 || my < 0 || mx >= map.N || my >= map.N || !A.mask[my * map.N + mx]) { T.g.ctx.clearRect(x, y, 1, 1); T.o.ctx.clearRect(x, y, 1, 1); } }

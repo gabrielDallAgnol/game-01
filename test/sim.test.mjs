@@ -81,8 +81,8 @@ test('the brain: the dead hunt you out in the open, give up at the town, and the
 
 // the nearest dead to the hero (a V2 night may bring no march: the roamers count)
 const prey = S => S.mobs.filter(q => !MOBS[q.kind].animal && q.hp > 0).sort((a, b) => Math.hypot(a.x - S.hero.x, a.y - S.hero.y) - Math.hypot(b.x - S.hero.x, b.y - S.hero.y))[0];
-test('heroes: every class fights, the Scavver only weakly', () => {
-  for (const hero of ['warrior', 'archer', 'merchant']) {
+test('the hero (the Mechanic, whatever class is asked for) fights with the wrench', () => {
+  for (const hero of ['mechanic', 'archer']) {
     const g = createGame({ mode: 'classic', seed: 4, biome: 'highland', hero }); const S = g.state;
     S.night = 3; g.startNight();
     for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) { const m = prey(S); if (m) g.heroTo(m.x, m.y); g.step(); }
@@ -228,14 +228,12 @@ test('nothing grows past the keep', () => {
 test('towers need crew from homes', () => {
   const g = createGame({ mode: 'classic', seed: 3 }); readyDay(g); const S = g.state; S.gold = 300; S.survivors = 0;
   const spot = t => g.map.slots.find(q => S.claimed.has(q.region) && !q.gate && g.canPlace(t, q.x, q.y).ok);
-  let s = spot('tower'); g.build('tower', s.x, s.y);
+  // [mech] turrets are machines: no crew. The bare Rig does not shoot (its Roof Turret does)
+  assert.equal(g.defenceDps(), 0, 'the bare Rig shoots');
+  const s = spot('tower'); g.build('tower', s.x, s.y);
   const t = S.buildings.find(x => x.type === 'tower');
-  assert.equal(g.manned(t), false, 'a tower with nobody in town fires');
-  assert.equal(g.defenceDps() > 0, true);   // the keep still shoots
-  const dps0 = g.defenceDps();
-  s = spot('house'); g.build('house', s.x, s.y);
-  assert.equal(g.manned(t), true, 'two people should man a level 1 tower');
-  assert.ok(g.defenceDps() > dps0);
+  assert.equal(g.manned(t), true, 'a turret wants a crew');
+  assert.ok(g.defenceDps() > 0);
 });
 
 test('no early dawn: a cleared night lasts its full length; the time of day runs on without a jump', () => {
@@ -286,8 +284,8 @@ test('cuts: no hands limit, no generators, rising costs', () => {
   const t = g.map.town, spot = type => { for (let r = 3; r < 14; r++) for (let a = 0; a < 24; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace(type, x, y).ok) return { x, y }; } return null; };
   const c1 = g.buyCost('house'); let p = spot('house'); g.build('house', p.x, p.y);
   assert.ok(g.buyCost('house') > c1, 'the second home costs the same');
-  // towers climb in a straight line: +25% of the base for every tower you have
-  const base = g.costOf('tower'); for (let k = 0; k < 4; k++) { assert.equal(g.buyCost('tower'), Math.round(base * (1 + 0.25 * k))); p = spot('tower'); assert.ok(g.build('tower', p.x, p.y)); }
+  // [mech] turrets cost the same every time: the System's slots limit them instead
+  const base = g.costOf('tower'); for (let k = 0; k < 3; k++) { assert.equal(g.buyCost('tower'), base); p = spot('tower'); assert.ok(g.build('tower', p.x, p.y)); }
   // no hands: a dozen jobs in one morning
   for (let k = 0; k < 8; k++) { p = spot('farm'); assert.ok(g.build('farm', p.x, p.y), `job ${k} refused`); }
   // power is gone: no generator in the build list
@@ -295,7 +293,7 @@ test('cuts: no hands limit, no generators, rising costs', () => {
 });
 
 test('build zone: near the keep at first, and every building widens it', () => {
-  const g = createGame({ mode: 'classic', seed: 9 }); readyDay(g); const S = g.state; S.gold = 200;
+  const g = createGame({ mode: 'classic', seed: 9 }); readyDay(g); const S = g.state; S.gold = 200; S.lvl = 8;   // [mech] Lv 8: eight turret slots
   const t = g.map.town, far = { x: t.x + 13.5, y: t.y + 0.5 };
   const z0 = g.zone().reduce((a, v) => a + v, 0);
   assert.ok(!g.inZone(far.x, far.y), 'zone reaches too far at the start');
@@ -371,7 +369,7 @@ test('ruins persist: a fallen building stays a ruin (no income, its lot kept) un
   const gold = S.gold; assert.ok(g.rebuild(farm.id)); assert.equal(S.gold, gold - cost); assert.ok(!farm.ruined);
   assert.equal(g.foodPerDawn(), food0);
   // a level 2 tower's rebuild is half of everything it cost
-  prepKeep(g); assert.ok(g.upgradeKeep()); assert.ok(g.upgrade(tower.id)); const t2 = S.byId.get(tower.id);
+  prepKeep(g); assert.ok(g.upgradeKeep()); S.rig.lv.workshop = 1; S.parts = 10; /* [mech] tier 2: the Workshop and parts */ assert.ok(g.upgrade(tower.id)); const t2 = S.byId.get(tower.id);
   g.hitBuilding(t2.id, 999); assert.equal(g.rebuildCost(t2.id), Math.ceil((g.costOf('tower', 1) + g.costOf('tower', 2)) / 2));
   assert.equal(g.rebuildAll(), 1); assert.equal(g.ruins().length, 0);
 });

@@ -61,7 +61,7 @@ export function createChapter(G) {
     else bump(at.step, at.n || 1);
     ch().work = W1.filter(w => !w.done);
   }
-  const parts = () => (G.partsHave ? G.partsHave() : Infinity);
+  const parts = () => (G.parts ? G.parts() : Infinity);   // the Mechanic's parts (sim/mechanic.js)
   const can = cost => S.gold >= (cost.scrap || 0) && parts() >= (cost.parts || 0);
   const pay = cost => { S.gold -= cost.scrap || 0; S.stats.goldSpent += cost.scrap || 0; if (cost.parts && G.addParts) G.addParts(-cost.parts); };
 
@@ -83,7 +83,7 @@ export function createChapter(G) {
     ev('chStep', { id, state: 'open', night: S.night });
     sys(s.goal.op === 'survive' ? '' : `[Objective] ${goalText(s)}`);
     const g = s.goal, p = P();
-    if (g.op === 'salvage' && g.what === 'car' && !G.salvage) {   // no Mechanic salvage yet (another branch): the cars round the square are jobs
+    if (g.op === 'salvage' && g.what === 'car' && !G.salvageSpots) {   // without the Mechanic's salvage (sim/mechanic.js) the cars round the square are jobs
       const cars = map.area.W.placed.filter(q => q.def.kind === 'vehicle' && q.def.id.startsWith('car.')).map(q => G.groundNear(q.x + map.area.ox, q.y + map.area.oy, 4)).filter(q => Math.hypot(q.x - c, q.y - c) > 6).sort((a, b) => Math.hypot(a.x - c, a.y - c) - Math.hypot(b.x - c, b.y - c));
       cars.slice(0, g.n + 2).forEach(q => addWork({ step: id, x: q.x, y: q.y, time: WORK.carSalvage, car: true, label: 'car' }));
     }
@@ -101,6 +101,7 @@ export function createChapter(G) {
   function close(id) {
     const s = BYID[id]; if (!isOpen(id)) return;
     ch().open = ch().open.filter(x => x !== id); ch().done.push(id); ch().work = ch().work.filter(w => w.step !== id);
+    if (s.goal.op === 'repair' && s.goal.place === 'rig' && G.rigFixEngine) G.rigFixEngine();   // Hilde runs again (sim/rig.js)
     if (s.goal.op === 'carry' && ch().slowed) { S.P.heroSpeed /= FINALE.slow; ch().slowed = false; ch().item = null; }
     ev('chStep', { id, state: 'done', night: S.night });
     if (s.sys && s.goal.op !== 'reach') sys(s.sys.startsWith('[Objective]') ? `[Objective complete] ${goalText(s)}` : s.sys, 'win'); else if (s.goal.op !== 'survive') sys(SYS1.done(goalText(s).replace(/\.$/, '')), 'win');
@@ -160,7 +161,7 @@ export function createChapter(G) {
       G.noteOnSearch(o, d);
     }
     else if (e.t === 'radio') { for (const s of STEPS) if (s.trigger.on === 'event' && s.trigger.event === 'carRadio' && (!s.trigger.night || s.trigger.night === S.night) && e.src !== 'rig') open(s.id); }
-    else if (e.t === 'salvage') { if (!ch().carRadio || ch().carRadio !== S.night) { ch().carRadio = S.night; G.radioAt(e.x, e.y, 'car'); } for (const id of ch().open) if (BYID[id].goal.op === 'salvage' && BYID[id].goal.what === 'car' && (e.what === undefined || /car|van|bus|tractor/.test(e.what))) bump(id, 1); }
+    else if (e.t === 'salvage') { if (!ch().carRadio || ch().carRadio !== S.night) { ch().carRadio = S.night; G.radioAt(e.x, e.y, 'car'); } for (const id of ch().open) if (BYID[id].goal.op === 'salvage' && BYID[id].goal.what === 'car' && (!(e.kind || e.what) || /car|van|bus|tractor/.test(e.kind || e.what))) bump(id, 1); }
     else if (e.t === 'built') { for (const id of [...ch().open]) if (BYID[id].goal.op === 'build') checkBuild(BYID[id]); }
   }
   // night 1: one slow Ash-Born walks to the Rig at dusk (the design's first-night beat)
@@ -201,7 +202,7 @@ export function createChapter(G) {
     if (ch().roll > 0) ch().roll -= dt;
     checkGoals();
   }
-  const objective = () => { const o = ch() && ch().open.map(id => BYID[id]).filter(s => !s.optional && s.goal.op !== 'survive'); const s = o && o[o.length - 1]; if (!s) return null; const g = s.goal, p = P(), pl = p[g.place || g.nest || (g.horde === 'townhall' ? 'townhall' : g.horde === 'works' ? 'works' : g.op === 'carry' ? 'rig' : '')]; const w = ch().work.find(q => q.step === s.id); return { id: s.id, text: goalText(s), x: w ? w.x : pl ? pl.at.x : null, y: w ? w.y : pl ? pl.at.y : null, n: g.n || 0, have: ch().prog[s.id] || 0 }; };
+  const objective = () => { const o = ch() && ch().open.map(id => BYID[id]).filter(s => !s.optional && s.goal.op !== 'survive'); const s = o && o[o.length - 1]; if (!s) return null; const g = s.goal, p = P(), pl = p[g.place || g.nest || (g.horde === 'townhall' ? 'townhall' : g.horde === 'works' ? 'works' : g.op === 'carry' ? 'rig' : '')]; let w = ch().work.find(q => q.step === s.id); if (!w && g.op === 'salvage' && g.what === 'car' && G.salvageSpots) { const h = hero(); w = G.salvageSpots().filter(q => /car|van|bus|tractor/.test(q.kind) && !G.salvaged(q.id)).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0]; } return { id: s.id, text: goalText(s), x: w ? w.x : pl ? pl.at.x : null, y: w ? w.y : pl ? pl.at.y : null, n: g.n || 0, have: ch().prog[s.id] || 0 }; };
   const chapterInfo = () => (S.ch ? { open: ch().open.slice(), done: ch().done.slice(), objective: objective(), work: ch().work.map(w => ({ id: w.id, x: w.x, y: w.y, t: w.t, time: w.time, label: w.label, at: ch().at === w.id })), item: ch().item, roll: ch().roll, district: ch().district, ended: !!ch().ended, stats: ch().stats || null } : null);
   /** tests and screenshots: close every step before `id` (paying its reward) and open `id`, the night moved up to its beat */
   function chapterJump(id) {
@@ -210,5 +211,7 @@ export function createChapter(G) {
     if (S.night < BYID[id].night) { S.night = BYID[id].night; S.tide = tideFor(S.night); G.nestDawn(); }
     open(id); return true;
   }
-  return { chapterJump, stepChapter, chapterStart, chapterInfo, chapterOn: () => true, chOpen: open, chClose: close, chIsOpen: isOpen, chIsDone: isDone, spawnPack, packLeft, chSys: sys, chRng: rng };
+  /** for the Rig's unlocks (sim/rig.js): a step that unlocks a module is done; a step whose goal is building one is open */
+  const questDone = id => isDone(id) || (isOpen(id) && BYID[id] && BYID[id].goal.op === 'build');
+  return { questDone, chapterJump, stepChapter, chapterStart, chapterInfo, chapterOn: () => true, chOpen: open, chClose: close, chIsOpen: isOpen, chIsDone: isDone, spawnPack, packLeft, chSys: sys, chRng: rng };
 }

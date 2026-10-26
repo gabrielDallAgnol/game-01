@@ -11,7 +11,7 @@ export function createSurvivors(G) {
   const SV = () => S.ch.surv;
   const HOME = [[-4.2, 2.6], [4.2, 2.6], [0, 5.4]];   // where they stand round the Rig
   function survivorsInit() { for (const id of Object.keys(SURVIVORS)) if (!SV()[id]) SV()[id] = { state: 'away' }; }
-  const beds = () => (G.rigBeds ? G.rigBeds() : CREW.beds);
+  const beds = () => (G.rigBeds ? G.rigBeds() : CREW.beds);   // the Rig's bunks (sim/rig.js)
   const home = () => Object.values(SV()).filter(v => v.state === 'home').length;
   const party = () => 1 + home();
   /** a rescue: home to the Rig if there is a bed, else she waits at the Rig door for one */
@@ -40,5 +40,5 @@ export function createSurvivors(G) {
     if (e.t === 'dawn' && SV().lotte && SV().lotte.state === 'home') { const f = G.hordeMarch ? G.hordeMarch(S.night) : []; if (f.length) G.chSys(`[Lotte: they come from the ${G.compass(f[0].x, f[0].y)}]`, 'bad'); }
   }
   const survivors = () => (S.ch ? Object.keys(SURVIVORS).map(id => ({ id, name: SURVIVORS[id].name, state: SV()[id].state, ...(at(id) || {}) })) : []);
-  return { survivorsInit, rescue, stepSurvivors, onSurvivorEvent, survivors, partyCount: party };
+  return { hasSurvivor: id => !S.ch || !!(S.ch.surv[id] && S.ch.surv[id].state === 'home'), /* the Rig Radio needs Gus; outside chapter 1 nobody is missing */ survivorsInit, rescue, stepSurvivors, onSurvivorEvent, survivors, partyCount: party };
 }

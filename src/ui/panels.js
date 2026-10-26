@@ -16,7 +16,7 @@ export function createPanels(ui) {
   function selB() { const S = ui.game.state; return ui.selected && ui.selected.type === 'building' ? S.byId.get(ui.selected.id) : ui.selected && ui.selected.type === 'keep' ? S.keep : null; }
   function panelSig() {
     const S = ui.game.state, b = selB();
-    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? `${ui.game.landmarkReach(ui.selected.id)}` : '', b ? `${b.spec || ''}${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : ''].join('|');
+    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? `${ui.game.landmarkReach(ui.selected.id)}` : '', b ? `${b.spec || ''}${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : '', ui.rigSig ? ui.rigSig() : ''].join('|');   // [mech] parts and the Rig's modules
   }
   /** re-render the open panel only when what it shows changed */
   function refreshPanel() { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } }
@@ -27,6 +27,7 @@ export function createPanels(ui) {
   function renderPanel() {
     if (!ui.selected || !ui.game) return;
     const S = ui.game.state, body = $('#pBody'), day = !S.over;
+    if (ui.selected.type === 'keep' && ui.rigPanel) { body.innerHTML = ui.rigPanel(opt); return; }   // [mech] the Haven Rig and its modules (ui/mech-ui.js)
     if (ui.selected.type === 'keep') {
       const k = S.keep, l = k.level;
       $('#pEyebrow').textContent = 'Your home'; $('#pTitle').textContent = `The Haven · level ${l}`;
@@ -85,6 +86,7 @@ export function createPanels(ui) {
     const capped = b.level >= ui.game.keepLevel(), maxL = B.maxLevel || MAX_LEVEL, needTech = b.level + 1 === 3 && UNLOCKS[b.type] && !ui.game.hasTech(UNLOCKS[b.type]);
     if (b.cq && ui.econPanel) { body.innerHTML = ui.econPanel(b, opt); ui.selected.range = null; return; }   // [econ3] a blueprint in the construction queue
     if (B.tech) { body.innerHTML = `<div class="stat"><span>${b.built < 1 ? `Under construction <b>${Math.floor(b.built * 100)}%</b>` : 'Working'}</span><span>${B.desc[0]}</span></div><div class="opts two">${opt('opt-demo', 'data-demo="1"', 'Pull down', null, `<b class="good">+${Math.floor(ui.game.costOf(b.type) / 2)} scrap back</b> · <b class="bad">its bonus is gone</b>.`, !day)}</div>`; ui.selected.range = null; return; }
+    if (b.type === 'tower' && ui.turretPanel) { body.innerHTML = ui.turretPanel(b, opt); return; }   // [mech] a scrap turret: its tier and the next
     if (b.type === 'tower') { const on = ui.game.manned(b), need = CREW_NEED[b.level - 1], cw = ui.game.crewing(); html = html.replace('</div><div class="opts two">', `<span>${on ? `Crew <b>${need}</b> on watch` : `<b class="bad">Silent: no crew</b>. It needs ${need} people; ${cw.free} free. Build or upgrade homes.`}</span></div><div class="opts two">`); }
     // [towers] begin: a level 3 tower takes one role for good
     if (b.type === 'tower' && b.level >= 3 && !b.spec) {
@@ -104,6 +106,7 @@ export function createPanels(ui) {
     if (btn.dataset.clear && ui.treesClick && ui.game.rubbleAt(ui.selected.x, ui.selected.y).trees) { if (ui.treesClick(ui.selected.x, ui.selected.y)) { closePanel(); ui.updateHud(); } return; }   // [gemini3]
     if (btn.dataset.clear) { const n = ui.game.clearRubble(ui.selected.x, ui.selected.y); if (n) { ui.toast(`${n} ${n === 1 ? 'cell' : 'cells'} cleared.`); closePanel(); ui.updateHud(); return; } }
     if (btn.dataset.rebuild) { if (ui.game.rebuild(ui.selected.id)) { audio.play('build'); ui.toast(`${BUILDINGS[ui.game.state.byId.get(ui.selected.id).type].name} rebuilt.`, 'good'); renderPanel(); ui.updateHud(); } return; }
+    if (btn.dataset.rig && ui.game.rigBuild(btn.dataset.rig)) audio.play('build');   // [mech] fit a module on the Rig
     if (btn.dataset.keep && ui.game.upgradeKeep()) ui.toast('The Haven rises higher.');
     if (btn.dataset.trader && FLAGS.trader) { closePanel(); ui.paused = true; showTrader(); return; }
     if (btn.dataset.up && ui.game.upgrade(ui.selected.id)) ui.toast('Upgraded.');

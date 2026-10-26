@@ -28,6 +28,7 @@ export function createCombat(G) {
     // [gemini3] begin: a compact Camp hits harder; a companion at their post lends towers near the Camp part of your presence
     let hold = null; if (G.towerHold) { hold = G.towerHold(b, near); dmg *= hold.dmg; rate /= hold.rate; range += hold.range; }
     // [gemini3] end
+    if (G.turretMod) { const k = G.turretMod(b); dmg *= k.dmg; rate /= k.rate; }   // [mech] Overclock near Kai, floodlit ground
     return { range, dmg, rate, shots: has('volley') && b.level === 3 ? 2 : 1, presence: near || !!(hold && hold.captain) };
   }
   // towers are manned by people from your homes, oldest tower first; a tower without its full crew stays silent
@@ -38,7 +39,7 @@ export function createCombat(G) {
     if (S.phase === 'night' && crewCache && crewCache.night === S.night) return crewCache;   // posts are fixed for the night
     if (key === crewKey && crewCache) return crewCache;
     let free = pop() + (G.garrison ? G.garrison() : 0); const manned = new Set(); let need = 0;   // [gemini3] the Camp's own garrison
-    for (const b of S.buildings.filter(x => x.type === 'tower' && !x.ruined).sort((a, c) => a.id - c.id)) { const n = CREW_NEED[b.level - 1]; need += n; if (free >= n) { manned.add(b.id); free -= n; } }
+    for (const b of S.buildings.filter(x => x.type === 'tower' && !x.ruined).sort((a, c) => a.id - c.id)) { const n = G.turretCrew ? G.turretCrew(b) /* [mech] turrets are machines */ : CREW_NEED[b.level - 1]; need += n; if (free >= n) { manned.add(b.id); free -= n; } }
     crewKey = key; crewCache = { manned, free, need, people: pop() + (G.garrison ? G.garrison() : 0), night: S.phase === 'night' ? S.night : null };
     return crewCache;
   }
@@ -50,10 +51,11 @@ export function createCombat(G) {
     cacheNeighbours();
     let d = 0;
     for (const b of live()) if (b.type === 'tower' && manned(b)) { const t = towerStats(b); d += b.spec ? G.specDps(b, t) : t.dmg * t.shots / t.rate; }   // [towers] a specialised tower: sim/towers.js
-    if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * keepShots(keep.level - 1) + (has('ballista') ? 8 / 3 * 2 : 0);
+    if (!keep.ruined && G.rigGun) { const gun = G.rigGun(); if (gun) d += gun.dmg * keepMult() / gun.rate; }   // [mech] the Rig shoots only with its Roof Turret
+    else if (!keep.ruined) d += KEEP.dmg[keep.level - 1] * keepMult() * S.P.keepRate / KEEP.rate * keepShots(keep.level - 1) + (has('ballista') ? 8 / 3 * 2 : 0);
     return d;
   }
-  function heroDmg() { return G.HC.attack ? (G.HC.attack.dmg + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult * (1 + LEVEL.dmg * (S.lvl - 1)) * (S.drained === S.night ? 0.75 : 1) * (G.HC.dmgMult || 1) : 0; }
+  function heroDmg() { return G.HC.attack ? (G.HC.attack.dmg + (G.HC.attack.perLevel || 0) * (S.lvl - 1) + S.P.heroDmg + (mastery('whirlwind') ? 1 : 0)) * S.P.heroDmgMult * (1 + LEVEL.dmg * (S.lvl - 1)) * (S.drained === S.night ? 0.75 : 1) * (G.HC.dmgMult || 1) : 0; }
   function heroRate() { return G.HC.attack ? G.HC.attack.rate / S.P.heroRate / (mastery('champion') ? 1.3 : 1) : 1; }
   function heroDps() {
     if (!G.HC.attack) return 0;
@@ -122,7 +124,8 @@ export function createCombat(G) {
     const D = MOBS[m.kind];
     if (S.P.lifesteal && !S.hero.dead && Math.hypot(m.x - S.hero.x, m.y - S.hero.y) < 6) S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + S.P.lifesteal);
     if (S.P.bounty && S.kills % 3 === 0) earn(1);
-    if (src === 'hero' || src === 'volley' || src === 'merc') G.gainXp(MOBS[m.kind].size >= BIG ? 6 : 1);
+    if (G.killXp) { const x = G.killXp(m, src); if (x) G.gainXp(x); }   // [mech] the Mechanic's xp per kill
+    else if (src === 'hero' || src === 'volley' || src === 'merc') G.gainXp(MOBS[m.kind].size >= BIG ? 6 : 1);
     if (src === 'hero' && combo('blood', 'bounty')) earn(1);
     if (D.burst) { dropLive(); explode(m.x, m.y, D.burst); }
     if (D.dropsChest && rng.chance(D.dropsChest)) { const ch = { id: S.nextId++, x: m.x, y: m.y }; S.chests.push(ch); ev('chest', { id: ch.id }); toast('Something dropped a chest. Walk over it.', 'good'); }
@@ -191,12 +194,14 @@ export function createCombat(G) {
         b.shotN++;
         fire(3, b.x, b.y, near2[k % near2.length], t.dmg, 'tower', 18, has('fire') && b.shotN % 5 === 0 ? { burn: true } : {});
       }
+      if (G.turretShot) G.turretShot(b, near2[0], t);   // [mech] the Rivet Cannon pierces
       b.cd = t.rate;
     }
     if (!keep.ruined) {
-      const l = keep.level - 1, range = (KEEP.range[l] + S.P.towerRange) * G.W8().range, dmg = KEEP.dmg[l] * keepMult();
+      const l = keep.level - 1, gun = G.rigGun ? G.rigGun() : undefined;   // [mech] the Rig's Roof Turret is its gun (null: it does not shoot)
+      const range = ((gun ? gun.range : KEEP.range[l]) + S.P.towerRange) * G.W8().range, dmg = (gun ? gun.dmg * (G.rigLit(c, c) || 1) : KEEP.dmg[l]) * keepMult();
       keep.cd -= dt;
-      if (keep.cd <= 0) { const ms = nearestMobs(c, c, range, 2); if (ms.length) { for (let k = 0; k < keepShots(l); k++) fire(4, c, c, ms[k % ms.length], dmg, 'keep'); keep.cd = KEEP.rate / S.P.keepRate; } }
+      if (gun !== null && keep.cd <= 0) { const ms = nearestMobs(c, c, range, 2); if (ms.length) { for (let k = 0; k < (gun ? 1 : keepShots(l)); k++) fire(4, c, c, ms[k % ms.length], dmg, 'keep'); keep.cd = (gun ? gun.rate : KEEP.rate) / S.P.keepRate; } }
       if (has('ballista')) {
         keep.boltT -= dt;
         if (keep.boltT <= 0) {

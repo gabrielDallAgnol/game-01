@@ -38,7 +38,7 @@ test('a scaffold does not work: a tower going up does not shoot, a home going up
   for (let k = 0; k < 60; k++) g.step();
   assert.ok(!S.projectiles.some(q => q.src === 'tower'), 'a scaffold tower shot');
   assert.equal(g.incomePerCycle().gold, g.incomePerCycle().gold);   // smoke
-  tw.built = 1; quiet(g, 2); S.keep.ruined = false; S.keep.level = 2;
+  tw.built = 1; quiet(g, 2); S.keep.ruined = false; S.keep.level = 2; S.rig.lv.workshop = 1; S.parts = 10;   // [mech] tier 2 needs the Workshop and parts
   assert.equal(g.queue().length, 0);
   assert.ok(g.upgrade(tw.id)); assert.equal(tw.level, 1, 'the upgrade was instant');
   assert.equal(g.queue()[0].kind, 'up'); assert.equal(g.upgrade(tw.id), false, 'two upgrades of one tower at once');
@@ -49,7 +49,7 @@ test('a scaffold does not work: a tower going up does not shoot, a home going up
 test('towers cost the same however many you have, and the dead tear a scaffold down for good', () => {
   const g = fresh(7), S = g.state; S.gold = 500;
   const c0 = g.buyCost('tower');
-  for (let k = 0; k < 4; k++) { const p = ring(g, 'tower'); assert.ok(p && g.build('tower', p.x, p.y)); }
+  for (let k = 0; k < 3; k++) { const p = ring(g, 'tower'); assert.ok(p && g.build('tower', p.x, p.y)); }   // [mech] three turret slots at level 1
   assert.equal(g.buyCost('tower'), c0, 'the tower price climbed');
   const b = S.buildings[S.buildings.length - 1], n = S.buildings.length;
   g.hitBuilding(b.id, 1e6);

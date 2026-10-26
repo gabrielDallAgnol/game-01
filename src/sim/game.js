@@ -58,6 +58,9 @@ import { createCombat2 } from './combat2.js';
 // [v2] next line
 // [v2] next line
 import { createHordes } from './hordes.js';
+// [mech] the Mechanic (wrench, salvage, parts, the turret line) and the Haven Rig with its modules
+import { createMechanic } from './mechanic.js';
+import { createRig } from './rig.js';
 // [ch1] begin: chapter 1 in Hollowmere (places, the quest chain, words in the world, survivors, nests as buildings)
 import { createPlaces } from './places.js';
 import { createChapter } from './chapter.js';
@@ -76,10 +79,11 @@ MODULES.push(createConstruct, createSettle);   // [econ3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
 MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the dash
 MODULES.push(createHordes);   // [v2] appended: hordes, the V2 night
+MODULES.push(createMechanic, createRig);   // [mech] appended: the Mechanic, the Haven Rig's modules
 MODULES.push(createPlaces, createChapter, createWorldText, createSurvivors, createChNests);   // [ch1] appended: chapter 1 (does nothing outside Hollowmere)
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, area = 'suburb', chapter = true } = {}) {   // [area] area: an engine recipe id · [ch1] chapter: false runs Hollowmere without its story
-  if (hero === 'steward') hero = 'merchant';
+  hero = 'mechanic';   // [mech] the only class (an old save's or caller's class plays the Mechanic)
   const map = generateMap(mapSeed ?? seed, biome, area ? { area } : {});
   const HC = heroKit(hero), DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
   const c = map.town.x;
@@ -187,6 +191,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [income] end
     G.stepSearch(dt);   // [area] houses to search (only in an engine-built area)
     if (G.stepHordes) G.stepHordes(dt);   // [v2] hordes wake, break, sleep
+    G.stepSalvage(dt); G.stepSkills(dt); G.stepRig(dt);   // [mech] salvage, Field Repair, the Rig's modules
     // [econ3] begin: the construction queue (sim/construct.js)
     G.stepConstruct(dt);
     // [econ3] end

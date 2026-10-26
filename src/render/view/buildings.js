@@ -120,7 +120,7 @@ export function createBuildings(V) {
     }
     return cheerGeo[key].clone();
   }
-  const NICE = { house: '+1 Home', farm: '+1 Farm', tower: '+1 Tower', workshop: 'Workshop', market: 'Market', lumbermill: "Logger's Hut" };   // [gemini3] lumbermill
+  const NICE = { house: '+1 Home', farm: '+1 Farm', tower: '+1 Turret', workshop: 'Workshop', market: 'Market', lumbermill: "Logger's Hut" };   // [gemini3] lumbermill
   // ruins persist until rebuilt: a fallen building is drawn as its own charred, collapsed shell
   function syncBuildings() {
     const time = V.time, { makeBar } = V.bars, { dust, burst, celebrate } = V.feel;

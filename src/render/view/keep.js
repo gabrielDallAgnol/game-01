@@ -13,7 +13,7 @@ export function createKeep(V) {
     if (KP.g) world.remove(KP.g); KP.lampGlow.length = 0;
     keepLevel = S.keep.level;
     // the keep is drawn as the Haven Rig truck (kit/haven.js), parked and anchored; the V2 Rig (modules, driving off) comes later
-    KP.g = K.haven({ level: S.keep.level, guns: 0, plating: 0, cargo: 0 }); K.setHaven(KP.g, 1); KP.g.scale.setScalar(0.3); KP.rebuilt = (KP.rebuilt || 0) + 1;
+    KP.g = K.haven({ level: S.keep.level, guns: 0, plating: 0, cargo: 0 }); K.setHaven(KP.g, 1); KP.g.scale.setScalar(0.45);   /* [mech] bigger: the Rig is the base, its modules must read from above */ KP.rebuilt = (KP.rebuilt || 0) + 1;
     KP.g.position.copy(Wv(C, C)); KP.g.rotation.y = Math.PI; world.add(KP.g);
     KP.g.updateMatrixWorld(true);
     const toW = ([x, y, z, r]) => { const v = new THREE.Vector3(x, y, z).applyMatrix4(KP.g.matrixWorld); return [v.x, v.z, (r || 4.5) * 0.27 * 3, v.y]; };

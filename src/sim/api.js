@@ -74,6 +74,10 @@ export function createApi(G) {
     combat2: () => true, dash: (dx, dy) => G.dash(dx, dy), dashInfo: () => G.dashInfo(),
     // [v2] the V2 core: always on now (kept for old callers)
     v2: () => true,
+    // [mech] the Mechanic: parts, salvage spots, the turret line; the Haven Rig's modules (sim/mechanic.js, sim/rig.js)
+    parts: () => G.parts(), addParts: n => G.addParts(n), mechanic: () => G.mechInfo(), turretSlots: () => G.turretSlots(), turretInfo: lv => G.turretInfo(lv), turretField: (x, y) => G.turretField(idx(Math.floor(x), Math.floor(y))), partsFor: (type, lv) => G.partsFor(type, lv),
+    salvageSpots: () => G.salvageSpots(), salvaged: id => G.salvaged(id), salvageAt: () => G.salvageAt(), salvageT: () => G.salvageT(),
+    rigHas: id => G.rigHas(id), rigLevel: id => G.rigLevel(id), rigModules: () => G.rigModules(), rigBuild: id => G.rigBuild(id), rigBlock: id => G.rigBlock(id), rigBeds: () => G.rigBeds(), rigGun: () => G.rigGun(), rigReady: () => G.rigReady(), rigFixEngine: () => G.rigFixEngine(),
     // [ch1] chapter 1: its quest state, places, the district under a point, the words in the world, survivors, nests
     chapter: () => G.chapterInfo(), places: () => G.places(), districtName: (x, y) => G.districtName(x, y), districtOf: (x, y) => G.districtOf(x, y),
     notes: () => (S.ch ? S.ch.notes.slice() : []), heard: () => (S.ch ? S.ch.heard.slice() : []), graffiti: () => (G.graffiti ? G.graffiti() : []), radios: () => (G.radios ? G.radios() : []), radioDue: src => (G.radioDue ? G.radioDue(src) : false),

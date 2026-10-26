@@ -52,6 +52,9 @@ import { createTelegraph } from './view/telegraph.js';
 import { createTopPop } from './view/toppop.js';
 // [topnests] next line
 import { createTopNests } from './view/topnests.js';
+// [mech] the Rig's modules on the truck; salvage rings on cars and machines
+import { createRigMods } from './view/rigmods.js';
+import { createSalvageMarks } from './view/salvage.js';
 // [ch1] begin
 import { createWorldTextView } from './view/worldtext.js';
 import { createChapterView } from './view/chapter.js';
@@ -115,6 +118,8 @@ export function createView(canvas, game, opts = {}) {
   const telegraph = createTelegraph(V);   // [combat2] wind-up rings, whiffs, the dash streak
   V.topPop = createTopPop(V);   // [toppop] the hero, your buildings and the dead pop from above
   V.topNests = createTopNests(V);   // [topnests] the nests as infested buildings in the flat style
+  V.rigMods = createRigMods(V);   // [mech]
+  V.salvageMarks = createSalvageMarks(V);   // [mech]
   V.worldText = createWorldTextView(V);   // [ch1] graffiti, radio lines, the System over Kai (null outside chapter 1)
   V.chapter = createChapterView(V);   // [ch1] jobs, hearts, survivors, radios, the torch, the beacon, the Rig rolling out
 
@@ -166,6 +171,8 @@ export function createView(canvas, game, opts = {}) {
     if (telegraph) telegraph.update(dt, ui.events);   // [combat2]
     if (V.topPop) V.topPop.update();   // [toppop]
     if (V.topNests) V.topNests.update(dt);   // [topnests]
+    if (V.rigMods) V.rigMods.update();   // [mech]
+    if (V.salvageMarks) V.salvageMarks.update(ui.events);   // [mech]
     if (V.worldText) V.worldText.update(dt, ui.events);   // [ch1]
     if (V.chapter) V.chapter.update(dt);   // [ch1]
     look.render(V.time);

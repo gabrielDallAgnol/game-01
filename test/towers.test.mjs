@@ -69,10 +69,10 @@ test('a specialised tower counts for more in the threat estimate, and survives a
   g.hitBuilding(b.id, 999); assert.ok(b.ruined); assert.ok(g.rebuild(b.id)); assert.equal(S.byId.get(b.id).spec, 'mortar');
 });
 
-test('crew: towers past the people stand silent, and the strip can say how many', () => {
-  const g = ready(), S = g.state; S.survivors = 4; g.state.occVersion = (g.state.occVersion || 0) + 1;
-  const a = tower3(g), b = tower3(g);   // 3 + 3 crew, 4 people
-  assert.ok(g.manned(a)); assert.ok(!g.manned(b));
-  const cw = g.crewing(), up = S.buildings.filter(x => x.type === 'tower' && !x.ruined).length;   // what the HUD's silent-towers line reads
-  assert.equal(up - cw.manned.size, 1); assert.equal(cw.need - cw.people, 2);
+test('crew: turrets are machines and need nobody; the strip line counts none silent', () => {   // [mech] (was: towers past the people stand silent)
+  const g = ready(), S = g.state; S.survivors = 0; S.homeless = 0; g.state.occVersion = (g.state.occVersion || 0) + 1;
+  const a = tower3(g), b = tower3(g);
+  assert.ok(g.manned(a)); assert.ok(g.manned(b));
+  const cw = g.crewing(), up = S.buildings.filter(x => x.type === 'tower' && !x.ruined).length;
+  assert.equal(up - cw.manned.size, 0); assert.equal(cw.need, 0);
 });

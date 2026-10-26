@@ -6,6 +6,7 @@ import { START } from '../content/buildings.js';
 import { freshPerkState } from '../content/perks.js';
 import { PACK_RULES } from '../content/packs.js';
 import { SEASONS, RULES, seasonEnd } from '../content/season.js';
+import { XP, SLOTS } from '../content/mechanic.js';
 
 export const STEP = 1 / 60;
 export const PICKS_PER_DAWN = 2;
@@ -40,10 +41,9 @@ export const DIFFICULTY = {
   nightmare: { name: 'Nightmare', blurb: 'The city wants you dead. It usually gets its way.', threat: 1.45, eco: 0.8, heat: 1.4 },
 };
 export const FOREMAN = { buildings: 6, keep: 3 };   // the Foreman: a toggle, never on by itself
-// hero levels: XP from the dead you put down yourself, sites, quests and districts. Each level: a little harder, a little tougher.
-// three class tiers (15 / 30 / 45) land around nights 9, 22 and ~37 for the autopilot bot (measured: ~390 xp by night 9,
-// ~2000 by night 22, then ~200 a night); each level is a small step (a third of the old one)
-export const LEVEL = { xp: lv => Math.round(1.2 * Math.pow(lv, 1.44) + 4), dmg: 0.03, hp: 1.3, max: 50, blessEvery: 15 };
+// hero levels: the Mechanic's (content/mechanic.js XP, LEVELS): about one a night, from story steps, salvage and kills.
+// A level adds wrench damage (WRENCH.perLevel, sim/combat.js heroDmg) and a little health; LEVELS says what else it opens.
+export const LEVEL = { xp: XP.need, dmg: 0, hp: 1.3, max: SLOTS.length, blessEvery: 15 };
 export const WALL_COST = 6;            // extra path cost of breaking through a palisade
 export class MinHeap {
   constructor() { this.k = []; this.v = []; }
