@@ -34,7 +34,7 @@ test('a building you put down over a prop moves the prop, never the other way ro
   const g = settled(7), S = g.state;
   S.folk.fund = 30; day(g, 40);
   const p = S.folk.props[0]; assert.ok(p, 'the folk raised something');
-  const i = p.cells[0], x = (i % 448) + 0.5, y = Math.floor(i / 448) + 0.5;
+  const i = p.cells[0], N = g.map.N, x = (i % N) + 0.5, y = Math.floor(i / N) + 0.5;   // (the grid side: map.N, not a number)
   // a tower right on the prop's cell, if the ground takes one
   assert.ok(g.build('tower', x, y), 'no tower fits there'); { g.step(); assert.ok(!S.folk.props.some(q => q.cells.includes(i)), 'the prop is still under the tower'); }
 });

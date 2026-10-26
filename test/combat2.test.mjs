@@ -23,8 +23,9 @@ function run(g, secs, log, onWind) {
 function dodge(seed) {
   const { g, h, m, out } = setup(seed), log = [];
   let dashed = false;
-  run(g, 0.9, log, () => { dashed = g.dash(out.x, out.y); });
-  return { log: mine(log, m.id), dashed, hero: [h.x, h.y], mob: [m.x, m.y], hp: h.hp };
+  run(g, 1.5, log, () => { dashed = g.dash(out.x, out.y); });   // (Oct 26: 0.9 → 1.5 s, the wind-up's start moves with the seed's draws; cut at the whiff)
+  const L = mine(log, m.id), cut = L.findIndex(e => e.t === 'whiff');
+  return { log: cut >= 0 ? L.slice(0, cut + 1) : L, dashed, hero: [h.x, h.y], mob: [m.x, m.y], hp: h.hp };
 }
 
 test('a hero who dashes out of a wind-up makes the dead whiff', () => {
@@ -39,7 +40,7 @@ test('a hero who dashes out of a wind-up makes the dead whiff', () => {
 
 test('a hero who stays is bitten when the wind-up ends', () => {
   const { g, m } = setup(3), log = [];
-  run(g, 0.9, log);
+  run(g, 1.5, log);
   const es = mine(log, m.id), w = es.find(e => e.t === 'windup'), b = es.find(e => e.t === 'bite');
   assert.ok(w && b, `wind-up then bite: ${es.map(e => e.t)}`);
   assert.equal(w.dur, WINDUP.kinds.walker);
