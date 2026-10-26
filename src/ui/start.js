@@ -44,7 +44,7 @@ export function createStart(ui) {
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); $('#startMore').open = true; };
     // [story3] the opening plays once (skippable); headless drivers skip it unless ?intro=1
     $('#replayIntro').onclick = () => playIntro({ store, onDone: () => {} });
-    $('#begin').onclick = () => { const o = opts[setup.pick], go = () => begin(o.seed, o.biome); if (introWanted(store, location.search)) playIntro({ store, onDone: go }); else go(); };
+    $('#begin').onclick = () => { const o = opts[setup.pick], go = () => begin(o.seed, o.biome); if (AREA.id !== 'hollowmere' && introWanted(store, location.search)) playIntro({ store, onDone: go }); else go(); };   // [ch1] chapter 1 opens in the square, no cards (its story is told in the world)
     saves.load().then(snap => {
       if (!snap || snap.v !== SAVE_V || ui.card !== 'start' || !$('#contRow')) return;
       const row = $('#contRow'); row.hidden = false;
