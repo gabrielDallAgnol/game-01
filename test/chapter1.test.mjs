@@ -17,7 +17,7 @@ test('the opening: the tow ticket, the first objective, three cars, a turret, du
   assert.deepEqual(C().open, ['q1.salvage']); assert.ok(g.notes().includes('n.rig.1'), 'the tow ticket on the Rig');
   const evs = g.drainEvents(); assert.ok(evs.some(e => e.t === 'sys1' && /Class granted: Mechanic/.test(e.text)), 'the System wakes over Kai');
   assert.ok(!evs.some(e => e.t === 'episode'), 'no old episode banner');
-  for (let k = 0; k < 3; k++) { const w = C().work[0]; S.hero.x = w.x; S.hero.y = w.y; run(g, 3); }
+  for (let k = 0; k < 6 && !C().done.includes('q1.salvage'); k++) { const o = C().objective; S.hero.x = o.x; S.hero.y = o.y; run(g, 4); }   // the Mechanic's salvage: the objective points at the nearest car
   assert.ok(C().done.includes('q1.salvage') && C().open.includes('q1.turret'), 'three cars stripped: the turret step');
   assert.ok(g.map.slots.some(l => g.build(l.id, 'tower'))); run(g, 30);
   assert.ok(C().done.includes('q1.turret'), 'a turret built');
