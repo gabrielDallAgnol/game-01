@@ -1,37 +1,31 @@
-// Balance runs in the real (clock) mode: continuous stream, heat eruptions, power, hands.
-// A competent player: builders on from day 1 (balanced), the hero defends the town, first blessing offered.
-// usage: node tools/clockbot.mjs [difficulty] [days] [seeds] [hero]
+// V2 survival runs in the real (clock) mode: the engine town, hordes by night, the builders on from day 1 (balanced).
+// The player is bot.mjs's V2 habits: the story's last affordable choice, searching houses by day near the camp, a dash
+// away from a wound-up bite, the hero defending by night (or the autopilot with `auto`). One JSON line per seed.
+// usage: node tools/clockbot.mjs [difficulty] [days] [seeds] [hero] [auto] [area]
 import { createGame } from '../src/sim/game.js';
-import { heroTick, chooseStory } from './bot.mjs';
+import { heroTick, storyTurn, dodge, searchTick } from './bot.mjs';
 
-const diff = process.argv[2] || 'survivor', DAYS = +(process.argv[3] || 14), SEEDS = +(process.argv[4] || 4), hero = process.argv[5] || 'warrior', AUTO = process.argv[6] === 'auto';
-const biomes = ['riverbend', 'riverbend', 'riverbend', 'riverbend'];   // one world while we test
-const out = [];
+const diff = process.argv[2] || 'survivor', DAYS = +(process.argv[3] || 14), SEEDS = +(process.argv[4] || 4), hero = process.argv[5] || 'survivor';
+const AUTO = process.argv[6] === 'auto', area = process.argv[7] || 'suburb';
 const S0 = +(process.env.SEED_START || 0), STRIDE = +(process.env.SEED_STRIDE || 1);
 for (let s = S0; s < SEEDS; s += STRIDE) {
   const t0 = Date.now();
-  let g = createGame({ seed: 100 + s, mapSeed: 300 + s, biome: biomes[s % 4], hero, difficulty: diff });
-  let S = g.state, rolls = []; S.builders = 'balanced'; if (AUTO) g.setAutopilot(true);
-  let steps = 0, heatSum = 0, heatN = 0, peakHeat = 0, blackoutT = 0, minKeep = 1, aggroN = 0;
-  const nightLog = [], feats = {}, classes = [];
+  const g = createGame({ seed: 100 + s, mapSeed: 300 + s, hero, difficulty: diff, area }), S = g.state;
+  S.builders = 'balanced'; if (AUTO) g.setAutopilot(true);
+  let steps = 0, minKeep = 1, heroDeaths = 0, searched = 0;
+  const nights = [];
   while (!S.over && S.night <= DAYS && steps < 60 * 60 * 60) {
-    if (S.story.encounters.length) chooseStory(g);
-    if (!AUTO && steps % 15 === 0) heroTick(g, 'active');
+    storyTurn(g);
+    if (steps % 15 === 0) { dodge(g); if (!AUTO && !searchTick(g, 40)) heroTick(g, 'active'); }
     const n = S.night, ph = S.phase;
     g.step(); steps++;
-    if (steps % 60 === 0) { heatSum += S.heat; heatN++; peakHeat = Math.max(peakHeat, S.heat); if (S.blackout) blackoutT++; }
     if (S.phase === 'night') minKeep = Math.min(minKeep, S.keep.hp / S.keep.maxHp);
-    if (ph === 'night' && S.phase === 'day') { nightLog.push({ n, keep: +minKeep.toFixed(2), bld: S.buildings.length, pop: g.pop(), mobs: S.mobs.length }); minKeep = 1; }
-    for (const k of Object.keys(S.feat)) if (!(k in feats)) feats[k] = S.night;
-    if (classes[classes.length - 2] !== S.heroClass) classes.push(S.heroClass, `@${S.night}`);
-    for (const e of S.events) if (e.t === 'aggro') aggroN++;
+    for (const e of S.events) { if (e.t === 'heroDie') heroDeaths++; if (e.t === 'search') searched++; }
     S.events.length = 0;
+    if ((ph === 'night' && S.phase === 'day') || (S.over && ph === 'night')) {
+      nights.push({ n, keep: +Math.max(0, minKeep).toFixed(2), march: (S.hordes.plan[n] ?? -1) >= 0, bld: S.buildings.length, pop: g.pop(), gold: S.gold, food: S.food, mobs: S.mobs.length });
+      minKeep = 1;
+    }
   }
-  // forecast vs what happened (calibrates forecastStrip) · collapse: the hall went from ≥90% one night to fallen the next
-  const fc = S.log.filter(l => l.forecast).map(l => ({ n: l.night, ratio: l.ratio, hall: l.forecast.hall, atRisk: l.forecast.atRisk, brutes: l.forecast.brutes, dead: l.forecast.dead, wave: l.wave, standing: l.standing, lost: (l.lost || []).length, held: l.held ?? (l.result === 'lost' ? 0 : null), noise: l.noise, fell: l.result === 'lost' }));
-  const last = nightLog[nightLog.length - 1], collapse = S.over && (!last || last.keep >= 0.9);
-  const r = { seed: s, collapse, fc, biome: biomes[s % 4], diff, hero, reached: S.over ? S.night : S.night, fell: S.over && !S.endReason, contractLost: !!(S.over && S.endReason), avgHeat: Math.round(heatSum / Math.max(1, heatN)), peakHeat: Math.round(peakHeat), eruptions: S.stats.eruptions || 0, blackoutSec: blackoutT, buildings: S.buildings.length, keepLvl: S.keep.level, pop: g.pop(), kills: S.kills, lvl: S.lvl, feats: JSON.stringify(feats), cls: classes.join(' '), path: Object.entries(S.path).map(([k, v]) => k[0] + Math.round(v)).join(''), seasons: S.season.n, trial: S.story.trial ? `${S.story.trial.cls}:${S.story.trial.started ? 's' : ''}${S.story.trial.done ? 'd' : ''}@${S.story.trial.day}` : '-', offered: JSON.stringify(S.evo.offered), sec: Math.round((Date.now() - t0) / 1000), nights: nightLog.map(l => `${l.n}:${l.keep}`).join(' '), ruinsLeft: S.buildings.filter(b => b.ruined).length, mourned: S.mourned || 0, flares: S.stats.flares || 0, aggroEv: aggroN, rolls: rolls.join(' '), leg: S.rig ? S.rig.leg : 1 };
-  out.push(r); console.log(JSON.stringify(r));
+  console.log(JSON.stringify({ seed: 100 + s, hero, diff, area, reached: S.night - 1, fell: !!S.over, kills: S.kills, lvl: S.lvl, heroDeaths, searched, nights, ms: Date.now() - t0 }));
 }
-const fell = out.filter(r => r.fell);
-console.log(`${diff}: ${fell.length}/${out.length} fell · reached ${out.map(r => r.reached).join(',')} · eruptions ${out.map(r => r.eruptions).join(',')} · avgHeat ${out.map(r => r.avgHeat).join(',')}`);

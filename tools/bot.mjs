@@ -129,3 +129,31 @@ export function scavengeTurn(g) {
   const i = opts[0]; if (S.gold < i.R.kit * home.length + 8) return;
   g.scavenge.send(i.site.id, home.map(c => c.id));
 }
+
+// ---------- the V2 player (tools/golden.mjs, tools/clockbot.mjs, tests) ----------
+// the bot's habits on top of heroTick: the last story choice, a dash away from a bite being wound up, by day a walk to
+// the nearest house not yet searched (within `far` of the camp) until the hands are full, then home
+export const storyTurn = g => { const S = g.state, can = x => g.story().can(x); for (let k = 0; k < 9 && S.story.encounters.length; k++) { const e = S.story.encounters[0], last = e.choices[e.choices.length - 1]; g.choose((can(last) ? last : e.choices.find(can) || last).id); } };
+export function dodge(g) {
+  const S = g.state, h = S.hero; if (h.dead) return;
+  const m = S.mobs.find(q => q.windT > 0 && Math.hypot(q.x - h.x, q.y - h.y) < 2); if (m) g.dash(h.x - m.x, h.y - m.y);
+}
+export function searchTick(g, far) {
+  const S = g.state, h = S.hero, t = g.map.town; if (h.dead || S.phase !== 'day' || S.dayT < 3) return false;
+  if (h.carry.scrap + h.carry.food >= 6) { g.heroTo(t.x, t.y + 3.5); return true; }
+  const o = g.searchHomes().filter(q => !g.searched(q.id) && Math.hypot(q.x - t.x, q.y - t.y) < far).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+  if (!o) return false; g.heroTo(o.x, o.y); return true;
+}
+/** a whole V2 run by the clock: builders on, the story's choices, searching by day within `far`, dashing, the hero
+ *  defending; returns what the run reached. opts: { seed, mapSeed, hero, difficulty, area, maxNights, far, auto } */
+export function playRun(createGame, opts) {
+  const { seed, mapSeed, hero = 'survivor', difficulty = 'survivor', area = 'suburb', maxNights = 14, far = 40, auto = false } = opts;
+  const g = createGame({ seed, mapSeed, hero, difficulty, area }), S = g.state; S.builders = 'balanced'; if (auto) g.setAutopilot(true);
+  let steps = 0;
+  while (!S.over && S.night <= maxNights && steps < 60 * 60 * 60) {
+    storyTurn(g);
+    if (steps % 15 === 0) { dodge(g); if (!auto && !searchTick(g, far)) heroTick(g, 'active'); }
+    g.step(); steps++; S.events.length = 0;
+  }
+  return { g, nights: S.night - 1, over: S.over, log: S.log };
+}

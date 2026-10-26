@@ -1,5 +1,5 @@
-// Balance sweep in parallel: the clock bot over many seeds, split across the machine's cores.
-// usage: node tools/sweep.mjs [difficulty] [days] [seeds] [hero] [auto]
+// V2 survival sweep in parallel: the clock bot (tools/clockbot.mjs) over many seeds, split across the machine's cores.
+// usage: node tools/sweep.mjs [difficulty] [days] [seeds] [hero] [auto] [area]
 import { spawn } from 'node:child_process';
 import { cpus } from 'node:os';
 const args = process.argv.slice(2), W = Math.max(1, cpus().length), rows = [];
@@ -10,8 +10,6 @@ await Promise.all(Array.from({ length: W }, (_, w) => new Promise(done => {
 rows.sort((a, b) => a.seed - b.seed);
 const reached = rows.map(r => r.reached), sorted = [...reached].sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
 console.log(`${args[0] || 'survivor'} · ${rows.length} runs on ${W} cores · fell ${rows.filter(r => r.fell).length} · reached ${reached.join(',')} · median ${med} · early deaths (<8) ${reached.filter(n => n < 8).length} · collapses (≥90% → fallen) ${rows.filter(r => r.collapse && r.fell).length} · contracts lost ${rows.filter(r => r.contractLost).length}`);
-// the forecast's three states against what each night did (safe: the hall held ≥80% · risk: it held, hurt · fall: it fell)
-{ let ok = 0, n = 0; const conf = {};
-  for (const r of rows) for (const f of r.fc || []) { if (f.held === null && !f.fell) continue; const act = f.fell ? 'fall' : f.held < 80 ? 'risk' : 'safe'; n++; if (f.hall === act) ok++; conf[`${f.hall}→${act}`] = (conf[`${f.hall}→${act}`] || 0) + 1; }
-  if (n) console.log(`forecast agreement ${Math.round(ok / n * 100)}% over ${n} nights · ${Object.entries(conf).sort().map(([k, v]) => `${k} ${v}`).join(' · ')}`); }
+// the nights a horde marched, and how the camp held them (the lowest camp hp of that night)
+{ const m = rows.flatMap(r => r.nights.filter(n => n.march)); if (m.length) console.log(`horde nights ${m.length} · camp held at ${Math.round(m.reduce((a, n) => a + n.keep, 0) / m.length * 100)}% on average · hero deaths ${rows.reduce((a, r) => a + r.heroDeaths, 0)}`); }
 if (process.env.SWEEP_OUT) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.SWEEP_OUT, rows.map(r => JSON.stringify(r)).join('\n') + '\n'); }

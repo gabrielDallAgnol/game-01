@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createGame } from '../src/sim/game.js';
-import { heroTick, dayTurn } from './bot.mjs';
+import { heroTick, dayTurn, storyTurn as story, dodge, searchTick } from './bot.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const GOLDEN = ROOT + 'test/golden.json';
@@ -73,19 +73,6 @@ function runner(name, g) {
   };
   lines.push(`${name} map ${mapHash(g.map)} area=${g.map.area ? g.map.area.id : '-'} homes=${g.map.area ? g.map.area.homes.length : 0} sites=${g.state.landmarks.length}`);
   return { lines, step, mark, swap: ng => { g = ng; }, get g() { return g; } };
-}
-// the bot's habits on top of heroTick: the last story choice, a dash away from a bite being wound up, by day a walk to
-// the nearest house not yet searched (within `far` of the camp) until the hands are full, then home
-const story = g => { const S = g.state, can = x => g.story().can(x); for (let k = 0; k < 9 && S.story.encounters.length; k++) { const e = S.story.encounters[0], last = e.choices[e.choices.length - 1]; g.choose((can(last) ? last : e.choices.find(can) || last).id); } };
-function dodge(g) {
-  const S = g.state, h = S.hero; if (h.dead) return;
-  const m = S.mobs.find(q => q.windT > 0 && Math.hypot(q.x - h.x, q.y - h.y) < 2); if (m) g.dash(h.x - m.x, h.y - m.y);
-}
-function searchTick(g, far) {
-  const S = g.state, h = S.hero, t = g.map.town; if (h.dead || S.phase !== 'day' || S.dayT < 3) return false;
-  if (h.carry.scrap + h.carry.food >= 6) { g.heroTo(t.x, t.y + 3.5); return true; }
-  const o = g.searchHomes().filter(q => !g.searched(q.id) && Math.hypot(q.x - t.x, q.y - t.y) < far).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
-  if (!o) return false; g.heroTo(o.x, o.y); return true;
 }
 const NIGHTS = 7, CAP = 60 * 60 * 40;
 
