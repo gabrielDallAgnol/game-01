@@ -50,11 +50,14 @@ export function createWorldText(G) {
       : /goods shed/.test(w) ? by('shed') : /works gate/.test(w) ? by('works') : /mast two|mast one/.test(w) ? by('hut') : /station/.test(w) ? by('station') : /school/.test(w) ? by('school') : null;
     if (!q) { const homes = (G.searchHomes ? G.searchHomes() : []).filter(o => G.districtOf(o.x, o.y) === g.district); const o = homes.length ? homes[hash(g.id) % homes.length] : { x: c + 10, y: c + 10 }; q = { x: o.x, y: o.y, side: true }; }
     if (q.side) { const a = (hash(g.id) % 2 ? 1 : -1) * 2.4; q = { x: q.x + a, y: q.y + 0.4 }; }
+    // keep clear of the graffiti already placed (two walls side by side read as one smear from above)
+    for (let k = 0; k < 8 && Object.values(GP).some(o => Math.hypot(o.x - q.x, o.y - q.y) < 7); k++) { const a = (hash(g.id) % 360) * Math.PI / 180 + k * 0.9; q = { x: q.x + Math.cos(a) * 4, y: q.y + Math.sin(a) * 4 }; }
     const at = G.groundNear(q.x, q.y, 8);
     return { x: at.x, y: at.y, rot: ((hash(g.id) % 21) - 10) * 0.012 };
   }
   const gVisible = g => (g.night >= 7 && g.step ? G.chIsOpen(g.step) || G.chIsDone(g.step) : S.night >= g.night);   // the last ones wait for their step
-  const graffiti = () => (S.ch ? GRAFFITI.filter(gVisible).map(g => GP[g.id] || (GP[g.id] = { id: g.id, text: g.text, ...spotFor(g) })) : []);
+  let gDone = false;
+  const graffiti = () => { if (!S.ch) return []; if (!gDone) { gDone = true; for (const g of GRAFFITI) GP[g.id] = { id: g.id, text: g.text, ...spotFor(g) }; } return GRAFFITI.filter(gVisible).map(g => GP[g.id]); };   // every spot picked once, in order, so they never move
   // ---------- radios: car radios round the square, and the Rig ----------
   let radios = null;
   function radioList() {

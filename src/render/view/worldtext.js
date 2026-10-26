@@ -20,9 +20,9 @@ export function createWorldTextView(V) {
     lines.forEach((l, k) => { const y = (k - (lines.length - 1) / 2) * 78; x.lineWidth = 14; x.strokeStyle = 'rgba(10,8,10,0.75)'; x.strokeText(l, 0, y); x.fillStyle = col; x.fillText(l, 0, y);
       x.globalAlpha = 0.35; for (let d = 0; d < 6; d++) { const dx = ((hash(g.id + l + d) % 300) - 150), dy = y + 30 + (hash(l + d) % 30); x.fillRect(dx, dy, 3, 8 + (hash(l + g.id + d) % 26)); } x.globalAlpha = 1; });   // drips
     const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, color: new THREE.Color(1, 1, 1) });
-    const w = 7.2, geo = new THREE.PlaneGeometry(w, w * H / W); geo.rotateX(-Math.PI / 2);
-    const m = new THREE.Mesh(geo, mat); m.position.copy(Wv(g.x, g.y, 3.45)); m.userData.at = { x: g.x, y: g.y }; m.renderOrder = 6; world.add(m);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, color: new THREE.Color(1, 1, 1) });   // on the pavement: roofs and trees cover it
+    const w = 5.2, geo = new THREE.PlaneGeometry(w, w * H / W); geo.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(geo, mat); m.position.copy(Wv(g.x, g.y, 0.1)); m.userData.at = { x: g.x, y: g.y }; m.renderOrder = 4; world.add(m);
     return m;
   }
   const decals = new Map(); let gT = 0;
@@ -44,7 +44,7 @@ export function createWorldTextView(V) {
   function onEvents(events) {
     for (const e of events) {
       if (e.t === 'radio') float(e.text, e.x, e.y, { head: `(( ${e.from} ))`, headCol: '#9fdcff', col: '#f4f1e6', bg: 'rgba(14,22,30,0.82)', edge: 'rgba(127,227,255,0.55)', life: Math.min(16, 6 + e.text.length / 12), w: 13, lift: 2.2 });
-      if (e.t === 'sys1') sysQ.push(e);
+      if (e.t === 'sys1') { sysQ.push(e); if (sysQ.length > 3) sysQ.splice(0, sysQ.length - 3); }   // a burst keeps its last three
     }
   }
   function update(dt, events) {
@@ -54,7 +54,7 @@ export function createWorldTextView(V) {
     const flat = K.T && K.T.flat ? K.T.flat.value : null;
     for (const m of decals.values()) { if (flat) m.material.color.copy(flat).multiplyScalar(1.15); m.visible = V.seenAt ? V.seenAt(m.userData.at.x, m.userData.at.y) : true; }
     // the System's lines over Kai, one at a time, a beat apart
-    if ((sysT -= dt) <= 0 && sysQ.length) { const e = sysQ.shift(); sysT = 1.1; float(e.text, 0, 0, { col: e.kind === 'bad' ? '#ffb4a0' : e.kind === 'win' ? '#ffe08a' : '#bfefff', bg: 'rgba(8,20,34,0.72)', edge: 'rgba(127,227,255,0.7)', life: 3.8, follow: true, w: 11, wrap: 26, lift: 3.4 }); }
+    if ((sysT -= dt) <= 0 && sysQ.length) { const e = sysQ.shift(); sysT = 1.1; float(e.text, 0, 0, { col: e.kind === 'bad' ? '#ffb4a0' : e.kind === 'win' ? '#ffe08a' : '#bfefff', bg: 'rgba(8,20,34,0.72)', edge: 'rgba(127,227,255,0.7)', life: 3.8, follow: true, w: 12, wrap: 34, lift: 3.4 }); }
     const half = V.cam && V.cam.half ? Math.min(V.cam.half.w, V.cam.half.h) : 12, k = half / 12;
     let stack = 0;
     for (let i = floats.length - 1; i >= 0; i--) {
