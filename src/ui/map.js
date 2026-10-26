@@ -66,7 +66,6 @@ export function createMap(ui) {
       ctx.beginPath(); ctx.arc(X, Y, big ? 13 : 12, 0, 7); ctx.fillStyle = 'rgba(255,211,106,.25)'; ctx.fill();
       dot(o.x, o.y, big ? 12 : 11, '#ffd36a', true); dot(o.x, o.y, big ? 5 : 5, '#ffd36a');
     }
-    }
     dot(m.town.x, m.town.y, big ? 7 : 4, '#f0a649');
     const h = S.hero; dot(h.x, h.y, big ? 6 : 4, '#ffffff'); dot(h.x, h.y, big ? 9 : 6, 'rgba(255,255,255,.5)', true);
   }
