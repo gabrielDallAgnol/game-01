@@ -67,6 +67,7 @@ import { createChapter } from './chapter.js';
 import { createWorldText } from './worldtext.js';
 import { createSurvivors } from './survivors.js';
 import { createChNests } from './chnests.js';
+import { createSight } from './sight.js';
 // [ch1] end
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
@@ -81,6 +82,7 @@ MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the 
 MODULES.push(createHordes);   // [v2] appended: hordes, the V2 night
 MODULES.push(createMechanic, createRig);   // [mech] appended: the Mechanic, the Haven Rig's modules
 MODULES.push(createPlaces, createChapter, createWorldText, createSurvivors, createChNests);   // [ch1] appended: chapter 1 (does nothing outside Hollowmere)
+MODULES.push(createSight);   // [sight] appended: Hollowmere's wider sight (does nothing outside Hollowmere)
 
 export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, area = 'suburb', chapter = true } = {}) {   // [area] area: an engine recipe id · [ch1] chapter: false runs Hollowmere without its story
   hero = 'mechanic';   // [mech] the only class (an old save's or caller's class plays the Mechanic)
@@ -135,6 +137,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   planner = createPlanner(G.api); G.api.planner = planner;
   if (restore) { restoreSnap(restore); G.mendSpots(); }   // old saves: objectives off the map move onto good ground
   G.chapterStart();   // [ch1] the chapter's opening (or its state after a restore)
+  G.sightStart();   // [sight] the old town and the Rig's clearing start known
   return G.api;
 
   // ---------- simulation step ----------
@@ -196,5 +199,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     G.stepConstruct(dt);
     // [econ3] end
     G.stepChapter(dt);   // [ch1] last: it reads the step's events
+    G.stepSight(dt);   // [sight] Kai's wider sight
   }
 }
