@@ -58,6 +58,8 @@ import { createSalvageMarks } from './view/salvage.js';
 // [ch1] begin
 import { createWorldTextView } from './view/worldtext.js';
 import { createChapterView } from './view/chapter.js';
+import { createCrewView } from './view/crew.js';
+import { createCarryView } from './view/carry.js';
 // [ch1] end
 // [top] end
 
@@ -122,6 +124,8 @@ export function createView(canvas, game, opts = {}) {
   V.salvageMarks = createSalvageMarks(V);   // [mech]
   V.worldText = createWorldTextView(V);   // [ch1] graffiti, radio lines, the System over Kai (null outside chapter 1)
   V.chapter = createChapterView(V);   // [ch1] jobs, hearts, survivors, radios, the torch, the beacon, the Rig rolling out
+  V.crew = createCrewView(V);   // [polish] the survivors as figures that walk home to the Rig
+  V.carry = createCarryView(V);   // [polish] the crankshaft on Kai and the slow cue
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -175,6 +179,8 @@ export function createView(canvas, game, opts = {}) {
     if (V.salvageMarks) V.salvageMarks.update(ui.events);   // [mech]
     if (V.worldText) V.worldText.update(dt, ui.events);   // [ch1]
     if (V.chapter) V.chapter.update(dt);   // [ch1]
+    if (V.crew) V.crew.update(dt);   // [polish]
+    if (V.carry) V.carry.update(dt);   // [polish]
     look.render(V.time);
   }
 

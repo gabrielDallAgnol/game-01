@@ -52,8 +52,8 @@ export function createChapterView(V) {
       o.cage.visible = n.sealed; o.cage.rotation.y = time * 0.6; o.core.material.opacity = 0.6 + 0.4 * beat;
     }
     for (const [id, o] of hearts) { const vis = seen.has(id); o.core.visible = o.body.visible = vis; if (!vis) o.cage.visible = false; }
-    // survivors
-    for (const s of game.survivors()) {
+    // survivors ([polish] drawn by view/crew.js as figures that walk home; the old tokens stay off)
+    if (!V.crew) for (const s of game.survivors()) {
       if (s.x === undefined) continue; const o = token(s), up = s.state === 'away' && s.up, p = Wv(s.x, s.y, up ? 4 : 0.2);
       o.body.position.copy(p); o.rim.position.copy(p); o.help.position.copy(p); o.help.visible = s.state === 'away'; o.help.scale.setScalar(1 + 0.15 * Math.sin(time * 3));
       const tp = Wv(s.x, s.y, 4.2); tp.z -= 1.3 * k; o.tag.position.copy(tp); o.tag.scale.set(3.2 * k, 0.8 * k, 1);
