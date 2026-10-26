@@ -34,7 +34,7 @@ node tools/build.mjs             # → dist/index.html (one self-contained page;
 npm run dev                      # serve the folder at :5173 (the unbundled ES modules)
 node tools/golden.mjs --check    # the golden runs, a few minutes (one process per scenario)
 npm test                         # golden + every test file; several minutes, so run it in the background
-node tools/sweep.mjs survivor 14 12 survivor   # V2 survival sweep: the per-seed "reached" list
+node tools/sweep.mjs survivor 10 4 survivor    # V2 survival sweep: the per-seed "reached" list (~1 min a seed)
 ```
 
 To check the rendering, use `tools/dev/shot.cjs`. It is local-only because `tools/dev/` is gitignored. It needs

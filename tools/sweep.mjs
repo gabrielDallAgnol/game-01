@@ -9,7 +9,7 @@ await Promise.all(Array.from({ length: W }, (_, w) => new Promise(done => {
 })));
 rows.sort((a, b) => a.seed - b.seed);
 const reached = rows.map(r => r.reached), sorted = [...reached].sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)];
-console.log(`${args[0] || 'survivor'} · ${rows.length} runs on ${W} cores · fell ${rows.filter(r => r.fell).length} · reached ${reached.join(',')} · median ${med} · early deaths (<8) ${reached.filter(n => n < 8).length} · collapses (≥90% → fallen) ${rows.filter(r => r.collapse && r.fell).length} · contracts lost ${rows.filter(r => r.contractLost).length}`);
+console.log(`${args[0] || 'survivor'} · ${rows.length} runs on ${W} cores · fell ${rows.filter(r => r.fell).length} · reached ${reached.join(',')} · median ${med} · early deaths (<8) ${reached.filter(n => n < 8).length} · lowest camp hp on any night ${Math.round(Math.min(...rows.flatMap(r => r.nights.map(n => n.keep))) * 100)}%`);
 // the nights a horde marched, and how the camp held them (the lowest camp hp of that night)
 { const m = rows.flatMap(r => r.nights.filter(n => n.march)); if (m.length) console.log(`horde nights ${m.length} · camp held at ${Math.round(m.reduce((a, n) => a + n.keep, 0) / m.length * 100)}% on average · hero deaths ${rows.reduce((a, r) => a + r.heroDeaths, 0)}`); }
 if (process.env.SWEEP_OUT) { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.SWEEP_OUT, rows.map(r => JSON.stringify(r)).join('\n') + '\n'); }
