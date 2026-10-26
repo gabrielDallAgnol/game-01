@@ -44,6 +44,8 @@ import { createEconUi } from './econ-ui.js';
 MODULES.push(createEconUi);   // [econ3] appended
 import { createDodge } from './dodge.js';
 MODULES.push(createDodge);   // [combat2] appended: the dash keys and button 
+import { createChapterUi } from './chapter-ui.js';
+MODULES.push(createChapterUi);   // [ch1] appended: district, objective, notes; the chapter's end card
 // [v2] the V2 core hides the switched-off systems' UI
 
 export function startApp() {
@@ -127,7 +129,7 @@ export function startApp() {
     ui.folkTick(dt, events);   // [folk]
     ui.econTick(dt, events);   // [econ3]
     ui.dodgeTick(dt);   // [combat2]
-    hudT -= dt; if (hudT <= 0) { updateHud(); ui.tickHome();   /* [pacify] the way home */ hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
+    hudT -= dt; if (hudT <= 0) { updateHud(); ui.tickHome(); ui.chapterTick();   /* [ch1] */   /* [pacify] the way home */ hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
   }
   requestAnimationFrame(frame);
   addEventListener('resize', () => { dockH(); callouts.place(); });

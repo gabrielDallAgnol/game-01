@@ -39,7 +39,7 @@ export function createMobs(V) {
       }
       const st = mobState.get(m.id); if (st.tag) { st.glow.position.copy(Wv(m.x, m.y, 2.4)); st.glow.material.opacity = 0.6 + Math.sin(time * 6) * 0.3; }
     }
-    for (const [id, e] of mobState) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) { fx.remove(e.tag); fx.remove(e.glow); } dying.push({ id, kind: e.kind, x: e.x, y: e.y, face: e.face, t: 0 }); mobState.delete(id); }
+    for (const [id, e] of mobState) if (!seen.has(id)) { fx.remove(e.bar); if (e.tag) { fx.remove(e.tag); fx.remove(e.glow); } if (!MOBS[e.kind].still) dying.push({ id, kind: e.kind, x: e.x, y: e.y, face: e.face, t: 0 }); mobState.delete(id); }
   }
 
   const flames = []; const flameFor = new Map();
@@ -72,6 +72,7 @@ export function createMobs(V) {
         const lunge = m.attacking ? Math.max(0, Math.sin(time * 6 + e.phase)) * 0.25 : 0;
         const fl = e.hitT ? Math.max(0, 1 - (time - e.hitT) / 0.07) : 0;
         const p = Wv(m.x, m.y, (m.rise - 1) * 1.1 + (m.attacking ? 0 : Math.abs(Math.sin(e.phase)) * 0.03));
+        if (MOBS[m.kind].still) { setBar(e.bar, m.x, 2.4, m.y, m.hp / m.maxHp, false); continue; }   // [ch1] a nest's heart: view/chapter.js draws it, the crowd only its bar
         if (!(gl && gl.mob(m.id, m.kind, p, e.face, e.size, fl > 0.2 ? 'hit' : m.attacking ? 'attack' : m.speed > 2.4 ? 'run' : 'walk', dt)))   // [assets3]
           crowd.add(m.kind, fr, p.x, p.y, p.z, e.face, lunge, Math.sin(e.phase * 0.5) * 0.06, (m.unique ? 1.35 : m.bossTier ? 1.2 + 0.2 * m.bossTier : 1) * UNIT.dead, fl);
         if (m.rise >= 1) fx2.blobs.add(p.x, p.y, p.z, 0.36 * e.size, 0.32 * e.size);

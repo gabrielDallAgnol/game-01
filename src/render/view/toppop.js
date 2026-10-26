@@ -96,7 +96,7 @@ export function createTopPop(V) {
     let n = 0; const ps = Math.min(2.4, (0.8 + 0.3 * kk) * FIG), gA = 0.5 * dark;
     for (const m of S.mobs) {
       if (n >= CAP) break;
-      const def = MOBS[m.kind]; if (!def || def.animal || !seenAt(m.x, m.y)) continue;
+      const def = MOBS[m.kind]; if (!def || def.animal || def.still || !seenAt(m.x, m.y)) continue;   // [ch1] a heart is no pip
       const sz = sizeOf(m), r = 0.5 * sz * ps * Math.max(0.15, Math.min(1, m.rise ?? 1)), p = Wv(m.x, m.y, Y - 0.005);
       d.position.copy(p); d.rotation.set(0, 0, 0); d.scale.setScalar(r); d.updateMatrix(); pips.setMatrixAt(n, d.matrix);
       d.scale.setScalar(2.8 * sz * (0.85 + 0.15 * kk) * (1 + 0.06 * Math.sin(time * 3 + m.id))); d.position.y -= 0.004; d.updateMatrix(); glows.setMatrixAt(n, d.matrix);

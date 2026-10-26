@@ -34,8 +34,8 @@ export function createApi(G) {
     weather: () => ({ id: S.weather, ...W8() }),
     nightFrac: () => (S.phase === 'night' ? Math.min(1, S.qT / nightLen()) : 0), nightLen,
     timeOfDay,
-    dayShare: () => TIDE.dayLen / (TIDE.dayLen + nightLen()),
-    duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), dayFrac: () => (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
+    dayShare: () => (S.tide || TIDE).dayLen / ((S.tide || TIDE).dayLen + nightLen()),
+    duskIn: () => Math.max(0, (S.tide || TIDE).dayLen - S.dayT), dayFrac: () => (S.clock ? Math.min(1, S.dayT / (S.tide || TIDE).dayLen) : 0.4), bellBonus: () => (S.clock ? Math.floor(Math.max(0, (S.tide || TIDE).dayLen - S.dayT) / TIDE.bellGold) : 0),
     dropSupply,
     xpNext: () => LEVEL.xp(S.lvl), gainXp: n => gainXp(n), partySize: () => partySize(), companionFollow, snapshot, siteOf, story: () => G.story, choose: id => G.story.choose(id),
     // tension: ruins, rebuilding and the dawn ledger
@@ -74,6 +74,10 @@ export function createApi(G) {
     combat2: () => true, dash: (dx, dy) => G.dash(dx, dy), dashInfo: () => G.dashInfo(),
     // [v2] the V2 core: always on now (kept for old callers)
     v2: () => true,
+    // [ch1] chapter 1: its quest state, places, the district under a point, the words in the world, survivors, nests
+    chapter: () => G.chapterInfo(), places: () => G.places(), districtName: (x, y) => G.districtName(x, y), districtOf: (x, y) => G.districtOf(x, y),
+    notes: () => (S.ch ? S.ch.notes.slice() : []), heard: () => (S.ch ? S.ch.heard.slice() : []), graffiti: () => (G.graffiti ? G.graffiti() : []), radios: () => (G.radios ? G.radios() : []), radioDue: src => (G.radioDue ? G.radioDue(src) : false),
+    survivors: () => (G.survivors ? G.survivors() : []), chNests: () => (G.chNests ? G.chNests() : []),
   };
   return api;
 }

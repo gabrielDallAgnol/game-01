@@ -52,6 +52,10 @@ import { createTelegraph } from './view/telegraph.js';
 import { createTopPop } from './view/toppop.js';
 // [topnests] next line
 import { createTopNests } from './view/topnests.js';
+// [ch1] begin
+import { createWorldTextView } from './view/worldtext.js';
+import { createChapterView } from './view/chapter.js';
+// [ch1] end
 // [top] end
 
 export function createView(canvas, game, opts = {}) {
@@ -111,6 +115,8 @@ export function createView(canvas, game, opts = {}) {
   const telegraph = createTelegraph(V);   // [combat2] wind-up rings, whiffs, the dash streak
   V.topPop = createTopPop(V);   // [toppop] the hero, your buildings and the dead pop from above
   V.topNests = createTopNests(V);   // [topnests] the nests as infested buildings in the flat style
+  V.worldText = createWorldTextView(V);   // [ch1] graffiti, radio lines, the System over Kai (null outside chapter 1)
+  V.chapter = createChapterView(V);   // [ch1] jobs, hearts, survivors, radios, the torch, the beacon, the Rig rolling out
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -160,6 +166,8 @@ export function createView(canvas, game, opts = {}) {
     if (telegraph) telegraph.update(dt, ui.events);   // [combat2]
     if (V.topPop) V.topPop.update();   // [toppop]
     if (V.topNests) V.topNests.update(dt);   // [topnests]
+    if (V.worldText) V.worldText.update(dt, ui.events);   // [ch1]
+    if (V.chapter) V.chapter.update(dt);   // [ch1]
     look.render(V.time);
   }
 

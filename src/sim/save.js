@@ -19,7 +19,7 @@ export function createSave(G) {
       P: S.P, picks: S.picks, chestsHeld: S.chestsHeld, dawns: S.dawns, weather: S.weather, halfUpgrade: S.halfUpgrade,
       landmarks: S.landmarks.map(l => [l.owned ? 1 : 0, l.kind, l.stripped ? 1 : 0]), seen: b64(S.seen), stats: S.stats, log: S.log.slice(-30),
       feat: S.feat, mourned: S.mourned || 0, diffNight: S.diffNight || 0, carry: S.hero.carry, ledger: S.ledger || null, pickups: S.pickups, season: S.season, buildersWas: S.buildersWas ?? null, story: S.story, lvl: S.lvl, xp: S.xp, unique: S.unique || null, trade: S.trade, drained: S.drained, salvage: S.salvage, cleared: S.clearedIdx || [], trails: S.trails || [], nextId: S.nextId, handsUsed: S.handsUsed, dayT: S.dayT, inc: S.inc || null,
-      buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0, b.ruined ? 1 : 0, b.type === 'house' ? (b.folk ?? -1) : -1, b.spec || 0]), homeless: S.homeless || 0, keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)], econ: S.econ ? JSON.parse(JSON.stringify(S.econ)) : null };   // [econ3] queue, carts, nodes, relics
+      buildings: S.buildings.map(b => [b.id, b.type, b.level, +b.x.toFixed(2), +b.y.toFixed(2), b.rot || 0, b.ruined ? 1 : 0, b.type === 'house' ? (b.folk ?? -1) : -1, b.spec || 0]), homeless: S.homeless || 0, keep: [keep.level, Math.ceil(keep.hp)], heroAt: [Math.ceil(S.hero.hp), +S.hero.x.toFixed(2), +S.hero.y.toFixed(2)], econ: S.econ ? JSON.parse(JSON.stringify(S.econ)) : null, ...(S.ch ? { ch: JSON.parse(JSON.stringify(S.ch)) } : {}) };   // [ch1] the chapter's state   // [econ3] queue, carts, nodes, relics
   }
   function restoreSnap(R) {
     Object.assign(S, { night: R.night, gold: R.gold, food: R.food, kills: R.kills, stock: R.stock, survivors: R.survivors, foreman: R.foreman, builders: R.builders, autopilot: R.autopilot,
@@ -52,6 +52,7 @@ export function createSave(G) {
     S.flowDirty = true; S.occVersion = (S.occVersion || 0) + 1; dropLive(); G.dropCrew();
     for (const n of S.story.npcs) if (n.withHero && n.alive && n.joined) G.spawnCompanion(n);   // a travelling companion comes back with you
     if (R.econ) { S.econ = R.econ; G.constructRestore(); }   // [econ3]
+    if (R.ch) S.ch = R.ch;   // [ch1] (chapter.js respawns its packs and nests)
     G.spawnRoamers(); G.spawnAnimals(); syncPicks(); G.rollOffer(); G.newLog(); S.events.length = 0; S.restored = true;
   }
   return { snapshot, restoreSnap };

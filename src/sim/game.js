@@ -58,6 +58,13 @@ import { createCombat2 } from './combat2.js';
 // [v2] next line
 // [v2] next line
 import { createHordes } from './hordes.js';
+// [ch1] begin: chapter 1 in Hollowmere (places, the quest chain, words in the world, survivors, nests as buildings)
+import { createPlaces } from './places.js';
+import { createChapter } from './chapter.js';
+import { createWorldText } from './worldtext.js';
+import { createSurvivors } from './survivors.js';
+import { createChNests } from './chnests.js';
+// [ch1] end
 
 // the rules' public numbers (they live in state.js; tests, tools and the UI import them from here)
 export { STEP, PICKS_PER_DAWN, DROPS, ZONE, CREW_NEED, SAVE_V, CUT, RULE_FX, DIFFICULTY, FOREMAN, LEVEL, TENSION, PRESENCE, REGEN };
@@ -69,8 +76,9 @@ MODULES.push(createConstruct, createSettle);   // [econ3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
 MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the dash
 MODULES.push(createHordes);   // [v2] appended: hordes, the V2 night
+MODULES.push(createPlaces, createChapter, createWorldText, createSurvivors, createChNests);   // [ch1] appended: chapter 1 (does nothing outside Hollowmere)
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, area = 'suburb' } = {}) {   // [area] area: an engine recipe id
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, area = 'suburb', chapter = true } = {}) {   // [area] area: an engine recipe id · [ch1] chapter: false runs Hollowmere without its story
   if (hero === 'steward') hero = 'merchant';
   const map = generateMap(mapSeed ?? seed, biome, area ? { area } : {});
   const HC = heroKit(hero), DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
@@ -82,7 +90,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- the shared context: run constants, then every module's functions ----------
   const G = { S, map, c, keep, seed, mapSeed, biome, mode, clock, restore, legacy,
     rng: new Rng(hashSeed(seed, 'run')), mobById: new Map(),
-    HC, DIFF, story: null, sc: null, api: null };
+    HC, DIFF, story: null, sc: null, api: null, chapter };
   for (const make of MODULES) Object.assign(G, make(G));
   const {
     rng, mobById, PICKUP, activeNests, autoHero, baseDist, checkForeman, compass, dawn,
@@ -122,6 +130,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   if (G.g3api) Object.assign(G.api, G.g3api);   // [gemini3] its modules' additions to the API
   planner = createPlanner(G.api); G.api.planner = planner;
   if (restore) { restoreSnap(restore); G.mendSpots(); }   // old saves: objectives off the map move onto good ground
+  G.chapterStart();   // [ch1] the chapter's opening (or its state after a restore)
   return G.api;
 
   // ---------- simulation step ----------
@@ -137,7 +146,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     if (S.picks.length && !S.offer.length) rollOffer();   // a pick added at any hour (a crate, a level) is dropped: V2 has no blessings
     if (S.phase === 'day' && S.clock && !S.over) {
       S.dayT += dt;
-      if (S.dayT >= TIDE.dayLen && !S.story.encounters.length) startNight(true);
+      if (S.dayT >= (S.tide || TIDE).dayLen && !S.story.encounters.length) startNight(true);
     }
     if (planner) planner.tick(dt);
     if (S.phase === 'night') {
@@ -181,5 +190,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     // [econ3] begin: the construction queue (sim/construct.js)
     G.stepConstruct(dt);
     // [econ3] end
+    G.stepChapter(dt);   // [ch1] last: it reads the step's events
   }
 }

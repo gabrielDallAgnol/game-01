@@ -86,6 +86,8 @@ export function createTopNests(V) {
     const H = S.hordes, spots = H ? H.spots.filter(h => h.why === 'nest') : [], A = map.area, out = [];
     if (A && A.nest) { const r = (A.W && A.W.nest && A.W.nest.r) || 8; out.push({ x: A.nest.x, y: A.nest.y, r, spot: spots.find(h => Math.hypot(h.x - A.nest.x, h.y - A.nest.y) < r + 8) || null }); }
     else for (const h of spots) out.push({ x: h.x, y: h.y, r: 5, spot: h });
+    // [ch1] chapter 1's nests in ordinary buildings (the cinema barn, the goods shed) once awake; the Works is its own atom
+    if (game.chNests) game.chNests().forEach((n, i) => { if (n.id === 'works' || n.state === 'sleep') return; out.push({ x: n.x, y: n.y, r: Math.min(n.w, n.h) * 0.45, spot: { id: -100 - i, dead: n.state === 'broken' ? 0 : 1, awake: n.state === 'live' ? [1] : [] } }); });
     return out;
   }
   function make(src, i) {
@@ -106,7 +108,7 @@ export function createTopNests(V) {
   }
 
   function update(dt = 0.016) {
-    const k2 = `${!!map.area}|${S.hordes ? S.hordes.spots.length : -1}`;
+    const k2 = `${!!map.area}|${S.hordes ? S.hordes.spots.length : -1}|${game.chNests ? game.chNests().map(n => n.state).join() : ''}`;   // [ch1] nests waking and breaking
     if (k2 !== key) { key = k2; for (const o of list) world.remove(o.g); list = sources().map(make); }
     if (!list.length) return;
     const time = V.time, dark = V.dark, H = S.hordes, march = H && H.plan ? H.plan[S.night] : -1;
