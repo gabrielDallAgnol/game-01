@@ -72,7 +72,7 @@ export function createHero(G) {
     const loot = S.chests[0] || (S.phase === 'day' && h.hp > h.maxHp * 0.7 && S.drops.find(d => Math.hypot(d.x - c, d.y - c) < 55));
     if (loot) { G.api.heroTo(loot.x, loot.y); return; }
     // by day, with time and health to spare: quests, then beacons
-    if (S.phase === 'day' && !S.autoStay && h.hp > h.maxHp * 0.7 && TIDE.dayLen - S.dayT > 25) {
+    if (S.phase === 'day' && !S.autoStay && h.hp > h.maxHp * 0.7 && (S.tide || TIDE).dayLen - S.dayT > 25) {
       const ST = S.story;
       const goal = ST.quests[0] || ST.spots.slice().sort((a, b) => Math.hypot(a.x - c, a.y - c) - Math.hypot(b.x - c, b.y - c))[0];
       if (goal) { G.api.heroTo(goal.x, goal.y + (goal.site !== undefined ? 2.5 : 0)); return; }

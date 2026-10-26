@@ -248,7 +248,7 @@ export function createFolkBuild(G) {
   function tithe(dt) {
     const f = F(); if (S.night < (FOLK.from || 1)) return;
     if (f.fund + (f.job ? f.job.paid : 0) >= FOLK.fundCap) { f.owed = 0; return; }
-    f.owed = Math.min(3, f.owed + FOLK.share * income() * dt / TIDE.dayLen);
+    f.owed = Math.min(3, f.owed + FOLK.share * income() * dt / (S.tide || TIDE).dayLen);
     while (f.owed >= 1 && S.gold >= 1) { f.owed -= 1; folkTithe(1); }
   }
 

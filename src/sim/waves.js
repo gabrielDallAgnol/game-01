@@ -20,12 +20,12 @@ export function createWaves(G) {
   // the difficulty curve: the night the hp curve reads from
   const effN = n => Math.max(1, n - (S.diffNight || 0));
   const hpS = n => WAVES.hpScale(effN(n));
-  const nightLen = () => TIDE.nightLen; let todLast = 0.25;   // every night lasts its full length: the moon crosses the sky, cleared or not
+  const nightLen = () => (S.tide || TIDE).nightLen; let todLast = 0.25;   // every night lasts its full length: the moon crosses the sky, cleared or not
   // one continuous clock for the light: 0 sunrise … dayShare dusk falls … 1 the next sunrise (day from S.dayT, night from S.qT)
   function timeOfDay() {
-    const D = TIDE.dayLen / (TIDE.dayLen + nightLen());
+    const D = (S.tide || TIDE).dayLen / ((S.tide || TIDE).dayLen + nightLen());
     if (S.phase === 'over') return todLast;   // the run ended: the light holds where it was
-    return (todLast = S.phase === 'night' ? D + (1 - D) * Math.min(1, S.qT / nightLen()) : D * (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4));
+    return (todLast = S.phase === 'night' ? D + (1 - D) * Math.min(1, S.qT / nightLen()) : D * (S.clock ? Math.min(1, S.dayT / (S.tide || TIDE).dayLen) : 0.4));
   }
   function spawnMob(kind, x, y, opts = {}) {
     if (G.spawnPoint) ({ x, y } = G.spawnPoint(x, y));   // never in the void, a walled-in yard or a roof: the nearest open ground (sim/steer.js)

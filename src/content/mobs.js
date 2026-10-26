@@ -12,6 +12,7 @@ export const MOBS = {
   // not drawn from the budget: spawned by events
   guardian:  { name: 'Inferno Warden', hp: 30, speed: 0.9, dmg: 8, cost: 0, from: 99, weight: 0, size: 1.8, dropsChest: 1 },
   gravelord: { name: 'Cinder Lord', hp: 70, speed: 0.8, dmg: 12, cost: 0, from: 99, weight: 0, size: 2.3, summon: { kind: 'walker', every: 6, count: 2 }, dropsChest: 1 },
+  heart:     { name: 'Ash Heart', hp: 40, speed: 0, dmg: 0, cost: 0, from: 99, weight: 0, size: 1.7, fixedHp: true, still: true },   // [ch1] a nest's core: a still body at its door (sim/chnests.js)
   risen:     { name: 'Husk',     hp: 2,  speed: 1.5,  dmg: 2,  cost: 0, from: 99, weight: 0, size: 0.95, fixedHp: true },
   // the woods: game for the pot, and the wolves that hunt it
   deer:      { name: 'Deer',      hp: 3,  speed: 2.6,  dmg: 0,  cost: 0, from: 99, weight: 0, size: 0.95, fixedHp: true, animal: true, food: 2 },

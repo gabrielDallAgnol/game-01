@@ -16,7 +16,7 @@ export function createIncome(G) {
   const fresh = () => ({ g: 0, f: 0, dayAcc: 0, nightAcc: 0, ph: S.phase, made: 0, ate: 0, gold: 0, fedW: 0, w: 0, rr: 0, tickG: 0, tickF: 0 });
   const I = () => S.inc || (S.inc = fresh());
   /** seconds of day this cycle (day 1 is short; with no clock the day is whatever the player makes it: paid at dusk) */
-  const dayLenNow = () => (S.night === 1 ? TIDE.dayOne : TIDE.dayLen);
+  const dayLenNow = () => (S.night === 1 ? (S.tide || TIDE).dayOne : (S.tide || TIDE).dayLen);
   const cycleLen = () => dayLenNow() + NIGHT_W * G.nightLen();
   const storyFood = () => (G.story ? (S.story.garden || 0) + (S.story.flags.garden ? 1 : 0) + G.story.bonus.food() : 0);
   const storyGold = () => (G.story ? G.story.bonus.gold() : 0);

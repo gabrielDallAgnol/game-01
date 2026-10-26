@@ -102,7 +102,7 @@ export function createPacify(G) {
   function duskWarn() {
     if (S.phase !== 'day' || !S.clock || warnDay === S.night || S.hero.dead) return;
     if (campDist() < PACIFY.warn.far) return;
-    const left = Math.max(0, TIDE.dayLen - S.dayT), walk = walkHome();
+    const left = Math.max(0, (S.tide || TIDE).dayLen - S.dayT), walk = walkHome();
     if (left > walk + PACIFY.warn.margin) return;
     warnDay = S.night;
     const t = s => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };

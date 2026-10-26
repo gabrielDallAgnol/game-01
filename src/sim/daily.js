@@ -67,7 +67,7 @@ export function createDaily(ctx) {
     const q = active(); if (!q || S.over) return;
     const T = tmpl(q); if (!T) return;
     if (T.far && !S.hero.dead) { const d = Math.hypot(S.hero.x - map.town.x, S.hero.y - map.town.y); if (d > q.far) q.far = d; if (q.far >= q.n && d < 9) q.back = true; }
-    if (S.phase === 'day' && !q.said && S.clock && TIDE.dayLen - (S.dayT || 0) <= DAILY_RULES.remind) { q.said = true; const p = progress(); toast(DAILY_TEXT.remind.replace('{title}', q.title).replace('{have}', p.have).replace('{n}', p.n), 'sys'); }
+    if (S.phase === 'day' && !q.said && S.clock && (S.tide || TIDE).dayLen - (S.dayT || 0) <= DAILY_RULES.remind) { q.said = true; const p = progress(); toast(DAILY_TEXT.remind.replace('{title}', q.title).replace('{have}', p.have).replace('{n}', p.n), 'sys'); }
     if (T.stat(S, ST()) - q.base < q.n) return;
     q.state = 'done'; q.done = true; const st = ST(); st.dailies = (st.dailies || 0) + 1;
     const fx = rewardFx(T, q.day); for (const f of fx) apply(f, null);
@@ -85,7 +85,7 @@ export function createDaily(ctx) {
   }
   /** the story's day gate asks: may a quest be offered now? */
   const offerOk = () => S.phase === 'day' && S.night >= DAILY_RULES.offerFrom && calmOk() && (!ST().daily || ST().daily.day < S.night)
-    && (!S.clock || TIDE.dayLen - (S.dayT || 0) > TIDE.dayLen * DAILY_RULES.dayLeft) && roomForQuest();
+    && (!S.clock || (S.tide || TIDE).dayLen - (S.dayT || 0) > (S.tide || TIDE).dayLen * DAILY_RULES.dayLeft) && roomForQuest();
   const calmOk = () => calmFor >= DAILY_RULES.calmT;
   return { offer, offerOk, accept, decline, progress, tick, settle, active, calm, calmOk };
 }

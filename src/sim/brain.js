@@ -65,7 +65,7 @@ export function createBrain(G) {
     }
     if (m.lost && Math.hypot(m.x - c, m.y - c) < 26 && !(rng.next() < 0.995)) { m.roam = null; m.lost = false; return; }   // a straggler from the night that wanders near the town again
     // now and then a roamer next to your land drifts in and walks on the town
-    if (!MOBS[m.kind].animal && S.clock && (S.night >= 2 || (G.dayDeadOk && G.dayDeadOk())) /* [gemini3] day 1 too */ && home.region >= 0 && G.baseDist(home.x, home.y) < 12 && rng.next() < TIDE.drift * (S.phase === 'day' ? TIDE.dayRef / TIDE.dayLen : 1) * Math.min(1, S.night / 6) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
+    if (!MOBS[m.kind].animal && S.clock && (S.night >= 2 || (G.dayDeadOk && G.dayDeadOk())) /* [gemini3] day 1 too */ && home.region >= 0 && G.baseDist(home.x, home.y) < 12 && rng.next() < TIDE.drift * (S.phase === 'day' ? TIDE.dayRef / (S.tide || TIDE).dayLen : 1) * Math.min(1, S.night / 6) * (rule('fog') ? 1.5 : 1) * dt) { m.roam = null; ev('drift', { id: m.id }); return; }
     const fromHome = Math.hypot(m.x - home.x, m.y - home.y);
     const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), heroHome = G.inZone(idx(Math.floor(h.x), Math.floor(h.y)));
     // once a roamer has your scent it hunts you: it follows you home and joins the attack on the town
@@ -158,6 +158,7 @@ export function createBrain(G) {
       if (m.hp <= 0) continue;
       const D = MOBS[m.kind];
       if (m.rise < 1) { m.rise = Math.min(1, m.rise + dt * 1.2); continue; }
+      if (D.still) continue;   // [ch1] a nest's heart: it neither walks nor bites
       if (m.markT > 0) m.markT -= dt;
       const inTar = walls.length && walls.some(w => Math.hypot(w.x - m.x, w.y - m.y) < 3.2);
       if (m.burn) { m.burn.t -= dt; G.hitMob(m, m.burn.dps * dt * (inTar && combo('tar', 'fire') ? 2 : 1), 'fire'); if (m.burn && m.burn.t <= 0) m.burn = null; if (m.hp <= 0) continue; }

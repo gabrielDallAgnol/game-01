@@ -8,7 +8,7 @@ export function createCore(G) {
   const { S, c, map } = G;
 
   // ---------- helpers ----------
-  const ev = (t, o = {}) => S.events.push({ ...o, t });   // the type always wins over a payload field
+  const ev = (t, o = {}) => { const e = { ...o, t }, n = S.events.push(e); if (G.onEv) G.onEv(e); return n; };   // the type always wins over a payload field · [ch1] G.onEv: a listener (the chapter)
   const toast = (msg, kind) => ev('toast', { msg, kind });
   const has = id => (S.P.taken[id] || 0) > 0;
   const combo = (a, b) => has(a) && has(b);

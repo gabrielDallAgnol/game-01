@@ -384,7 +384,7 @@ export function createStory(ctx) {
     lastCount = n;
     if ((gateT -= dt) > 0 || n >= questCap()) return;
     gateT = 2;
-    const left = TIDE.dayLen - (S.dayT || 0);
+    const left = (S.tide || TIDE).dayLen - (S.dayT || 0);
     if (daily.offerOk() && daily.offer()) return;   // offered only when calm, with time left in the day
     if (left > 30 && daily.calmOk()) placeSpots();   // a new beacon waits for a calm moment too
   }
@@ -435,7 +435,7 @@ export function createStory(ctx) {
   }
   function start() {
     chron('Woke up under a fallen rack at Depot 9, with a Haven Rig and three coworkers who would not leave.', 5);
-    if (S.clock && S.night === 1 && !S.dayT) S.dayT = Math.max(0, TIDE.dayLen - DAY_ONE);   // a short first day: light the fire, the night is close
+    if (S.clock && S.night === 1 && !S.dayT) S.dayT = Math.max(0, (S.tide || TIDE).dayLen - (S.tide || TIDE).dayOne);   // a short first day: light the fire, the night is close
     episode();   // day 1 has no quest: the System has not arrived yet
   }
   /** bonuses companions and story give the Camp */
