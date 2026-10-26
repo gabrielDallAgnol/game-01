@@ -16,7 +16,7 @@ export function createPanels(ui) {
   function selB() { const S = ui.game.state; return ui.selected && ui.selected.type === 'building' ? S.byId.get(ui.selected.id) : ui.selected && ui.selected.type === 'keep' ? S.keep : null; }
   function panelSig() {
     const S = ui.game.state, b = selB();
-    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? `${ui.game.landmarkReach(ui.selected.id)}` : '', b ? `${b.spec || ''}${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : '', ui.selected && ui.selected.type === 'keep' && ui.rigPanelSig ? ui.rigPanelSig() : ''].join('|');   // [rig3] the Rig's line
+    return [S.gold, S.food, S.phase, ui.selected && ui.selected.type, ui.selected && ui.selected.id, ui.selected && ui.selected.type === 'landmark' ? `${ui.game.landmarkReach(ui.selected.id)}` : '', b ? `${b.spec || ''}${b.level}:${Math.ceil(b.hp)}:${b.maxHp}:${Math.floor((b.built ?? 1) * 20)}:${b.ruined ? 1 : 0}` : ''].join('|');
   }
   /** re-render the open panel only when what it shows changed */
   function refreshPanel() { const sig = panelSig(); if (sig !== lastSig) { lastSig = sig; renderPanel(); } }

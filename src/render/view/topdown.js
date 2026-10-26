@@ -44,7 +44,6 @@ export function createTopCamera(V) {
       prevHx = h.x; prevHy = h.y;
       if (fm) { focus.t -= dt; camGoal.copy(Wv(fm.x, fm.y)); }
       else if (!h.dead) camGoal.copy(Wv(h.x, h.y)).add(lead);
-      if (V.rigCam) camGoal.copy(V.rigCam);
       const cine = V.cinema, cb = cine ? cine.blend() : 0;
       if (cine && cine.active()) {
         const tg = cine.target(); camGoal.lerp(Wv(tg.x, tg.y), cb); camTarget.copy(camGoal); camVel.set(0, 0, 0); R *= cine.zoomK();
