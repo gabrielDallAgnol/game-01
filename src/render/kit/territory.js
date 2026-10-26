@@ -18,7 +18,7 @@ const T = {
   light: { value: null }, lightO: { value: new THREE.Vector2(-1e4, -1e4) }, lightS: { value: 64 }, lightK: { value: 0 },
   emitK: { value: 0 }, emitCol: { value: lin('#ffb15a') }, rim: { value: new THREE.Vector4(1, 0.8, 0.6, 0.15) },
   mist: { value: new THREE.Vector4(0.8, 0.8, 0.85, 0) }, time: { value: 0 }, ao: { value: 0.72 },
-  fogCol: { value: lin('#16223a') }, cyan: { value: lin('#5fd3ff') }, front: { value: 1 }, scan: { value: new THREE.Vector4(0, 0, 0, 0) },
+  fogCol: { value: lin('#5a6a86') }, cyan: { value: lin('#5fd3ff') }, front: { value: 1 }, scan: { value: new THREE.Vector4(0, 0, 0, 0) },
   sway: { value: 1 }, night: { value: 0 },
   flat: { value: new THREE.Color(1, 1, 1) },   // [top] the flat path's light: day white, night navy (view/topflat.js)
 };
@@ -145,7 +145,7 @@ gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(2.4, 2.3, 2.2), vFlash);
 float mist = tMist.a * exp(-max(vTWorld.y, 0.0) * 1.5) * (0.5 + 0.5 * tNoise(vTWorld.xz * 0.08 + tTime * vec2(0.035, 0.02)));
 gl_FragColor.rgb = mix(gl_FragColor.rgb, tMist.rgb, clamp(mist, 0.0, 1.0));
 #ifndef T_NOFOG
-// the System's fog of war: unexplored land is a dim navy blueprint with a faint cyan grid;
+// the System's fog of war: unexplored land is a light cool veil with a faint cyan grid;
 // the frontier is a living cyan line, and new ground lights up under a scan wave
 float sw = tM.g + (tNoise(vTWorld.xz * 0.42 + tTime * 0.12) - 0.5) * 0.3;
 float seen = smoothstep(0.36, 0.6, sw);
@@ -153,7 +153,8 @@ if (seen < 0.999 || tScan.w > 0.001) {
   float gl = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
   vec2 gq = abs(fract(vTWorld.xz * 0.5) - 0.5);
   float grid = smoothstep(0.455, 0.49, max(gq.x, gq.y));
-  vec3 bp = (tFogCol * (0.75 + 0.5 * tNoise(vTWorld.xz * 0.06)) + gl * vec3(0.10, 0.14, 0.22) + tCyan * grid * 0.04) * (1.0 - 0.6 * tNight);
+  // [polish] a light veil, not a shroud: the town's shapes, streets and roofs still read, desaturated and cooled
+  vec3 bp = mix(mix(vec3(gl), gl_FragColor.rgb, 0.35) * 0.8 + tFogCol * 0.35, tFogCol * 0.9 + gl * 0.35, 0.22 * tNight) + tCyan * grid * 0.035;
   float front = smoothstep(0.11, 0.0, abs(sw - 0.48)) * tFront;
   float sd = distance(vTWorld.xz, tScan.xy);
   float scan = tScan.w * smoothstep(1.4, 0.0, abs(sd - tScan.z)) * smoothstep(tScan.z + 1.0, tScan.z - 6.0, sd);
