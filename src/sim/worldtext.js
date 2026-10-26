@@ -6,11 +6,12 @@
 // Rng and by hashes, never by the clock. Found notes and heard broadcasts live in S.ch (notes, heard).
 import { NOTES, GRAFFITI, RADIO } from '../content/notes.js';
 import { STEPS } from '../content/story1.js';
-import { inside } from './mapgen.js';
+import { PASSABLE, idx, inside } from './mapgen.js';
 
 const PLACE_KIND = { rig: 'rig', church: 'church', townhall: 'townhall', works: 'factory', garage: 'garage', school: 'school', shed: 'shed', watertower: 'shed', hut: 'shed', cinema: 'house', pizzeria: 'shop' };
 const AT_PLACE = new Set(['rig', 'church', 'townhall', 'factory', 'garage', 'school']);
 const stepOf = {}; for (const s of STEPS) for (const k of ['notes', 'graffiti', 'radio']) for (const id of (s.world && s.world[k]) || []) stepOf[id] = s;
+const GSPACE = [[2, 11], [1, 9], [1, 6], [0, 4]];   // [polish] graffiti: clear room round a tag (cells), gap to the next tag (m), tried in turn
 const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
 export function createWorldText(G) {
@@ -42,6 +43,16 @@ export function createWorldText(G) {
   }
   // ---------- graffiti: a spot by each one's wall, picked once ----------
   const GP = {};
+  const open1 = (x, y) => { const cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) return false; const i = idx(cx, cy); return PASSABLE[map.terrain[i]] && map.reach[i] && S.occ[i] < 0; };
+  const roomy = (x, y, r) => { for (let dy = -r; dy <= r; dy += 1) for (let dx = -r; dx <= r; dx += 1) if (dx * dx + dy * dy <= r * r + 0.01 && !open1(x + dx, y + dy)) return false; return true; };
+  const apart = (x, y, d) => Object.values(GP).every(o => Math.hypot(o.x - x, o.y - y) >= d);
+  function clearSpot(x, y) {
+    for (const [room, gap] of GSPACE) for (let d = 0; d <= 14; d++) for (let a = 0; a < (d ? 16 : 1); a++) {
+      const px = Math.floor(x + Math.cos(a * Math.PI / 8) * d) + 0.5, py = Math.floor(y + Math.sin(a * Math.PI / 8) * d) + 0.5;
+      if (open1(px, py) && roomy(px, py, room) && apart(px, py, gap)) return { x: px, y: py };
+    }
+    return G.groundNear(x, y, 8);
+  }
   function spotFor(g) {
     const p = P(), w = g.where.toLowerCase(), W = map.area.W, plaza = W.plaza ? { x: W.plaza.x + map.area.ox, y: W.plaza.y + map.area.oy } : { x: c, y: c };
     const by = id => p[id] && { x: p[id].at.x, y: p[id].at.y, side: true };
@@ -50,9 +61,9 @@ export function createWorldText(G) {
       : /goods shed/.test(w) ? by('shed') : /works gate/.test(w) ? by('works') : /mast two|mast one/.test(w) ? by('hut') : /station/.test(w) ? by('station') : /school/.test(w) ? by('school') : null;
     if (!q) { const homes = (G.searchHomes ? G.searchHomes() : []).filter(o => G.districtOf(o.x, o.y) === g.district); const o = homes.length ? homes[hash(g.id) % homes.length] : { x: c + 10, y: c + 10 }; q = { x: o.x, y: o.y, side: true }; }
     if (q.side) { const a = (hash(g.id) % 2 ? 1 : -1) * 2.4; q = { x: q.x + a, y: q.y + 0.4 }; }
-    // keep clear of the graffiti already placed (two walls side by side read as one smear from above)
-    for (let k = 0; k < 8 && Object.values(GP).some(o => Math.hypot(o.x - q.x, o.y - q.y) < 7); k++) { const a = (hash(g.id) % 360) * Math.PI / 180 + k * 0.9; q = { x: q.x + Math.cos(a) * 4, y: q.y + Math.sin(a) * 4 }; }
-    const at = G.groundNear(q.x, q.y, 8);
+    // [polish] open pavement with room for the tag (nothing over it from above) and well apart from the tags already
+    // placed: rings out from its wall; the rules relax only if the town gives no such spot
+    const at = clearSpot(q.x, q.y);
     return { x: at.x, y: at.y, rot: ((hash(g.id) % 21) - 10) * 0.012 };
   }
   const gVisible = g => (g.night >= 7 && g.step ? G.chIsOpen(g.step) || G.chIsDone(g.step) : S.night >= g.night);   // the last ones wait for their step

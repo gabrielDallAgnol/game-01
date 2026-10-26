@@ -15,15 +15,15 @@ const here = path.dirname(new URL(import.meta.url).pathname), SRC = path.join(he
 test('the opening: five cards, ends on the System window, shown once per profile, ?intro= overrides', () => {
   assert.equal(INTRO_CARDS.length, 5);
   const last = INTRO_CARDS.at(-1); assert.ok(last.sys);
-  assert.ok(last.lines.includes('[THERMAL PIONEER SYSTEM INITIALIZED]') && last.lines.includes('Pioneer · Level 1'));
-  assert.match(INTRO_CARDS.map(c => c.lines.join(' ')).join(' '), /Solar Zenith Flare|sun blinks/i);
+  assert.ok(last.lines.includes('[Class granted: Mechanic]') && last.lines.includes('Kai Brenner · Lv 1'));   // [polish] Hollowmere's canon
+  assert.match(INTRO_CARDS.map(c => c.lines.join(' ')).join(' '), /Ashfall|ash falls/i);
   const st = mem();
   assert.equal(introWanted(st, ''), true, 'a fresh profile sees it');
   markIntroSeen(st); assert.equal(st.get(INTRO_KEY), true);
   assert.equal(introWanted(st, ''), false, 'the second time it is skipped');
   assert.equal(introWanted(st, '?intro=1'), true, '?intro=1 forces it');
   assert.equal(introWanted(mem(), '?intro=0'), false, '?intro=0 skips it');
-  assert.equal(GAME_TITLE.sub, 'The Solar Flare');
+  assert.equal(GAME_TITLE.sub, 'Chapter 1 · The Engine Works');
 });
 
 test('barks: every kind has lines, pick is deterministic with a seeded rng, pickWho names the crew', () => {
@@ -34,7 +34,8 @@ test('barks: every kind has lines, pick is deterministic with a seeded rng, pick
   const w = pickWho('heat', seq([0.1, 0.0, 0.0])); assert.ok(w.who && w.text);
   assert.ok(CITIZEN.haul.includes('Good haul today!') && CITIZEN.rigHolds.includes("Rig's holding!") && CITIZEN.heat.some(t => /rising to the east/.test(t)));
   assert.deepEqual(CREW.map(c => c.id).sort(), CREW_BIO.map(c => c.id).sort());
-  assert.ok(CREW_BIO.some(c => /mechanic/i.test(c.role)) && CREW_BIO.some(c => /athlete/i.test(c.role)) && CREW_BIO.some(c => /manager/i.test(c.role)));
+  assert.ok(CREW_BIO.some(c => /courier/i.test(c.role)) && CREW_BIO.some(c => /clerk/i.test(c.role)) && CREW_BIO.some(c => /radio/i.test(c.role)));   // [polish] chapter 1's crew
+  assert.equal(pickWho('dawn', seq([0.1, 0.0, 0.0]), []).who, 'A neighbour', 'only the crew brought home speak');
 });
 
 test('mob names are the Ash-Born varieties', () => {

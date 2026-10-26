@@ -35,3 +35,8 @@ export const FINALE = {
   fit: 20, slow: 0.7,         // hold-to-fit at the Rig (s); Kai's speed with the crankshaft
   roll: 8,                    // seconds the Rig takes to roll out of the square before the end
 };
+export const SIGHT = {
+  hero: 14,                   // Kai opens the shroud this far round her (m); the base game's 8 hid the town on a phone
+  rig: 26,                    // the Rig's clearing at the start (m)
+  ringPad: 10,                // the old town (Kai's home) starts known, plus this margin past its ring street (m)
+};

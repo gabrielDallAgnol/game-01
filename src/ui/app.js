@@ -86,6 +86,7 @@ export function startApp() {
 
   // ---------- loop ----------
   const toastFor = new Set(['toast', 'fail']);
+  const SYS_ONLY = /^\[[^\]]+\]$/;   // [polish] a toast that is one bracketed System line
   let drawnAt = 0;   // [gemini3]
   function frame(now) {
     requestAnimationFrame(frame);
@@ -102,7 +103,7 @@ export function startApp() {
     try { audio.onEvents(events, ui.game); audio.tick(ui.game, dt); } catch (err) { /* sound must never stop the game */ }
     let windowAtDawn = false;
     for (const e of events) {
-      if (toastFor.has(e.t)) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);
+      if (toastFor.has(e.t) && !(e.t === 'toast' && SYS_ONLY.test(e.msg || '') && ui.game.chapter && ui.game.chapter())) toast(e.msg, e.t === 'fail' ? 'bad' : e.kind);   // [polish] chapter 1: a bare [System] line shows over Kai (view/worldtext.js), not as a pill too
       if (e.t === 'window') { ui.game.story().offerWin(e); if (S.phase === 'day' && S.dayT < 3) windowAtDawn = true; }
       if (e.t === 'episode') showEpisode(e);
       if (e.t === 'scene') showDusk(e);

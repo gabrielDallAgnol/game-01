@@ -66,7 +66,7 @@ export function playIntro({ store, onDone, root = document.body }) {
   const cards = INTRO_CARDS; let i = 0, busy = false, closed = false;
   if (!document.getElementById('introCss')) { const st = document.createElement('style'); st.id = 'introCss'; st.textContent = CSS; document.head.appendChild(st); }
   markIntroSeen(store);
-  const el = document.createElement('div'); el.id = 'intro'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'The Solar Flare: opening'); root.appendChild(el);
+  const el = document.createElement('div'); el.id = 'intro'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Hollowmere: opening'); root.appendChild(el);
   function finish() { if (closed) return; closed = true; window.removeEventListener('keydown', key, true); el.classList.remove('on'); setTimeout(() => { el.remove(); onDone && onDone(); }, reduced() ? 0 : 300); }
   function show() {
     const c = cards[i], last = i === cards.length - 1;

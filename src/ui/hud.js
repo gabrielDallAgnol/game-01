@@ -47,7 +47,7 @@ export function createHud(ui) {
   function showDusk(e) {
     nightLine = e.line; callouts.hide();   // tips are for the day
     const blood = e.night % 5 === 0;
-    banner(`<span class="ep">${blood ? 'Flare Night' : pickLine(DUSK_TAGS, e.night)}</span><b>Night ${e.night}</b><span class="ln">${esc(e.line.replace(/^Flare Night\. /, ''))}</span>`, `night${blood ? ' blood' : ''}`, 3400);
+    banner(`<span class="ep">${blood ? 'Ash Night' : pickLine(DUSK_TAGS, e.night)}</span><b>Night ${e.night}</b><span class="ln">${esc(e.line.replace(/^Flare Night\. /, ''))}</span>`, `night${blood ? ' blood' : ''}`, 3400);
     if (systemHere()) strip.say(`[Night ${e.night}] ${e.line}`, blood ? 'bad' : 'sys');
   }
   // auto quality: if no choice was made, step down one level when frames are slow for a few seconds
