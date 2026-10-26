@@ -34,12 +34,24 @@ export function createAtoms(V) {
     for (const L of [T.g, T.o]) { L.ctx.setTransform(1, 0, 0, 1, 0, 0); L.ctx.clearRect(0, 0, RES, RES); L.ctx.setTransform(PX, 0, 0, PX, -x0 * PX, -y0 * PX); L.ctx.save(); L.ctx.beginPath(); L.ctx.rect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0); L.ctx.clip(); }
     paintWorld(T.g.ctx, T.o.ctx, Wpaint, palette, R);
     for (const L of [T.g, T.o]) L.ctx.restore();
+    grade(T.g.ctx, GRADE.ground, false); grade(T.o.ctx, GRADE.over, true);   // [clarity]
     // cells the area left to the frontier (the far city) stay the frontier's
     for (let y = y0; y < R.y1; y++) for (let x = x0; x < R.x1; x++) { const mx = x + A.ox, my = y + A.oy; if (mx < 0 || my < 0 || mx >= map.N || my >= map.N || !A.mask[my * map.N + mx]) { T.g.ctx.clearRect(x, y, 1, 1); T.o.ctx.clearRect(x, y, 1, 1); } }
     T.g.tex.needsUpdate = T.o.tex.needsUpdate = true;
     const wx = x0 + TILE / 2 + A.ox - C, wz = y0 + TILE / 2 + A.oy - C;
     T.g.mesh.position.set(wx, 0.04, wz); T.o.mesh.position.set(wx, OVER_Y, wz); T.g.mesh.visible = T.o.mesh.visible = true; T.ready = true;
   }
+  // [clarity] begin: the town steps back so what moves reads: a luminosity-keeping desaturation of each painted tile
+  // (the ground more than the roofs). The overhead layer is transparent, so its alpha is restored from a copy after.
+  const GRADE = { ground: 0.34, over: 0.22 }, keepA = document.createElement('canvas'); keepA.width = keepA.height = RES; const keepX = keepA.getContext('2d');
+  function grade(ctx, a, alpha) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (alpha) { keepX.clearRect(0, 0, RES, RES); keepX.drawImage(ctx.canvas, 0, 0); }
+    ctx.save(); ctx.globalCompositeOperation = 'saturation'; ctx.globalAlpha = a; ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, RES, RES);
+    if (alpha) { ctx.globalCompositeOperation = 'destination-in'; ctx.globalAlpha = 1; ctx.drawImage(keepA, 0, 0); }
+    ctx.restore();
+  }
+  // [clarity] end
   function want(ex, ey, hx, hy) {
     const need = new Set(), tx0 = Math.max(0, Math.floor((ex - hx) / TILE)), tx1 = Math.min(nTx - 1, Math.floor((ex + hx) / TILE)), ty0 = Math.max(0, Math.floor((ey - hy) / TILE)), ty1 = Math.min(nTy - 1, Math.floor((ey + hy) / TILE));
     for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) need.add(`${tx},${ty}`);

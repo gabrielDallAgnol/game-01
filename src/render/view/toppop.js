@@ -40,10 +40,11 @@ export function createTopPop(V) {
   outlineMat(HERO_OUTLINE, { skinning: true, w: 1.2 }).color.copy(lc(READ.heroInk));   // the hero's own hull: ink, not hi-vis amber (the amber read as a sand roof from above)
 
   // ---------- the dead: ash bodies, ember eyes; an ember pip under each (ink edge, ash heart), a red glow at night ----------
-  if (V.crowd && V.crowd.mats) { V.crowd.mats.body.color.setRGB(0.36, 0.33, 0.35); V.crowd.mats.eye.color.copy(lc(READ.deadEmber)).multiplyScalar(5); }
+  if (V.crowd && V.crowd.mats) { V.crowd.mats.body.color.setRGB(0.40, 0.13, 0.15);   // [clarity] blood-dark, not street-grey: the body itself says 'enemy'
+  V.crowd.mats.eye.color.copy(lc(READ.deadEmber)).multiplyScalar(5); }
   const CAP = 400;
   const pipMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, fog: false });
-  const pips = new THREE.InstancedMesh(bands([[0, 0.6, READ.dead], [0.6, 0.84, READ.deadEmber], [0.84, 1, READ.deadInk]], 20), pipMat, CAP);
+  const pips = new THREE.InstancedMesh(bands([[0, 0.52, READ.dead], [0.52, 0.86, READ.deadEmber], [0.86, 0.98, READ.deadInk], [0.98, 1.08, READ.deadHalo]], 24), pipMat, CAP);
   const glowGeo = new THREE.PlaneGeometry(1, 1); glowGeo.rotateX(-Math.PI / 2);
   const glows = new THREE.InstancedMesh(glowGeo, basic(READ.deadEmber, { map: glowTex, opacity: 0, blending: THREE.AdditiveBlending }), CAP);
   for (const m of [pips, glows]) { m.frustumCulled = false; m.count = 0; world.add(m); }
@@ -97,7 +98,7 @@ export function createTopPop(V) {
     for (const m of S.mobs) {
       if (n >= CAP) break;
       const def = MOBS[m.kind]; if (!def || def.animal || def.still || !seenAt(m.x, m.y)) continue;   // [ch1] a heart is no pip
-      const sz = sizeOf(m), r = 0.5 * sz * ps * Math.max(0.15, Math.min(1, m.rise ?? 1)), p = Wv(m.x, m.y, Y - 0.005);
+      const sz = sizeOf(m), r = 0.62 * sz * ps * Math.max(0.15, Math.min(1, m.rise ?? 1)), p = Wv(m.x, m.y, Y - 0.005);
       d.position.copy(p); d.rotation.set(0, 0, 0); d.scale.setScalar(r); d.updateMatrix(); pips.setMatrixAt(n, d.matrix);
       d.scale.setScalar(2.8 * sz * (0.85 + 0.15 * kk) * (1 + 0.06 * Math.sin(time * 3 + m.id))); d.position.y -= 0.004; d.updateMatrix(); glows.setMatrixAt(n, d.matrix);
       n++;

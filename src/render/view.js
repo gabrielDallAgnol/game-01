@@ -59,6 +59,8 @@ import { createSalvageMarks } from './view/salvage.js';
 import { createWorldTextView } from './view/worldtext.js';
 import { createChapterView } from './view/chapter.js';
 // [ch1] end
+// [clarity] turrets as guns from above
+import { createClarity } from './view/clarity.js';
 // [top] end
 
 export function createView(canvas, game, opts = {}) {
@@ -122,6 +124,7 @@ export function createView(canvas, game, opts = {}) {
   V.salvageMarks = createSalvageMarks(V);   // [mech]
   V.worldText = createWorldTextView(V);   // [ch1] graffiti, radio lines, the System over Kai (null outside chapter 1)
   V.chapter = createChapterView(V);   // [ch1] jobs, hearts, survivors, radios, the torch, the beacon, the Rig rolling out
+  V.clarity = createClarity(V);   // [clarity] turrets read as guns from above
 
   function frame(dt, ui = {}) {
     V.time += dt;
@@ -175,6 +178,7 @@ export function createView(canvas, game, opts = {}) {
     if (V.salvageMarks) V.salvageMarks.update(ui.events);   // [mech]
     if (V.worldText) V.worldText.update(dt, ui.events);   // [ch1]
     if (V.chapter) V.chapter.update(dt);   // [ch1]
+    if (V.clarity) V.clarity.update(dt, ui.events);   // [clarity]
     look.render(V.time);
   }
 
