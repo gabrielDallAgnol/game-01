@@ -56,7 +56,7 @@ export const NOTES = [
   { id: 'n.masts.3', district: 'masts', kind: 'house', night: 4, from: 'a farmer', text: 'The masts hum at night and the sleepers face them. All of them. Like sunflowers.' },
 
   // ---- station and works ----
-  { id: 'n.north.1', district: 'north', kind: 'shed', night: 6, step: 'q6.shed', from: 'a rail worker', text: 'The goods shed is warm. Too warm. It feeds the Works, everyone knows that. The dead pass through like it is a station.' },
+  { id: 'n.north.1', district: 'north', kind: 'shed', night: 6, step: 'q6.shed', from: 'a rail worker', text: 'The goods shed is warm. Too warm. It feeds the Works, everyone knows that. The Ash-Born pass through like it is a station.' },
   { id: 'n.north.2', district: 'north', kind: 'house', night: 6, step: 'q6.shed', from: 'a signal box', text: 'Points to the Works are stuck. Shed blocks the yard road. Clear the shed, clear the way.' },
   { id: 'n.north.3', district: 'north', kind: 'shop', night: 5, from: 'the station kiosk', text: 'Last train: 17:52. It never left. The driver is still in the cab. Grey. He has his hand on the horn.' },
   { id: 'n.north.4', district: 'north', kind: 'house', night: 5, from: 'a night-shift worker', text: 'I clocked in for the night shift and the whole Works went quiet. Then the furnace lit by itself.' },

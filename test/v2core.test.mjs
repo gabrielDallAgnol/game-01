@@ -1,7 +1,6 @@
-// [v2] The V2 core (?v2=1): with the flag a run plays three nights with none of the old systems: no waves or day
-// stragglers from nests, no guard packs, sieges or eruptions, no blessing or relic offers, no stat points, no Rig or
-// road; level-ups still pay XP; night still falls; the same seed plays the same; the save keeps the flag. Without the
-// flag a short run is the same as one made before the flag existed (the golden runs cover the rest).
+// [v2] The V2 core: a run plays three nights with none of the cut systems coming back: no waves or day stragglers
+// from nests, no guard packs, sieges or eruptions, no blessing or relic offers, no stat points, no Rig or road;
+// level-ups still pay XP; night still falls; the same seed plays the same; a dawn save restores.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -25,7 +24,7 @@ const hashOf = v => { const h = createHash('sha256'); feed(h, v, []); return h.d
 const OLD_EVENTS = ['firstDead', 'nestGuard', 'nestRage', 'eruptWarn', 'erupt', 'horde', 'hitHive', 'hiveAwake', 'statPoints', 'statUnlock', 'statTitle', 'relic', 'rigUp', 'rigRoad', 'rigMigrate', 'actOpen', 'contract', 'missionOffer', 'convoy', 'cart', 'haul', 'blackout', 'window', 'district'];
 
 function run(seed, opts, nights = 3) {
-  const g = createGame({ seed, area: 'suburb', v2combat: true, ...opts }), S = g.state, evs = [];
+  const g = createGame({ seed, area: 'suburb', ...opts }), S = g.state, evs = [];
   let steps = 0, queued = 0, nightsSeen = 0, sneaky = 0, xpGiven = false, wasNight = false;
   while (S.night <= nights && !S.over && steps < 20 * 60 * 40) {
     if (steps % 15 === 0) heroTick(g, 'fight');
@@ -41,7 +40,7 @@ function run(seed, opts, nights = 3) {
 }
 
 test('v2: three nights with none of the old systems', () => {
-  const r = run(7, { v2: true }), { g, S, evs } = r;
+  const r = run(7, {}), { g, S, evs } = r;
   assert.ok(!S.over && S.night === 4, `the run lives to day 4 (night ${S.night}, over ${S.over})`);
   assert.equal(r.nightsSeen, 3, 'night still falls');
   assert.equal(r.queued, 0, 'no wave or straggler is ever queued from a nest');
@@ -53,27 +52,19 @@ test('v2: three nights with none of the old systems', () => {
   assert.ok(!g.road, 'no road');
   assert.ok(g.forecast().every(f => S.hordes && S.hordes.spots.some(h => -1 - h.edge === f.nest)), 'the only forecast is a marching horde (the V2 night)');
   const nest = g.map.regions.find(reg => reg.nest && S.nestAlive[reg.id]);
-  if (nest) assert.equal(g.hitHive(nest.id, 999), false, 'no siege');
+  if (nest) assert.ok(!g.hitHive || g.hitHive(nest.id, 999) === false, 'no siege');
   assert.ok(!evs.some(e => e.t === 'toast' && /blessing|Stat Point|Haven Rig|Contract|Inferno Nest awake|Flare Night|come in force/.test(e.msg)), 'no toast from the cut systems');
-  assert.ok(g.v2() && g.v2Off().includes('waves'));
+  assert.ok(g.v2() && g.combat2());
 });
 
 test('v2: the same seed plays the same', () => {
-  assert.equal(run(11, { v2: true }, 2).hash, run(11, { v2: true }, 2).hash);
+  assert.equal(run(11, {}, 2).hash, run(11, {}, 2).hash);
 });
 
-test('v2: the save keeps the flag, a restore keeps it on', () => {
-  const g = createGame({ seed: 5, area: 'suburb', v2: true });
+test('v2: a dawn save restores the same camp', () => {
+  const g = createGame({ seed: 5, area: 'suburb' });
   const snap = JSON.parse(JSON.stringify(g.snapshot()));
-  assert.equal(snap.v2, true);
-  const h = createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, difficulty: snap.difficulty, restore: snap, area: snap.area, v2: !!snap.v2 });
-  assert.equal(h.v2(), true);
-  assert.equal(createGame({ seed: 5 }).snapshot().v2, undefined, 'a save without the flag has no v2 field');
-});
-
-test('without the flag: a short run is unchanged', () => {
-  const a = run(7, {}, 1), b = run(7, { v2: false }, 1), c = run(7, { v2: true }, 1);
-  assert.equal(a.hash, b.hash); assert.equal(a.evs.length, b.evs.length);
-  assert.notEqual(a.hash, c.hash, 'the flag does change the run');
-  assert.ok(a.queued > 0, 'the old waves still come');
+  assert.equal(snap.area, 'suburb'); assert.equal(snap.v2, undefined, 'no flag rides in the save any more');
+  const h = createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, difficulty: snap.difficulty, restore: snap, area: snap.area });
+  assert.equal(h.state.night, g.state.night); assert.equal(h.state.gold, g.state.gold); assert.ok(h.combat2());
 });

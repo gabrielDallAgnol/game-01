@@ -1,6 +1,5 @@
-// [combat2] Telegraphed bites and the dash (?v2combat=1): a dead in reach winds up first; a hero who dashes out
-// of reach makes it whiff, one who stays is bitten when the wind-up ends; the same seed plays the same; and without
-// the flag the old instant bite stands.
+// [combat2] Telegraphed bites and the dash: a dead in reach winds up first; a hero who dashes out of reach makes it
+// whiff, one who stays is bitten when the wind-up ends; the same seed plays the same; the dash cools down.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../src/sim/game.js';
@@ -9,8 +8,8 @@ import { DASH, WINDUP } from '../src/content/combat2.js';
 const DT = 1 / 20;
 
 // a tough walker at the hero's side (between the hero and the hall), so the dash outward has open ground
-function setup(seed, v2combat = true) {
-  const g = createGame({ seed, v2combat }), S = g.state, h = S.hero, c = g.map.town.x;
+function setup(seed) {
+  const g = createGame({ seed }), S = g.state, h = S.hero, c = g.map.town.x;
   let ox = h.x - c, oy = h.y - c; const l = Math.hypot(ox, oy) || 1; ox /= l; oy /= l;
   const m = g.spawnMob('walker', h.x - ox * 0.6, h.y - oy * 0.6, { hp: 9999, maxHp: 9999, rise: 1, hunt: true });
   g.drainEvents();
@@ -53,14 +52,9 @@ test('the same seed plays the same', () => {
   assert.deepEqual(dodge(11), dodge(11));
 });
 
-test('the dash has a cooldown; without the flag it does nothing and the bite is instant', () => {
+test('the dash has a cooldown', () => {
   const { g } = setup(5);
   assert.ok(g.dash(1, 0)); assert.ok(!g.dash(1, 0), 'cooling down');
   for (let k = 0; k < DASH.cd / DT + 2; k++) g.step(DT);
-  assert.ok(g.dashInfo().ready, 'ready again');
-  const off = setup(3, false), log = [];
-  assert.ok(!off.g.dash(1, 0)); assert.ok(!off.g.combat2());
-  run(off.g, 0.3, log);
-  const es = mine(log, off.m.id);
-  assert.equal(es[0] && es[0].t, 'bite'); assert.ok(!es.some(e => e.t === 'windup'));
+  assert.ok(g.dashInfo().ready, 'ready again'); assert.ok(g.combat2());
 });

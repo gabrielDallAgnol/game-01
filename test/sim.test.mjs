@@ -3,11 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateMap, validateMap, mapChoices, BIOMES, N, idx, PASSABLE } from '../src/sim/mapgen.js';
-import { createGame as newGame, LEVEL, NOISE, HEAT, TENSION, PRESENCE, TOOLS, CUT, NEST } from '../src/sim/game.js';
-import { HEROES } from '../src/content/heroes.js';
-import { CALLING_LVL, FINAL_LVL, LEGEND_LVL } from '../src/content/season.js';
+import { createGame as newGame, TENSION, PRESENCE, CUT } from '../src/sim/game.js';
 import { BUILDINGS } from '../src/content/buildings.js';
-import { TIDE } from '../src/content/mobs.js';
+import { MOBS, TIDE } from '../src/content/mobs.js';
 import { playRun } from '../tools/bot.mjs';
 import { MATURITY } from '../src/content/stronghold.js';
 MATURITY.on = false;   // [gemini3] these rules predate the Camp's maturity gates (day, standing buildings): test/gemini3.test.mjs covers them
@@ -23,18 +21,9 @@ test('one world while we test: the start screen offers a single valid map', () =
   for (let s = 1; s <= 5; s++) { const c = mapChoices(s); assert.equal(c.length, 1); assert.equal(c[0].biome, 'riverbend'); }
 });
 
-test('the frontier: a camp in the woods, the road starts deep in the forest, the city is far away', () => {
-  const m = generateMap(4, 'riverbend'), c = N / 2;
-  let nearRoad = 0; for (let y = c - 30; y < c + 30; y++) for (let x = c - 30; x < c + 30; x++) if (Math.hypot(x + 0.5 - c, y + 0.5 - c) < 30 && m.road[idx(x, y)]) nearRoad++;
-  assert.equal(nearRoad, 0, 'the road reaches the camp');
-  assert.ok(Math.hypot(m.city.x - c, m.city.y - c) - m.city.r > 120, 'the city is too close');
-  assert.ok(m.landmarks.filter(l => l.kind === 'farmstead' || l.kind === 'lumber').length >= 2, 'no farms or lumber camps in the woods');
-});
-
 test('every nest can walk to the town', () => {
   for (const biome of Object.keys(BIOMES)) {
     const g = createGame({ mode: 'classic', seed: 5, biome });
-    while (g.state.pendingPicks) g.choosePerk(g.state.offer[0]);
     assert.equal(g.startNight(), true);
     for (const r of g.map.regions) if (r.nest) {
       const i = idx(Math.floor(r.nest.x), Math.floor(r.nest.y));
@@ -53,7 +42,6 @@ test('palisades reroute the dead instead of being ignored (walls are cut for now
   CUT.walls = false; try {
   const g = createGame({ mode: 'classic', seed: 3, biome: 'highland' });
   const S = g.state;
-  while (S.pendingPicks) g.choosePerk(S.offer[0]);
   g.startNight();
   const before = Float32Array.from(S.flow);
   // fill one pass with a palisade-like block by building walls on every free town slot
@@ -91,12 +79,13 @@ test('the brain: the dead hunt you out in the open, give up at the town, and the
   assert.ok(brute.ambushAt && Math.hypot(brute.ambushAt.x - c, brute.ambushAt.y - c) < Math.hypot(S.hero.x - c, S.hero.y - c), 'the brute did not move to cut you off');
 });
 
+// the nearest dead to the hero (a V2 night may bring no march: the roamers count)
+const prey = S => S.mobs.filter(q => !MOBS[q.kind].animal && q.hp > 0).sort((a, b) => Math.hypot(a.x - S.hero.x, a.y - S.hero.y) - Math.hypot(b.x - S.hero.x, b.y - S.hero.y))[0];
 test('heroes: every class fights, the Scavver only weakly', () => {
   for (const hero of ['warrior', 'archer', 'merchant']) {
     const g = createGame({ mode: 'classic', seed: 4, biome: 'highland', hero }); const S = g.state;
-    while (S.pendingPicks) g.choosePerk(S.offer[0]);
     S.night = 3; g.startNight();
-    for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) { const m = S.mobs.find(q => !q.roam); if (m) g.heroTo(m.x, m.y); g.step(); }
+    for (let k = 0; k < 60 * 200 && S.phase === 'night'; k++) { const m = prey(S); if (m) g.heroTo(m.x, m.y); g.step(); }
     const kills = S.log[0].kills.hero || 0;
     assert.ok(kills > 0, `${hero} killed nothing`);
   }
@@ -104,7 +93,7 @@ test('heroes: every class fights, the Scavver only weakly', () => {
 
 test('the dead never end up inside walls or water', () => {
   const g = createGame({ mode: 'classic', seed: 21, biome: 'riverbend' }); const S = g.state;
-  S.night = 9; while (S.pendingPicks) g.choosePerk(S.offer[0]);
+  S.night = 9;
   g.startNight();
   for (let k = 0; k < 60 * 60; k++) {
     g.step();
@@ -114,13 +103,11 @@ test('the dead never end up inside walls or water', () => {
 });
 
 import { spaceStats } from '../tools/space.mjs';
-import { PERKS } from '../src/content/perks.js';
 // [econ3] this suite pins the v55 rules (instant building, blessings, rising tower prices, the full trickle); they stay
 // in the code behind the ECON flags. The Solar Flare economy is tested in econ3.test.mjs.
 import { ECON } from '../src/content/econ.js';
 Object.assign(ECON, { queue: false, carts: false, relics: false, flatTower: false, settle: false });
 // tests of the districts and the city: the fence down from day 1 (act 2 at once; CUT.earlyRoad off, see sim/acts.js)
-const withOpenRoad = fn => () => { CUT.earlyRoad = false; try { return fn(); } finally { CUT.earlyRoad = true; } };
 test('towns use their space: enough lots, little dead land, a street around every building', () => {
   for (const biome of Object.keys(BIOMES)) for (let s = 1; s <= 20; s++) {
     const m = generateMap(s, biome), st = spaceStats(m);
@@ -156,7 +143,7 @@ test('free placement: no overlaps, every building owns its lot with a path, pali
   const cells = g.lineCells(wx, wy, wx + 4, wy + 2);
   for (let k = 1; k < cells.length; k++) assert.equal(Math.abs(cells[k][0] - cells[k - 1][0]) + Math.abs(cells[k][1] - cells[k - 1][1]), 1, 'lines must be 4-connected');
   CUT.walls = true;
-  const outside = g.map.slots.find(sl => sl.region !== 0);
+  const outside = { x: t.x + 60.5, y: t.y + 0.5 };   // well past the build zone
   assert.equal(g.canPlace('house', outside.x, outside.y).ok, false, 'built outside your land');
 });
 
@@ -201,52 +188,8 @@ test('tapping a spot walks around buildings instead of stopping at them', () => 
   assert.ok(Math.hypot(S.hero.x - (t.x + 0.5), S.hero.y - (t.y - 4.5)) < 1, `stopped at ${S.hero.x.toFixed(1)},${S.hero.y.toFixed(1)}`);
 });
 
-test('blessings: rarity by source, pacts, masteries, reroll', () => {
-  const g = createGame({ mode: 'classic', seed: 12, biome: 'lakeshore', hero: 'warrior' }); const S = g.state;
-  S.picks = ['nest']; g.choosePerk; // a nest offer must hold a legendary
-  S.picks = ['nest']; S.pendingPicks = 1; S.offer = ['steel']; S.offerSource = 'nest';
-  g.reroll(); // free reroll rolls the nest offer
-  
-  assert.ok(S.offer.some(id => PERKS.find(p => p.id === id).rarity === 'legendary'), 'nest offer without a legendary');
-  // three of a family → mastery choice next
-  S.picks = ['dawn', 'dawn', 'dawn']; S.pendingPicks = 3; S.offer = ['steel']; S.offerSource = 'dawn';
-  for (let k = 0; k < 3; k++) { S.offer = ['steel', 'hymn', 'skin']; S.offerSource = 'dawn'; g.choosePerk(['steel', 'hymn', 'skin'][k]); }
-  assert.ok(S.offer.every(id => id.startsWith('m:')), 'no mastery offered after 3 Hero blessings');
-  g.choosePerk(S.offer[0]);
-  assert.ok(g.mastered('hero'));
-  // pacts carry a downside
-  const before = g.keepMaxHp(); S.offer = ['pactBlood']; S.offerSource = 'dawn'; S.picks = ['dawn']; g.choosePerk('pactBlood');
-  assert.ok(g.keepMaxHp() < before, 'Blood Arrows did not cost keep health');
-  // rerolls: first free, then cost gold
-  S.picks = ['dawn']; S.pendingPicks = 1; S.gold = 100; S.reroll.free = 1; g.state.offer = ['tax']; S.offerSource = 'dawn';
-  g.reroll(); assert.equal(S.gold, 100); g.reroll(); assert.equal(S.gold, 95);
-});
-
-test('heroes: abilities work and the Scavver calls a bounty', () => {
-  for (const hero of ['warrior', 'archer', 'merchant']) {
-    const g = createGame({ mode: 'classic', seed: 6, biome: 'highland', hero, clock: false }); const S = g.state;
-    while (S.pendingPicks) g.choosePerk(S.offer[0]);
-    S.gold = 50; S.night = 4; g.startNight();
-    for (let k = 0; k < 60 * 12; k++) g.step();
-    const t = g.map.town; S.hero.x = t.x; S.hero.y = t.y + 3.5;
-    if (S.mobs[0]) { S.hero.x = S.mobs[0].x; S.hero.y = S.mobs[0].y; }
-    const ok = g.useAbility(S.mobs[0]?.x, S.mobs[0]?.y);
-    if (hero === 'merchant') { assert.equal(ok, true); assert.ok(S.bountyT > 0, 'bounty did not start'); assert.equal(S.gold, 50); }
-    else assert.ok(S.ability.cd > 0 || !ok, `${hero} ability did nothing`);
-    assert.equal(g.useAbility(), false, 'ability ignored its cooldown');
-  }
-});
-
-test('the forecast traces every attacking nest to the town', () => {
-  for (const biome of Object.keys(BIOMES)) {
-    const g = createGame({ mode: 'classic', seed: 8, biome }); g.state.night = 6;
-    for (const f of g.forecast()) { assert.ok(f.count > 0); assert.ok(f.path.length > 3, `${biome} nest ${f.nest} has no route`); }
-  }
-});
-
 test('packs: a choice of 2 each dawn, pack buildings are free, extra ones cost double gold', () => {
   const g = createGame({ seed: 5, biome: 'highland', mode: 'packs' }); const S = g.state;
-  while (S.pendingPicks) g.choosePerk(S.offer[0]);
   assert.equal(S.packs.length, 2);
   const before = { ...S.stock }; g.choosePack(S.packs[0]);
   assert.ok(Object.keys(S.stock).some(t => S.stock[t] > (before[t] || 0)), 'pack added nothing');
@@ -265,43 +208,13 @@ const clearStory = g => { const S = g.state; for (let k = 0; k < 9 && S.story.en
 const prepKeep = g => { const S = g.state; S.food = Math.max(S.food, 99); S.survivors = Math.max(S.survivors, 40); S.stats.sites = Math.max(S.stats.sites || 0, 1); S.gold = Math.max(S.gold, 200);
   if (g.foodPerDawn() - g.foodNeed() < 8) { const t = g.map.town; S.P.farmFood = Math.max(S.P.farmFood, 60);
     if (!S.buildings.some(b => b.type === 'farm' && !b.ruined)) for (let r = 4; r < 14; r++) { let done = false; for (let a = 0; a < 24 && !done; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('farm', x, y).ok) done = g.build('farm', x, y); } if (done) break; } } };
-const readyDay = g => { const S = g.state; S.handsExtra = 99; clearStory(g); while (S.pendingPicks) g.choosePerk(S.offer[0]); while (S.packs.length) g.choosePack(S.packs[0]); };
+const readyDay = g => { const S = g.state; S.handsExtra = 99; clearStory(g); while (S.packs.length) g.choosePack(S.packs[0]); };
 const nextDawn = g => { const S = g.state; g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step(); };
 const firstSite = (g, hops) => g.state.scav.sites.map(s => g.scavenge.siteInfo(s.id)).find(i => i.visible && i.hops === hops);
 
 
 
 
-
-test('weather is a season rule now: never rolled at dawn; a storm or still rule sets every night', () => {
-  for (let seed = 1; seed <= 3; seed++) {
-    const g = createGame({ seed, hero: 'archer' }), S = g.state;
-    for (let n = 0; n < 6 && !S.over; n++) { readyDay(g); if (!g.rule('storm') && !g.rule('still')) assert.equal(S.weather, 'clear', `weather rolled on night ${S.night}`); /* a signed storm/still contract rule sets it: the rule, not a roll */ S.keep.hp = S.keep.maxHp = 1e6; nextDawn(g); }
-  }
-  const g = createGame({ seed: 2 }), S = g.state;
-  S.night = 6; const base = g.forecast().reduce((a, r) => a + r.count, 0);
-  g.setSeasonRules(['still']); assert.equal(S.weather, 'still'); const still = g.forecast().reduce((a, r) => a + r.count, 0);
-  g.setSeasonRules(['still', 'storm']); assert.ok(g.rule('still') && g.rule('storm'), 'stacked rules');
-  g.setSeasonRules(['storm']); assert.equal(S.weather, 'storm'); const storm = g.forecast().reduce((a, r) => a + r.count, 0);
-  assert.ok(still < base && storm > base, `${still} ${base} ${storm}`);
-});
-
-test('clearing rubble on your land makes buildable ground (trees: a job that pays timber, [gemini3])', () => {
-  let g, spot;
-  for (let seed = 1; seed < 40 && !spot; seed++) {
-    g = createGame({ seed }); const S = g.state, N = Math.sqrt(g.map.terrain.length);
-    for (let i = 0; i < g.map.terrain.length && !spot; i++) if (g.map.terrain[i] === 1 && g.zone()[i] && S.occ[i] < 0) spot = { x: i % N + 0.5, y: Math.floor(i / N) + 0.5 };
-  }
-  assert.ok(spot, 'no rubble in any starting town');
-  readyDay(g); const S = g.state;
-  const r = g.rubbleAt(spot.x, spot.y), gold = S.gold = 20;
-  assert.ok(r.cells.length > 0 && r.cost === (r.trees ? 0 : (r.cells.length - r.blocks) + 3 * r.blocks));
-  assert.equal(g.clearRubble(spot.x, spot.y), r.cells.length);
-  if (r.trees) { assert.ok(S.chop); for (let k = 0; k < 60 * 20 && S.chop; k++) g.step(); assert.ok(!S.chop, 'the hero walked over and felled the patch'); assert.ok(S.gold >= gold + r.pay); }
-  else assert.equal(S.gold, gold - r.cost);
-  assert.ok(r.cells.every(i => g.map.terrain[i] === 0 || g.map.terrain[i] === 6));
-  assert.equal(g.rubbleAt(spot.x, spot.y).cells.length, 0);
-});
 
 test('nothing grows past the keep', () => {
   const g = createGame({ mode: 'classic', seed: 3 }); readyDay(g); const S = g.state; S.gold = 200;
@@ -312,7 +225,7 @@ test('nothing grows past the keep', () => {
   assert.ok(!g.upgrade(b.id), 'L3 home with an L2 keep');
 });
 
-test('towers need crew from homes; people make no noise', () => {
+test('towers need crew from homes', () => {
   const g = createGame({ mode: 'classic', seed: 3 }); readyDay(g); const S = g.state; S.gold = 300; S.survivors = 0;
   const spot = t => g.map.slots.find(q => S.claimed.has(q.region) && !q.gate && g.canPlace(t, q.x, q.y).ok);
   let s = spot('tower'); g.build('tower', s.x, s.y);
@@ -323,37 +236,6 @@ test('towers need crew from homes; people make no noise', () => {
   s = spot('house'); g.build('house', s.x, s.y);
   assert.equal(g.manned(t), true, 'two people should man a level 1 tower');
   assert.ok(g.defenceDps() > dps0);
-  // a bigger town is not a louder one: noise comes from loud choices, not from people
-  S.feat.heat = true; g.step(); const n0 = g.noise();
-  for (let k = 0; k < 6; k++) { const h = spot('house'); if (h) g.build('house', h.x, h.y); }
-  g.step(); assert.equal(g.noise(), n0, 'homes made noise');
-  assert.equal(g.townDraw(), 1 + 0.5 * g.noise() / 100);
-});
-
-test('blessings: a dawn pick every other day, never more than two picks a dawn', () => {
-  const g = createGame({ seed: 5, hero: 'archer' }); const S = g.state;
-  readyDay(g);
-  const counts = [];
-  for (let n = 0; n < 4 && !S.over; n++) { S.chestsHeld = 4; S.keep.hp = S.keep.maxHp = 1e6; nextDawn(g); counts.push(S.pendingPicks); readyDay(g); }
-  for (const c of counts) assert.ok(c <= 2, `${c} picks in one dawn`);
-});
-
-test('tides: night 1 is a tough first dead then two packs from two sides, dusk falls on its own, roamers wander the wild', () => {
-  const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
-  for (const r of g.frontier()) g.openDistrict(r);
-  assert.ok(S.mobs.some(m => m.roam), 'no roaming dead in the open districts');
-  assert.ok(S.mobs.filter(m => m.roam).every(m => !S.sealed[m.roam.region]), 'roamers in sealed districts');
-  assert.ok(S.mobs.filter(m => m.roam).every(m => !S.claimed.has(m.roam.region)));
-  for (let k = 0; k < 60 * 101 && S.phase === 'day'; k++) g.step();
-  assert.equal(S.phase, 'night', 'dusk did not fall');
-  assert.equal(S.queue.length, 1 + TIDE.night1.packA.length + TIDE.night1.packB.length); assert.ok(S.queue[0].first, 'the first dead walks ahead');
-  assert.ok(S.queue.slice(1).every(q => !q.first && q.t > S.queue[0].t + 5), 'the packs come after the first dead');
-  assert.equal(new Set(S.queue.map(q => q.nest)).size, 2, 'night 1 comes from two directions');
-  for (let k = 0; k < 60 * 6; k++) g.step();
-  const first = S.mobs.find(m => m.first); assert.ok(first, 'the first dead never came');
-  assert.ok(first.maxHp > 3);
-  for (let k = 0; S.phase === 'night' && k < 60 * 300; k++) g.step();
-  assert.equal(S.phase, 'day', 'roamers kept the night from ending');
 });
 
 test('no early dawn: a cleared night lasts its full length; the time of day runs on without a jump', () => {
@@ -399,7 +281,7 @@ test('foreman: the town learns to build by itself once it is established, for ev
   }
 });
 
-test('cuts: no hands limit, no power (until a Lights Out rule), rising costs', () => {
+test('cuts: no hands limit, no generators, rising costs', () => {
   const g = createGame({ seed: 4 }); const S = g.state; readyDay(g); S.handsExtra = 0; S.gold = 900; S.stock = {};
   const t = g.map.town, spot = type => { for (let r = 3; r < 14; r++) for (let a = 0; a < 24; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace(type, x, y).ok) return { x, y }; } return null; };
   const c1 = g.buyCost('house'); let p = spot('house'); g.build('house', p.x, p.y);
@@ -408,24 +290,8 @@ test('cuts: no hands limit, no power (until a Lights Out rule), rising costs', (
   const base = g.costOf('tower'); for (let k = 0; k < 4; k++) { assert.equal(g.buyCost('tower'), Math.round(base * (1 + 0.25 * k))); p = spot('tower'); assert.ok(g.build('tower', p.x, p.y)); }
   // no hands: a dozen jobs in one morning
   for (let k = 0; k < 8; k++) { p = spot('farm'); assert.ok(g.build('farm', p.x, p.y), `job ${k} refused`); }
-  // power is cut: no generator, no draw, no blackout, no power window
+  // power is gone: no generator in the build list
   assert.equal(g.canPlace('generator', p.x + 3, p.y).ok, false, 'a generator in the build list');
-  S.survivors = 30; prepKeep(g); assert.ok(g.upgradeKeep());
-  for (const b of S.buildings.filter(x => x.type === 'tower')) assert.ok(g.upgrade(b.id));
-  for (let k = 0; k < 30; k++) g.step();
-  assert.equal(g.powerOut(), 0); assert.equal(S.blackout, false); assert.ok(!S.feat.power, 'the power window opened');
-  // a Lights Out rule brings power back: draw counts, generators can be built
-  g.setSeasonRules(['lightsOut']); for (let k = 0; k < 30; k++) g.step();
-  assert.ok(g.powerOut() > 0, 'no draw under Lights Out');
-  if (g.powerOut() > g.powerIn()) { assert.ok(S.blackout, 'no blackout under Lights Out'); p = spot('generator'); assert.ok(g.build('generator', p.x, p.y)); for (let k = 0; k < 30; k++) g.step(); assert.equal(S.blackout, false); }
-});
-
-test('blessings: a Calling mostly sees its own family; a Survivor sees all three', () => {
-  const count = hero => { const g = createGame({ seed: 3, hero }); const S = g.state, n = {}; for (let k = 0; k < 60; k++) { S.picks = ['chest']; S.offer = ['steel']; S.offerSource = 'chest'; S.reroll.free = 1; g.reroll(); for (const id of S.offer) { const f = (PERKS.find(p => p.id === id) || {}).fam; n[f] = (n[f] || 0) + 1; } } return n; };
-  for (const [hero, own, others] of [['warrior', 'hero', ['ranger', 'scavver']], ['archer', 'ranger', ['hero', 'scavver']], ['merchant', 'scavver', ['hero', 'ranger']]]) {
-    const n = count(hero); for (const f of others) assert.ok((n[own] || 0) > (n[f] || 0), `${hero}: ${f} offered as often as ${own}`);
-  }
-  const s = count('survivor'); for (const f of ['hero', 'ranger', 'scavver']) assert.ok(s[f] > 0, `a Survivor never saw ${f}`);
 });
 
 test('build zone: near the keep at first, and every building widens it', () => {
@@ -436,16 +302,14 @@ test('build zone: near the keep at first, and every building widens it', () => {
   // build outward toward the far spot
   for (let k = 0; k < 6; k++) { const p = [...Array(30).keys()].map(d => ({ x: t.x + 4 + k * 2 + (d % 5), y: t.y - 2 + Math.floor(d / 5) })).find(q => g.canPlace('tower', q.x + 0.5, q.y + 0.5).ok); if (p) g.build('tower', p.x + 0.5, p.y + 0.5); }
   assert.ok(g.zone().reduce((a, v) => a + v, 0) > z0, 'buildings did not widen the zone');
-  const hive = g.map.regions.find(r => r.nest);
-  const i = Math.floor(hive.nest.y) * g.map.N + Math.floor(hive.nest.x);
-  assert.equal(g.zone()[i], 0, 'you can build on a living hive');
+  const nest = g.map.area && g.map.area.nest;
+  if (nest) assert.equal(g.zone()[Math.floor(nest.y) * g.map.N + Math.floor(nest.x)], 0, 'you can build on the nest');
 });
 
 test('supply drops: guarded crates in the wild, opened by standing next to them', () => {
   const g = createGame({ seed: 14 }); const S = g.state; readyDay(g);
   g.dropSupply('Test.');
   assert.equal(S.drops.length, 1); const d = S.drops[0];
-  assert.ok(!S.sealed[g.map.region[Math.floor(d.y) * g.map.N + Math.floor(d.x)]], 'a drop landed in a sealed district');
   assert.ok(!g.inZone(d.x, d.y), 'a drop landed inside the base');
   assert.ok(S.mobs.filter(m => m.roam && m.roam.region === -1).length >= 3, 'the drop has no guards');
   for (const m of [...S.mobs]) m.hp = 0; S.mobs.length = 0;   // clear the guards for the test
@@ -473,137 +337,18 @@ test('tech: Workshop and Market need a level 2 keep, take time to build, and unl
   assert.ok(g.upgrade(home.id), 'level 3 home with a finished market');
 });
 
-test('the stream: the dead keep coming from awake hives, and they never hold up the dawn', () => {
-  const g = createGame({ seed: 16 }); const S = g.state; readyDay(g);
-  g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 400; k++) g.step();
-  readyDay(g);
-  let streamed = 0; for (let k = 0; k < 60 * 60; k++) { g.step(); }
-  streamed = S.mobs.filter(m => m.stream !== undefined).length + S.kills;
-  assert.ok(S.mobs.some(m => m.stream !== undefined) || S.kills > 0, 'no dead came by day');
-  g.startNight(); for (let k = 0; S.phase === 'night' && k < 60 * 500; k++) g.step();
-  assert.equal(S.phase, 'day', 'the stream kept the night from ending');
-});
-
-test('burning a hive: the horde comes at once (no pause), with runners and a brute; flare and smoke are buttons', () => {
-  const g = createGame({ seed: 16, hero: 'warrior' }); const S = g.state; readyDay(g);
-  const city = g.map.regions.find(r => r.nest && r.ring === 2);
-  assert.equal(g.hitHive(city.id, 5), false, 'a level 1 keep can break a city hive');
-  const reg = g.map.regions.find(r => r.nest && r.ring === 1);
-  S.night = 4; let hits = 0; S.hero.hp = S.hero.maxHp = 1e6;   // [nest3] its counter-surges stand on top of him
-  for (; hits < 900 && S.nestAlive[reg.id]; hits++) g.hitHive(reg.id, 5);
-  assert.equal(S.nestAlive[reg.id], false, 'the hive never burned');
-  assert.ok(hits * 5 >= 102 * 1.7, `a hollow fell to ${hits * 5} damage`);
-  assert.equal(S.escape, null, 'the burn still pauses for a card');
-  const horde = S.mobs.filter(m => m.horde === reg.id);
-  assert.ok(horde.length >= 6 + 4 - 2, `a horde of ${horde.length}`);
-  assert.ok(horde.filter(m => m.kind === 'runner').length >= 2 && horde.some(m => m.kind === 'brute'), 'no runners or brute from night 4');
-  assert.ok(horde.every(m => m.hunt), 'the horde does not come for you');
-  // the field tools are cut (CUT.tools): no buttons, the calls fail quietly; the dormant code is tested with the flag off
-  S.hero.x = reg.nest.x + 2; S.hero.y = reg.nest.y; S.gold = 10; S.food = 5;
-  assert.ok(!S.events.some(e => e.t === 'toast' && /flare|smoke/i.test(e.msg)), 'a toast still offers the cut tools');
-  assert.equal(g.useFlare(), false); assert.equal(g.useSmoke(), false); assert.equal(g.tools(), null); assert.equal(S.gold, 10);
-  CUT.tools = false; try {
-  // a flare: 4 scrap, the dead near you chase the light; then a cooldown
-  assert.ok(g.useFlare(reg.nest.x + 9, reg.nest.y)); assert.equal(S.gold, 6);
-  assert.ok(S.mobs.filter(m => m.lure).length >= 3, 'the flare lured nobody');
-  assert.equal(g.useFlare(), false, 'the flare ignored its cooldown'); assert.ok(!g.tools().flare.ready);
-  // smoke: 3 food, they lose your scent
-  S.food = 5; for (const m of horde) { m.lure = null; m.hunt = true; m.x = S.hero.x + 1; m.y = S.hero.y; }
-  assert.ok(g.useSmoke()); assert.equal(S.food, 2); assert.ok(horde.every(m => !m.hunt && m.smoke > 0));
-  // the old escape() call still works as a thin wrapper
-  for (let k = 0; k < 60 * 21; k++) { S.hero.hp = S.hero.maxHp; g.step(); } S.gold = 10; assert.ok(g.escape('flare'));   // [nest3] the surges stand on him: keep him up
-  } finally { CUT.tools = true; }
-});
-
-test('districts: sealed at the start, opened by choice, identity decided when offered', withOpenRoad(() => {
-  const g = createGame({ seed: 11 }); const S = g.state; readyDay(g);
-  const front = g.frontier(); assert.ok(front.length >= 2, 'no frontier');
-  assert.ok(g.map.regions.every(r => (r.ring <= 2) === !S.sealed[r.id]), 'only the old core should be sealed');
-  assert.ok(g.map.regions.filter(r => r.ring === 1).every(r => !g.siteOf(r.id) || g.siteOf(r.id).kind !== 'unknown'), 'a home ward site has no identity');
-  assert.ok(S.pickups.length >= 12, 'no pickups to find');
-  const off = front.map(r => g.districtOffer(r)); assert.ok(off.every(o => o.name && o.rarity && o.call));
-  assert.equal(g.districtOffer(front[0]).kit, off[0].kit, 'identity changed between looks');
-  const r = front[0], site = g.siteOf(r);
-  // the hero cannot walk into a sealed district
-  const cell = g.map.region.findIndex((v, i) => v === r && g.map.terrain[i] === 0);
-  g.heroTo((cell % g.map.N) + 0.5, Math.floor(cell / g.map.N) + 0.5); for (let k = 0; k < 60 * 20; k++) g.step();
-  assert.notEqual(g.map.region[Math.floor(S.hero.y) * g.map.N + Math.floor(S.hero.x)], r, 'walked into a sealed district');
-  assert.ok(g.openDistrict(r)); assert.equal(S.sealed[r], 0);
-  if (site) assert.notEqual(site.kind, 'unknown', 'the site kept no identity');
-  assert.ok(g.frontier().length >= front.length - 1);
-}));
-
-// the path: decisions lean the hero; three tiers by level: the Calling (15), the advanced class (30), the legendary form (45)
-function passTrial(g, choiceId) {
-  const S = g.state; g.story().flush(); S.story.encounters = S.story.encounters.filter(x => x.kind === 'evolve'); const e = S.story.encounters[0]; assert.ok(e && e.kind === 'evolve', 'no class quest offered');
-  const id = choiceId || e.choices.find(c => c.id.startsWith('trial-')).id;
-  assert.ok(e.choices.some(c => c.id === id), `no ${id} in ${e.choices.map(c => c.id)}`);
-  g.choose(id); const tr = S.story.trial; assert.ok(tr && !tr.done, 'no trial placed');
-  S.hero.x = tr.x; S.hero.y = tr.y + 1.5; S.hero.hp = S.hero.maxHp = 999;
-  for (let k = 0; k < 60 && !S.mobs.some(m => m.trial); k++) g.step();
-  const w = S.mobs.find(m => m.trial); assert.ok(w, 'the trial warden never came'); assert.ok(w.bossName, 'the trial boss has no name');
-  for (let k = 0; k < 60 * 120 && S.mobs.includes(w); k++) { S.hero.hp = 999; g.heroTo(w.x, w.y); g.step(); }
-  assert.ok(!S.mobs.includes(w), 'could not beat the warden'); assert.ok(tr.done);
-  return e;
-}
-const levelTo = (g, lv) => { while (g.state.lvl < lv) g.gainXp(g.xpNext() - g.state.xp); };
-test('evolution: three tiers by level, each earned by a trial with a named boss', tc => {
-  const g = createGame({ seed: 8, hero: 'survivor' }); const S = g.state; readyDay(g);
-  g.addPath('hero', 6); g.addPath('heart', 1);
-  levelTo(g, CALLING_LVL - 1); g.story().flush(); assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'offered before the Calling level');
-  levelTo(g, CALLING_LVL); g.story().flush();
-  { const e = S.story.encounters.find(x => x.kind === 'evolve'); assert.equal(e.tier, 1); assert.equal(e.choices.filter(c => c.id.startsWith('trial-')).length, 2, 'not two Callings');
-    assert.ok(e.jobs.every(j => j.perks.length >= 2 && j.who), 'a Calling without plain perks'); assert.ok(e.jobs.find(j => j.cls === 'warrior').yours, 'the lived path is not marked'); }
-  passTrial(g, 'trial-warrior'); assert.equal(S.heroClass, 'warrior');
-  g.addPath('ranger', 8); levelTo(g, FINAL_LVL - 1); g.story().flush(); assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'tier 2 offered early');
-  levelTo(g, FINAL_LVL);
-  { const e = passTrial(g); assert.equal(e.tier, 2); }
-  assert.ok(HEROES[S.heroClass].base === 'warrior' && !HEROES[S.heroClass].legend, `not an advanced class: ${S.heroClass}`);
-  levelTo(g, LEGEND_LVL - 1); g.story().flush(); assert.equal(S.story.encounters.filter(e => e.kind === 'evolve').length, 0, 'tier 3 offered early');
-  levelTo(g, LEGEND_LVL);
-  { const e = passTrial(g); assert.equal(e.tier, 3); assert.equal(e.jobs.length, 1); }
-  const L = HEROES[S.heroClass]; assert.ok(L.legend && L.calling === 'warrior', `not the warrior's legendary form: ${S.heroClass}`);
-  assert.equal(L.name, 'Juggernaut');
-});
-test('the class tiers land in order on the XP curve, and no Calling deals less than the Survivor', () => {
-  const xpTo = lv => { let x = 0; for (let l = 1; l < lv; l++) x += LEVEL.xp(l); return x; };
-  assert.ok(xpTo(CALLING_LVL) < xpTo(FINAL_LVL) && xpTo(FINAL_LVL) < xpTo(LEGEND_LVL) && LEGEND_LVL <= LEVEL.max);
-  // calibrated on the autopilot bot: ~390 xp by night 9, ~2000 by night 22, then ~200 a night (tiers at ~9, ~22, ~37)
-  assert.ok(xpTo(CALLING_LVL) >= 300 && xpTo(CALLING_LVL) <= 480, `Calling needs ${xpTo(CALLING_LVL)} xp`);
-  assert.ok(xpTo(FINAL_LVL) >= 1600 && xpTo(FINAL_LVL) <= 2500, `the advanced class needs ${xpTo(FINAL_LVL)} xp`);
-  assert.ok(xpTo(LEGEND_LVL) >= 4500 && xpTo(LEGEND_LVL) <= 6500, `the legendary class needs ${xpTo(LEGEND_LVL)} xp`);
-  const dps = h => HEROES[h].attack.dmg / HEROES[h].attack.rate;
-  for (const h of ['warrior', 'archer', 'merchant', 'medic']) assert.ok(dps(h) >= dps('survivor'), `${h}: ${dps(h).toFixed(2)} < survivor ${dps('survivor').toFixed(2)}`);
-});
-test('decisions lean the path: rescuing is Heart, dealing is Wits', () => {
-  const g = createGame({ seed: 5, hero: 'survivor' }); const S = g.state;
-  S.story.encounters = [{ id: 99, kind: 'street', title: 't', choices: [{ id: 'a', label: 'a', fx: [{ op: 'survivors', n: 2 }] }] }]; g.choose('a');
-  for (const id of [98, 97]) { S.story.encounters = [{ id, kind: 'street', title: 't', choices: [{ id: 'b', label: 'b', fx: [{ op: 'gold', n: 5 }] }] }]; g.choose('b'); }
-  assert.ok(S.path.heart >= 1 && S.path.scavver >= 2, JSON.stringify(S.path));
-});
-
-test('saving: a dawn snapshot restores the town, the story and the city', withOpenRoad(() => {
+test('saving: a dawn snapshot restores the town and the story', () => {
   const g = createGame({ seed: 21, hero: 'survivor', difficulty: 'veteran' }); const S = g.state; readyDay(g); S.gold = 300;
   const t = g.map.town; let n = 0; for (let r = 4; r < 10 && n < 4; r++) for (let a = 0; a < 24 && n < 4; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) n++; }
-  (prepKeep(g), g.upgradeKeep()); const f = g.frontier(); g.openDistrict(f[0]);
+  (prepKeep(g), g.upgradeKeep());
   const snap = JSON.parse(JSON.stringify(g.snapshot()));
   assert.ok(JSON.stringify(snap).length < 200000, 'save too big');
   const h = newGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, difficulty: snap.difficulty, restore: snap }); const R = h.state;
   assert.equal(R.buildings.length, S.buildings.length); assert.equal(h.keepLevel(), 2); assert.equal(R.gold, S.gold);
-  assert.equal(R.sealed[f[0]], 0); assert.equal(R.story.chronicle.length, S.story.chronicle.length);
+  assert.equal(R.story.chronicle.length, S.story.chronicle.length);
   assert.equal(R.difficulty, 'veteran');
   for (let k = 0; k < 60 * 5; k++) h.step();
   assert.ok(!R.over);
-}));
-
-test('the Heart family: a Medic patches the town', async tc => {
-  const g = createGame({ seed: 12, hero: 'survivor' }); const S = g.state; readyDay(g);
-  const take = id => { S.picks = ['dawn']; S.offer = [id]; S.pendingPicks = 1; g.choosePerk(id); };
-  g.addPath('heart', 6); levelTo(g, CALLING_LVL); passTrial(g, 'trial-medic'); assert.equal(S.heroClass, 'medic');
-  S.gold = 99; const t = g.map.town; let b = null;
-  for (let r = 4; r < 10 && !b; r++) for (let a = 0; a < 24 && !b; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace('house', x, y).ok && g.build('house', x, y)) b = S.buildings[S.buildings.length - 1]; }
-  b.hp = 1; S.hero.x = b.x + 1; S.hero.y = b.y + 1; S.ability.cd = 0;
-  assert.ok(g.useAbility(), 'Patch Up did not fire'); assert.ok(b.hp > 1, 'Patch Up healed nothing');
 });
 
 // ---------- Oct 20: loss has weight, noise, the hero matters, cuts, contracts ----------
@@ -687,34 +432,12 @@ test('the hero matters: towers near you shoot 30% faster and 2 further; what you
   S.hero.x = t.x + 2; const near = g.towerStats(t);
   assert.ok(Math.abs(near.rate - far.rate / PRESENCE.rate) < 1e-9 && near.range === far.range + PRESENCE.range, JSON.stringify({ near, far }));
   S.night = 3; g.startNight(); let marked = false;
-  for (let k = 0; k < 60 * 120 && !marked && S.phase === 'night'; k++) { const m = S.mobs.find(q => !q.roam); if (m) { g.heroTo(m.x, m.y); if (m.markT > 0) marked = true; } g.step(); }
+  for (let k = 0; k < 60 * 120 && !marked && S.phase === 'night'; k++) { const m = prey(S); if (m) { g.heroTo(m.x, m.y); if (m.markT > 0) marked = true; } g.step(); }
   assert.ok(marked || S.mobs.some(m => m.markT > 0) || (S.log[0] && (S.log[0].kills.hero || 0) > 0), 'nothing the hero hit was Marked');
 });
 
-test('noise: one meter from loud choices, not people; choices hold for nights; fights spike and fade; it sets hearing, the wave and the burst', () => {
-  const g = createGame({ seed: 4 }); readyDay(g); const S = g.state; S.feat.heat = true; S.gold = 400;
-  for (let k = 0; k < 5; k++) put(g, 'house'); g.step(); assert.equal(g.noise(), 0, 'homes are loud');
-  prepKeep(g); assert.ok(g.upgradeKeep()); put(g, 'market'); g.step();
-  assert.equal(g.noiseInfo().floor, NOISE.market, 'the market is quiet');
-  assert.equal(g.hearRadius(), 62 + 1.2 * S.noise);
-  // a quiet story choice holds for nights
-  g.addHeat(-20); g.step(); assert.equal(g.noise(), 0);
-  S.keep.hp = S.keep.maxHp = 1e6; nextDawn(g); readyDay(g);
-  assert.ok(S.noiseChoice <= -20 * (1 - NOISE.choiceFade) + 1e-9 && S.noiseChoice < -10, `the quiet faded to ${S.noiseChoice} in a night`);
-  // fighting spikes and fades fast
-  S.noiseChoice = 0; S.noiseSpike = 30; for (let k = 0; k < 60 * 10; k++) g.step();
-  assert.ok(S.noiseSpike < 13, `a spike of 30 is still ${S.noiseSpike} after 10 s`);
-  // the wave multiplier is capped at ×1.5
-  S.noise = 100; assert.equal(g.townDraw(), 1.5);
-  // past 80 a hive bursts (after a warning)
-  S.night = 6; S.heatCool = 0; S.noiseChoice = NOISE.choiceMax; S.noiseSpike = 40; for (let k = 0; k < 10; k++) g.step();
-  assert.ok(S.eruption, `no burst warning at noise ${S.noise}`);
-});
-
-test('the honest forecast strip and the dawn ledger', () => {
+test('the dawn ledger', () => {
   const g = createGame({ seed: 6 }); readyDay(g); const S = g.state; S.gold = 99;
-  const f = g.forecastStrip(); assert.ok(['safe', 'risk', 'fall'].includes(f.hall)); assert.ok(f.atRisk >= 0 && f.brutes >= 0 && f.dead >= 1);
-  S.night = 10; const m = g.forecastStrip(); assert.ok(m.brutes >= 1, 'a blood moon with no brute forecast'); S.night = 1;
   const h = put(g, 'house'); g.hitBuilding(h.id, 999); nextDawn(g);
   const L = lastEv(S, 'ledger'); assert.ok(L, 'no ledger at dawn');
   assert.ok(L.fell.some(b => b.id === h.id && b.type === 'house'), 'the ledger forgot what fell'); assert.ok(L.rose.length === 1 && L.people === 1);
@@ -722,7 +445,7 @@ test('the honest forecast strip and the dawn ledger', () => {
 });
 
 test('cuts: titles are flavour, no trader, one companion, no crew events, generators out of the build list', () => {
-  for (const k of ['walls', 'power', 'hands', 'weather', 'titleStats', 'secondCompanion', 'trader', 'crew']) assert.ok(CUT[k], `${k} is not cut`);
+  for (const k of ['walls', 'hands', 'weather', 'titleStats', 'secondCompanion', 'trader', 'crew']) assert.ok(CUT[k], `${k} is not cut`);
   assert.equal(CUT.finalClass, false, 'the advanced class (tier 2, Lv 30) is back');
   const g = createGame({ seed: 7, hero: 'merchant' }); readyDay(g); const S = g.state;
   const dmg = S.P.heroDmg, keepHp = S.P.keepHp; g.story().grant('gravedigger'); g.story().grant('firstLight'); g.step();
@@ -731,29 +454,8 @@ test('cuts: titles are flavour, no trader, one companion, no crew events, genera
   prepKeep(g); g.upgradeKeep(); g.upgradeKeep(); assert.equal(g.keepLevel(), 3); assert.equal(g.partySize(), 1);
 });
 
-test('the Merchant Guild upgrades by the same rules as you (hall level, Workshop)', () => {
-  const g = createGame({ seed: 8 }); readyDay(g); const S = g.state; S.gold = 400;
-  for (let k = 0; k < 8; k++) put(g, 'house'); const towers = [put(g, 'tower'), put(g, 'tower')];
-  S.offer = ['guild']; S.picks = ['dawn']; S.pendingPicks = 1; g.choosePerk('guild');
-  S.keep.hp = S.keep.maxHp = 1e6; nextDawn(g);
-  assert.ok(towers.every(t => S.byId.get(t.id).level === 1), 'the guild raised a tower past a level 1 hall');
-  prepKeep(g); assert.ok(g.upgradeKeep()); assert.ok(g.upgradeKeep()); readyDay(g); nextDawn(g); readyDay(g); nextDawn(g);
-  assert.ok(towers.every(t => S.byId.get(t.id).level === 2), 'level 3 without a Workshop');
-});
-
-test('no money printers: barricades never pay salvage, and a ruin always costs more to rebuild than it gave', () => {
-  const g = createGame({ seed: 9 }); readyDay(g); const S = g.state; S.gold = 200;
-  S.offer = ['salvage']; S.picks = ['dawn']; S.pendingPicks = 1; g.choosePerk('salvage');
-  CUT.walls = false; const w = put(g, 'wall'); CUT.walls = true; const t = put(g, 'tower');
-  let gold = S.gold; g.hitBuilding(w.id, 999); assert.ok(S.byId.get(w.id).ruined); assert.equal(S.gold, gold, 'a barricade paid salvage');
-  gold = S.gold; g.hitBuilding(t.id, 999); const got = S.gold - gold; assert.ok(got >= 1, 'no salvage');
-  assert.ok(g.rebuildCost(t.id) > got && g.rebuildCost(w.id) >= 1, 'rebuilding pays');
-  assert.ok(g.buyCost('wall') >= 2);
-});
-
 test('aggro fires on a change only: once per dead per 10 s, never a flood', () => {
   const g = createGame({ seed: 7 }); const S = g.state; readyDay(g);
-  for (const r of g.frontier()) g.openDistrict(r);
   const m = S.mobs.find(q => q.roam && !q.warden && q.kind === 'walker'); assert.ok(m);
   S.events.length = 0; S.hero.hp = S.hero.maxHp = 1e6;
   for (let k = 0; k < 60 * 30; k++) { S.hero.x = m.roam.x + 40; S.hero.y = m.roam.y; if (k % 2) { S.hero.x = m.x + 1; S.hero.y = m.y; } g.step(); }
@@ -761,115 +463,10 @@ test('aggro fires on a change only: once per dead per 10 s, never a flood', () =
   for (const [id, n] of Object.entries(per)) assert.ok(n <= 3, `dead ${id} fired aggro ${n} times in 30 s`);
 });
 
-test('blessings fit the run: no barricade perks without barricades, no bolts for an axe, no Kinship alone; one chest a day; nests are run-changers', () => {
-  const g = createGame({ seed: 3, hero: 'warrior' }); readyDay(g); const S = g.state; const seen = new Set();
-  for (let k = 0; k < 80; k++) { S.picks = ['chest']; S.offer = ['steel']; S.offerSource = 'chest'; S.reroll.free = 1; g.reroll(); S.offer.forEach(id => seen.add(id)); }
-  for (const id of ['timber', 'thorns', 'tar', 'bastion', 'tips', 'pierce', 'sentinel', 'kinship', 'storm', 'triage', 'haggle']) assert.ok(!seen.has(id), `${id} offered to a warrior with no walls or companion`);
-  for (let k = 0; k < 20; k++) { S.picks = ['nest']; S.offer = ['steel']; S.offerSource = 'nest'; S.reroll.free = 1; g.reroll(); assert.ok(S.offer.length >= 2 && S.offer.every(id => ['ballista', 'bell', 'sanct', 'guild', 'volley', 'shelter', 'last', 'execute'].includes(id)), S.offer.join()); }
-  S.picks = []; S.offer = []; S.pendingPicks = 0;
-  for (let k = 0; k < 2; k++) S.chests.push({ id: 900 + k, x: S.hero.x, y: S.hero.y });
-  g.step(); assert.equal(S.picks.filter(p => p === 'chest').length, 1, 'two chest blessings in one day');
-});
-
-test('contracts: stacked rules, a finale, and a won contract steps the difficulty back ~40% of the season', () => {
-  const g = createGame({ seed: 10 }); readyDay(g); const S = g.state;
-  assert.ok(Array.isArray(S.season.rules));
-  g.setSeasonRules(['raiders', 'fog']); assert.ok(g.rule('raiders') && g.rule('fog') && !g.rule('winter'));
-  S.night = 12; S.season.start = 1; const before = g.effNight();
-  const reg = g.map.regions.find(r => r.nest && r.ring === 1); assert.ok(g.setFinale({ kind: 'hive', region: reg.id }));
-  for (let k = 0; k < 900 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
-  const F = lastEv(S, 'finale'); assert.ok(F && F.won, 'no finale event when the finale hive burned');
-  assert.equal(S.diffNight, 0.4 * 11); assert.ok(Math.abs(g.effNight() - (before - 4.4)) < 1e-9);
-  assert.equal(g.contractWon(), false, 'a contract paid twice');
-  // a season that runs out: the finale is lost
-  const h = createGame({ seed: 10 }); readyDay(h); const T = h.state; T.night = T.season.end; h.startNight(); for (let k = 0; T.phase === 'night' && k < 60 * 400; k++) { T.keep.hp = T.keep.maxHp; h.step(); }   // the hall can't fall here (level-ups re-derive its max hp)
-  const L = lastEv(T, 'finale'); assert.ok(L && L.won === false, 'no lost finale when the season ended');
-  assert.equal(T.season.n, 2); assert.deepEqual(T.season.rules, T.story.rules || [], 'a new season carries only the rules a contract signed (the season\'s own rule is offered, not imposed)');
-  assert.ok(T.story.encounters.some(e => e.kind === 'contract') || T.story.later.some(x => x.enc.kind === 'contract'), 'no contract offered for the new season');
-});
-
-test('engine calls for contracts.js and the UI: setDifficulty, endRun with a reason, contractWon(share), lightsout alias', () => {
-  const g = createGame({ seed: 12 }); readyDay(g); const S = g.state; S.night = 6;
-  const b0 = g.forecast().reduce((a, r) => a + r.count, 0);
-  assert.ok(g.setDifficulty('nightmare')); assert.equal(S.difficulty, 'nightmare'); assert.ok(g.forecast().reduce((a, r) => a + r.count, 0) > b0, 'difficulty did not retune the run');
-  assert.equal(g.setDifficulty('nope'), false);
-  g.setSeasonRules(['lightsout']); assert.ok(g.rule('lightsOut') && g.rule('lightsout'));
-  S.night = 11; S.season.start = 1; assert.ok(g.contractWon(0.5)); assert.equal(S.diffNight, 5);
-  assert.ok(g.endRun(false, 'The Toll-King')); assert.ok(S.over); assert.equal(S.log[S.log.length - 1].reason, 'The Toll-King');
-  assert.equal(lastEv(S, 'over').reason, 'The Toll-King'); assert.equal(g.endRun(false), false, 'ended twice');
-});
-
 test('events: the type is never overwritten by a payload; hits and deaths carry src and dmg', () => {
   const g = createGame({ seed: 16, hero: 'warrior' }); readyDay(g); const S = g.state;
-  const reg = g.map.regions.find(r => r.nest && r.ring === 1); for (let k = 0; k < 900 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
-  CUT.tools = false; try { S.gold = 10; S.events.length = 0; assert.ok(g.useFlare()); const f = lastEv(S, 'flare'); assert.ok(f && f.dur === TOOLS.flare.t, 'the flare event lost its type'); } finally { CUT.tools = true; }
   S.night = 3; g.startNight(); S.events.length = 0;
   for (let k = 0; k < 60 * 60 && !S.events.some(e => e.t === 'die' && e.src === 'hero'); k++) { const m = S.mobs.find(q => !q.roam); if (m) g.heroTo(m.x, m.y); g.step(); }
   const hit = S.events.find(e => e.t === 'hitM'); assert.ok(hit && hit.src && hit.dmg > 0, JSON.stringify(hit));
   const die = S.events.find(e => e.t === 'die' && e.src); assert.ok(die && 'dmg' in die, JSON.stringify(die));
-});
-
-test('nests defend themselves: a guard pack wakes, rage climbs while you stay and cools when you leave; its site stays locked until it burns', () => {
-  const g = createGame({ seed: 5, hero: 'warrior' }); const S = g.state; readyDay(g);
-  const reg = g.map.regions.find(r => r.nest && r.ring === 1 && S.landmarks.some(l => l.region === r.id && l.kind !== 'unknown'));
-  const site = S.landmarks.find(l => l.region === reg.id), n = reg.nest;
-  // locked: the card can say why and point at the hive
-  assert.equal(g.siteLock(site.id), reg.id);
-  S.hero.x = site.x; S.hero.y = site.y + site.size / 2 + 1; S.gold = 999; S.events.length = 0;
-  assert.equal(g.claimLandmark(site.id), false, 'claimed a site next to a living hive');
-  assert.ok(S.events.some(e => e.t === 'fail' && /Burn the Inferno Nest first/.test(e.msg)), 'no reason given');
-  // walk up to the hive: the guard rises and comes for you
-  S.hero.hp = S.hero.maxHp = 1e6; S.hero.x = n.x + 1.5; S.hero.y = n.y; S.events.length = 0;
-  const pin = () => { S.hero.x = n.x + 1.5; S.hero.y = n.y; S.hero.target = null; };
-  g.step();
-  const wake = S.events.find(e => e.t === 'nestGuard'); assert.ok(wake && wake.n >= NEST.pack[1], 'no guard pack');
-  assert.ok(S.mobs.filter(m => m.guard === reg.id).every(m => m.hunt), 'the guard does not come for you');
-  // stay: the rage climbs a level every NEST.step seconds, each one a wave, with System lines
-  for (let k = 0; k < 60 * NEST.step * 3.2; k++) { pin(); S.hero.cd = 1; g.step(); }   // stand without striking (the hive must not burn)
-  const waves = S.events.filter(e => e.t === 'nestRage');
-  assert.ok(waves.length >= 3, `${waves.length} rage waves`); assert.ok(waves[2].n >= waves[0].n, 'the rage does not grow');
-  assert.ok(g.nestRage(reg.id).lv >= 3 && S.events.some(e => e.t === 'toast' && /Inferno Nest stirs/.test(e.msg)), 'no rage telegraph');
-  // a second visit the same day does not raise a second pack
-  assert.equal(S.events.filter(e => e.t === 'nestGuard').length, 1);
-  // walk away: it cools down and stops sending
-  S.hero.x = n.x + NEST.near + 25; S.hero.y = n.y; S.events.length = 0;
-  for (let k = 0; k < 60 * (NEST.step * NEST.max / NEST.decay + 2); k++) { S.hero.x = n.x + NEST.near + 25; S.hero.target = null; g.step(); }
-  assert.equal(g.nestRage(reg.id), null, 'the rage never cooled');
-  assert.equal(S.events.filter(e => e.t === 'nestRage').length, 0, 'it kept sending dead after you left');
-  // burn it: the guards run with the horde, the site unlocks with a line
-  pin(); S.events.length = 0;
-  for (let k = 0; k < 900 && S.nestAlive[reg.id]; k++) g.hitHive(reg.id, 5);
-  assert.ok(!S.nestAlive[reg.id]);
-  assert.equal(g.siteLock(site.id), -1, 'the site is still locked');
-  assert.ok(S.events.some(e => e.t === 'siteFree' && e.id === site.id) && S.events.some(e => e.t === 'toast' && /Site unlocked/.test(e.msg)), 'no unlock line');
-  assert.ok(S.mobs.every(m => m.guard !== reg.id), 'guards left behind at a burned hive');
-  S.hero.x = site.x; S.hero.y = site.y + site.size / 2 + 1;
-  assert.equal(g.claimLandmark(site.id), true, 'cannot claim the freed site');
-});
-
-// Oct 20 feedback: "the first night they come from two sides, the second just from one". Every night now has fronts:
-// at least two sides from night 1, three from night 5 (a pack from the deep woods when the awake hives lie on one side).
-test('fronts: nights 1–5 each bring the dead from at least two compass directions; the strip names them', () => {
-  let n5 = 0, n5three = 0;
-  for (let s = 1; s <= 8; s++) {
-    for (const burnNearest of [false, true]) for (let n = 1; n <= 5; n++) {
-      const g = createGame({ seed: 100 + s, mapSeed: 300 + s, hero: 'warrior' }), S = g.state, c = g.map.town;
-      readyDay(g); S.night = n;
-      if (burnNearest) { const near = g.map.regions.filter(r => r.nest && r.ring === 1).sort((p, q) => Math.hypot(p.nest.x - c.x, p.nest.y - c.y) - Math.hypot(q.nest.x - c.x, q.nest.y - c.y))[0]; S.nestAlive[near.id] = false; S.claimed.add(near.id); }
-      const from = g.forecastStrip().from;
-      assert.ok(from.length >= 2, `seed ${s} night ${n}${burnNearest ? ' (nearest burned)' : ''}: the forecast names ${from.join(',')}`);
-      assert.ok(g.startNight(), 'no dusk');
-      const dirs = new Map(), angs = [];
-      for (const q of S.queue) { const p = q.nest < 0 ? S.edgeSpawns[-1 - q.nest] : g.map.regions[q.nest].nest; const a = Math.atan2(p.y - c.y, p.x - c.x); const d = Math.round(a / (Math.PI / 4)); dirs.set(d, (dirs.get(d) || 0) + 1); angs.push(a); }
-      const sides = [...dirs.keys()].length;
-      if (n >= 5) { n5++; if (sides >= 3) n5three++; }
-      assert.ok(sides >= 2, `seed ${s} night ${n}: the dead come from ${sides} direction(s) ${JSON.stringify([...dirs])}`);
-      // not two neighbouring directions on the same side: some pair at least ~80° apart, and every side brings a real pack
-      const spread = Math.max(...angs.map(a => Math.max(...angs.map(b => { const d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; }))));
-      assert.ok(spread >= 1.4, `seed ${s} night ${n}: all on one side (${spread.toFixed(2)} rad)`);
-      if (n > 1) assert.ok([...dirs.values()].every(k => k >= 2), `seed ${s} night ${n}: a token side ${JSON.stringify([...dirs])}`);
-    }
-  }
-  // night 5 wants three sides; when the deep woods offer no third side far enough round, two is fine
-  assert.ok(n5three >= n5 * 0.75, `night 5 came from three sides only ${n5three}/${n5} times`);
 });

@@ -6,7 +6,7 @@ import { createGame as newGame, CREW_NEED } from '../src/sim/game.js';
 import { SPECS, SPEC_COST, SPEC_ORDER } from '../src/content/towers.js';
 
 const clearStory = g => { const S = g.state; for (let k = 0; k < 9 && S.story.encounters.length; k++) { const e = S.story.encounters[0]; g.choose(e.choices[e.choices.length - 1].id); } };
-const ready = o => { const g = newGame({ mode: 'classic', seed: 3, ...o }); const S = g.state; S.handsExtra = 99; clearStory(g); while (S.pendingPicks) g.choosePerk(S.offer[0]); while (S.packs.length) g.choosePack(S.packs[0]); S.survivors = 30; S.gold = 500; g.state.occVersion = (g.state.occVersion || 0) + 1; return g; };
+const ready = o => { const g = newGame({ mode: 'classic', seed: 3, ...o }); const S = g.state; S.handsExtra = 99; clearStory(g); while (S.packs.length) g.choosePack(S.packs[0]); S.survivors = 30; S.gold = 500; g.state.occVersion = (g.state.occVersion || 0) + 1; return g; };
 const ring = (g, type, r0 = 4) => { const t = g.map.town; for (let r = r0; r < 16; r++) for (let a = 0; a < 24; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace(type, x, y).ok) return { x, y }; } return null; };
 // a level 3 tower (the test skips the keep and the workshop: the level is what the rule reads)
 const tower3 = g => { const p = ring(g, 'tower'); assert.ok(g.build('tower', p.x, p.y)); const b = g.state.buildings[g.state.buildings.length - 1]; b.level = 3; b.maxHp = b.hp = 50; b.built = 1;   /* [econ3] finished: a scaffold does not shoot */ g.state.occVersion = (g.state.occVersion || 0) + 1; return b; };
@@ -69,9 +69,10 @@ test('a specialised tower counts for more in the threat estimate, and survives a
   g.hitBuilding(b.id, 999); assert.ok(b.ruined); assert.ok(g.rebuild(b.id)); assert.equal(S.byId.get(b.id).spec, 'mortar');
 });
 
-test('crew: towers past the people stand silent, and the forecast says how many', () => {
+test('crew: towers past the people stand silent, and the strip can say how many', () => {
   const g = ready(), S = g.state; S.survivors = 4; g.state.occVersion = (g.state.occVersion || 0) + 1;
   const a = tower3(g), b = tower3(g);   // 3 + 3 crew, 4 people
   assert.ok(g.manned(a)); assert.ok(!g.manned(b));
-  const f = g.forecastStrip(); assert.equal(f.crew.silent, 1); assert.equal(f.crew.need - f.crew.people, 2);
+  const cw = g.crewing(), up = S.buildings.filter(x => x.type === 'tower' && !x.ruined).length;   // what the HUD's silent-towers line reads
+  assert.equal(up - cw.manned.size, 1); assert.equal(cw.need - cw.people, 2);
 });

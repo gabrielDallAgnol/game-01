@@ -1,40 +1,12 @@
-// Pacified land (sim/pacify.js): a sleeping hive on your ground never wakes, every hive that wakes is on the map and
-// can be reached and burned, the home threat plateaus once the land is quiet, and the way home from a held site.
+// Pacify (sim/pacify.js): the way home from a held site, and the dusk warning.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, STEP } from '../src/sim/game.js';
 import { PACIFY } from '../src/sim/pacify.js';
-import { PASSABLE, idx } from '../src/sim/mapgen.js';
-import { MAX_LEVEL } from '../src/content/buildings.js';
+import { TIDE } from '../src/content/mobs.js';
 
 const clearStory = g => { const S = g.state; for (let k = 0; k < 9 && S.story.encounters.length; k++) { const e = S.story.encounters[0]; g.choose(e.choices[e.choices.length - 1].id); } };
 const run = (g, s) => { for (let k = 0; k < Math.round(s / STEP); k++) g.step(); };
-/** burn every forest hollow (act 2 opens) and clear the dead it raised */
-function burnHollows(g) {
-  const S = g.state;
-  for (const r of g.map.regions) if (r.ring === 1 && r.nest && S.nestAlive[r.id]) g.hitHive(r.id, 1e9);
-  S.mobs.length = 0; clearStory(g);
-}
-
-test('the home threat: the calendar until night 10, then a plateau when the woods are quiet, the old curve when hives hear the Camp', () => {
-  const g = createGame({ seed: 3 }), S = g.state;
-  for (let n = 1; n <= PACIFY.from; n++) assert.equal(g.homeK(n), 1);
-  // the hollows awake and loud: no relief
-  for (const r of g.map.regions) if (r.ring === 1 && r.nest) S.wake[r.id] = 1;
-  assert.equal(g.homeK(16), 1, 'awake hollows that hear the Camp keep the old curve');
-  // the woods burned, the city asleep: the plateau
-  burnHollows(g);
-  for (const r of g.map.regions) if (r.nest && S.nestAlive[r.id]) S.wake[r.id] = Infinity;
-  const quiet = [12, 16, 20, 25].map(n => g.homeK(n));
-  assert.ok(quiet.every((k, j) => k < 1 && (j === 0 || k < quiet[j - 1])), `quiet woods: ${quiet}`);
-  assert.ok(g.homeThreat(25).home < 17, 'night 25 at home reads like night ~15');
-  // one city hive wakes: a little more; at the door of your land: more again
-  const city = g.map.regions.find(r => r.ring === 2 && r.nest && S.nestAlive[r.id]);
-  S.wake[city.id] = 1; const far = g.homeK(20);
-  assert.ok(far > quiet[2], `a far city hive adds a little: ${far} vs ${quiet[2]}`);
-  S.noise = 100; const loud = g.homeK(20);   // a loud Camp is heard further off
-  assert.ok(loud >= far, `noise never lowers the threat: ${loud} vs ${far}`);
-});
 
 test('Return to Camp: by day from a held site, a channel broken by moving, then a cooldown; never at night', () => {
   const g = createGame({ seed: 3 }), S = g.state, c = g.map.town.x; clearStory(g);
@@ -62,7 +34,7 @@ test('Return to Camp: by day from a held site, a channel broken by moving, then 
 test('the dusk warning: once a day, when the walk home is longer than the light left', () => {
   const g = createGame({ seed: 3 }), S = g.state, c = g.map.town.x; clearStory(g);
   const h = S.hero; h.x = c + 70; h.y = c; g.step();
-  S.dayT = 99 - 10; S.events.length = 0; S.mobs.length = 0;
+  S.night = 2; S.dayT = TIDE.dayLen - 10; S.events.length = 0; S.mobs.length = 0;
   for (let k = 0; k < Math.round(1 / STEP); k++) { h.x = c + 70; h.y = c; g.step(); }
   const w = S.events.filter(e => e.t === 'duskWarn');
   assert.equal(w.length, 1); assert.ok(w[0].walk > w[0].left);

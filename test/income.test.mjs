@@ -24,15 +24,14 @@ test('scrap and food trickle in by day, slower by night, and a whole cycle pays 
   const g = town(), S = g.state, per = g.incomePerCycle();
   assert.ok(per.gold > 0 && per.made > 0, 'the town earns nothing');
   quietStep(g, 20); const r = g.incomeRate(); assert.ok(r.gold > 0 && r.gold < 2, `rate ${r.gold}/s`);
-  const g0 = S.gold, d0 = S.dawns, spent = () => S.stats.goldSpent;
-  const s0 = spent();
+  const d0 = S.dawns, earned = () => S.stats.goldEarned, e0 = earned();   // what the trickle paid (the folk's tithe takes its own cut)
   quietStep(g, 60 * 40);   // 40 s of day
-  const mid = S.gold - g0 + (spent() - s0);
+  const mid = earned() - e0;
   assert.ok(mid > 0, 'no scrap came in by day'); assert.ok(mid < per.gold * 0.5, `the day paid a lump: ${mid} of ${per.gold}`);
   // the rest of the day and the night, to the dawn
   for (let k = 0; S.dawns === d0 && k < 60 * 600; k++) quietStep(g, 1);
   assert.equal(S.dawns, d0 + 1, 'no dawn');
-  const got = S.gold - g0 + (spent() - s0);
+  const got = earned() - e0;
   assert.ok(Math.abs(got - per.gold) <= 2, `a cycle paid ${got}, a dawn used to pay ${per.gold}`);
   const L = S.log[S.log.length - 1]; assert.ok(Math.abs(L.goldIn - per.gold) <= 2, `ledger says ${L.goldIn}`);
   assert.ok(Math.abs(L.foodIn - per.made) <= 1, `ledger food ${L.foodIn} vs ${per.made}`);
@@ -56,12 +55,12 @@ test('the day is long, day 1 shorter but not rushed', () => {
   const g = createGame({ seed: 2 }); assert.ok(Math.abs(g.duskIn() - TIDE.dayOne) < 1);
 });
 
-test('the builders bank for what the list puts first (a tower, the hall) instead of spending every trickle on homes', () => {
+test('the builders bank for what the list puts first (a tower) instead of spending every trickle on homes', () => {
   const g = createGame({ seed: 101, mapSeed: 301, biome: 'riverbend', hero: 'survivor' }), S = g.state;
   S.builders = 'balanced'; S.keep.hp = S.keep.maxHp = 1e6;
-  for (let k = 0; k < 60 * 60 * 20 && S.night < 4 && !S.over; k++) { S.mobs.length = 0; S.hero.hp = S.hero.maxHp; clearStory(g); while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]); g.step(); }
+  for (let k = 0; k < 60 * 60 * 20 && S.night < 4 && !S.over; k++) { S.mobs.length = 0; S.hero.hp = S.hero.maxHp; clearStory(g); g.step(); }
   assert.equal(S.night, 4);
   const towers = S.buildings.filter(b => b.type === 'tower').length, homes = S.buildings.filter(b => b.type === 'house').length;
   assert.ok(towers >= 3, `only ${towers} towers by day 4 (${homes} homes): the trickle went on homes`);
-  assert.ok(g.keepLevel() >= 2, `the hall is still level ${g.keepLevel()} on day 4`);
+  // (the classic 'hall at level 2 by day 4' went with the V2 economy: scrap comes mostly from searching houses)
 });

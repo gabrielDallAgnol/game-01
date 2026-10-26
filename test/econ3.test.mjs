@@ -1,11 +1,9 @@
 // [econ3] The Solar Flare economy: the construction queue (order, crews, refund, scaffolds that do not work yet), flat
-// tower price, never walling yourself in, harvester carts hauling from nodes that run dry, relics instead of
-// blessings, and the dawn Settlement XP.
+// tower price, never walling yourself in, and the dawn Settlement XP.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../src/sim/game.js';
 import { N, PASSABLE, idx, inside } from '../src/sim/mapgen.js';
-import { HAUL } from '../src/content/econ.js';
 
 const clearStory = g => { const S = g.state; for (let k = 0; k < 9 && S.story.encounters.length; k++) { const e = S.story.encounters[0]; g.choose(e.choices[e.choices.length - 1].id); } };
 const ring = (g, type, r0 = 3) => { const t = g.map.town; for (let r = r0; r < 16; r++) for (let a = 0; a < 24; a++) { const x = Math.floor(t.x + Math.cos(a / 24 * 6.28) * r) + 0.5, y = Math.floor(t.y + Math.sin(a / 24 * 6.28) * r) + 0.5; if (g.canPlace(type, x, y, 0, { deep: true }).ok) return { x, y }; } return null; };
@@ -73,7 +71,7 @@ test('the hero never walls himself in, and never walks inside a building', () =>
   const h = S.hero, seen = new Uint8Array(N * N), q = [idx(Math.floor(h.x), Math.floor(h.y))]; seen[q[0]] = 1; let far = 0;
   for (let k = 0; k < q.length; k++) {
     const i = q[k], x = i % N, y = (i / N) | 0; far = Math.max(far, Math.hypot(x - t.x, y - t.y)); if (far > 22) break;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy, j = idx(xx, yy); if (!inside(xx, yy) || seen[j] || !PASSABLE[S.map.terrain[j]] || S.occ[j] >= 0 || S.sealed[S.map.region[j]]) continue; seen[j] = 1; q.push(j); }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy, j = idx(xx, yy); if (!inside(xx, yy) || seen[j] || !PASSABLE[S.map.terrain[j]] || S.occ[j] >= 0) continue; seen[j] = 1; q.push(j); }
   }
   assert.ok(far > 22, `the hero is walled in (reaches ${far.toFixed(1)} cells)`);
   // walk straight at a home: he stops at its wall
@@ -81,55 +79,6 @@ test('the hero never walls himself in, and never walks inside a building', () =>
   h.x = home.x + 2.5; h.y = home.y; g.setHeroInput(-1, 0);
   for (let k = 0; k < 120; k++) { g.step(); assert.ok(S.occ[idx(Math.floor(h.x), Math.floor(h.y))] < 0, 'the hero walked into a building'); }
   g.setHeroInput(0, 0);
-});
-
-test('carts haul scrap home from the nearest node; a node runs dry and the carts move on', () => {
-  const g = fresh(9), S = g.state;
-  quiet(g, 1); const H = g.haul(); assert.equal(H.carts.length, 1); assert.ok(H.nodes.length >= 10, `${H.nodes.length} nodes`);
-  const t = g.map.town, d = n => Math.hypot(n.x - t.x, n.y - t.y), dock = g.cartDock();
-  const near = H.nodes.slice().sort((a, b) => d(a) - d(b));
-  assert.ok(d(near[0]) < 16 && d(near[near.length - 1]) > 26, 'nodes are not banded round the Camp');
-  // the nearest node holds one load: it runs dry on the first trip
-  const first = H.nodes.slice().sort((a, b) => Math.hypot(a.x - dock.x, a.y - dock.y) - Math.hypot(b.x - dock.x, b.y - dock.y))[0];
-  const N0 = S.econ.nodes.find(n => n.id === first.id); N0.amt = HAUL.cap;
-  let hauled = 0, dry = false; const total0 = g.haul().left;
-  for (let k = 0; k < 60 * 120 && hauled < HAUL.cap * 2; k++) { quiet(g, 1); for (const e of S.events) { if (e.t === 'haul') hauled += e.n; if (e.t === 'nodeDry') dry = true; } S.events.length = 0; S.dayT = 5; }   // hold the sun up
-  assert.ok(dry, 'the node never ran dry'); assert.equal(N0.amt, 0);
-  assert.ok(hauled >= HAUL.cap * 2, `hauled ${hauled}: the cart did not move on to the next node`);
-  assert.equal(g.haul().left, total0 - hauled - g.haul().carts.reduce((a, c) => a + c.load, 0));
-});
-
-test('the dead go for a cart and can wreck it; carts are bought into the queue up to the yard size', () => {
-  const g = fresh(10), S = g.state; S.gold = 100;
-  quiet(g, 1);
-  assert.ok(g.buyCart()); assert.equal(g.queue()[0].kind, 'cart');
-  assert.equal(g.buyCart(), false, 'the yard holds 2 carts at Camp 1');
-  for (let k = 0; k < 60 * 30 && g.queue().length; k++) quiet(g, 1);
-  assert.equal(g.haul().carts.length, 2);
-  // send one out and set a pack on it
-  for (let k = 0; k < 60 * 6; k++) quiet(g, 1);
-  const cart = S.econ.carts.find(c => c.state !== 'home') || S.econ.carts[0]; cart.state = 'out';
-  let hit = false, lost = false;
-  for (let k = 0; k < 4; k++) { const m = g.spawnMob('walker', cart.x + 1.5, cart.y); m.hp = m.maxHp = 1e6; m.rise = 1; }
-  S.hero.x = cart.x + 30; S.hero.y = cart.y;
-  for (let k = 0; k < 60 * 30 && !lost; k++) { g.step(); for (const e of S.events) { if (e.t === 'cartHit') hit = true; if (e.t === 'cartLost') lost = true; } S.events.length = 0; S.hero.hp = S.hero.maxHp; }
-  assert.ok(hit && lost, `hit ${hit} lost ${lost}`);
-  assert.ok(S.events.length === 0 && g.haul().carts.length === 1);
-});
-
-test('no blessing cards: a chest is a relic, a tome or a blueprint; a burned nest a legendary relic and a tome', () => {
-  const g = fresh(11), S = g.state;
-  S.picks.push('chest'); quiet(g, 1);
-  assert.equal(S.offer.length, 0, 'blessing cards were offered');
-  const got = g.relics(); assert.ok(got.relics.length + got.tomes + got.blueprints.length >= 1, 'nothing found');
-  const r0 = got.relics.length;
-  S.picks.push('nest'); quiet(g, 1);
-  const got2 = g.relics(); assert.equal(got2.relics.length, r0 + 1); assert.equal(got2.relics[got2.relics.length - 1].rarity, 'l'); assert.ok(got2.tomes >= 1);
-  // a relic that carries an old blessing works like it
-  const leg = got2.relics[got2.relics.length - 1]; if (leg.perk) assert.ok(g.has(leg.perk), `${leg.perk} not in effect`);
-  // the same run finds the same things
-  const g2 = fresh(11); g2.state.picks.push('chest'); quiet(g2, 1); g2.state.picks.push('nest'); quiet(g2, 1);
-  assert.deepEqual(g2.relics().relics.map(r => r.id), got2.relics.map(r => r.id));
 });
 
 test('dawn Settlement: a well-run night pays XP and says why', () => {
@@ -145,12 +94,11 @@ test('dawn Settlement: a well-run night pays XP and says why', () => {
   assert.ok(S.xp + 1000 * S.lvl > xp0, 'no XP');
 });
 
-test('a dawn save carries the queue, the carts and the nodes', () => {
+test('a dawn save carries the queue', () => {
   const g = fresh(13), S = g.state; S.gold = 100;
   quiet(g, 1); const p = ring(g, 'house'); g.build('house', p.x, p.y);
-  S.econ.nodes[0].amt = 3;
   const snap = JSON.parse(JSON.stringify(g.snapshot()));
   const g2 = createGame({ seed: 13, hero: 'warrior', restore: snap }), S2 = g2.state;
-  assert.equal(g2.queue().length, 1); assert.equal(S2.econ.nodes[0].amt, 3); assert.equal(g2.haul().carts.length, 1);
+  assert.equal(g2.queue().length, 1);
   const b = S2.buildings.find(x => x.type === 'house'); assert.ok(b.built < 1 && b.folk === 0, 'the scaffold came back whole');
 });

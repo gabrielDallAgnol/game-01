@@ -32,7 +32,7 @@ test('wildlife: herds spread over the open woods, a full stock at the start, a l
 test('trails: walking the same woods a few times over wears a trail; it is saved and restored', () => {
   const { g, S, map, c } = make(3);
   let A = null;
-  for (let r = 18; r < 40 && !A; r++) for (let a = 0; a < 6.28 && !A; a += 0.1) {
+  for (let r = 18; r < 160 && !A; r++) for (let a = 0; a < 6.28 && !A; a += 0.05) {   // the engine town: the woods lie round it
     const x = Math.floor(c + Math.cos(a) * r), y = Math.floor(c + Math.sin(a) * r);
     let ok = true; for (let k = 0; k < 6; k++) { const i = idx(x + k, y); if (map.terrain[i] !== T.FOREST || g.inZone(x + k + 0.5, y + 0.5) || S.occ[i] >= 0 || map.lm[i] >= 0) ok = false; }
     if (ok) A = { x, y };

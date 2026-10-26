@@ -1,16 +1,13 @@
 // The story layer: threads always reach their place (or end with a card), the dawn budget holds, night 1 is
-// hand-authored, the Window's daily quest, and seasons as contracts you can win or lose.
+// hand-authored, the Window's daily quest, the arrival tags, a save round trip and the objectives' priorities.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, SAVE_V, CUT } from '../src/sim/game.js';
+import { createGame, SAVE_V } from '../src/sim/game.js';
 import { mapChoices } from '../src/sim/mapgen.js';
 import { SLOT } from '../src/sim/story.js';
 import { TIDE } from '../src/content/mobs.js';
 import { chooseStory } from '../tools/bot.mjs';
-// tests of the districts and the city: the fence down from day 1 (act 2 at once; CUT.earlyRoad off, see sim/acts.js)
-const withOpenRoad = fn => () => { CUT.earlyRoad = false; try { return fn(); } finally { CUT.earlyRoad = true; } };
 
-const lastFinale = S => S.events.filter(e => e.t === 'finale' && e.won).pop();
 const frontier = (seed, o = {}) => { const ch = mapChoices(seed)[0]; return createGame({ seed, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor', ...o }); };
 /** put a thread's first card on screen and answer it */
 function answer(g, tid, kit) {
@@ -24,22 +21,6 @@ function reach(g, tid, x, y) {
   for (let k = 0; k < 90; k++) { g.step(1 / 60); if (S.story.encounters.some(e => e.thread === tid && e.stage === 1)) return true; }
   return false;
 }
-
-test('Channel 9 and the school reuse the site that is already open: no second copy, and the site stage fires', withOpenRoad(() => {
-  for (const seed of [1, 2, 3, 7]) {
-    for (const [tid, kit] of [['channel9', 'substation'], ['school', 'school']]) {
-      const g = frontier(seed), S = g.state; S.story.encounters = [];
-      const before = S.landmarks.filter(l => l.kind === kit).length;
-      const th = answer(g, tid, kit);
-      assert.equal(th.status, 'open', `${tid} seed ${seed} failed`);
-      assert.equal(th.stage, 1);
-      assert.equal(S.landmarks.filter(l => l.kind === kit).length, Math.max(1, before), `${tid} seed ${seed}: a duplicate ${kit}`);
-      const l = S.landmarks[th.site]; assert.ok(l && l.kind === kit, 'not pointed at its site');
-      assert.ok(S.story.quests.some(q => q.site === l.id), 'no quest marker');
-      assert.ok(reach(g, tid, l.x, l.y + l.size / 2 + 1), `${tid} seed ${seed}: the companion stage never fired`);
-    }
-  }
-}));
 
 test('a thread whose site is gone gets a beacon instead, and the beacon plays the stage', () => {
   const g = frontier(2), S = g.state; S.story.encounters = [];
@@ -95,7 +76,6 @@ test('night 1: a short first day, then the System arrives when the first dead re
     arrived = S.story.encounters.find(e => e.kind === 'arrival');
     if (!arrived && S.phase === 'day') assert.equal(S.story.encounters.length, 0, 'a card on day 1');
   }
-  assert.ok(scene && scene.id === 'night1' && scene.total === 1 + TIDE.night1.packA.length + TIDE.night1.packB.length && /from the/.test(scene.line), JSON.stringify(scene));   // night 1: the first dead, then two packs from two sides
   assert.ok(arrived, 'the System never arrived');
   assert.equal(S.phase, 'night');
   assert.deepEqual(arrived.choices.map(c => c.id), ['fight'], 'a decision in the middle of the first fight');
@@ -106,16 +86,6 @@ test('night 1: a short first day, then the System arrives when the first dead re
   const gift = S.story.encounters.find(e => e.kind === 'gift'); assert.ok(gift, 'no gift at dawn 2');
   assert.deepEqual(gift.choices.map(c => c.id), ['lantern', 'boots', 'will']);
   S.story.encounters = [gift]; g.choose('will'); assert.ok(S.story.titles.includes('will'));
-});
-
-test('night copy scales with the wave', () => {
-  const g = frontier(3), S = g.state, st = g.story(), nest = g.map.regions.find(r => r.nest);
-  assert.equal(st.nightLine([{ kind: 'walker', nest: nest.id }]).line, 'One of them.');
-  const nine = st.nightLine(Array.from({ length: 9 }, () => ({ kind: 'walker', nest: nest.id })));
-  assert.match(nine.line, /^Nine, from the (north|south|east|west|north-east|north-west|south-east|south-west)\.$/);
-  const brutes = st.nightLine([...Array.from({ length: 21 }, () => ({ kind: 'walker', nest: nest.id })), { kind: 'brute', nest: nest.id }, { kind: 'brute', nest: nest.id }]);
-  assert.match(brutes.line, /^Twenty-three, from the .+\. Two Slag Brutes walk with them\.$/);
-  void S;
 });
 
 test('the daily quest: offered only when calm, Accept or Not now; no means no cost; an accepted one left undone costs what it said, at dawn', () => {
@@ -165,89 +135,28 @@ test('every choice that adds people says how they arrive, and the tag matches wh
   assert.equal(st.arrivalOf(enc, ch([{ op: 'flag', key: 'beacon' }])).mode, 'dawn');
   assert.match(st.arrivalOf(enc, ch([{ op: 'flag', key: 'beacon' }])).text, /on their own.*dawn/);
   assert.equal(st.arrivalOf(enc, ch([{ op: 'recruitNew' }], { npcName: 'Mara joins' })).text, 'Mara is at the Haven now.');
-  // far from the Camp a group walks home as a convoy you escort; one person just comes in
+  // far from the Camp they come in too (the road's escorted convoys are gone)
   S.hero.x = t.x + 40; S.hero.y = t.y;
-  const far = st.arrivalOf(enc, ch([{ op: 'survivors', n: 3 }])); assert.equal(far.mode, 'convoy'); assert.match(far.text, /escort/);
-  assert.equal(st.arrivalOf(enc, ch([{ op: 'survivors', n: 1 }])).mode, 'now');
-  // what the tag said is what happens
-  S.story.encounters = [{ id: 950, kind: 'street', title: 'Roof', choices: [ch([{ op: 'survivors', n: 3 }], { id: 'bring' })] }];
-  const said = st.arrivalOf(S.story.encounters[0], S.story.encounters[0].choices[0]).mode, n0 = S.survivors;
-  assert.ok(g.choose('bring'));
-  assert.equal(said, 'convoy'); assert.equal(S.survivors, n0, 'they appeared at the Camp'); assert.ok(g.road.convoys().length >= 1, 'no convoy');
+  assert.equal(st.arrivalOf(enc, ch([{ op: 'survivors', n: 3 }])).mode, 'now');
   S.hero.x = t.x + 2; S.hero.y = t.y + 2; const n1 = S.survivors;
   S.story.encounters = [{ id: 951, kind: 'street', title: 'Roof', choices: [ch([{ op: 'survivors', n: 3 }], { id: 'bring' })] }];
   assert.equal(st.arrivalOf(S.story.encounters[0], S.story.encounters[0].choices[0]).mode, 'now'); g.choose('bring'); assert.equal(S.survivors, n1 + 3, 'not at the Camp now');
 });
 
-function signContract(g, id) {
-  const S = g.state, st = g.story();
-  st.flush(); const k = S.story.encounters.find(e => e.kind === 'contract'); assert.ok(k, 'no contract offered');
-  assert.ok(k.offers.length >= 2 && k.offers.length <= 3);
-  for (const o of k.offers) assert.ok(o.terms.finale && o.terms.reward && o.twist, 'an offer without terms or a twist');
-  S.story.encounters = [k, ...S.story.encounters.filter(e => e !== k)];
-  assert.ok(g.choose(id)); return k;
-}
-test('a contract: offered by dawn 3, signed, its finale won, the reward paid and the difficulty partly reset', () => {
-  const g = frontier(4), S = g.state, st = g.story();
+test('save mid-run and reload: ruins and story queues come back; old saves are ignored', () => {
+  const g = frontier(3), S = g.state, st = g.story();
   for (let n = 2; n <= 3; n++) { S.night = n; st.dawn(); }
-  const k = signContract(g, 'c1');
-  const C = S.story.contract; assert.equal(C.id, 'c1'); assert.equal(C.finale.kind, 'unique');
-  assert.ok(S.unique && S.unique.contract && S.unique.name === C.finale.name && S.unique.night === C.finale.night);
-  assert.equal(S.season.finale, C.finale.name);
-  const m = g.spawnMob('brute', S.hero.x + 3, S.hero.y, { unique: S.unique.name }); g.killMob(m); st.tick();
-  assert.ok(S.unique.slain && lastFinale(S), 'the engine saw no finale');
-  assert.ok(C.won, 'the slain finale did not win the contract');
-  const gold = S.gold, wins = S.contractWins || 0;
-  S.night++; st.dawn(); st.flush();
-  const v = S.story.encounters.find(e => e.kind === 'victory'); assert.ok(v, 'no victory card');
-  S.story.encounters = [v]; g.choose('take');
-  assert.ok(S.gold >= gold + C.reward.scrap, 'no scrap reward');
-  assert.ok(typeof g.contractWon === 'function' || (S.contractWins || 0) === wins + 1, 'the difficulty did not reset');
-  assert.ok(S.story.titles.includes('contractor'));
-  void k;
-});
-test('a contract: rules stack, and a lost finale ends the run with the contract\'s name', () => {
-  const g = frontier(6), S = g.state, st = g.story();
-  for (let n = 2; n <= 3; n++) { S.night = n; st.dawn(); }
-  const k = signContract(g, 'c3'); const C = S.story.contract;
-  assert.ok(C.rule, 'the big contract has no rule'); assert.ok(S.season.rules.includes(C.rule) && S.season.rule === C.rule);
-  assert.ok(k.offers.find(o => o.id === 'c3').finale.mult > k.offers.find(o => o.id === 'c1').finale.mult);
-  // the season ends without the finale
-  S.night = C.finale.night + 1;
-  st.seasonCard({ name: 'Beyond the Fence' }, 2);
-  assert.ok(S.over, 'the run went on'); assert.equal(S.story.lostContract.name, C.name);
-});
-test('a hive contract is won by burning that hive', () => {
-  const g = frontier(1), S = g.state, st = g.story();
-  for (let n = 2; n <= 3; n++) { S.night = n; st.dawn(); }
-  st.flush(); const k = S.story.encounters.find(e => e.kind === 'contract');
-  const hv = k.offers.find(o => o.finale.kind === 'hive'); if (!hv) return;   // no hive in reach on this map
-  S.story.encounters = [k]; g.choose(hv.id);
-  for (let k = 0; k < 900 && S.nestAlive[hv.finale.region]; k++) g.hitHive(hv.finale.region, 5);
-  st.tick();
-  assert.ok(S.story.contract.won);
-});
-test('save mid-run and reload: contract, rules, ruins, noise, road, story queues and tools come back; old saves are ignored', () => {
-  const g = frontier(3), S = g.state, st = g.story(), road = g.road;
-  for (let n = 2; n <= 3; n++) { S.night = n; st.dawn(); }
-  signContract(g, 'c3');
   S.gold = 200; S.food = 60;
   for (const t of ['house', 'tower', 'farm']) assert.ok(g.planner.place(t), `could not place a ${t}`);
   for (const x of S.buildings) x.built = 1;   // [econ3] finished (a scaffold torn down is gone, not a ruin)
   g.step();
   const b = S.buildings.find(x => x.type === 'house'); g.hitBuilding(b.id, 1e6); assert.ok(b.ruined, 'no ruin');
-  S.noiseChoice = 12; S.tools.flare = 7;
-  const stn = road.stations[0]; S.hero.x = stn.x; S.hero.y = stn.y; assert.ok(road.light(stn.id), 'the fire did not take');
-  road.makeConvoy(3);
   S.story.later.push({ enc: { id: 999, kind: 'window', slot: 'sys', title: 'later', choices: [] }, pri: 1, until: S.night + 3, seq: 999 });
   const snap = JSON.parse(JSON.stringify(g.snapshot())); assert.ok(snap, 'no snapshot by day');
   const h = createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {} }), T = h.state;
   assert.equal(T.night, S.night); assert.equal(T.gold, S.gold); assert.equal(T.food, S.food);
-  assert.deepEqual(T.season.rules, S.season.rules); assert.ok(h.rule(S.story.contract.rule));
-  assert.equal(T.story.contract.name, S.story.contract.name); assert.equal(T.unique && T.unique.name, S.unique && S.unique.name);
+  assert.deepEqual(T.season.rules, S.season.rules);
   assert.deepEqual(h.ruins().map(r => r.id), g.ruins().map(r => r.id)); assert.ok(h.rebuildCost(b.id) > 0);
-  assert.equal(T.noiseChoice, 12); assert.equal(T.tools.flare, 7);
-  assert.ok(h.road.stations[0].lit, 'the outpost went dark on reload'); assert.equal(h.road.members().length, road.members().length);
   assert.ok(T.story.later.some(x => x.enc.id === 999), 'a waiting card was lost');
   // the restored run plays on: a night and a dawn without throwing
   h.startNight(); for (let k = 0; k < 60 * 200 && T.phase === 'night' && !T.over; k++) { h.step(); T.story.encounters.length = 0; }
@@ -255,27 +164,8 @@ test('save mid-run and reload: contract, rules, ruins, noise, road, story queues
   assert.equal(snap.v, SAVE_V, 'the save format changed: bump SAVE_V so old saves are ignored');
 });
 
-test('the strip stays short on a phone: the contract line and the trial line fit two narrow lines', () => {
-  let checked = 0;
-  for (const id of ['c1', 'c2', 'c3']) {
-    const g = frontier(4), S = g.state, st = g.story();
-    for (let n = 2; n <= 3; n++) { S.night = n; st.dawn(); }
-    st.flush(); const k = S.story.encounters.find(e => e.kind === 'contract'); if (!k || !k.offers.some(o => o.id === id)) continue;
-    signContract(g, id);
-    const L = st.contracts.stripLine(); assert.ok(L && L.extra.startsWith('Contract · '), 'no contract line');
-    assert.ok(L.extra.length <= 52, `contract line too long for 390 px: "${L.extra}"`);
-    assert.ok(!/\bthe the\b|comes to the Haven/.test(L.extra), L.extra);
-    S.story.trial = { cls: 'scavver', x: S.hero.x + 20, y: S.hero.y, day: S.night, started: false, done: false, tier: 1, boss: 'The Warden of the Old Road', name: 'Trial of the Scavenger' };
-    const q = st.questLine(); assert.equal(q.tag, '[Trial]'); assert.ok(!/^Win the /.test(q.text) && q.text.length <= 40, q.text); checked++;
-  }
-  assert.ok(checked >= 2, 'too few contracts checked');
-});
-
-test('objectives: one priority each; the contract, the trial and story quests are main and come first, beacons, sites and drops are optional', () => {
+test('objectives: one priority each; story quests are main and come first, beacons, sites and drops are optional', () => {
   const g = frontier(3), S = g.state, ST = S.story, st = g.story(), c = g.map.town;
-  const enc = st.contracts.encounter(1, {}), o = enc.offers.find(x => x.finale.kind === 'hive') || enc.offers[0];
-  assert.ok(st.contracts.sign(enc, o.id));
-  ST.trial = { cls: 'ranger', from: S.heroClass, x: c.x + 20, y: c.y, day: S.night, started: false, done: false, tier: 1, boss: 'B', name: 'Trial of the Ranger' };
   ST.spots.push({ id: ST.nextId++, kind: 'gen1', x: c.x - 5, y: c.y, day: S.night });
   ST.threads.t1 = { stage: 0, status: 'open' }; ST.spots.push({ id: ST.nextId++, kind: 'thread:t1', thread: 't1', x: c.x, y: c.y + 30, day: S.night });
   ST.quests.push({ site: 0, x: S.landmarks[0].x, y: S.landmarks[0].y });
@@ -283,7 +173,7 @@ test('objectives: one priority each; the contract, the trial and story quests ar
   const list = st.objectives();
   assert.ok(list.every(q => q.priority === 'main' || q.priority === 'optional'));
   const kinds = p => list.filter(q => q.priority === p).map(q => q.kind).sort();
-  assert.deepEqual(kinds('main').filter(k => k !== 'act'), ['contract', 'thread', 'trial']);   // (act 1 adds the nearest hollow)
+  assert.deepEqual(kinds('main'), ['thread']);
   assert.deepEqual(kinds('optional'), ['beacon', 'drop', 'site']);
   const firstOpt = list.findIndex(q => q.priority === 'optional');
   assert.ok(list.slice(firstOpt).every(q => q.priority === 'optional'), 'main first');

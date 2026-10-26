@@ -1,9 +1,7 @@
 // Every objective stands where the hero can go: inside the world with a margin from its edge, on walkable ground
-// the camp can reach, out of water and cliffs, and never behind the quarantine fence. Many seeds, several nights,
-// plus a stress of each picker every dawn (beacon/trial spots, supply drops, a district opened each dawn).
-// Every seed walks its nights by the calendar (pickers stressed each dawn, the fence pulled back one district a
-// night); every LIVE-th seed also plays its days and nights for real, so beacons, trials, quests and ambushes come
-// from the story itself. SPOT_SEEDS / SPOT_NIGHTS / SPOT_LIVE override the defaults (40 seeds, 4 nights, every 8th).
+// the camp can reach, out of water and cliffs. Many seeds, several nights, plus a stress of each picker every dawn
+// (beacon spots, supply drops). Every seed walks its nights by the calendar (pickers stressed each dawn); every
+// LIVE-th seed also plays its days and nights for real, so beacons and quests come from the story itself. SPOT_SEEDS / SPOT_NIGHTS / SPOT_LIVE override the defaults (40 seeds, 4 nights, every 8th).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../src/sim/game.js';
@@ -20,7 +18,7 @@ function plainOk(g, x, y) {
   const i = idx(cx, cy), t = map.terrain[i];
   if (t === T.WATER || t === T.FORD || t === T.CLIFF || t === T.ROCK || t === T.VOID) return `terrain ${t}`;
   if (!map.reach[i]) return 'unreachable';
-  if (map.region[i] < 0 || S.sealed[map.region[i]]) return 'sealed';
+  if (map.region[i] < 0) return 'no region';
   return null;
 }
 
@@ -32,12 +30,10 @@ test(`objectives stay inside the playable world (${SEEDS} seeds × ${NIGHTS} nig
     S.builders = 'balanced'; g.setAutopilot(true);
     const at = (kind, x, y) => {
       seen[kind] = (seen[kind] || 0) + 1;
-      // stations are placed once for the whole run; act 1's fence (S.actGate) may stand in front of them by design
-      const gated = kind === 'station' && S.actGate && S.actGate.includes(map.region[idx(Math.floor(x), Math.floor(y))]);
-      const why = gated ? (spotOk(map, false, x, y) ? null : 'spotOk (fences ignored)') : plainOk(g, x, y) || (spotOk(map, S.sealed, x, y) ? null : 'spotOk');
+      const why = plainOk(g, x, y) || (spotOk(map, null, x, y) ? null : 'spotOk');
       if (why) { const k = `seed ${seed} ${kind} (${x.toFixed(1)}, ${y.toFixed(1)}): ${why}`; if (!bad.has(k)) { bad.add(k); badKinds[kind] = (badKinds[kind] || 0) + 1; } }
     };
-    const site = (kind, l) => { seen[kind] = (seen[kind] || 0) + 1; if (!siteOk(map, S.sealed, l)) { const k2 = `seed ${seed} ${kind} site ${l.id} (${l.x}, ${l.y}): no open ground beside it`; if (!bad.has(k2)) { bad.add(k2); badKinds[kind] = (badKinds[kind] || 0) + 1; } } };
+    const site = (kind, l) => { seen[kind] = (seen[kind] || 0) + 1; if (!siteOk(map, null, l)) { const k2 = `seed ${seed} ${kind} site ${l.id} (${l.x}, ${l.y}): no open ground beside it`; if (!bad.has(k2)) { bad.add(k2); badKinds[kind] = (badKinds[kind] || 0) + 1; } } };
     const sweep = () => {
       const ST = S.story;
       if (ST.trial && !ST.trial.done) at('trial', ST.trial.x, ST.trial.y);
@@ -45,23 +41,18 @@ test(`objectives stay inside the playable world (${SEEDS} seeds × ${NIGHTS} nig
       for (const q of ST.quests) site('siteQuest', S.landmarks[q.site]);
       for (const d of S.drops) at('drop', d.x, d.y);
       for (const p of S.pickups) at('pickup', p.x, p.y);
-      for (const st of S.road.stations) at('station', st.x, st.y);
-      for (const a of S.road.ambushes) at('ambush', a.x, a.y);
-      const k = ST.contract; if (k && k.finale && k.finale.kind === 'hive' && !k.won && !k.lost && !S.sealed[k.finale.region]) { const n = map.regions[k.finale.region].nest; seen.contractHive = (seen.contractHive || 0) + 1; if (!reachableSpot(map, S.sealed, n.x, n.y, null, 2)) { bad.add(`seed ${seed} contract hive ${k.finale.region}: no ground to stand on`); badKinds.contractHive = (badKinds.contractHive || 0) + 1; } }
     };
     const stress = () => {
-      const f = g.frontier(); if (f.length) g.openDistrict(f[0], 'test');   // walk the fence back, one district a dawn
       for (let k = 0; k < 25; k++) { const p = g.findSpot(); if (p) at('findSpot', p.x, p.y); }
       for (let k = 0; k < 2; k++) g.dropSupply('test');
     };
     stress(); sweep();
-    if (s % LIVE) {   // the calendar: each dawn, the pickers run against a world one district wider
+    if (s % LIVE) {   // the calendar: each dawn, the pickers run again
       for (let n = 2; n <= NIGHTS; n++) { S.night = n; S.mobs.length = 0; stress(); sweep(); }
       continue;
     }
     let night = S.night, steps = 0;
     while (!S.over && S.night <= NIGHTS && steps < 60 * 60 * 30) {
-      while (S.pendingPicks > 0 && S.offer.length) g.choosePerk(S.offer[0]);
       if (S.story.encounters.length) chooseStory(g);
       g.step(DT); steps++; S.events.length = 0;
       if (steps % 120 === 0) sweep();
@@ -69,21 +60,19 @@ test(`objectives stay inside the playable world (${SEEDS} seeds × ${NIGHTS} nig
     }
   }
   assert.deepEqual([...bad].slice(0, 12), [], `${bad.size} objectives out of bounds ${JSON.stringify(badKinds)} · checked ${JSON.stringify(seen)}`);
-  for (const k of ['findSpot', 'drop', 'station', 'pickup']) assert.ok(seen[k] > 0, `never saw a ${k}: ${JSON.stringify(seen)}`);
+  for (const k of ['findSpot', 'drop', 'pickup']) assert.ok(seen[k] > 0, `never saw a ${k}: ${JSON.stringify(seen)}`);
 });
 
-test('spotOk refuses the edge, water, cliffs, the void and the sealed core', () => {
+test('spotOk refuses the edge, water, cliffs and the void', () => {
   const ch = mapChoices(5)[0], g = createGame({ seed: 5, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor' }), S = g.state, map = g.map;
-  assert.equal(spotOk(map, S.sealed, 2.5, 2.5), false);
-  assert.equal(spotOk(map, S.sealed, NaN, 10), false);
+  assert.equal(spotOk(map, null, 2.5, 2.5), false);
+  assert.equal(spotOk(map, null, NaN, 10), false);
   const first = pred => { for (let i = 0; i < N * N; i++) { const x = i % N, y = (i / N) | 0; if (x > SPOT.edge && y > SPOT.edge && x < N - SPOT.edge && y < N - SPOT.edge && pred(i)) return [x + 0.5, y + 0.5]; } return null; };
-  for (const t of [T.WATER, T.FORD, T.CLIFF, T.VOID]) { const p = first(i => map.terrain[i] === t); if (p) assert.equal(spotOk(map, S.sealed, ...p), false, `terrain ${t} accepted`); }
-  const core = first(i => map.region[i] >= 0 && S.sealed[map.region[i]] && map.reach[i] && map.terrain[i] === T.GRASS);
-  if (core) { assert.equal(spotOk(map, S.sealed, ...core), false, 'the sealed core accepted'); assert.equal(spotOk(map, null, ...core), false, 'the core accepted before the run'); }
+  for (const t of [T.WATER, T.FORD, T.CLIFF, T.VOID]) { const p = first(i => map.terrain[i] === t); if (p) assert.equal(spotOk(map, null, ...p), false, `terrain ${t} accepted`); }
   const nearVoid = first(i => map.reach[i] && map.terrain[i] === T.GRASS && map.terrain[i + 1] === T.VOID);
-  if (nearVoid) assert.equal(spotOk(map, S.sealed, ...nearVoid), false, 'a spot on the void edge accepted');
-  const camp = reachableSpot(map, S.sealed, map.town.x + 20, map.town.y + 20);
-  assert.ok(!camp || spotOk(map, S.sealed, camp.x, camp.y));
+  if (nearVoid) assert.equal(spotOk(map, null, ...nearVoid), false, 'a spot on the void edge accepted');
+  const camp = reachableSpot(map, null, map.town.x + 20, map.town.y + 20);
+  assert.ok(!camp || spotOk(map, null, camp.x, camp.y));
 });
 
 test('an old save with a beacon off the map: it moves onto good ground when the run loads', () => {
@@ -94,7 +83,7 @@ test('an old save with a beacon off the map: it moves onto good ground when the 
   snap.pickups = [{ id: 992, x: 1.5, y: 1.5, kind: 'scrap' }];
   const h = createGame({ seed: 7, mapSeed: ch.seed, biome: ch.biome, hero: 'survivor', restore: snap }), S = h.state;
   assert.ok(S.story.spots.length >= 1, 'the beacon on the void edge was dropped instead of moved');
-  for (const sp of S.story.spots) assert.ok(spotOk(h.map, S.sealed, sp.x, sp.y), `beacon ${sp.id} still at (${sp.x}, ${sp.y})`);
+  for (const sp of S.story.spots) assert.ok(spotOk(h.map, null, sp.x, sp.y), `beacon ${sp.id} still at (${sp.x}, ${sp.y})`);
   assert.ok(Math.hypot(S.story.spots[0].x - edge.x, S.story.spots[0].y - edge.y) <= 9, 'the beacon slid too far');
   assert.ok(!S.pickups.some(p => p.id === 992), 'a find off the map survived the load');
 });
