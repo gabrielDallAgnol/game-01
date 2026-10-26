@@ -1,32 +1,33 @@
-// The world of "The Solar Flare": canon, the opening, the crew and the turn-of-day lines. Pure words (no numbers):
+// The world of Hollowmere (the Ashfall; docs/story/story-bible.md): the title, canon, the opening, the crew and the
+// turn-of-day lines. Pure words (no numbers):
 // the engine owns every number. Player-facing names live here and in the other content files; code ids
 // (walker, hive, keep…) are never renamed. CANON is the world in a paragraph for writers.
 
-export const GAME_TITLE = { kick: '[Thermal Pioneer System]', name: 'Hold', name2: 'Hollowmere', sub: 'The Solar Flare', pitch: 'The sky flared and the town burned. You took the charge. Now hold the Haven.' };
+export const GAME_TITLE = { kick: '[Class granted: Mechanic]', name: 'Hold', name2: 'Hollowmere', sub: 'Chapter 1 · The Engine Works', pitch: 'The ash fell. The town went still. Kai has a wrench, a class and Hilde, her broken tow truck. Fix Hilde. Get everyone out.' };
 
 // the world in a paragraph, for new writers (never contains numbers)
-export const CANON = `WORLD: A hot summer afternoon. At a suburban shipping depot the Solar Zenith Flare fried every electronic and left roughly four in ten people with Sudden Thermal Shock: they became the Ash-Born, charcoal-black husks with glowing orange cracks, frenzied, drawn to heat, fuel and living warmth (they are NOT rotting zombies; never write zombie, undead, walker or miasma). The hero is a quiet logistics worker who, trapped under a fallen rack shielding coworkers, absorbed the charge instead of burning; a blue System window woke ("THERMAL PIONEER SYSTEM", terse, in square brackets, with stat points). The base is the Haven Rig: a caution-yellow diesel flatbed hauler that survived the blast, armoured with scrap by the crew (outriggers, orange awnings, a humming solar pylon, halogen lights); the settlement around it is the Haven. When the suburbs run dry the Rig migrates along cracked highways toward cooler mountain valleys where a government bunker is rumoured to survive. Inferno Nests are Ash-Born gathered round heat sources (gas stations, substations, boilers); killing the core snuffs the fire and opens the road. Crew: Dee Okafor (auto mechanic, dry humour), Juno Reyes (high-school track athlete, scout, fast and cheerful), Gloria Pike (retail manager, runs the Haven, relentless optimist). Mobs: Cinder (basic), Flicker (fast), Ember Crawler, Slag Brute (big), Spark Spitter, Boiler Bloat (bursts), Siren (screams), Husk (risen), Inferno Warden and Cinder Lord (bosses). A bad night is a Flare Night. Acts: I The Depot Suburbs, II The Rail Yard.`;
-export const TONE_WORLD = 'Tone: colourful, warm, hopeful-but-tense frontier adventure (World of Warcraft and Red Alert 2 colours, Shangri-La Frontier, Solo Leveling\'s System): vivid, concrete, short sentences; PG-13, no gore detail; never grim or hopeless; no real brands or real people; never mention AI or that this is a game. The System speaks only inside [square brackets], terse and a little dry.';
+export const CANON = `WORLD: Hollowmere, a small round old town in its ring street. One evening warm grey ash fell from a clear sky for an hour (the Ashfall). About four in ten people went still and grey: by day they sleep like statues, at dusk the cracks in their skin glow orange and they move. They are the Ash-Born (never zombies, never rotting, no gore). A thin blue line appeared before everyone who stayed human: the System, terse, in square brackets, helpful about mechanics and silent about why. It gave almost everyone [Class pending]. Kai Brenner, 23, a cheerful stubborn mechanic from the garage on the Ring, got a real class: [Class granted: Mechanic]. Her caution-yellow tow truck Hilde died in the church square with a cracked crankshaft; the survivors call it the Haven Rig. Crew she can bring home: Lotte Brix (pizza courier, stuck on the water tower), Benno Scholz (town hall clerk, forms keep the world in order), Gus Lindner (retired radio tech at the masts, coffee first). Goal of chapter 1: find crankshaft order 4471 at the Engine Works, fit it, drive out north.`;
+export const TONE_WORLD = 'Tone: colourful, warm, hopeful-but-tense frontier adventure (World of Warcraft and Red Alert 2 colours, a light anime adventure, Solo Leveling\'s System): vivid, concrete, short sentences; PG-13, no gore detail; never grim or hopeless; no real brands or real people; never mention AI or that this is a game. The System speaks only inside [square brackets], terse and a little dry.';
 
 // ---------- the opening: skippable story cards, shown once ----------
 // art: which drawing ui/intro.js paints. sys: the card types itself in the System's blue window.
 export const INTRO_CARDS = [
-  { id: 'depot', art: 'depot', kick: '[Parcel Depot 9 · 14:41]', lines: ['A hot summer afternoon.', 'The fans push warm air from one end of the warehouse to the other. You scan boxes, say little, and count the minutes to the end of shift.'] },
-  { id: 'flare', art: 'flare', kick: '[14:52 · Solar Zenith Flare]', lines: ['The sun blinks.', 'Every screen dies at once. Then the heat arrives, and it is not weather. It is the sky.'] },
-  { id: 'ash', art: 'ash', kick: '[Sudden Thermal Shock]', lines: ['Some of your coworkers just stand there, glowing.', 'Their skin goes to charcoal and the cracks turn orange. About four in ten people on Earth change that afternoon. They will be called the Ash-Born.'] },
-  { id: 'rack', art: 'rack', kick: '[The loading bay]', lines: ['A rack comes down. You end up under it, arms over Dee, Juno and Gloria.', 'The charge that should have burned you goes in instead. You do not burn. You absorb.'] },
-  { id: 'system', art: 'system', kick: '', sys: true, lines: ['[THERMAL PIONEER SYSTEM INITIALIZED]', 'Pioneer · Level 1', 'The Haven Rig is still running. Dee says it is a miracle. Gloria says it is a business opportunity.'], cta: 'Begin' },
+  { id: 'depot', art: 'depot', kick: '[Brenner\'s Garage · 18:40]', lines: ['A warm evening on the Ring.', 'Kai Brenner is under a van, humming, wrench in hand. Hilde, her old tow truck, waits outside with a bad knock in her engine.'] },
+  { id: 'flare', art: 'flare', kick: '[18:52 · The Ashfall]', lines: ['Warm grey ash falls from a clear sky.', 'For one hour it settles on roofs, cars and people. Then the street goes very quiet.'] },
+  { id: 'ash', art: 'ash', kick: '[The Ash-Born]', lines: ['About four in ten people just stop, grey as statues.', 'At dusk the cracks in their skin glow orange, and they move. Nobody calls them zombies. Nobody knows what to call them.'] },
+  { id: 'rack', art: 'rack', kick: '[The church square]', lines: ['Kai drives Hilde to the square to tow a dead bus. Hilde coughs, knocks, and dies too.', 'Cracked crankshaft. The new one is order 4471, still waiting at the Engine Works.'] },
+  { id: 'system', art: 'system', kick: '', sys: true, lines: ['[Class granted: Mechanic]', 'Kai Brenner · Lv 1', 'Everyone else got [Class pending]. Kai got a wrench and a truck. "It\'s fine. It\'s mostly fine."'], cta: 'Begin' },
 ];
 export const INTRO_UI = { skip: 'Skip', next: 'Tap to continue', replay: 'Replay the opening' };
 
 // ---------- the crew (names, roles, a signature line; barks.js has the rest) ----------
 export const CREW_BIO = [
-  { id: 'dee', name: 'Dee Okafor', role: 'Auto mechanic', blurb: 'Keeps the Rig alive with a socket set and spite.' },
-  { id: 'juno', name: 'Juno Reyes', role: 'Track athlete', blurb: 'Seventeen, fast, first to the ridge and first to shout what she sees.' },
-  { id: 'gloria', name: 'Gloria Pike', role: 'Retail manager', blurb: 'Runs the Haven like a store at Christmas. Everyone gets a shift and a snack.' },
+  { id: 'lotte', name: 'Lotte Brix', role: 'Courier', blurb: 'Pizza rider from the Ring. Knows every shortcut, never stops talking.' },
+  { id: 'benno', name: 'Benno Scholz', role: 'Clerk', blurb: 'Town hall, desk 4. Has a form for that.' },
+  { id: 'gus', name: 'Gus Lindner', role: 'Radio tech', blurb: 'Thirty years at the masts. Coffee first, apocalypse second.' },
 ];
 
 // banners and lines for the turn of the day (picked by ui; any one is fine)
-export const DUSK_TAGS = ['Dusk · the heat drains', 'Dusk · the long shadows', 'Dusk · the glow rises', 'Dusk · the sirens start'];
-export const DAWN_LINES = ['The sun is back. So is your appetite.', 'Another dawn. The Haven is still standing.', 'Light on the Rig. Gloria is already making a list.', 'The sky is gold, not white. Take the win.'];
+export const DUSK_TAGS = ['Dusk · the cracks glow', 'Dusk · the long shadows', 'Dusk · the sleepers stir', 'Dusk · lights low'];
+export const DAWN_LINES = ['The sun is back. So is your appetite.', 'Another dawn. The Haven is still standing.', 'Light on the Rig. Hilde is still in one piece.', 'The sky is gold, not white. Take the win.'];
 export const pickLine = (arr, n) => arr[Math.abs(n | 0) % arr.length];

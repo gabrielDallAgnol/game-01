@@ -12,7 +12,7 @@ import { LEGACY } from '../content/legacy.js';
 import { SYSTEM } from '../content/story.js';
 import { createView } from '../render/view.js';
 import { regionNames } from '../content/names.js';
-// [story3] the Solar Flare title and the opening
+// [story3] the title and the opening
 import { GAME_TITLE } from '../content/solar.js';
 import { introWanted, playIntro } from './intro.js';
 
@@ -32,7 +32,7 @@ export function createStart(ui) {
         <div class="worlds">${opts.map((o, k) => `<canvas id="mm${k}" aria-hidden="true"></canvas><div><b>${esc(o.name)}</b><div class="note">${esc(BIOMES[o.biome].blurb)} · seed ${o.seed}</div><button class="btn ghost sm" id="reroll" style="margin-top:8px">Another world</button></div>`).join('')}</div>
         ${FLAGS.startDifficulty ? `<div class="opts one" style="margin-top:12px">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="opt" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><span class="nm">${d.name}</span><span class="ds">${d.blurb}</span></button>`).join('')}</div>` : '<p class="note" style="margin-top:12px">The System asks how hard it should be after your first night.</p>'}
         ${AREA_PICK ? '' : '<!--'}<div class="opts one" style="margin-top:12px">${AREAS.map(k => `<button class="opt" data-area="${k}" aria-pressed="${AREA.id === k}"><span class="nm">${RECIPES[k].name}</span><span class="ds">${esc(RECIPES[k].blurb)}</span></button>`).join('')}</div>${AREA_PICK ? '' : '-->'}   <!-- [area] the town: only when testing (?area=) -->
-        <button class="btn ghost sm" id="replayIntro" style="margin-top:14px">Replay the opening</button>   <!-- [story3] -->
+        ${AREA.id === 'hollowmere' ? '' : '<button class="btn ghost sm" id="replayIntro" style="margin-top:14px">Replay the opening</button>'}   <!-- [story3] chapter 1 tells its story in the world -->
         ${legacyHtml()}
         <div class="news"><b>What's new tonight</b><ul>${WHATS_NEW.map(t => `<li>${rich(t)}</li>`).join('')}</ul></div>
       </details>
@@ -43,7 +43,7 @@ export function createStart(ui) {
     $$('[data-legacy]').forEach(b => b.onclick = () => { const L = store.get('legacy', { fame: 0, owned: {} }), up = LEGACY.find(x => x.id === b.dataset.legacy), n = L.owned[up.id] || 0; if (n >= up.max || L.fame < up.cost) return; L.fame -= up.cost; L.owned[up.id] = n + 1; store.set('legacy', L); audio.play('claim'); showStart(); $('#startMore').open = true; });
     $('#reroll').onclick = () => { setup.runSeed = Math.floor(Math.random() * 1e6); setup.pick = 0; showStart(); $('#startMore').open = true; };
     // [story3] the opening plays once (skippable); headless drivers skip it unless ?intro=1
-    $('#replayIntro').onclick = () => playIntro({ store, onDone: () => {} });
+    if ($('#replayIntro')) $('#replayIntro').onclick = () => playIntro({ store, onDone: () => {} });
     $('#begin').onclick = () => { const o = opts[setup.pick], go = () => begin(o.seed, o.biome); if (AREA.id !== 'hollowmere' && introWanted(store, location.search)) playIntro({ store, onDone: go }); else go(); };   // [ch1] chapter 1 opens in the square, no cards (its story is told in the world)
     saves.load().then(snap => {
       if (!snap || snap.v !== SAVE_V || ui.card !== 'start' || !$('#contRow')) return;
@@ -53,20 +53,33 @@ export function createStart(ui) {
       $('#cont').onclick = () => begin(snap.mapSeed, snap.biome, snap);
     });
   }
-  // the key art: a white-hot afternoon sky, the depot skyline, the yellow Haven Rig with its halogens on, and the System window (the `win` group keeps its coordinates: CSS hovers it)
+  // the key art: Hollowmere at dusk under falling ash (the round old town, the church spire, the water tower), Hilde the
+  // yellow tow truck in the square with her boom up, Kai beside her with the big wrench, and the System's blue line
+  // (the `win` group keeps its coordinates: CSS hovers it)
   function startArt() {
     const r = n => { let x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
-    let city = ''; for (let k = 0, x = 20; x < 380; k++) { const w = 14 + r(k + 50) * 26, h = 16 + r(k + 60) * 56; city += `<rect x="${x.toFixed(0)}" y="${(246 - h).toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"/>`; x += w + 2 + r(k + 70) * 6; }
-    const rays = Array.from({ length: 14 }, (_, k) => { const a = k / 14 * 6.283 + 0.2; return `<path d="M${(110 + Math.cos(a) * 34).toFixed(0)} ${(120 + Math.sin(a) * 34).toFixed(0)}L${(110 + Math.cos(a) * (90 + r(k) * 80)).toFixed(0)} ${(120 + Math.sin(a) * (90 + r(k) * 80)).toFixed(0)}"/>`; }).join('');
+    let town = ''; for (let k = 0, x = -4; x < 394; k++) { const w = 18 + r(k + 50) * 22, h = 22 + r(k + 60) * 30, y = 250 - h; town += `<rect x="${x.toFixed(0)}" y="${y.toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}"/><path d="M${x.toFixed(0)} ${y.toFixed(0)}l${(w / 2).toFixed(0)} -${(9 + r(k) * 8).toFixed(0)}l${(w / 2).toFixed(0)} ${(9 + r(k) * 8).toFixed(0)}z"/>`; x += w + 1; }
+    const ash = Array.from({ length: 46 }, (_, k) => `<circle cx="${(r(k + 7) * 390).toFixed(0)}" cy="${(r(k + 91) * 300).toFixed(0)}" r="${(0.9 + r(k + 33) * 1.8).toFixed(1)}"/>`).join('');
+    const win = (x, y) => `<rect x="${x}" y="${y}" width="3" height="4"/>`;
+    let lit = ''; for (let k = 0; k < 16; k++) lit += win((10 + r(k + 200) * 370).toFixed(0), (214 + r(k + 300) * 26).toFixed(0));
     return `<svg class="art" viewBox="0 0 390 440" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-      <defs><radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff3c0" stop-opacity=".95"/><stop offset=".4" stop-color="#ffb35a" stop-opacity=".5"/><stop offset="1" stop-color="#ff7a45" stop-opacity="0"/></radialGradient>
-      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2150"/><stop offset=".45" stop-color="#d4603a"/><stop offset=".8" stop-color="#ffb04a"/><stop offset="1" stop-color="#ffd884"/></linearGradient></defs>
-      <rect width="390" height="440" fill="url(#sky)"/><circle cx="110" cy="120" r="150" fill="url(#glow)"/><g stroke="#fff6d0" stroke-opacity=".55" stroke-width="2">${rays}</g><circle cx="110" cy="120" r="26" fill="#fffbe8"/>
-      <g fill="#3a1d2c" opacity=".92">${city}</g><rect x="0" y="246" width="390" height="194" fill="#2a1520"/>
-      <g transform="translate(128 312)"><rect x="0" y="-26" width="116" height="14" rx="2" fill="#f2c230"/><rect x="-26" y="-46" width="34" height="36" rx="4" fill="#f2c230"/><rect x="-20" y="-40" width="18" height="14" fill="#ffe9a0"/><rect x="2" y="-64" width="5" height="20" fill="#3a3430"/><rect x="-6" y="-12" width="130" height="14" rx="7" fill="#1a1214"/><g fill="#6a5a50"><circle cx="8" cy="-5" r="3.5"/><circle cx="40" cy="-5" r="3.5"/><circle cx="72" cy="-5" r="3.5"/><circle cx="104" cy="-5" r="3.5"/></g><path d="M20 -26l14 -20h54l10 20z" fill="#ff8a2a"/><rect x="84" y="-60" width="22" height="14" fill="#2d6fb0"/><rect x="88" y="-46" width="3" height="20" fill="#2a2522"/>
-        <path d="M-30 -40l-70 -22v22z" fill="#fff3c0" opacity=".3"/></g>
-      <g transform="translate(186 56)" class="win"><rect width="164" height="58" fill="rgba(10,24,40,.6)" stroke="#7fe3ff" stroke-opacity=".7"/><path d="M0 10V0h10M154 0h10v10M164 48v10h-10M10 58H0V48" stroke="#7fe3ff" stroke-width="2" fill="none"/>
-        <text x="10" y="22" fill="#7fe3ff" font-family="IBM Plex Mono, monospace" font-size="9.5" letter-spacing=".3">[THERMAL PIONEER SYSTEM]</text><text x="10" y="41" fill="#d9f4ff" font-family="IBM Plex Mono, monospace" font-size="11">Pioneer · Lv 1</text></g>
+      <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2350"/><stop offset=".5" stop-color="#7a4a78"/><stop offset=".8" stop-color="#e0805a"/><stop offset="1" stop-color="#ffc27a"/></linearGradient>
+      <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffe2a0" stop-opacity=".8"/><stop offset="1" stop-color="#ff9a5a" stop-opacity="0"/></radialGradient></defs>
+      <rect width="390" height="440" fill="url(#sky)"/><g transform="translate(0 -56)"><circle cx="300" cy="226" r="120" fill="url(#glow)"/><circle cx="300" cy="214" r="20" fill="#ffe7b0" opacity=".9"/>
+      <g fill="#3a2a40"><rect x="40" y="150" width="9" height="100"/><rect x="28" y="128" width="33" height="26" rx="4"/><path d="M26 130l18 -14l18 14z"/></g>
+      <g fill="#332438">${town}<rect x="178" y="160" width="34" height="90"/><path d="M176 162l19 -78l19 78z"/><rect x="193" y="70" width="4" height="16"/><rect x="189" y="74" width="12" height="3"/></g>
+      <g fill="#ffcf7a" opacity=".85">${lit}</g>
+      <rect x="0" y="250" width="390" height="250" fill="#241a2a"/><path d="M0 262h390" stroke="#3a2c40" stroke-width="2"/>
+      <g fill="#cfc6d8" opacity=".55">${ash}</g>
+      <g transform="translate(150 330)">
+        <path d="M70 -46l58 -46" stroke="#e8b020" stroke-width="7" stroke-linecap="round"/><path d="M128 -92v34" stroke="#2a2226" stroke-width="2"/><path d="M124 -58h8l-4 8z" fill="#2a2226"/>
+        <rect x="-4" y="-34" width="132" height="20" rx="3" fill="#f2c230"/><rect x="-40" y="-60" width="44" height="46" rx="6" fill="#f2c230"/><rect x="-33" y="-53" width="24" height="16" rx="2" fill="#ffe9a0"/>
+        <rect x="-26" y="-68" width="14" height="6" rx="2" fill="#ff8a2a"/><rect x="60" y="-52" width="22" height="18" fill="#3a3034"/><text x="10" y="-20" fill="#3a2a18" font-family="Arial Black, Impact, sans-serif" font-size="9">BRENNER</text>
+        <rect x="-46" y="-16" width="180" height="14" rx="7" fill="#1a1214"/><g fill="#6a5a50"><circle cx="-22" cy="-7" r="9"/><circle cx="62" cy="-7" r="9"/><circle cx="96" cy="-7" r="9"/></g><g fill="#2a2226"><circle cx="-22" cy="-7" r="4"/><circle cx="62" cy="-7" r="4"/><circle cx="96" cy="-7" r="4"/></g>
+        <path d="M-46 -48l-60 -16v28z" fill="#fff3c0" opacity=".25"/></g>
+      <g transform="translate(96 336)"><rect x="-6" y="-40" width="12" height="24" rx="4" fill="#f2c230"/><circle cy="-47" r="7" fill="#f4c9a0"/><path d="M-7 -50h14v-4h-14z" fill="#d83a3a"/><rect x="-6" y="-16" width="5" height="16" fill="#e0a820"/><rect x="1" y="-16" width="5" height="16" fill="#e0a820"/><path d="M6 -34l16 -18" stroke="#b8c0c8" stroke-width="4" stroke-linecap="round"/><circle cx="23" cy="-53" r="4" fill="none" stroke="#b8c0c8" stroke-width="3"/></g>
+      </g><g transform="translate(186 56)" class="win"><rect width="164" height="58" fill="rgba(10,24,40,.6)" stroke="#7fe3ff" stroke-opacity=".7"/><path d="M0 10V0h10M154 0h10v10M164 48v10h-10M10 58H0V48" stroke="#7fe3ff" stroke-width="2" fill="none"/>
+        <text x="10" y="22" fill="#7fe3ff" font-family="IBM Plex Mono, monospace" font-size="9.5" letter-spacing=".3">[Class granted: Mechanic]</text><text x="10" y="41" fill="#d9f4ff" font-family="IBM Plex Mono, monospace" font-size="11">Kai Brenner · Lv 1</text></g>
     </svg>`;
   }
   function legacyHtml() {

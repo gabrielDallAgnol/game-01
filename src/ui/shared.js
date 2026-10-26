@@ -18,9 +18,9 @@ for (const t of ['pointerdown', 'keydown']) window.addEventListener(t, () => aud
 // Cut or parked (decisions, Oct 20): everything stays behind a flag so it can come back.
 // the start screen's "What's new" (under More): short, for players
 export const WHATS_NEW = [
-  '**The Solar Flare.** The sky blinked, about four in ten people turned into the **Ash-Born**, and you absorbed the charge. A blue **Thermal Pioneer System** woke in your head.',
-  '**Your crew.** Dee the mechanic, Juno the track star and Gloria the manager keep the Haven talking.',
-  '**Ruins stay ruins** until you rebuild them: tap one, or **Rebuild all** at dawn.',
+  '**Chapter 1: The Engine Works.** Kai Brenner, the only one in Hollowmere with a class, holds the church square round **Hilde**, her broken tow truck.',
+  '**Read the town.** Notes in houses, graffiti on walls and voices on car radios tell the story. Kai knows the old town by heart.',
+  '**Bring them home.** Lotte, Benno and Gus are out there. Fix Hilde, then drive out north.',
 ];
 export const FLAGS = { trader: false, crew: false, legacyAll: false, foremanFirstRun: false, runLog: false, perkShop: false, changelog: false, startDifficulty: false };
 export const LEGACY_KEEP = ['scrap', 'dmg', 'keep'];

@@ -14,7 +14,7 @@ export const PASSABLE = [true, true, false, false, false, true, true, false];
 export const BUILDABLE = [true, false, false, false, false, false, true, false];
 export const MOVE_COST = [1, 1.6, Infinity, Infinity, Infinity, 2.5, 1, Infinity];
 // the run's world label (saves keep it); the town itself comes from the area recipe
-export const BIOMES = { riverbend: { name: 'Hollowmere', blurb: 'A town the Flare left standing: streets to search, sites to claim, hordes asleep in the ruins.' } };
+export const BIOMES = { riverbend: { name: 'Hollowmere', blurb: 'A town the Ashfall left standing: streets to search, sites to claim, hordes asleep in the ruins.' } };
 export const DEFAULT_AREA = 'hollowmere';   // chapter 1's town (the other recipes stay reachable by ?area=)
 // regions: the camp (CAMP_R round it), then SECTORS slices of the town in two bands split at BAND_R
 const CAMP_R = 11, SECTORS = 8, BAND_R = 70;
