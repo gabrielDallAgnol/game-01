@@ -6,15 +6,18 @@
 import { buildArea, RECIPES } from '../engine/recipes.js';
 import { obbBox, pointInObb, distToSeg } from '../engine/geom.js';
 
-// the recipes a run can start in (the start-screen picker, ?area=). `hollowmere` (600×500 m) waits until N is raised to fit it
-export const AREAS = Object.keys(RECIPES).filter(id => id !== 'hollowmere');
+// the recipes a run can start in: chapter 1 is Hollowmere (first); the others stay for testing (?area=)
+export const AREAS = ['hollowmere', ...Object.keys(RECIPES).filter(id => id !== 'hollowmere')];
 // what an atom offers → the game's site it becomes (claim it to get the site's dawn income and effect)
 export const OFFER_SITE = { medicine: 'clinic', law: 'police', learning: 'school', signal: 'radio', fuel: 'fuel', iron: 'quarry', work: 'substation', shop: 'market' };
 const siteOf = def => { for (const o of Object.keys(OFFER_SITE)) if (def.offers.includes(o)) return OFFER_SITE[o]; return null; };   // the table's order is the priority
 
+// the last town built, kept: the start screen, its minimap and the run all build the same seed (a 600 m town takes ~0.5 s)
+let last = null;
+const built = (id, seed) => (last && last.id === id && last.seed === seed ? last.res : (last = { id, seed, res: buildArea(id, seed, undefined, RECIPES[id].game) }).res);
 export function applyArea(g, id) {
   const { N, T, idx, inside, terrain, wild, road, c, seed, keep } = g;
-  const res = buildArea(id, seed >>> 0, undefined, RECIPES[id].game), W = res.W;
+  const res = built(id, seed >>> 0), W = res.W;
   const ox = Math.round(c - W.camp.x), oy = Math.round(c - W.camp.y);   // whole metres, so engine and cells line up
   const mask = new Uint8Array(N * N), x0 = Math.max(0, ox), y0 = Math.max(0, oy), x1 = Math.min(N, ox + Math.ceil(W.w)), y1 = Math.min(N, oy + Math.ceil(W.h));
   const set = (x, y, t, r) => { if (!inside(x, y) || !mask[idx(x, y)]) return; const i = idx(x, y); terrain[i] = t; road[i] = r ? 1 : 0; };

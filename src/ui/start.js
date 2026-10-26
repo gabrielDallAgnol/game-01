@@ -3,7 +3,7 @@
 import { $, $$, FLAGS, LEGACY_KEEP, WHATS_NEW, audio, esc, rich, saves, store } from './shared.js';
 import { BIOMES, generateMap, mapChoices } from '../sim/mapgen.js';
 // [area] next line
-import { AREA, areaOpts } from './area-flag.js';
+import { AREA, AREA_PICK, areaOpts } from './area-flag.js';
 // [v2] next line
 import { AREAS } from '../sim/areamap.js';
 import { RECIPES } from '../engine/recipes.js';
@@ -31,7 +31,7 @@ export function createStart(ui) {
       <details id="startMore"><summary>More</summary>
         <div class="worlds">${opts.map((o, k) => `<canvas id="mm${k}" aria-hidden="true"></canvas><div><b>${esc(o.name)}</b><div class="note">${esc(BIOMES[o.biome].blurb)} · seed ${o.seed}</div><button class="btn ghost sm" id="reroll" style="margin-top:8px">Another world</button></div>`).join('')}</div>
         ${FLAGS.startDifficulty ? `<div class="opts one" style="margin-top:12px">${Object.entries(DIFFICULTY).map(([k, d]) => `<button class="opt" data-diff="${k}" aria-pressed="${setup.difficulty === k}"><span class="nm">${d.name}</span><span class="ds">${d.blurb}</span></button>`).join('')}</div>` : '<p class="note" style="margin-top:12px">The System asks how hard it should be after your first night.</p>'}
-        <div class="opts one" style="margin-top:12px">${AREAS.map(k => `<button class="opt" data-area="${k}" aria-pressed="${AREA.id === k}"><span class="nm">${RECIPES[k].name}</span><span class="ds">${esc(RECIPES[k].blurb)}</span></button>`).join('')}</div>   <!-- [area] the town -->
+        ${AREA_PICK ? '' : '<!--'}<div class="opts one" style="margin-top:12px">${AREAS.map(k => `<button class="opt" data-area="${k}" aria-pressed="${AREA.id === k}"><span class="nm">${RECIPES[k].name}</span><span class="ds">${esc(RECIPES[k].blurb)}</span></button>`).join('')}</div>${AREA_PICK ? '' : '-->'}   <!-- [area] the town: only when testing (?area=) -->
         <button class="btn ghost sm" id="replayIntro" style="margin-top:14px">Replay the opening</button>   <!-- [story3] -->
         ${legacyHtml()}
         <div class="news"><b>What's new tonight</b><ul>${WHATS_NEW.map(t => `<li>${rich(t)}</li>`).join('')}</ul></div>
@@ -85,7 +85,7 @@ export function createStart(ui) {
     window.__ui = { strip, callouts, ctoast, showStatus: ui.showStatus, showMore: ui.showMore, showMap: ui.showMap, cards: () => ui.card, toast: ui.toast };
     $('#hud').hidden = false; ui.hideCard(); ui.paused = false; ui.selected = null; ui.placing = null; ui.closePanel();
     if (snap) { previouslyOn(); }
-    else setTimeout(() => subtitle(SYSTEM.dayOne), 2700);
+    else if (!(ui.game.chapter && ui.game.chapter())) setTimeout(() => subtitle(SYSTEM.dayOne), 2700);   // [ch1] chapter 1 opens with the System over Kai instead
     holdCards(0.3);
   }
   function subtitle(text, ms = 6000) {

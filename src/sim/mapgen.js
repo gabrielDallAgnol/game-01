@@ -8,14 +8,14 @@ import { applyArea } from './areamap.js';
 import { RECIPES } from '../engine/recipes.js';
 
 /** the grid's side in cells (1 cell = 1 m). One constant: raise it to fit a bigger town (every reader uses N) */
-export const N = 448;
+export const N = 672;   // Oct 26: 448 → 672, so the 600 × 500 m Hollowmere fits round the church square with its band of woods
 export const T = { GRASS: 0, FOREST: 1, ROCK: 2, WATER: 3, CLIFF: 4, FORD: 5, DIRT: 6, VOID: 7 };
 export const PASSABLE = [true, true, false, false, false, true, true, false];
 export const BUILDABLE = [true, false, false, false, false, false, true, false];
 export const MOVE_COST = [1, 1.6, Infinity, Infinity, Infinity, 2.5, 1, Infinity];
 // the run's world label (saves keep it); the town itself comes from the area recipe
 export const BIOMES = { riverbend: { name: 'Hollowmere', blurb: 'A town the Flare left standing: streets to search, sites to claim, hordes asleep in the ruins.' } };
-export const DEFAULT_AREA = 'suburb';
+export const DEFAULT_AREA = 'hollowmere';   // chapter 1's town (the other recipes stay reachable by ?area=)
 // regions: the camp (CAMP_R round it), then SECTORS slices of the town in two bands split at BAND_R
 const CAMP_R = 11, SECTORS = 8, BAND_R = 70;
 
