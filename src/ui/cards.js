@@ -2,7 +2,7 @@
 // encounters and their choice chips, the arrival, System windows.
 // The engine decides effects and words (the written story in content/story.js).
 import { $, $$, ARM_MS, audio, chronLine, esc, rich, store } from './shared.js';
-import { RARITY } from '../content/districts.js';
+import { RARITY } from '../content/story.js';
 import { SYSTEM } from '../content/story.js';
 import { icon } from './icons.js';
 import { openBeat, reduced, sysRich, typeOn } from './system.js';

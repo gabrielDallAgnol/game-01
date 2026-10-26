@@ -56,7 +56,7 @@ export function createBuildings(G) {
     out.ok = true; return out;
   }
   // the hero walks through palisades (they are the town's gates), but not through other buildings
-  const heroOk = i => PASSABLE[map.terrain[i]] && (S.occ[i] < 0 || isWall(S.occ[i])) && !S.sealed[map.region[i]];
+  const heroOk = i => PASSABLE[map.terrain[i]] && (S.occ[i] < 0 || isWall(S.occ[i]));
   let reachKey = '', reachSet = null;
   function heroReach(extraBlocked) {
     // [econ3] begin: start the flood from open ground by the keep (the yard cell itself may have been built over, and
@@ -138,7 +138,7 @@ export function createBuildings(G) {
     return src;
   };
   function zone() {
-    const key = `${S.occVersion || 0}|${(S.landmarks || []).filter(l => l.owned).length}|${S.nestAlive.filter(Boolean).length}|${S.sealVersion}`;
+    const key = `${S.occVersion || 0}|${(S.landmarks || []).filter(l => l.owned).length}|${S.nestAlive.filter(Boolean).length}`;
     if (key === zoneKey && zoneCache) return zoneCache;
     const z = new Uint8Array(N * N), src = zoneSources();
     for (const q of src) {
@@ -151,7 +151,6 @@ export function createBuildings(G) {
       for (let y = Math.max(0, Math.floor(n.y - R)); y <= Math.min(N - 1, Math.ceil(n.y + R)); y++) for (let x = Math.max(0, Math.floor(n.x - R)); x <= Math.min(N - 1, Math.ceil(n.x + R)); x++)
         if ((x + 0.5 - n.x) ** 2 + (y + 0.5 - n.y) ** 2 <= R * R) z[idx(x, y)] = 0;
     }
-    for (let i = 0; i < N * N; i++) if (z[i] && S.sealed[map.region[i]]) z[i] = 0;
     zoneKey = key; zoneCache = z; reachCache = src; S.zoneVersion = (S.zoneVersion || 0) + 1;
     return z;
   }

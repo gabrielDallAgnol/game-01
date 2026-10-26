@@ -10,10 +10,10 @@ export function createApi(G) {
   const {
     S, W8, activeNests, baseDist, build, buildLine, buildingAt, buyCost, canPlace,
     choosePack, claimLandmark, clearRubble, companionFollow, costOf, crewing, damageBuilding,
-    defenceDps, demolish, districtOffer, dropSupply, effN, endRun, foodNeed, foodPerDawn, forecast,
-    frontier, gainXp, handsFree, handsMax, has, hasTech, heroDps, heroPath, houseGold, hurtHero,
-    inZone, keep, keepForRing, keepMaxHp, keepNeeds, killMob, kitFor, landmarkReach, lineCells, manned, map, mastered,
-    mastery, maxHpOf, newCost, nightLen, openDistrict, owns, partySize, pop,
+    defenceDps, demolish, dropSupply, effN, endRun, foodNeed, foodPerDawn, forecast,
+    gainXp, handsFree, handsMax, has, hasTech, heroDps, heroPath, houseGold, hurtHero,
+    inZone, keep, keepForRing, keepMaxHp, keepNeeds, killMob, landmarkReach, lineCells, manned, map, mastered,
+    mastery, maxHpOf, newCost, nightLen, owns, partySize, pop,
     prosper, raiseBlock, rebuild, rebuildAll, rebuildCost, regionInfo, rerollPacks, reveal,
     rubbleAt, ruins, rule, setDifficulty, setHeroInput, siteOf, snapshot, spawnMob, startNight, step,
     timeOfDay, towerStats, trade, upCostOf, upgrade, upgradeKeep, upgradeWall, upkeep,
@@ -37,7 +37,7 @@ export function createApi(G) {
     dayShare: () => TIDE.dayLen / (TIDE.dayLen + nightLen()),
     duskIn: () => Math.max(0, TIDE.dayLen - S.dayT), dayFrac: () => (S.clock ? Math.min(1, S.dayT / TIDE.dayLen) : 0.4), bellBonus: () => (S.clock ? Math.floor(Math.max(0, TIDE.dayLen - S.dayT) / TIDE.bellGold) : 0),
     dropSupply,
-    xpNext: () => LEVEL.xp(S.lvl), gainXp: n => gainXp(n), partySize: () => partySize(), companionFollow, snapshot, frontier, districtOffer, openDistrict, kitFor, siteOf, story: () => G.story, choose: id => G.story.choose(id),
+    xpNext: () => LEVEL.xp(S.lvl), gainXp: n => gainXp(n), partySize: () => partySize(), companionFollow, snapshot, siteOf, story: () => G.story, choose: id => G.story.choose(id),
     // tension: ruins, rebuilding and the dawn ledger
     rebuild, rebuildAll, rebuildCost: id => { const b = S.byId.get(id); return b && b.ruined ? rebuildCost(b) : 0; }, ruins: () => ruins().map(b => ({ id: b.id, type: b.type, level: b.level, x: b.x, y: b.y, cost: rebuildCost(b) })),
     ledger: () => S.ledger || null,

@@ -16,7 +16,7 @@ export const PACIFY = {
 
 export function createPacify(G) {
   const { S, map, c, ev, toast } = G;
-  const live = r => map.regions[r].nest && S.nestAlive[r] && !S.claimed.has(r) && !S.sealed[r];
+  const live = r => map.regions[r].nest && S.nestAlive[r] && !S.claimed.has(r);
 
   // ---------- pacified ground ----------
   let pkey = '', pmap = null;
@@ -24,7 +24,7 @@ export function createPacify(G) {
   function pacifyMap() {
     G.zone();   // keeps S.zoneVersion current
     const awake = map.regions.filter(r => live(r.id) && S.wake[r.id] <= S.night);
-    const key = `${S.zoneVersion}|${S.claimed.size}|${S.sealVersion}|${awake.map(r => r.id).join(',')}`;
+    const key = `${S.zoneVersion}|${S.claimed.size}|${awake.map(r => r.id).join(',')}`;
     if (key === pkey && pmap) return pmap;
     const z = new Uint8Array(N * N), src = [{ x: c, y: c, r: ZONE.keep }];
     for (const b of S.buildings) if (b.type !== 'wall') src.push({ x: b.x, y: b.y, r: ZONE.building });
@@ -34,7 +34,7 @@ export function createPacify(G) {
       for (let y = Math.max(0, Math.floor(q.y - R)); y <= Math.min(N - 1, Math.ceil(q.y + R)); y++) for (let x = Math.max(0, Math.floor(q.x - R)); x <= Math.min(N - 1, Math.ceil(q.x + R)); x++)
         if ((x + 0.5 - q.x) ** 2 + (y + 0.5 - q.y) ** 2 <= r2) z[idx(x, y)] = 1;
     }
-    for (let i = 0; i < N * N; i++) { const r = map.region[i]; if (r >= 0 && S.claimed.has(r)) z[i] = 1; else if (z[i] && (r < 0 || S.sealed[r])) z[i] = 0; }
+    for (let i = 0; i < N * N; i++) { const r = map.region[i]; if (r >= 0 && S.claimed.has(r)) z[i] = 1; else if (z[i] && r < 0) z[i] = 0; }
     // an awake hive keeps the ground around it contested: no quiet land within its reach until it burns
     for (const reg of awake) { const n = reg.nest, R = ZONE.hiveReach;
       for (let y = Math.max(0, Math.floor(n.y - R)); y <= Math.min(N - 1, Math.ceil(n.y + R)); y++) for (let x = Math.max(0, Math.floor(n.x - R)); x <= Math.min(N - 1, Math.ceil(n.x + R)); x++)

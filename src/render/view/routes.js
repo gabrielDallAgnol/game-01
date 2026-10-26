@@ -22,7 +22,6 @@ export function createRoutes(V) {
     if (routeMesh.instanceColor) routeMesh.instanceColor.needsUpdate = true;
   }
   const rd = new THREE.Object3D();
-  V.rd = rd;   // scratch Object3D, shared with the quarantine fences
   function animateRoutes(t) {
     if (!routeMesh) return;
     let k = 0;

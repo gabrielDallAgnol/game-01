@@ -6,8 +6,7 @@
 //
 // The dawn budget: at most ONE story card and ONE System window a dawn. Everything else waits in `later` for a
 // later dawn (cards that only make sense today expire). Nothing opens at night unless it is about the night.
-import { GIFT, TITLES, DISTRICT_CALL, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET, STREET_GEN, NUMBER, NIGHT_TEXT, ARRIVE } from '../content/story.js';
-import { RARITY, KITS } from '../content/districts.js';
+import { GIFT, TITLES, RARITY, SITES, THREADS, ROLES, SYSTEM, AMBIENT, TIPS, STREET, STREET_GEN, NUMBER, NIGHT_TEXT, ARRIVE } from '../content/story.js';
 import { EPISODES, seasonEnd } from '../content/season.js';
 import { TIDE } from '../content/mobs.js';
 import { siteOk } from './spots.js';
@@ -75,7 +74,6 @@ export function createStory(ctx) {
       case 'flag': if (f.key === 'garden') ST.garden = (ST.garden || 0) + 1; else if (f.key === 'beacon') ST.beacon = (ST.beacon || 0) + 1; else ST.flags[f.key] = true; break;
       case 'title': grant(f.id); break;
       case 'openFor': { if (!th) break; const p = placeFor(f.kit, enc.thread); if (!p) { enc.noRegion = true; break; } pointThread(enc.thread, p); break; }
-      case 'open': ctx.openDistrict(f.region, f.why); ST.lastOpen = S.night; { const l = ctx.siteOf(f.region); if (l && !l.owned) addQuest(l, null); } break;
       case 'recruit': { const n = castFor(enc.thread, f.role); n.joined = true; toast(`[${n.name} joined] ${ROLES[n.role].post}: ${ROLES[n.role].bonus}.`, 'sys'); chron(`${n.name} joined the Haven as its ${ROLES[n.role].post.toLowerCase()}.`, 4, [n.id]); ev('recruit', { id: n.id }); break; }
       case 'lose': { const n = th && npc(th.cast[f.role]); if (n) { n.alive = false; n.joined = false; n.withHero = false; n.lost = S.night; chron(`${n.name} left the Haven.`, 4, [n.id]); } break; }
       case 'bond': { const n = th && npc(th.cast[f.role]); if (n) n.bond = Math.max(-3, Math.min(5, n.bond + f.n)); break; }
@@ -93,43 +91,23 @@ export function createStory(ctx) {
   }
   const hasRule = id => { const a = api(); return a && a.rule ? a.rule(id) : !!(S.season && (S.season.rules || []).includes(id)); };
 
-  // ---------- where a thread happens: reuse a site that is already open, else open one, else mark the place ----------
-  // (the frontier map has the substation and the school in open districts: opening a new district for them made a
-  // second copy, or found none and the quest died without a word)
+  // ---------- where a thread happens: reuse a site that is already there, else mark the place ----------
   function placeFor(kit, tid) {
-    const lm = (KITS[kit] && KITS[kit].lm) || kit, c = map.town.x;
+    const lm = kit, c = map.town.x;
     const taken = id => Object.entries(ST.threads).some(([t, x]) => t !== tid && x.status === 'open' && x.site === id);
-    const open = S.landmarks.filter(l => l.kind === lm && !l.owned && !l.stripped && !S.sealed[l.region] && !taken(l.id) && siteOk(map, S.sealed, l))
+    const open = S.landmarks.filter(l => l.kind === lm && !l.owned && !l.stripped && !taken(l.id) && siteOk(map, null, l))
       .sort((a, b) => Math.hypot(a.x - c, a.y - c) - Math.hypot(b.x - c, b.y - c));
     if (open.length) return { site: open[0].id };
-    const r = districtFor(kit, lm);
-    if (r !== null) return { region: r };
     const spot = ctx.findSpot();
     return spot ? { spot } : null;
-  }
-  function districtFor(kit, lm) {
-    const front = ctx.frontier();
-    const ok = r => { const l = ctx.siteOf(r); return l && !l.owned && !l.stripped && siteOk(map, false, l); };   // a quest needs a building to walk into (good ground once the fence is down)
-    const have = Object.keys(S.kits).map(Number).find(r => S.kits[r] === kit && S.sealed[r] && front.includes(r) && ok(r));
-    if (have !== undefined) return have;
-    if (S.landmarks.some(l => l.kind === lm)) return null;   // one of its kind exists already: never make a second
-    let pool = front.filter(r => ok(r) && !S.kits[r]);
-    if (!pool.length) return null;
-    const near = Math.min(...pool.map(r => map.regions[r].ring)); pool = pool.filter(r => map.regions[r].ring === near);
-    const r = pool[rng.int(pool.length)]; S.kits[r] = kit; return r;
   }
   function pointThread(tid, p) {
     const th = ST.threads[tid]; if (!th) return;
     if (p.site !== undefined) { const l = S.landmarks[p.site]; th.site = l.id; th.region = l.region; ST.visited[l.id] = false; addQuest(l, tid); return; }
-    if (p.region !== undefined) {
-      if (S.sealed[p.region]) ctx.openDistrict(p.region, `${THREADS[tid].title}.`);
-      const l = ctx.siteOf(p.region); th.region = p.region; if (l) { th.site = l.id; ST.visited[l.id] = false; addQuest(l, tid); }
-      return;
-    }
     const sp = { id: ST.nextId++, kind: `thread:${tid}`, thread: tid, x: p.spot.x, y: p.spot.y, day: S.night };
     ST.spots.push(sp); th.spot = sp.id; ctx.guard(sp.x, sp.y, Math.min(4, 2 + Math.floor(S.night / 5)));
   }
-  function addQuest(l, thread) { if (siteOk(map, S.sealed, l) && !ST.quests.some(q => q.site === l.id)) ST.quests.push({ site: l.id, thread, x: l.x, y: l.y }); }
+  function addQuest(l, thread) { if (siteOk(map, null, l) && !ST.quests.some(q => q.site === l.id)) ST.quests.push({ site: l.id, thread, x: l.x, y: l.y }); }
   /** a thread that ends badly closes with a card, never in silence */
   function endThread(tid, why) {
     const th = ST.threads[tid], T = THREADS[tid]; if (!th || th.status === 'failed' || th.status === 'done') return;
@@ -227,14 +205,6 @@ export function createStory(ctx) {
     return { kind: 'thread', thread: tid, stage, eyebrow: fill(st.eyebrow, th), title: fill(st.title, th), scene: fill(st.scene, th), speaker: speaker ? { id: speaker.id, name: speaker.name, line: fill(st.line, th) } : null,
       choices: st.choices.map(c => { const rc = c.fx.find(f => f.op === 'recruit'), who = rc && th.cast[rc.role] && npc(th.cast[rc.role]); return { id: c.id, label: fill(c.label, th), hint: fill(c.hint, th), cost: costOf(c), fx: c.fx, lean: c.lean, npcName: who ? `${who.name.split(' ')[0]} joins` : undefined }; }) };
   }
-  function districtEncounter() {
-    const front = ctx.frontier().filter(r => S.kits[r] !== 'signature' || S.night >= 6); if (!front.length) return null;
-    const extra = ST.flags.scout ? 1 : 0; ST.flags.scout = false;
-    const offers = rng.shuffle(front.map(r => ctx.districtOffer(r))).sort((a, b) => a.ring - b.ring).slice(0, Math.min(3 + extra, front.length));
-    const price = o => (o.ring >= 2 ? { gold: 8 + S.night / 2 | 0, food: 4 } : { gold: 5 });
-    return { kind: 'district', eyebrow: DISTRICT_CALL.eyebrow, title: DISTRICT_CALL.title, scene: DISTRICT_CALL.scene, offers,
-      choices: offers.map(o => ({ id: `d${o.region}`, label: o.name, rarity: o.rarity, cost: price(o), hint: `${o.call}${o.lm && LM[o.lm] ? ` Inside: ${LM[o.lm].name} (${LM[o.lm].desc.split(':')[0].toLowerCase()}).` : ''} · ${o.dir}${o.ring >= 2 ? ' · far: a big district' : ''}${o.nest ? ' · a hive nests there' : ''}`, fx: [{ op: 'open', region: o.region, why: '' }] })).concat([{ ...DISTRICT_CALL.later }]) };
-  }
   function siteEncounter(l) {
     const T = SITES[l.kind] || SITES.default, D = SITES.default, L = LM[l.kind], strip = 6 + 2 * (L.cost || 6);
     return { kind: 'site', site: l.id, eyebrow: `[${L.name}]`, title: L.name, scene: T.scene || D.scene,
@@ -317,9 +287,6 @@ export function createStory(ctx) {
     while (activeQuests().length > questCap() && ST.spots.some(sp => !sp.thread)) { const i = ST.spots.map(sp => !sp.thread).lastIndexOf(true); ST.spots.splice(i, 1); }
     // quiet dawns: a small moment, once each
     if (S.night >= 3 && rng.next() < 0.6 && !queued(e => e.slot === 'story')) { ST.ambient = ST.ambient || []; const pool = AMBIENT.filter(a => !ST.ambient.includes(a.id) && a.when(S)); if (pool.length) { const a = pool[rng.int(pool.length)]; ST.ambient.push(a.id); offer({ kind: 'ambient', eyebrow: a.eyebrow, title: a.title, scene: a.scene, choices: a.choices.map(c => ({ ...c })) }, 2, 0); } }
-    // a route out of the fences every other day
-    const front = ctx.frontier();
-    if (front.length && S.feat.routes && S.night - (ST.lastRoute || 0) >= 2 && !queued(e => e.kind === 'district')) { const e = districtEncounter(); if (e) { offer(e, 4, 1); ST.lastRoute = S.night; } }
     daily.settle();   // an accepted quest left undone costs what its card said; a declined one costs nothing
     release();
     episode();
@@ -391,12 +358,12 @@ export function createStory(ctx) {
     ev('arrival', {});
   }
 
-  // ---------- street encounters: markers in the open districts, found by walking there ----------
+  // ---------- street encounters: markers out in the town, found by walking there ----------
   /** one blue beacon, only when the gate has room (the next one comes after this one is answered) */
   function placeSpots() {
     ST.streetUsed = ST.streetUsed || [];
     if (S.night < 2 || !roomForQuest() || ST.spots.some(sp => !sp.thread)) return;
-    if (!map.regions.some(r => r.ring > 0 && !S.sealed[r.id])) return;
+    if (!map.regions.some(r => r.ring > 0)) return;
     for (let k = 0; k < 1; k++) {
       const pool = STREET.filter(e => !ST.streetUsed.includes(e.id));
       const spot = ctx.findSpot(); if (!spot) return;
@@ -459,7 +426,7 @@ export function createStory(ctx) {
     if (spotTick()) return;
     for (const l of S.landmarks) if (typeof ST.visited[l.id] === 'number' && ST.visited[l.id] < S.night && !ctx.landmarkReach(l)) ST.visited[l.id] = false;   // left yesterday: it can ask again
     for (const l of S.landmarks) {
-      if (l.owned || l.stripped || l.kind === 'unknown' || S.sealed[l.region] || ST.visited[l.id] || !ctx.landmarkReach(l)) continue;
+      if (l.owned || l.stripped || ST.visited[l.id] || !ctx.landmarkReach(l)) continue;
       ST.visited[l.id] = true;
       const tid = Object.keys(ST.threads).find(t => { const th = ST.threads[t]; return th.status === 'open' && (th.site === l.id || (th.site === undefined && th.region === l.region)) && THREADS[t].stages[th.stage] && THREADS[t].stages[th.stage].at === 'site'; });
       push(tid ? threadEncounter(tid, ST.threads[tid].stage) : siteEncounter(l));

@@ -14,7 +14,6 @@ import { generateMap, PASSABLE, idx, inside, LANDMARKS } from './mapgen.js';
 import { BUILDINGS, KEEP } from '../content/buildings.js';
 import { TIDE } from '../content/mobs.js';
 import { heroKit } from '../content/heroes.js';
-import { KITS } from '../content/districts.js';
 import { createScavenge } from './scavenge.js';
 import { createPlanner } from './planner.js';
 import { createStory } from './story.js';
@@ -88,9 +87,9 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
     HC, DIFF, story: null, sc: null, api: null, v2combat: !!v2combat, v2: !!v2 };   // [combat2] v2combat   // [v2] v2
   for (const make of MODULES) Object.assign(G, make(G));
   const {
-    rng, mobById, PICKUP, activeNests, autoHero, baseDist, checkForeman, compass, dawn, districtOffer,
-    earn, edgeSpawns, ev, fail, frontier, gainXp, heroOk, hitMob, hurtHero, inZone, isWall, killMob, kitFor,
-    landmarkReach, live, mastery, moveToward, newLog, nightLen, occupy, openDistrict, placeBuilding, pop, rankOf,
+    rng, mobById, PICKUP, activeNests, autoHero, baseDist, checkForeman, compass, dawn,
+    earn, edgeSpawns, ev, fail, gainXp, heroOk, hitMob, hurtHero, inZone, isWall, killMob,
+    landmarkReach, live, mastery, moveToward, newLog, nightLen, occupy, placeBuilding, pop, rankOf,
     refreshFlow, refreshMax, restoreSnap, reveal, revealRegion, rollOffer, rollPacks, rule, scatterPickups, senseMult, siteOf,
     spawnAnimals, spawnAtNest, spawnMob, spawnRoamers, standable, startNight, stepAllies, stepDrops, stepHero, stepMobs,
     stepPickups, stepProjectiles, stepTowers, syncPicks, takeSite, toast, untitle, zone
@@ -100,10 +99,6 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   let planner = null;
   occupy(keep);
   S.edgeSpawns = edgeSpawns;   // the hordes' entries into the night queue (sim/hordes.js fills it)
-  // districts: the signature site's district, then the home ward's kits (draws from the districts stream)
-  for (const l of S.landmarks) if (LANDMARKS[l.kind].signature) S.kits[l.region] = 'signature';
-  // the home ward: the near districts with no hive are open from day 1 (common finds: a place to look around)
-  for (const reg of map.regions) if (reg.ring >= 1 && !S.sealed[reg.id] && S.kits[reg.id] !== 'signature') { const l = siteOf(reg.id); if (l && l.kind === 'unknown') l.kind = KITS[kitFor(reg.id, reg.ring === 1 ? 'common' : undefined)].lm; }
   newLog();
   for (const r of S.claimed) revealRegion(r); reveal(c, c, 14);
   rollOffer(); rollPacks(); spawnRoamers(); spawnAnimals();
@@ -114,7 +109,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   S.scav = G.sc.scav;
   // ---------- the story: its engine (sim/story.js) reaches the rules only through these hooks ----------
   const REVIVE = ['Hush', 'Echo', 'Lull', 'Old Song', 'Quill', 'Tam', 'Vesper', 'Nocturne'];
-  G.story = createStory({ api: () => G.api, S, map, rng: new Rng(hashSeed(seed, 'story')), ev, toast, earn, openDistrict, frontier, districtOffer, siteOf, LANDMARKS, pop, refreshMax, syncPicks,
+  G.story = createStory({ api: () => G.api, S, map, rng: new Rng(hashSeed(seed, 'story')), ev, toast, earn, siteOf, LANDMARKS, pop, refreshMax, syncPicks,
     hurtHero: n => hurtHero(n), gainXp: n => gainXp(n),
     findSpot: () => G.findSpot(),   // beacons, trials and story places (sim/spots.js)
     guard: (x, y, n) => { for (let k = 0, tries = 0; k < n && tries < 40; tries++) { const a = rng.range(0, Math.PI * 2), gx = x + Math.cos(a) * rng.range(1, 2.8), gy = y + Math.sin(a) * rng.range(1, 2.8), cx = Math.floor(gx), cy = Math.floor(gy); if (!inside(cx, cy) || !PASSABLE[map.terrain[idx(cx, cy)]] || S.occ[idx(cx, cy)] >= 0) continue; k++; const m = spawnMob(rng.pick(S.night >= 4 ? ['walker', 'runner'] : ['walker']), gx, gy, { instant: true }); m.roam = { x, y, region: -1 }; } },

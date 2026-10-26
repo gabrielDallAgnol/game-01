@@ -3,7 +3,6 @@ import { $, $$, FLAGS, RINGS, SHORT, audio, campCopy, rich } from './shared.js';
 import { SPECS, SPEC_ORDER, SPEC_COST } from '../content/towers.js';
 import { BUILDINGS, KEEP, MAX_LEVEL, UNLOCKS } from '../content/buildings.js';
 import { CREW_NEED } from '../sim/game.js';
-import { KITS } from '../content/districts.js';
 import { LANDMARKS, idx } from '../sim/mapgen.js';
 import { TRADES } from '../content/heroes.js';
 import { hiveName } from '../content/names.js';
@@ -37,11 +36,6 @@ export function createPanels(ui) {
       if (FLAGS.trader && S.trade && !S.trade.done && day) html += opt('opt-trader', 'data-trader="1"', 'Visit the trader', null, 'One deal before nightfall.', false);
       body.innerHTML = html + '</div>' + (l >= 3 ? '<p class="note">The Haven stands at its full height.</p>' : '');
       ui.selected.range = KEEP.range[l - 1] + S.P.towerRange;
-      return;
-    }
-    if (ui.selected.type === 'region' && S.sealed[ui.selected.id]) {
-      const known = S.kits[ui.selected.id]; $('#pEyebrow').textContent = 'The old core · sealed'; $('#pTitle').textContent = ui.names[ui.selected.id];
-      body.innerHTML = `<div class="stat"><span>Behind the old cordon fence${known ? ` · scouts say: <b>${known === 'signature' ? 'a landmark' : (KITS[known] || {}).name || known}</b>` : ''}</span></div><p class="note">The old core opens through the story. You cannot walk in until then. The Ash-Born can.</p>`;
       return;
     }
     if (ui.selected.type === 'region') {

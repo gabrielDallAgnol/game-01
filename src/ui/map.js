@@ -54,7 +54,7 @@ export function createMap(ui) {
   function marks(ctx, ox, oy, s, big) {
     const S = ui.game.state, m = ui.game.map, dot = (x, y, r, col, ring) => { ctx.beginPath(); ctx.arc((x - ox) * s, (y - oy) * s, r, 0, 7); if (ring) { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); } else { ctx.fillStyle = col; ctx.fill(); } };
     const seenAt = (x, y) => S.seen[idx(Math.floor(x), Math.floor(y))] === 1;
-    for (const r of m.regions) if (r.nest && (seenAt(r.nest.x, r.nest.y) || (S.nestAlive[r.id] && !S.sealed[r.id]))) dot(r.nest.x, r.nest.y, big ? 6 : 4, S.nestAlive[r.id] ? '#ff7a1c' : '#6b6b6b');   // [nest3] an Inferno Nest is a fire you can see: always on the map
+    for (const r of m.regions) if (r.nest && (seenAt(r.nest.x, r.nest.y) || S.nestAlive[r.id])) dot(r.nest.x, r.nest.y, big ? 6 : 4, S.nestAlive[r.id] ? '#ff7a1c' : '#6b6b6b');   // [nest3] an Inferno Nest is a fire you can see: always on the map
     if (ui.game.smothered) for (const r of m.regions) if (r.nest && ui.game.smothered(r.id)) dot(r.nest.x, r.nest.y, big ? 8 : 5, '#ffc478', true);   // [pacify] asleep on your ground: it will not wake
     // places to claim: small and quiet (optional); owned ones a plain amber dot
     if (big) for (const l of S.landmarks) if (seenAt(l.x, l.y)) dot(l.x, l.y, l.owned ? 4 : 3.5, l.owned ? '#d9a35a' : 'rgba(214,222,226,.7)', !l.owned);

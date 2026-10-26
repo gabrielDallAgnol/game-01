@@ -47,13 +47,6 @@ export const TITLES = {
   contractor: { name: 'Contract-Keeper', desc: 'Won a season\'s contract.' },
 };
 
-// Calls to open a district: framed by why you would go. Options are built from the frontier.
-export const DISTRICT_CALL = {
-  title: 'Beyond the fence',
-  eyebrow: '[New route]',
-  scene: 'Pick **one route** to open today. Your scouts lead the way.',
-  later: { id: 'later', label: 'Keep the fence shut', hint: 'No route today. +3 scrap.', fx: [{ op: 'gold', n: 3 }] },
-};
 
 // What you find when you first walk up to a district's site. Claim = the building's bonus for good.
 export const SITES = {
@@ -381,4 +374,12 @@ export const ARRIVE = {
   dawn: { icon: 'clock', tag: 'On their own', text: 'They walk to the Haven on their own (arrive by dawn).' },
   join: { icon: 'camp', tag: 'At the Haven now', text: '{who} is at the Haven now.' },
   more: ' +{n} more walk in on their own by dawn.',
+};
+
+// how rare a choice's find is (the card's chip colour)
+export const RARITY = {
+  common: { name: 'Common', color: '#cfc7b6' },
+  rare: { name: 'Rare', color: '#8ab8e8' },
+  unique: { name: 'Unique', color: '#c58af0' },
+  legendary: { name: 'Legendary', color: '#f0b04a' },
 };

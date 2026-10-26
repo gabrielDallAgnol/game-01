@@ -21,7 +21,7 @@ export function createDaily(ctx) {
   const { S, map, rng, toast, ev, apply, chron, grant, push, roomForQuest } = ctx;
   const ST = () => S.story;
   const tmpl = q => DAILY.find(x => x.id === q.id);
-  const openSites = () => S.landmarks.filter(l => !l.owned && !l.stripped && l.kind !== 'unknown' && !S.sealed[l.region]).length;
+  const openSites = () => S.landmarks.filter(l => !l.owned && !l.stripped && l.kind !== 'unknown').length;
   const active = () => { const q = ST().daily; return q && q.state === 'active' && q.day === S.night ? q : null; };
   let calmFor = 0;
   /** the hero is calm: alive, and no hostile dead close (the System never opens a window mid-fight) */

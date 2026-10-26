@@ -7,7 +7,7 @@ import { N, T, idx, inside } from './mapgen.js';
 export const SPOT = { edge: 8, void: 3, snap: 5 };   // cells from the grid border · cells clear of the void · how far a spot may slide to find good ground
 const LAND = [true, true, false, false, false, false, true, false];   // grass, forest, dirt
 
-/** a point an objective may sit on. sealed: S.sealed · null before the run exists (the old core counts as sealed) ·
+/** a point an objective may sit on. sealed: a per-region flag array, or null (no region is sealed) ·
  *  false to ignore the fences (a district the caller is about to open) */
 export function spotOk(map, sealed, x, y) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
@@ -48,24 +48,24 @@ export function createSpots(G) {
   function findSpot() {
     const rng = G.rng;
     for (let t = 0; t < 80; t++) {
-      const reg = map.regions[rng.int(map.regions.length)]; if (reg.ring < 1 || S.sealed[reg.id]) continue;
+      const reg = map.regions[rng.int(map.regions.length)]; if (reg.ring < 1) continue;
       const x = reg.x + rng.range(-7, 7), y = reg.y + rng.range(-7, 7), cx = Math.floor(x), cy = Math.floor(y); if (!inside(cx, cy)) continue;
       const i = idx(cx, cy);
-      if (map.region[i] !== reg.id || !spotOk(map, S.sealed, x, y) || S.occ[i] >= 0 || G.inZone(i) || G.baseDist(x, y) < 6 || Math.hypot(x - c, y - c) > (t < 60 ? 120 : 200)) continue;
+      if (map.region[i] !== reg.id || !spotOk(map, null, x, y) || S.occ[i] >= 0 || G.inZone(i) || G.baseDist(x, y) < 6 || Math.hypot(x - c, y - c) > (t < 60 ? 120 : 200)) continue;
       return { x: cx + 0.5, y: cy + 0.5 };
     }
     return null;
   }
   /** a save from before this check may hold objectives off the map: slide each onto good ground nearby, or a fresh spot */
   function mendSpots() {
-    const ST = S.story, ok = o => spotOk(map, S.sealed, o.x, o.y), move = o => { const p = reachableSpot(map, S.sealed, o.x, o.y, null, 8) || findSpot(); if (p) { o.x = p.x; o.y = p.y; } return !!p; };
+    const ST = S.story, ok = o => spotOk(map, null, o.x, o.y), move = o => { const p = reachableSpot(map, null, o.x, o.y, null, 8) || findSpot(); if (p) { o.x = p.x; o.y = p.y; } return !!p; };
     if (ST) {
       ST.spots = ST.spots.filter(sp => ok(sp) || move(sp));
       if (ST.trial && !ST.trial.done && !ok(ST.trial)) move(ST.trial);
-      ST.quests = ST.quests.filter(q => siteOk(map, S.sealed, S.landmarks[q.site]));
+      ST.quests = ST.quests.filter(q => siteOk(map, null, S.landmarks[q.site]));
     }
     S.drops = S.drops.filter(d => ok(d) || move(d));
     S.pickups = S.pickups.filter(ok);
   }
-  return { findSpot, mendSpots, spotOk: (x, y) => spotOk(map, S.sealed, x, y) };
+  return { findSpot, mendSpots, spotOk: (x, y) => spotOk(map, null, x, y) };
 }

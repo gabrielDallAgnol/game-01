@@ -64,7 +64,6 @@ export function createInput(ui) {
     if (p.type === 'landmark') { const l = S.landmarks[p.id]; if (!l.owned) goTo(l.x, l.y + l.size / 2 + 1); ui.openSel({ type: 'landmark', id: p.id }); return; }
     if (p.type === 'rubble') { goTo(p.x, p.y); ui.openSel({ type: 'rubble', x: p.x, y: p.y }); return; }
     if (p.type === 'building' || p.type === 'keep') { ui.openSel(p.type === 'building' ? { type: 'building', id: p.id } : { type: 'keep' }); return; }
-    if (p.type === 'region' && S.sealed[p.id]) { ui.openSel({ type: 'region', id: p.id }); return; }
     if (p.type === 'region' && ui.game.map.regions[p.id].nest && ui.game.regionInfo(p.id).nest) {
       const n = ui.game.map.regions[p.id].nest;
       if (Math.hypot(n.x - p.x, n.y - p.y) < 4 || !(ui.selected && ui.selected.type === 'region')) { ui.openSel({ type: 'region', id: p.id }); return; }

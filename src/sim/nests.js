@@ -5,6 +5,6 @@ export function createNests(G) {
   /** where the hive's body stands (the building's middle for a hive in a building) */
   const nestBody = reg => reg.nest.body || reg.nest;
   /** is a point within d of a living hive's body (centre to point)? (the hero rests nowhere near one) */
-  const nearHive = (x, y, d) => map.regions.some(r => r.nest && S.nestAlive[r.id] && !S.sealed[r.id] && Math.hypot(x - nestBody(r).x, y - nestBody(r).y) < d);
+  const nearHive = (x, y, d) => map.regions.some(r => r.nest && S.nestAlive[r.id] && Math.hypot(x - nestBody(r).x, y - nestBody(r).y) < d);
   return { nestBody, nearHive };
 }

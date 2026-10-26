@@ -151,12 +151,12 @@ export function createLandmarks(V) {
     for (const v of lmViews) {
       if (v.kind !== v.l.kind && !v.l.engine) { v.g.remove(v.m); v.m = siteModel(v.l.kind, v.l.size, v.l.id * 7); v.g.add(v.m); v.kind = v.l.kind; v.icon.material = iconMat(v.l.kind); }
       const locked = game.siteLock && game.siteLock(v.l.id) >= 0;   // [nests] a living hive guards it: a dull red frame, no claim marker
-      { const open = !S.sealed[v.l.region] && !v.l.stripped && v.l.kind !== 'unknown', col = v.l.owned ? '#d9843a' : locked ? '#8a3a30' : (SITE_LOOK[v.l.kind] || SITE_LOOK.unknown)[0], U = v.frame.userData;
+      { const open = !v.l.stripped && v.l.kind !== 'unknown', col = v.l.owned ? '#d9843a' : locked ? '#8a3a30' : (SITE_LOOK[v.l.kind] || SITE_LOOK.unknown)[0], U = v.frame.userData;
         v.frame.visible = open; v.icon.visible = open && !v.l.owned;
         if (open) { U.mat.color.copy(lc(col)).multiplyScalar(v.l.owned ? 1.2 : locked ? 1 : 1.6 + 0.4 * Math.sin(t * 3 + v.l.id)); U.fill.color.copy(lc(col)); U.fill.opacity = v.l.owned ? 0.06 : 0.12; } }
       const main = objs.some(q => q.site === v.l.id && q.priority === 'main'), opt = !main && objs.some(q => q.site === v.l.id);
       v.g.visible = LANDMARKS[v.l.kind].signature || seenAt(v.l.x, v.l.y); v.pole.visible = v.l.owned;
-      v.mark.visible = !main && !v.l.owned && !v.l.stripped && v.l.kind !== 'unknown' && S.phase === 'day' && !S.sealed[v.l.region] && (!locked || opt);
+      v.mark.visible = !main && !v.l.owned && !v.l.stripped && v.l.kind !== 'unknown' && S.phase === 'day' && (!locked || opt);
       v.mark.scale.setScalar(opt ? 0.9 + Math.sin(t * 3) * 0.06 : 0.75);
       if (v.mark.visible) { v.mark.rotation.y = t; } if (v.l.owned) v.flag.rotation.y = Math.sin(t * 2 + v.l.id) * 0.3;
       // [nests] begin: a building a hollow took is rot-dark while the hive lives, scorched once it burns, itself again once claimed

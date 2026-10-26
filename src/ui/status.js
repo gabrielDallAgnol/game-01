@@ -36,7 +36,7 @@ export function createStatus(ui) {
   function showChat(id) {
     const S = ui.game.state, n = ui.game.story().npc(id); if (!n) return;
     const hist = chats[id] || (chats[id] = []);
-    const bark = k => { const L = BARKS[k]; const t = L[(n.chatToday + hist.length + n.id.length) % L.length]; const open = S.landmarks.filter(l => !S.sealed[l.region] && l.kind !== 'unknown'); return t.replace('{want}', n.persona.want).replace('{fear}', n.persona.fear).replace('{heat}', Math.round(S.noise ?? S.heat ?? 0)).replace('{pop}', ui.game.pop()).replace('{district}', open.length ? 'The road by the ' + open[open.length - 1].kind : 'The fence'); };
+    const bark = k => { const L = BARKS[k]; const t = L[(n.chatToday + hist.length + n.id.length) % L.length]; const open = S.landmarks.filter(l => l.kind !== 'unknown'); return t.replace('{want}', n.persona.want).replace('{fear}', n.persona.fear).replace('{heat}', Math.round(S.noise ?? S.heat ?? 0)).replace('{pop}', ui.game.pop()).replace('{district}', open.length ? 'The road by the ' + open[open.length - 1].kind : 'The fence'); };
     ui.showCard('chat', `<button class="closex" id="chX" aria-label="Back">${icon('close')}</button><div class="eyebrow">[${esc(ROLES[n.role].post)}] bond ${n.bond}/5${n.named ? ' · named' : ''}</div><h1 class="sm">${esc(n.name)}</h1>
       <p class="note">${esc(n.persona.traits.join(', '))} · ${esc(n.persona.quirk)}</p>
       <div class="msgs" id="msgs">${hist.map(m => `<div class="msg ${m.role}">${esc(m.content)}</div>`).join('') || `<div class="msg assistant">${esc(bark('you'))}</div>`}</div>

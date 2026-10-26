@@ -11,7 +11,7 @@ export function createBrain(G) {
     for (const m of S.mobs) if (m.roam && !MOBS[m.kind].animal) have.set(m.roam.region, (have.get(m.roam.region) || 0) + 1);
     let total = S.mobs.filter(m => m.roam && !MOBS[m.kind].animal).length;
     for (const reg of map.regions) {
-      if (S.claimed.has(reg.id) || reg.ring < 1 || S.sealed[reg.id]) continue;
+      if (S.claimed.has(reg.id) || reg.ring < 1) continue;
       const ring = Math.min(2, reg.ring), want = Math.round(R.perRing[ring] * Math.min(1, 0.4 + S.night / 10)) + Math.floor(S.night / (ring >= 2 ? 3 : 8));   // the streets fill up as the nights go on
       for (let k = have.get(reg.id) || 0; k < want && total < R.cap; k++) {
         let spot = null;
@@ -30,7 +30,7 @@ export function createBrain(G) {
   // the woods: herds of deer, a few boar, and from the second night wolves (all are food). Each kind is spread over the
   // open woods (the emptiest region first) and grows back slowly: a full stock at the start, a few groups each dawn.
   function spawnAnimals() {
-    const A = TIDE.roam.animals, wild = map.regions.filter(r => r.ring === 1 && !S.sealed[r.id]);   // [acts] herds graze inside the fence: the hero can reach them
+    const A = TIDE.roam.animals, wild = map.regions.filter(r => r.ring === 1);
     if (!wild.length) return;
     const have = k => S.mobs.filter(m => m.kind === k).length, first = !S.animalsInit; S.animalsInit = true;
     const herd = (kind, size) => {

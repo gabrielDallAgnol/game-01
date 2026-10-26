@@ -13,7 +13,7 @@ export function createWaves(G) {
   const edgeSpawns = [];   // [{ x, y, horde? }]: where a marching horde enters (sim/hordes.js pushes one per horde)
   /** the hives awake tonight (they send nothing in V2; the hero just heals nowhere near one) */
   function activeNests(n = S.night) {
-    return map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && !S.sealed[r.id] && S.wake[r.id] <= n).map(r => r.id);
+    return map.regions.filter(r => r.nest && S.nestAlive[r.id] && !S.claimed.has(r.id) && S.wake[r.id] <= n).map(r => r.id);
   }
   // pacing: forest hollows can be burned from day 1; city hives need a level 2 keep, the old core level 3
   const keepForRing = ring => (ring <= 1 ? 1 : Math.min(MAX_LEVEL, ring));

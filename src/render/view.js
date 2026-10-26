@@ -14,7 +14,6 @@ import { createTerrain } from './view/terrain.js';
 import { createFeel } from './view/feel.js';
 import { createLandmarks } from './view/landmarks.js';
 import { createBeacons } from './view/beacons.js';
-import { createFences } from './view/fences.js';
 import { createMarkers } from './view/markers.js';
 import { createRoutes } from './view/routes.js';
 import { createBars } from './view/bars.js';
@@ -82,7 +81,6 @@ export function createView(canvas, game, opts = {}) {
   const feel = V.feel = createFeel(V);
   const landmarks = V.landmarks = createLandmarks(V);
   const beacons = createBeacons(V);
-  const fences = createFences(V);
   const markers = V.markers = createMarkers(V);
   const routes = createRoutes(V);
   const bars = V.bars = createBars(V);
@@ -118,7 +116,7 @@ export function createView(canvas, game, opts = {}) {
     V.time += dt;
     events.handle(ui.events || []);
     const frozen = feel.tick(dt);
-    keep.sync(); buildings.sync(); mobs.sync(); projectiles.sync(); loot.syncChests(); allies.sync(); loot.syncPurses(); landmarks.updateSites(dt, V.time); folk.stepWalkers(dt); weather.stepRain(dt); landmarks.update(V.time); beacons.syncDrops(V.time); beacons.syncSpots(V.time); loot.syncPickups(V.time); fences.sync();
+    keep.sync(); buildings.sync(); mobs.sync(); projectiles.sync(); loot.syncChests(); allies.sync(); loot.syncPurses(); landmarks.updateSites(dt, V.time); folk.stepWalkers(dt); weather.stepRain(dt); landmarks.update(V.time); beacons.syncDrops(V.time); beacons.syncSpots(V.time); loot.syncPickups(V.time);
     game.zone();
     terrain.update(dt);
     const dayT = S.phase === 'day' ? game.dayFrac() : 1;
