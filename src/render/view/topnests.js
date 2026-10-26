@@ -4,9 +4,7 @@
 // smoke ring, vents with live jets and an ash pad. Where: the engine town's nest (map.area.nest), else every horde
 // spot that sleeps at a nest (S.hordes.spots, why 'nest'). Hot while its horde lives; red and quicker on the night it
 // marches; cold grey once broken. Reads the state, never writes it; draws nothing for the hit body, bars or marks.
-// Null unless ?top=1; draws only while game.v2() is on.
 /* global THREE */
-import { TOP } from '../top.js';
 import { READ } from '../readable.js';
 import { K } from '../kit.js';
 import { lc } from './shared.js';
@@ -15,7 +13,6 @@ const RES = 256, ROOF_Y = 3.5;   // the slab sits over the town's overhead plane
 const KINDS = ['boiler', 'petrol', 'substation', 'tanker'];
 
 export function createTopNests(V) {
-  if (!TOP.on) return null;
   const { S, map, game, world, Wv } = V;
   const canvasTex = (draw, res = RES) => { const c = document.createElement('canvas'); c.width = c.height = res; const x = c.getContext('2d'); draw(x, res); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t; };
   const mat = (tex, o = {}) => new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, ...o });
@@ -109,9 +106,8 @@ export function createTopNests(V) {
   }
 
   function update(dt = 0.016) {
-    const on = !!(game.v2 && game.v2());
-    const k2 = on ? `${!!map.area}|${S.hordes ? S.hordes.spots.length : -1}` : '';
-    if (k2 !== key) { key = k2; for (const o of list) world.remove(o.g); list = on ? sources().map(make) : []; }
+    const k2 = `${!!map.area}|${S.hordes ? S.hordes.spots.length : -1}`;
+    if (k2 !== key) { key = k2; for (const o of list) world.remove(o.g); list = sources().map(make); }
     if (!list.length) return;
     const time = V.time, dark = V.dark, H = S.hordes, march = H && H.plan ? H.plan[S.night] : -1;
     for (const o of list) {

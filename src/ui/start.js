@@ -4,9 +4,7 @@ import { $, $$, FLAGS, LEGACY_KEEP, WHATS_NEW, audio, esc, rich, saves, store } 
 import { BIOMES, generateMap, mapChoices } from '../sim/mapgen.js';
 // [area] next line
 import { AREA, areaOpts } from './area-flag.js';
-import { COMBAT2 } from './combat2-flag.js';
 // [v2] next line
-import { V2 } from './v2-flag.js';
 import { AREAS } from '../sim/areamap.js';
 import { RECIPES } from '../engine/recipes.js';
 import { DIFFICULTY, SAVE_V, createGame } from '../sim/game.js';
@@ -78,8 +76,8 @@ export function createStart(ui) {
   }
   function begin(mapSeed, biome, snap = null) {
     $('#overlay').classList.remove('start');
-    ui.game = snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {}, area: snap.area || null, v2combat: COMBAT2.on, v2: !!snap.v2 })
-      : createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty, legacy: store.get('legacy', { owned: {} }).owned, area: AREA.id, v2combat: COMBAT2.on, v2: V2.on });   // [combat2] v2combat   // [v2] v2
+    ui.game = snap ? createGame({ seed: snap.seed, mapSeed: snap.mapSeed, biome: snap.biome, hero: snap.hero, mode: 'classic', difficulty: snap.difficulty, restore: snap, legacy: snap.legacy || {}, area: snap.area || undefined })
+      : createGame({ seed: setup.runSeed, mapSeed, biome, hero: 'survivor', mode: 'classic', difficulty: setup.difficulty, legacy: store.get('legacy', { owned: {} }).owned, area: AREA.id });
     ui.names = regionNames(mapSeed, ui.game.map.regions.length);
     const qp = new URLSearchParams(location.search).get('q');
     if (!ui.view) { ui.view = createView($('#view'), ui.game, { onFlash: () => audio.play('thunder'), quality: qp || store.get('quality', null) || store.get('autoq', null) || undefined }); }

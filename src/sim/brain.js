@@ -75,7 +75,7 @@ export function createBrain(G) {
     if (m.hunt && !m.warden && heroHome && G.baseDist(m.x, m.y) < 4) { if (S.night < 4 || MOBS[m.kind].animal || rng.next() < 0.7) { m.hunt = false; m.wp = { x: home.x, y: home.y }; } else { m.roam = null; m.hunt = false; ev('drift', { id: m.id }); return; } }
     if (m.hunt || (m.tauntT > 0 && !h.dead)) {
       m.face = Math.atan2(h.x - m.x, h.y - m.y);
-      if (G.v2combat && G.melee2(m, hd, dt)) return;   // [combat2] a hunting roamer winds up too
+      if (G.melee2(m, hd, dt)) return;   // [combat2] a hunting roamer winds up too
       if (hd > 0.9) G.walkTo(m, h.x, h.y, speed * (R.chase[m.kind] || 1.2) * dt); else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; G.hurtHero(MOBS[m.kind].dmg * (m.dmgK || 1)); ev('bite', { id: m.id }); } }
       return;
     }
@@ -166,7 +166,7 @@ export function createBrain(G) {
       const ci = idx(Math.floor(m.x), Math.floor(m.y));
       const lull = G.story && Math.abs(m.x - c) < 7 && Math.abs(m.y - c) < 7 ? G.story.bonus.lullaby() : 1;
       const speed = (rule('winter') ? 0.9 : 1) * lull * m.speed * m.boost * G.W8().speed * (inTar ? 0.6 : 1) * (m.slowUntil > S.time ? m.slowK : 1) / (map.terrain[ci] === T.FOREST ? 1.4 : map.terrain[ci] === T.FORD ? 1.8 : 1);
-      if (G.v2combat && m.windT > 0 && G.melee2(m, h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), dt)) continue;   // [combat2] a wind-up once begun ends in a bite or a whiff, whatever it thinks next
+      if (m.windT > 0 && G.melee2(m, h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y), dt)) continue;   // [combat2] a wind-up once begun ends in a bite or a whiff, whatever it thinks next
       if (m.roam) { stepRoamer(m, dt, speed); continue; }
       const hd = h.dead ? Infinity : Math.hypot(h.x - m.x, h.y - m.y);
       const goal = think(m, hd, dt);
@@ -174,7 +174,7 @@ export function createBrain(G) {
         const far = hd > 30 && Math.hypot(m.x - c, m.y - c) > 40 ? BRAIN.farSpeed : 1;
         if (goal === h) {
           m.face = Math.atan2(h.x - m.x, h.y - m.y);
-          if (G.v2combat && G.melee2(m, hd, dt)) continue;   // [combat2] a telegraphed bite holds it still through the wind-up
+          if (G.melee2(m, hd, dt)) continue;   // [combat2] a telegraphed bite holds it still through the wind-up
           if (hd > 0.9) G.walkTo(m, h.x, h.y, speed * (TIDE.roam.chase[m.kind] || 1.2) * dt);
           else { m.attacking = true; if (m.cd <= 0) { m.cd = 1; G.hurtHero(D.dmg * (m.dmgK || 1)); ev('bite', { id: m.id }); } }
         } else if (goal.wait) { m.face = Math.atan2(h.x - m.x, h.y - m.y); }

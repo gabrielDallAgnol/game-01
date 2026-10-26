@@ -56,7 +56,6 @@ import { createSettle } from './settle.js';
 import { createSearch } from './search.js';
 import { createCombat2 } from './combat2.js';
 // [v2] next line
-import { createV2Core } from './v2core.js';
 // [v2] next line
 import { createHordes } from './hordes.js';
 
@@ -68,11 +67,10 @@ const MODULES = [createCore, createEconomy, createBuildings, createBuild, create
 MODULES.push(createLogging, createStronghold, createPressure);   // [gemini3] appended
 MODULES.push(createConstruct, createSettle);   // [econ3] appended
 MODULES.push(createSearch);   // [area] appended: searching the engine town's houses (does nothing without an area)
-MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the dash (does nothing without v2combat)
-MODULES.push(createV2Core);   // [v2] appended: the V2 core switches the old systems off (does nothing without v2)
-MODULES.push(createHordes);   // [v2] appended: hordes, the V2 night (does nothing without v2)
+MODULES.push(createCombat2);   // [combat2] appended: telegraphed bites and the dash
+MODULES.push(createHordes);   // [v2] appended: hordes, the V2 night
 
-export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, area = 'suburb', v2combat = true, v2 = true } = {}) {   // [area] area: an engine recipe id   // [combat2] v2combat: the flag   // [v2] v2: the V2 core
+export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', mapSeed, mode = 'classic', clock = true, difficulty = 'survivor', restore = null, legacy = {}, area = 'suburb' } = {}) {   // [area] area: an engine recipe id
   if (hero === 'steward') hero = 'merchant';
   const map = generateMap(mapSeed ?? seed, biome, area ? { area } : {});
   const HC = heroKit(hero), DIFF = DIFFICULTY[difficulty] || DIFFICULTY.survivor;
@@ -84,7 +82,7 @@ export function createGame({ seed = 1, biome = 'riverbend', hero = 'warrior', ma
   // ---------- the shared context: run constants, then every module's functions ----------
   const G = { S, map, c, keep, seed, mapSeed, biome, mode, clock, restore, legacy,
     rng: new Rng(hashSeed(seed, 'run')), mobById: new Map(),
-    HC, DIFF, story: null, sc: null, api: null, v2combat: !!v2combat, v2: !!v2 };   // [combat2] v2combat   // [v2] v2
+    HC, DIFF, story: null, sc: null, api: null };
   for (const make of MODULES) Object.assign(G, make(G));
   const {
     rng, mobById, PICKUP, activeNests, autoHero, baseDist, checkForeman, compass, dawn,

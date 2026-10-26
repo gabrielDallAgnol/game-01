@@ -1,4 +1,4 @@
-// [combat2] The numbers of telegraphed melee and the hero's dodge (?v2combat=1; sim/combat2.js applies them).
+// [combat2] The numbers of telegraphed melee and the hero's dodge (sim/combat2.js applies them).
 // A bite is a wind-up you can read and step out of; the dash is the way out.
 
 // windup: seconds from "in reach" to the bite, per kind (the big dead swing slow). A kind not listed takes

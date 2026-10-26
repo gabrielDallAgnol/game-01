@@ -1,6 +1,5 @@
-// [combat2] The dash on screen (?v2combat=1): Space or Shift on a keyboard, and on touch a small round button at the bottom right whose rim fills back as the
-// cooldown runs out. Without the flag it adds nothing to the page. It drives the game only through api.dash().
-import { COMBAT2 } from './combat2-flag.js';
+// [combat2] The dash on screen: Space or Shift on a keyboard, and on touch a small round button at the bottom right whose rim fills back as the
+// cooldown runs out. It drives the game only through api.dash().
 
 const CSS = `
 .c2dash{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--dockH,72px) + 26px);z-index:5;width:56px;height:56px;border-radius:50%;padding:0;
@@ -11,7 +10,6 @@ const CSS = `
 .c2dash.go{animation:c2go .25s ease-out}@keyframes c2go{0%{transform:scale(.86)}100%{transform:scale(1)}}`;
 
 export function createDodge(ui) {
-  if (!COMBAT2.on) return { dodgeTick: () => {} };
   const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
   const btn = document.createElement('button'); btn.className = 'c2dash'; btn.id = 'dashBtn'; btn.setAttribute('aria-label', 'Dash');
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h9M6 8h8M6 16h8M15 6l5 6-5 6"/></svg><span>DASH</span>';

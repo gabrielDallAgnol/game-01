@@ -4,9 +4,9 @@
 import { K, CFG } from './kit.js';
 import { PAL } from './palette.js';
 // [top]
-import { TOP, TOP_FIG } from './top.js';
+import { TOP_FIG } from './top.js';
 
-export const PEOPLE = TOP.on ? 0.6 * TOP_FIG : 0.6;   // [toppop] ×1.8 from above (top.js)          // world units per metre for people (buildings use 0.3: people read a bit larger)
+export const PEOPLE = 0.6 * TOP_FIG;   // [toppop] ×1.8 from above (top.js)          // world units per metre for people (buildings use 0.3: people read a bit larger)
 
 const tmpM = new THREE.Matrix4(), inv = new THREE.Matrix4(), col = new THREE.Color();
 /** merge every mesh under obj into one geometry with a colour attribute; glowing parts go to `glow` */
@@ -26,9 +26,7 @@ export function bake(obj, o = {}) {
     col.copy(isGlow ? mat.emissive : mat.color); if (isGlow) col.multiplyScalar(Math.min(1, mat.emissiveIntensity / 6));   // [look3] dim glows (cracks) read orange, eyes stay full
     const n = g.attributes.position.count, c = new Float32Array(n * 3), vc = mat.vertexColors && g.attributes.color;
     // welded figure parts already carry their colours: keep them (tinted by the material colour)
-    // o.ao: darken toward the feet (grounding) over this height, in the baked model's units
-    const pa = g.attributes.position;
-    for (let i = 0; i < n; i++) { let k = 1; if (o.ao && !isGlow && !TOP.on) {   /* [top] no foot darkening from above */ const t = Math.min(1, Math.max(0, pa.getY(i) / o.ao)); k = 0.62 + 0.38 * t * t * (3 - 2 * t); } c[i * 3] = col.r * (vc ? vc.getX(i) : 1) * k; c[i * 3 + 1] = col.g * (vc ? vc.getY(i) : 1) * k; c[i * 3 + 2] = col.b * (vc ? vc.getZ(i) : 1) * k; }
+    for (let i = 0; i < n; i++) { const k = 1; /* no foot darkening from above */ c[i * 3] = col.r * (vc ? vc.getX(i) : 1) * k; c[i * 3 + 1] = col.g * (vc ? vc.getY(i) : 1) * k; c[i * 3 + 2] = col.b * (vc ? vc.getZ(i) : 1) * k; }
     g.setAttribute('color', new THREE.BufferAttribute(c, 3));
     (isGlow ? glow : body).push(g);
   });
@@ -43,7 +41,7 @@ export function xrayMat(color, o = {}) {
   m.onBeforeCompile = sh => {
     sh.uniforms.xrPush = push;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float xrPush;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\n  ' + (TOP.on ? 'mvPosition.z += xrPush;' : 'mvPosition.xyz *= max(0.0, 1.0 - xrPush / length(mvPosition.xyz));') + '\n  gl_Position = projectionMatrix * mvPosition;');   // [top] ortho: pull toward the camera along z only
+      .replace('#include <project_vertex>', '#include <project_vertex>\n  ' + 'mvPosition.z += xrPush;' + '\n  gl_Position = projectionMatrix * mvPosition;');   // [top] ortho: pull toward the camera along z only
   };
   m.customProgramCacheKey = () => 'xray';
   return m;
@@ -72,8 +70,8 @@ export function outlineMat(color, o = {}) {
   const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(color), side: THREE.BackSide, skinning: !!o.skinning, fog: false });
   const w = { value: OUTLINE.px * (o.w || 1) };
   m.onBeforeCompile = sh => {
-    sh.uniforms.uOutline = w; if (TOP.on) sh.uniforms.uOrthoD = OUTLINE_ORTHO;   // [top]
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uOutline;\nattribute vec3 oNormal;' + (TOP.on ? '\nuniform float uOrthoD;' : ''))
+    sh.uniforms.uOutline = w; sh.uniforms.uOrthoD = OUTLINE_ORTHO;   // [top]
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uOutline;\nattribute vec3 oNormal;' + '\nuniform float uOrthoD;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
   {
     mat4 oM = modelMatrix;
@@ -82,7 +80,7 @@ export function outlineMat(color, o = {}) {
     #endif
     vec4 oV = viewMatrix * oM * vec4(position, 1.0);
     float oS = max(length(oM[0].xyz), 1e-4);
-    transformed += oNormal * uOutline * ${TOP.on ? 'uOrthoD' : 'max(-oV.z, 1.0)'} / oS;
+    transformed += oNormal * uOutline * uOrthoD / oS;
   }`);
   };
   m.customProgramCacheKey = () => `outline${o.skinning ? 's' : ''}`;

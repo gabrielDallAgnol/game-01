@@ -12,7 +12,6 @@ import { K } from './kit.js';
 import { PAL } from './palette.js';
 import { bake, vcMat } from './figures.js';
 // [top]
-import { TOP } from './top.js';
 
 // ground colours (sRGB): soft pastel-earthy by day; the grade and the night light do the rest
 const GROUND = PAL.ground;   // [look3] tokens live in palette.js
@@ -59,7 +58,7 @@ export function buildCity({ map, S, world, W, C, rand, game }) {
       float pw = tNoise(vTWorld.xz * 0.065 + 31.0), ps = tNoise(vTWorld.xz * 5.5);
       vec3 wash = mix(vec3(1.09, 1.02, 0.84), vec3(0.93, 1.03, 1.06), smoothstep(0.3, 0.7, pw));
       gb *= mix(vec3(1.0), wash, 0.8) * (0.95 + 0.1 * ps);
-      diffuseColor.rgb = mix(gb * (0.84 + 0.3 * gn), gp.rgb * (0.9 + 0.18 * gn), pe);` + (!TOP.on ? '' : `
+      diffuseColor.rgb = mix(gb * (0.84 + 0.3 * gn), gp.rgb * (0.9 + 0.18 * gn), pe);` + (`
       // [top] flat ground: the cell colours and the paths (soft edges kept), no wash and no speckle
       { vec3 fb = texture2D(tGround, guv).rgb; fb *= fb;
         diffuseColor.rgb = mix(fb * (0.94 + 0.12 * gn), gp.rgb, pe); }`),

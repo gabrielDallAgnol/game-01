@@ -10,7 +10,6 @@
 import { K } from './kit.js';
 import { PAL } from './palette.js';
 // [top]
-import { TOP } from './top.js';
 
 const L = K.lin;
 export const PRESETS = {
@@ -261,7 +260,7 @@ export function createLook({ renderer, scene, camera, canvas }) {
     if (rt) { rt.dispose(); bl.forEach(t => t.dispose()); }
     const q = quality === 'low' ? 0 : quality === 'medium' ? 1 : 2;
     final = new THREE.ShaderMaterial(FinalShader(q)); final.depthTest = final.depthWrite = false;
-    if (TOP.on) final.defines.FLAT = 1;   // [top] FXAA, bloom, vignette, hit and fade only: no depth edges, haze, tilt-shift, tone curve or grade
+    final.defines.FLAT = 1;   // [top] FXAA, bloom, vignette, hit and fade only: no depth edges, haze, tilt-shift, tone curve or grade
     final.uniforms.tLUT.value = lutTex;
     downs = [new THREE.ShaderMaterial(DownShader(true)), new THREE.ShaderMaterial(DownShader(false)), new THREE.ShaderMaterial(DownShader(false))];
     built = true; resize(w, h);

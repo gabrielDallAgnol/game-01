@@ -1,13 +1,12 @@
-// [combat2] What a telegraphed bite and the dash look like (?v2combat=1): a red ring on the ground under a dead
+// [combat2] What a telegraphed bite and the dash look like: a red ring on the ground under a dead
 // that is winding up, with a red disc growing inside it to the rim as the bite nears; a quick white flash where a
 // bite whiffs; a pale streak along the hero's dash. Flat on the ground and laid on it, under the units, so it reads from straight
-// above (?top=1) as well as from the usual camera. Reads the state and drained events only; null without the flag.
+// above. Reads the state and drained events only.
 /* global THREE */
 import { WINDUP } from '../../content/combat2.js';
 
 export function createTelegraph(V) {
   const { game, S, fx, fx2, Wv } = V;
-  if (!game.combat2 || !game.combat2()) return null;
   const R = WINDUP.reach + WINDUP.grace, NP = 24, H = 0.07;
   const flat = g => { g.rotateX(-Math.PI / 2); return g; };
   const rimGeo = flat(new THREE.RingGeometry(0.8, 1, 48)), edgeGeo = flat(new THREE.RingGeometry(0.74, 1.08, 48)), discGeo = flat(new THREE.CircleGeometry(1, 40)), streakGeo = flat(new THREE.PlaneGeometry(1, 1));

@@ -11,7 +11,6 @@
 /* global THREE */
 import { K } from './kit.js';
 // [top]
-import { TOP } from './top.js';
 
 const lin = hex => new THREE.Color(hex).convertSRGBToLinear();
 
@@ -116,15 +115,16 @@ export function createFx({ renderer, scene }) {
   const lMat = new THREE.ShaderMaterial({
     uniforms: { uTime: time, tAtlas: { value: atlasTex }, uCell: { value: new THREE.Vector2(1 / COLS, 1 / ROWS) }, uTopK: labelK },   // [top] uTopK: labels grow as the ortho view pulls back
     vertexShader: `
-      attribute vec3 aP, aC; attribute vec4 aG, aT; uniform float uTime; uniform vec2 uCell;${TOP.on ? ' uniform float uTopK;' : ''}
+      attribute vec3 aP, aC; attribute vec4 aG, aT; uniform float uTime; uniform vec2 uCell; uniform float uTopK;
       varying vec2 vUv; varying vec3 vC; varying float vA;
       void main(){
         float age = uTime - aT.x, t = age / aT.y;
         if (aT.y <= 0.0 || t < 0.0 || t > 1.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
         vec3 p = aP + vec3(0.0, aT.z * (1.0 - pow(1.0 - min(1.0, t * 1.4), 2.0)), 0.0);
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
-${TOP.on ? '        mv.y += (p.y - aP.y) + 0.6 + aP.y * 0.3; // [top] rise on screen, not in the air (edge-on from above)\n' : ''}        float pop = 1.0 + aT.w * max(0.0, 1.0 - age / 0.14);
-        float s = aG.w * pop${TOP.on ? ' * uTopK' : ''};
+        mv.y += (p.y - aP.y) + 0.6 + aP.y * 0.3; // [top] rise on screen, not in the air (edge-on from above)
+        float pop = 1.0 + aT.w * max(0.0, 1.0 - age / 0.14);
+        float s = aG.w * pop * uTopK;
         mv.xy += (position.xy * vec2(0.5, 0.75) + vec2(aG.z * 0.62, 0.0)) * s;
         gl_Position = projectionMatrix * mv;
         vec2 q = position.xy * 0.5 + 0.5; vUv = vec2((aG.x + q.x) * uCell.x, 1.0 - (aG.y + 1.0 - q.y) * uCell.y);

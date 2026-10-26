@@ -2,7 +2,6 @@
 /* global THREE */
 import { lin } from './palette.js';
 // [top]
-import { TOP } from '../top.js';
 
 // ---------- the world-space hook every lit material shares ----------
 // A 512×512 mask (one texel per cell, sampled in world space): r = your land, g = explored (blurred),
@@ -63,7 +62,7 @@ const NOISE = `
  *   fog: false to skip the fog of war (things drawn above it)
  */
 function territory(m, o = {}) {
-  const defs = [o.emit && 'T_EMIT', o.rim && 'T_RIM', o.flash && 'T_FLASH', o.ground && 'T_GROUND', o.sway && 'T_SWAY', o.fog === false && 'T_NOFOG', TOP.on && 'T_FLAT'].filter(Boolean);   // [top] T_FLAT
+  const defs = [o.emit && 'T_EMIT', o.rim && 'T_RIM', o.flash && 'T_FLASH', o.ground && 'T_GROUND', o.sway && 'T_SWAY', o.fog === false && 'T_NOFOG', 'T_FLAT'].filter(Boolean);   // [top] T_FLAT
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, { tMask: T.mask, tOff: T.off, tAmount: T.amount, tDark: T.dark, tLight: T.light, tLightO: T.lightO, tLightS: T.lightS, tLightK: T.lightK,
       tEmitK: T.emitK, tEmitCol: T.emitCol, tRim: T.rim, tMist: T.mist, tTime: T.time, tAO: T.ao, tFogCol: T.fogCol, tCyan: T.cyan, tFront: T.front, tScan: T.scan, tSway: T.sway, tNight: T.night, tFlat: T.flat }, o.uniforms || {});

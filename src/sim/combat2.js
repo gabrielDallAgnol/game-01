@@ -1,14 +1,13 @@
-// [combat2] Telegraphed melee and the hero's dash (?v2combat=1, G.v2combat). A dead in reach of the hero winds up
+// [combat2] Telegraphed melee and the hero's dash (the V2 fight). A dead in reach of the hero winds up
 // first (event windup {id, dur}); when the wind-up ends it bites only if the hero is still in reach + grace and
 // not mid-dash, else it whiffs (event whiff {id}). The dash (event dash) is a short burst with i-frames.
-// Off by default: every function here is a no-op without the flag, so the classic game is untouched.
 import { DASH, WINDUP } from '../content/combat2.js';
 import { MOBS } from '../content/mobs.js';
 import { idx, inside } from './mapgen.js';
 
 export function createCombat2(G) {
   const { S, ev } = G;
-  const on = () => !!G.v2combat;
+  const on = () => true;   // the dash is always on (kept as a seam: one place to switch it)
   const st = () => S.dash || (S.dash = { dashT: 0, cd: 0, ifr: 0, dx: 0, dy: 0 });
   const walkable = (x, y) => { const cx = Math.floor(x), cy = Math.floor(y); return inside(cx, cy) && G.heroOk(idx(cx, cy)); };
   const windOf = kind => WINDUP.kinds[kind] ?? WINDUP.base * (1 + ((MOBS[kind] && MOBS[kind].size) - 1 || 0) * WINDUP.bySize);

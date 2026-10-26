@@ -11,8 +11,6 @@ export function createHero(G) {
   function gainXp(n) {
     if (S.lvl >= LEVEL.max) return; S.xp += n;
     while (S.lvl < LEVEL.max && S.xp >= LEVEL.xp(S.lvl)) { S.xp -= LEVEL.xp(S.lvl); S.lvl++; refreshMax(); S.hero.hp = Math.min(S.hero.maxHp, S.hero.hp + LEVEL.hp * 2); ev('levelUp', { lvl: S.lvl }); toast(`[Level up: ${S.lvl}] +${Math.round(LEVEL.dmg * 100)}% damage, +${Math.round(LEVEL.hp)} health.`, 'good'); }
-    if (S.lvl % LEVEL.blessEvery === 0 && S.lvl > (S.blessLvl || 0) && !G.v2) {   // [v2] level-ups give XP, no blessings
-      S.blessLvl = S.lvl; S.picks.push('chest'); syncPicks(); if (S.picks.length === 1) G.rollOffer(); toast(`[Level ${S.lvl}] The System grants a blessing.`, 'good'); }
   }
 
   // ---------- walking: the hero's ground and paths round buildings ----------

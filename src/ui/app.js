@@ -43,10 +43,8 @@ MODULES.push(createVersion, createLoggingUi);   // [gemini3] appended
 import { createEconUi } from './econ-ui.js';
 MODULES.push(createEconUi);   // [econ3] appended
 import { createDodge } from './dodge.js';
-MODULES.push(createDodge);   // [combat2] appended: the dash keys and button (nothing without ?v2combat=1)
+MODULES.push(createDodge);   // [combat2] appended: the dash keys and button 
 // [v2] the V2 core hides the switched-off systems' UI
-import { createV2CoreUi } from './v2core.js';
-MODULES.push(createV2CoreUi);   // [v2] appended (nothing without ?v2=1)
 
 export function startApp() {
   // ---------- the shared context: what is on screen right now ----------
@@ -129,7 +127,6 @@ export function startApp() {
     ui.folkTick(dt, events);   // [folk]
     ui.econTick(dt, events);   // [econ3]
     ui.dodgeTick(dt);   // [combat2]
-    ui.v2coreTick(dt);   // [v2]
     hudT -= dt; if (hudT <= 0) { updateHud(); ui.tickHome();   /* [pacify] the way home */ hudT = 0.2; if (ui.selected && !ui.paused) refreshPanel(); }
   }
   requestAnimationFrame(frame);

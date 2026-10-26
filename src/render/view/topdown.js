@@ -1,5 +1,5 @@
 // [top] The top-down camera: an orthographic camera straight above the hero, screen-up = world −z (so the
-// joystick's screen dx/dy already map to world x/z). Same interface as view/camera.js (resize, update, zoom,
+// joystick's screen dx/dy already map to world x/z). Interface: (resize, update, zoom,
 // snapDolly, startOrbit); the follow spring, lead, dusk dolly, cinema and shake are the same ideas, flattened.
 /* global THREE */
 

@@ -2,13 +2,12 @@
 // far doors) and wake at dusk as roamers round their spot: break one at night for
 // its scrap. Now and then one marches on the camp instead: chosen at dawn (so the red route arrows show it all day)
 // and sent through the night queue like the old waves. At dawn the survivors go back to sleep, and every horde regrows
-// a little. Deterministic: its own Rng streams (the spot pick, each dawn's march roll). Nothing without G.v2.
+// a little. Deterministic: its own Rng streams (the spot pick, each dawn's march roll).
 import { Rng, hashSeed } from './rng.js';
 import { HORDES } from '../content/hordes.js';
 import { N, PASSABLE, idx, inside } from './mapgen.js';
 
 export function createHordes(G) {
-  if (!G.v2) return {};
   const { S, map, c, seed, ev, toast } = G;
   const H = () => S.hordes;
   const ok = (x, y) => { const i = idx(Math.floor(x), Math.floor(y)); return inside(Math.floor(x), Math.floor(y)) && PASSABLE[map.terrain[i]] && map.reach[i] && S.occ[i] < 0; };

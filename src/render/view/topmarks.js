@@ -1,10 +1,8 @@
 // [top] Readable from above: what the tilted view lifts into the air (bars, name tags, the MAIN tag, the look-at
 // tag) is pushed toward screen-up (world −z) instead, and grows a little as the camera pulls back so it still
-// reads at 60–90 m. Vertical beams are edge-on from above, so they go; the pulsing ground rings stay. Null unless ?top=1.
-import { TOP } from '../top.js';
+// reads at 60–90 m. Vertical beams are edge-on from above, so they go; the pulsing ground rings stay.
 
 export function createTopMarks(V) {
-  if (!TOP.on) return null;
   // k: 1 at the default zoom, growing slower than the view (a bar at zoom 4 is twice as big, not four times)
   const k = () => { const h = V.cam.half; return Math.max(1, Math.sqrt(Math.min(h.w, h.h) / 12)); };
   /** the screen-up offset (metres along −z) for a mark that the tilted view hangs at height h */

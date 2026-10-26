@@ -79,14 +79,7 @@ export function createHud(ui) {
       const sl = silentLine();   // [towers] silent towers stay on the strip all night
       return `<span class="ic-w">${icon('moon')}</span><span>${esc(nightLine || `Night ${S.night}`)}</span>${sl ? `<span class="sep">·</span>${sl}` : ''}`;
     }
-    // by day: the horde that marches tonight (sim/hordes.js), its side and its size; the silent towers
-    const f = ui.game.forecast(), t = ui.game.map.town, sl = silentLine(), bits = [];
-    if (f.length) {
-      const h = f[0], dir = DIR8[((Math.round(Math.atan2(h.y - t.y, h.x - t.x) / (Math.PI / 4)) % 8) + 8) % 8], n = f.reduce((a, x) => a + x.count, 0);
-      bits.push(`<span class="st risk">A horde marches tonight</span>`, `<span class="from">From the ${dir}</span>`, `<span>~${n} Ash-Born</span>`);
-    }
-    if (sl) bits.push(sl);
-    return bits.join('<span class="sep">·</span>');
+    return '';   // by day the strip stays empty: the horde's march shows on the map
   }
   function updateHud() {
     dockH();
@@ -108,7 +101,7 @@ export function createHud(ui) {
     $('#food').classList.toggle('warn', ui.game.foodPerDawn() + S.food < ui.game.foodNeed());
     { const cw = ui.game.crewing(); $('#pop').classList.toggle('warn', cw.need > cw.people); }
     // tonight, honestly
-    const fc = $('#forecast'); const fh = S.over ? '' : forecastText(); if (fc.dataset.h !== fh) { fc.dataset.h = fh; fc.innerHTML = fh; } fc.classList.toggle('night', night); fc.hidden = !fh || (!systemHere() && S.night === 1 && !night);
+    const fc = $('#forecast'); const fh = S.over ? '' : forecastText(); if (fc.dataset.h !== fh) { fc.dataset.h = fh; fc.innerHTML = fh; } fc.classList.toggle('night', night); fc.hidden = !fh;
     // the Camp, when you are far from it
     { const d = Math.hypot(S.hero.x - ui.game.map.town.x, S.hero.y - ui.game.map.town.y), ca = $('#campAway'); ca.hidden = d <= 25 || S.over; if (!ca.hidden) { $('#campPct').textContent = `${Math.round(kp * 100)}%`; ca.classList.toggle('hit', keepHitT > 0); ca.classList.toggle('low', kp < 0.35); } }
     $('#buildBtn').style.visibility = S.over ? 'hidden' : '';

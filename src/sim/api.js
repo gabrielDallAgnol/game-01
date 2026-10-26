@@ -70,10 +70,10 @@ export function createApi(G) {
     queue: () => G.queueInfo(), queueMove: (id, dir) => G.queueMove(id, dir), queueCancel: id => G.queueCancel(id), crews: () => G.crews(),
     // [area] the engine town's houses: the list, whether one is searched today, the one being searched (-1)
     searchHomes: () => G.searchHomes(), searched: id => G.searched(id), searchAt: () => G.searchAt(),
-    // [combat2] telegraphed bites and the dash (?v2combat=1): is it on, dash (dx, dy: optional; true when it went), its state
-    combat2: () => !!G.v2combat, dash: (dx, dy) => G.dash(dx, dy), dashInfo: () => G.dashInfo(),
-    // [v2] the V2 core (?v2=1): is it on, and which old systems it switches off (sim/v2core.js)
-    v2: () => !!G.v2, v2Off: () => G.v2Off(),
+    // [combat2] telegraphed bites and the dash: is it on (always), dash (dx, dy: optional; true when it went), its state
+    combat2: () => true, dash: (dx, dy) => G.dash(dx, dy), dashInfo: () => G.dashInfo(),
+    // [v2] the V2 core: always on now (kept for old callers)
+    v2: () => true,
   };
   return api;
 }

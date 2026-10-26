@@ -3,11 +3,11 @@
 // the hero stands on a violet ring with an ink edge, a facing tick and a soft light pool; your buildings get
 // signal-blue roofs (own(): a vertex recolour of the cached model) and a blue frame round a cream pad; the dead
 // darken to ash with ember eyes and stand on an ember pip that glows red at night. Colours: src/render/readable.js.
-// Render only: reads the state, never writes it. Null unless ?top=1.
+// Render only: reads the state, never writes it.
 /* global THREE */
 import { MOBS } from '../../content/mobs.js';
 import { outlineMat } from '../figures.js';
-import { TOP, TOP_FIG } from '../top.js';
+import { TOP_FIG } from '../top.js';
 import { READ } from '../readable.js';
 import { K } from '../kit.js';
 import { lc, FOOT, HERO_OUTLINE } from './shared.js';
@@ -16,7 +16,6 @@ const Y = 0.075, FIG = Math.sqrt(TOP_FIG);   // tokens grow with the bigger figu
    // the tokens' height: over the town's ground plane (0.04), under every figure
 
 export function createTopPop(V) {
-  if (!TOP.on) return null;
   const { S, world, Wv, seenAt } = V;
   const k = () => (V.topMarks ? V.topMarks.k() : 1);
   const basic = (hex, o = {}) => new THREE.MeshBasicMaterial({ color: lc(hex), transparent: true, depthWrite: false, fog: false, ...o });
