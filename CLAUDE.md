@@ -3,6 +3,10 @@
 A browser town-defence game against the dead. It is built from zero-dependency ES modules on three.js r128,
 which loads from a CDN as the global `THREE`. Read `docs/ARCHITECTURE.md` for the full module map and the data flow.
 
+There is one game, V2: an engine-built town (`src/engine`, recipe `suburb` by default), seen from straight above,
+hordes by night, the dash, searching houses and claiming sites by day. The old frontier game's systems were
+deleted on Oct 25 (git history keeps them); do not bring one back behind a flag.
+
 ## Layout: where things live
 
 | Change you want | Go to |
@@ -10,11 +14,12 @@ which loads from a CDN as the global `THREE`. Read `docs/ARCHITECTURE.md` for th
 | A number (cost, hp, damage, timing, wave budget) | `src/content/*.js` (data) or `src/sim/state.js` (the rules' constants) |
 | A rule (how something behaves) | `src/sim/<concern>.js`, a `createX(G)` factory wired in `src/sim/game.js` |
 | The public API used by the UI, bots and tests | `src/sim/api.js`: add, never rename |
-| Story text, encounter words, contract names | `src/content/story.js`, `src/content/contracts.js` |
-| Story effects and offers | `src/sim/story.js`, `src/sim/contracts.js` |
-| World canon, the opening cards, crew, act and Rig lines, System voice | `src/content/solar.js` (player-facing names: Ash-Born, Inferno Nest, Haven Rig; code ids keep their old names) |
+| Story text, encounter words | `src/content/story.js` (chapter 1: `story1.js`, `notes.js`) |
+| Story effects and offers | `src/sim/story.js` |
+| World canon, the opening cards, crew, turn-of-day lines | `src/content/solar.js` (player-facing names: Ash-Born, Inferno Nest, Haven Rig; code ids keep their old names) |
+| The map, its size `N`, the town recipes | `src/sim/mapgen.js` (`N`, `DEFAULT_AREA`), `src/sim/areamap.js` (`AREAS`), `src/engine/recipes.js` |
+| The night: hordes | `src/sim/hordes.js`, numbers in `src/content/hordes.js` |
 | Citizen and crew barks | `src/content/barks.js` (`pick(kind)`, `pickWho(kind)`) |
-| What the Chronicler (Claude) may write | `src/ui/story-ai.js` (prompts and validators) |
 | A 3D model or prop | `src/render/kit/<family>.js`, exposed through `K` in `src/render/kit.js` |
 | How the game state is drawn | `src/render/view/<concern>.js`, a `createX(V)` factory wired in `src/render/view.js` |
 | The ground, woods and city streaming | `src/render/city.js` |
@@ -28,8 +33,8 @@ which loads from a CDN as the global `THREE`. Read `docs/ARCHITECTURE.md` for th
 node tools/build.mjs             # → dist/index.html (one self-contained page; dist/ is gitignored)
 npm run dev                      # serve the folder at :5173 (the unbundled ES modules)
 node tools/golden.mjs --check    # the golden runs, a few minutes (one process per scenario)
-npm test                         # golden + sim + ai + model + story + road; 6–15 min, so run it in the background
-node tools/sweep.mjs survivor 16 12 survivor   # balance sweep: the per-seed "reached" list
+npm test                         # golden + every test file; several minutes, so run it in the background
+node tools/sweep.mjs survivor 14 12 survivor   # V2 survival sweep: the per-seed "reached" list
 ```
 
 To check the rendering, use `tools/dev/shot.cjs`. It is local-only because `tools/dev/` is gitignored. It needs
@@ -49,8 +54,8 @@ diff will not match. The page exposes `window.__game` (the API) and `window.__vi
 
 ## The golden test rule
 
-`test/golden.json` holds the hash of the full state and event stream, every night, across scripted runs
-(`tools/golden.mjs`).
+`test/golden.json` holds the hash of the core state, the event stream and the API's queries, every dawn, across
+four scripted V2 runs (`tools/golden.mjs`).
 - **A refactor must leave it byte for byte identical.** Run `node tools/golden.mjs --check` before every commit.
 - Only an intended rule or balance change may re-record it, with `node tools/golden.mjs --write`. Do that in its
   own commit and say so in the message. Never re-record to make a refactor pass.
@@ -69,11 +74,10 @@ diff will not match. The page exposes `window.__game` (the API) and `window.__vi
   `view.js` it fixes material and mesh creation (render-sort ties) and the visual rng `vis`. Add new things at
   the end, and do not reorder existing calls in a refactor.
 - **Events:** emit with `ev(type, payload)` (`sim/core.js`). The payload is spread first and then `t` is set,
-  so **a payload field named `t` is silently overwritten**. Use `dur` for durations (see the flare), and pick
+  so **a payload field named `t` is silently overwritten**. Use `dur` for durations (see the wind-up), and pick
   other names for times.
-- **The engine owns the numbers, the story AI owns the words.** Every effect, cost, reward and number comes from
-  the sim. The Chronicler (`ui/story-ai.js`) may only rewrite text and choose from engine-offered menus. Its
-  answers are validated, and an invalid answer falls back to the script. Never let AI output set a number.
+- **The engine owns the numbers.** Every effect, cost, reward and number comes from the sim; content files hold
+  words and tuning data only.
 - **Render never writes game state, and the sim never touches the DOM or three.js.** The UI changes the game
   only through the API.
 - **Determinism:** all sim randomness goes through `Rng` streams (`sim/rng.js`). Use no `Math.random` in the sim, no
@@ -92,14 +96,14 @@ diff will not match. The page exposes `window.__game` (the API) and `window.__vi
 
 ## Working in parallel worktrees without conflicts
 
-Several branches are usually live at once (`git worktree list`: `hm-road`, `hm-look`, `hm-economy`…).
+Several branches are usually live at once (`git worktree list`).
 - Give each feature its own worktree and branch. Never commit to `main` or `master` directly, and merge
   through an integration branch.
 - **Put new code in new modules.** Most conflicts come from two branches editing the same big file. A new
   `src/sim/x.js`, `src/render/view/x.js` or `src/ui/x.js`, plus one wiring line in the composition root,
   merges cleanly.
-- **Bracket feature hooks in shared files** with marker comments, like the road does:
-  `// [road] begin` … `// [road] end` (search for `[road]`). One merge then resolves each block as a unit, and
+- **Bracket feature hooks in shared files** with marker comments, like the top-down view does:
+  `// [top] begin` … `// [top] end` (search for `[top]`). One merge then resolves each block as a unit, and
   the feature is easy to find and remove.
 - **Append, don't reorder.** Add to the end of `MODULES` (`game.js`), of the view build sequence (`view.js`)
   and of content tables. Reordering changes behaviour (see Order above) and conflicts with everyone.

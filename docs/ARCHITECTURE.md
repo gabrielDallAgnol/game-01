@@ -3,16 +3,23 @@
 Hold Hollowmere is a zero-dependency ES-module game. three.js r128 is the only runtime library; it is loaded
 from a CDN as a global (`THREE`), along with the classic helper scripts in `vendor/`.
 
+There is one game: **V2**. The camp stands in an engine-built town (`src/engine`, a recipe such as `suburb`), the
+world is seen from straight above, the hero fights with telegraphed bites and a dash, searches houses and claims
+sites by day, and by night the hordes wake round their spots and one of them now and then marches on the camp.
+The old frontier game (the frontier map, waves and forecast, hives and the Inferno, the Rig's systems, the road
+and missions, contracts, acts, carts, power and noise, districts, stats, class abilities and evolution,
+blessings and relics, Flare Nights, the Chronicler, the tilted camera) was deleted on Oct 25; git history keeps it.
+
 The code has three layers that talk in one direction:
 
 ```
- content/ (data: numbers and words)
-     │
-     ▼
+ content/ (data: numbers and words)        engine/ (the town generator: recipes → a world of atoms)
+     │                                          │
+     ▼                                          ▼
  sim/  ── game.state (S) ──►  render/  (reads S, draws the world)
   ▲   └─ S.events  ─drain─►   ui/      (reads S, HUD, cards and input)
   │                              │
-  └──── public API (sim/api.js) ◄┘   commands: build, heroTo, choose, startNight …
+  └──── public API (sim/api.js) ◄┘   commands: build, heroTo, dash, choose, claimLandmark …
 ```
 
 - **sim** owns every rule and every number. It has no DOM and no three.js. It is seeded and deterministic: the same
@@ -24,13 +31,13 @@ The code has three layers that talk in one direction:
 
 1. `ui/app.js` frame loop: it steps the sim at a fixed `STEP` (1/60 s, up to 240 steps a frame, scaled by game speed).
 2. Rules push events with `ev(t, payload)` (`sim/core.js`) into `S.events`.
-3. `ui.game.drainEvents()` empties the queue once a frame. The events go to audio, the HUD, the road UI and then
+3. `ui.game.drainEvents()` empties the queue once a frame. The events go to audio, the HUD and then
    `view.frame(dt, { events, selected, ghost, zone })`.
 4. `render/view.js` runs its frame. It turns the events into feedback (rings, particles, shake), syncs the meshes
    with `S` (buildings, mobs, allies, loot…), moves the camera, sets the light, and renders.
 
 Event payloads must not carry a field called `t`, because `ev` spreads the payload first and then sets
-`{ t: type }`, so the type overwrites it. Durations go in `dur`, for example the flare's `e.dur`.
+`{ t: type }`, so the type overwrites it. Durations go in `dur`, for example the wind-up's `e.dur`.
 
 ## Composition roots
 
@@ -43,24 +50,44 @@ per concern:
 | ui | `src/ui/app.js` | `ui` (game, view, card, selected, placing…; changing slots read as `ui.x`) | `createX(ui)` |
 | render | `src/render/view.js` | `V` (game, S, scene graph, `W`/`Wv`, frame clock `time`/`animT`/`dark`) | `createX(V)` in `src/render/view/` |
 | kit | `src/render/kit.js` | none: `K` is a namespace object | plain modules in `src/render/kit/` |
+| engine | `src/engine/pipeline.js` | a `world` (`engine/world.js`) | stages, atoms and validators in `engine/registry.js`, listed per recipe in `engine/recipes.js` |
 
 In every root, creation order and per-frame call order are load-bearing:
 - **sim**: the order fixes the draws from the seeded streams. The golden test catches any change.
 - **render**: the order fixes when materials and meshes are created, which sets the render-sort ties, and the
   order of draws from the visual rng `vis`.
 
+## The map
+
+`sim/mapgen.js` always builds an engine area (`DEFAULT_AREA = 'suburb'`; `createGame({ area })` picks another
+recipe). `sim/areamap.js` rasterises the engine's world onto the square grid round the camp: terrain, the
+town's houses (`map.area.homes`, searched by day), its sites (landmarks you claim) and its nest. The grid is
+`N` cells a side, one exported constant in `mapgen.js` (448 today): raise it there and nowhere else. Regions are
+the camp plus eight sectors in two bands (all ring 1). The map keeps its old fields (`terrain`, `reach`,
+`region`, `regions`, `slots`, `landmarks`, `town`, `high`, `lm`…), so the rules read it as before.
+
+The start screen offers the recipes in `AREAS` (`sim/areamap.js`; `hollowmere` is left out until it is ready);
+`?area=` in the URL picks one (`ui/area-flag.js`).
+
 ## Module map
 
 ### `src/content/`: pure data, so tuning starts here
 
-`buildings` · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
-`solar` (the Solar Flare canon, opening, acts, System voice) · `barks` (citizen lines) · `season` (pacing, rules) · `folk` (the folk's projects) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
-(numbers and words for the road and missions) · `weather` · `legacy` · `woods` (worn trails)
-`season` (pacing, rules) · `folk` (the folk's projects) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
-(numbers and words for the road and missions) · `weather` · `legacy` · `woods` (worn trails) · `econ` (`[econ3]` queue, carts, nodes, trickle share, settlement; `ECON` flags) · `relics` (`[econ3]` relics, tomes, blueprints)
-`buildings` · `towers` (the level 3 roles) · `mobs` (mobs, waves, tide) · `heroes` · `perks` (blessings) · `packs` · `districts` · `names` ·
-`season` (pacing, rules) · `contracts` · `story` (encounters, with the offline text) · `scavenge` · `road`
-(numbers and words for the road and missions) · `weather` · `legacy`
+`buildings` · `towers` (the level 3 roles) · `mobs` (mobs, the tide: day and night lengths) · `heroes` ·
+`combat2` (wind-ups and the dash) · `hordes` (horde count, size, spacing, march odds) · `perks` (the `S.P`
+modifiers story choices move) · `packs` · `names` · `solar` (the Solar Flare canon, the opening, the crew,
+the turn-of-day lines) · `barks` (citizen and crew lines) · `season` (pacing, rules) · `folk` (the folk's
+projects) · `story` (encounters, with their text) · `story1`, `notes`, `mechanic`, `rig2` (chapter 1,
+"The Engine Works", for the `hollowmere` recipe) · `scavenge` · `weather` · `legacy` · `woods` (worn trails) ·
+`econ` (the construction queue, the Settlement) · `stronghold`, `logging`, `pressure` (ported from Gemini's fork)
+
+### `src/engine/`: the town generator
+
+A recipe (`recipes.js`) lists atoms, stages and validators; `pipeline.js` runs them on a fresh `world` from a
+seed tree (`seeds.js`), retrying when a fatal validator fails. `schema.js` (atoms are data), `sockets.js`,
+`network.js` (street networks), `frontage.js` (lots along a street), `occupancy.js`, `spatial.js`, `geom.js`,
+`units.js` (one unit is one metre), `palettes.js` (colours are roles), `names.js` (street names), `draw2d.js`
+(the flat top-down look, also used by the view), `chapter1.js` (the suburb recipe under its old name).
 
 ### `src/sim/`: the rules
 
@@ -69,122 +96,87 @@ In every root, creation order and per-frame call order are load-bearing:
 | `game.js` | composition root: state, `G`, start-of-run setup (in a fixed order), `step()` |
 | `state.js` | every tuning constant the rules read, plus `createState` (the shape of S) |
 | `api.js` | the public API object (a contract: add, never rename) |
-| `core.js` | `ev`, `toast`, `fail`, blessings owned, `earn`, pop, rules, reveal (created first) |
-| `economy.js` | costs, hands, power, what homes and farms give, the keep's needs |
-| `buildings.js` | grid, footprints, `canPlace`, placing and removing |
-| `build.js` | day actions: build, palisade lines, upgrade, demolish, rebuild |
-| `waves.js` | which hives are awake, the night's budget and waves |
-| `forecast.js` | threat ratio and rating, the night's paths |
-| `combat.js` | towers, crews, damage, hits, death |
-| `noise.js` | the Noise meter |
-| `brain.js` | the dead's minds: roamers, scent, hunting, ambushes |
-| `hives.js` | streams from hives, burning a hive, the horde |
-| `nests.js` | hives defend themselves: the guard pack, proximity rage, sites locked until their hive burns |
-| `pacify.js` | `[pacify]` quiet land: the Camp, claimed regions and `PACIFY.r` beyond the base (minus an awake hive's reach); a hive asleep there is smothered (never wakes, on the map, still burnable); every waking hive is revealed with a System line; the home threat `homeK` (a ≤ 1 ratio on `nightBudget` after night 10: the curve read at a "home night" = slow plateau + a load per awake, unpacified hive); Return to Camp (by day, from a lit fire or a held site, 2.5 s channel, 45 s cooldown) and the dusk warning |
-| `steer.js` | the dead's feet round walls (a small cached A* when the straight line is blocked) and the spawn-ground test |
-| `towers.js` | tower specialisations at level 3 (Mortar, Brazier, Ballista, Watch Bell): choosing one, how each fires, the shell burst, their share of the threat estimate (`[towers]` hooks in combat.js and brain.js) |
-| `loot.js` | street finds, supply drops |
-| `districts.js` | sites, sealed districts, kits |
-| `seasons.js`, `contracts.js` | season rules, weather, contracts (the engine side) |
-| `hero.js` | xp and levels, ability, class evolution, pathing, autopilot |
-| `blessings.js` | offers and rerolls |
-| `save.js` | dawn snapshot and restore |
-| `story.js` | story engine: picks encounters and applies their effects (own RNG) |
-| `daily.js` | the daily quest: offered when calm (Accept / Not now), progress, settled at dawn |
+| `core.js` | `ev`, `toast`, `fail`, `earn`, pop, rules, reveal, `rollOffer` (drops picks: V2 has no blessing cards) |
+| `mapgen.js`, `areamap.js` | the map (always an engine area), `N`, terrain kinds, landmarks; the engine town rasterised |
+| `economy.js` | costs, hands, what homes and farms give, the keep's needs, the dawn |
 | `income.js` | scrap and food by the second (day and, slower, night); dawn closes the cycle for the ledger |
-| `road.js`, `missions.js` | the road, stations, convoys, night missions (`[road]` feature) |
-| `folk-build.js` | the folk build by themselves: needs, the village fund (a share of income), one project a day, props, beauty (`[folk]` hooks) |
-| `woods.js` | worn trails: woods the hero keeps walking through turn to dirt (`[woods]` hooks in game.js, save.js) |
-| `rig.js` | `[rig3]` the Haven Rig (the keep that moves): Plating / Guns / Cargo / Speed rise for good with the town's building tiers (`content/rig.js`), `rigK` scales the keep's hp, damage and shots; Pack up & roll (`rigPack`: by day, once the act's road is open) salvages every ground building into cargo (80–100%: tier, Cargo, the hero's GOV); `rigArrive` gives the next act's run what rode along; events `rigUp`, `rigRoad`, `rigMigrate`, `rigAnchor`, `actStart`; wraps snapshot/restore with a versioned `rig` block |
-| `migrate.js` | `[rig3]` the act change: `migrateRun(api)` builds the next act's game (new seed and map seed, the act theme, the carried hero, stats, story, cargo); not imported by game.js (no cycle) |
-| `legmap.js` | `[rig3]` an act's map theme on top of mapgen: act 2 (the rail yard) thins the woods, lays freight lines (`map.rail`) and places boxcars, a gantry crane and a water tower (`map.decor`) |
-| `construct.js` | `[econ3]` the construction queue: a placed building is a blueprint (scaffold, attackable, does nothing yet); upgrades and carts are jobs too; crews (1 + one per 5 people) work it top down, skipping a site with the dead close by; reorder and cancel (full refund) |
-| `haul.js` | `[econ3]` harvester carts and resource nodes: timber stands and scrap heaps in three bands that run dry; carts drive from the keep's yard, load, drive home and unload (the main scrap income; the trickle keeps `TRICKLE`); the dead go for a passing cart; more carts by Camp level |
-| `relics.js` | `[econ3]` no blessing cards: every pick becomes a find (relic, stat tome, blueprint: `content/relics.js`); the dawn Settlement report pays XP for a well-run town |
-| `stats.js` | `[hero3]` the Thermal Pioneer's stats STR/AGI/INT/GOV: points (3 at the awakening, 3 a level, `G.addStatPoints(n, why)` for stat tomes), the per-point hooks (`attr*` in combat.js, hero.js), unlocks, titles, the bots' spread, the `hero3` save block (wraps snapshot/restoreSnap); `STATS_FLAG.on` (content/stats.js) switches the class picks off |
-| `powers.js` | `[hero3]` the abilities stats unlock (content/abilities.js): actives (Heavy Cleave, Blink Strike, Aether Burst, Rally Cry, Wild Shape, Raise the Fallen), passives and hybrids, the autopilot's use |
-| `mapgen.js`, `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | map generation, flow fields, town builders, scavenging, seeded RNG |
+| `buildings.js`, `build.js` | grid, footprints, `canPlace`, placing and removing; build, upgrade, demolish, rebuild |
+| `construct.js` | the construction queue: a placed building is a scaffold until a crew finishes it |
+| `settle.js` | the dawn Settlement: a well-run night pays XP |
+| `waves.js` | night length and time of day, `spawnMob` / `spawnAtNest`, `startNight`, the night queue the hordes fill |
+| `hordes.js` | the V2 night: hordes sleep at the town's sites, nest and far doors, wake at dusk, one marches now and then |
+| `forecast.js` | tonight's march for the UI: the marching horde and its traced route (`view/routes.js` draws it) |
+| `combat.js` | towers, crews, damage, hits, death |
+| `combat2.js` | telegraphed bites (`windup`, `whiff`) and the hero's dash with i-frames |
+| `brain.js`, `steer.js` | the dead's minds (roamers, scent, hunting) and feet round walls; where a dead may stand |
+| `nests.js` | where a nest's body stands, and what is near one |
+| `search.js` | searching the town's houses: stand at a door and the hero turns it over (once a day) |
+| `districts.js` | sites: walking up to a landmark and claiming it (`landmarkReach`, `claimLandmark`) |
+| `pacify.js` | Return to Camp from a held site, and the dusk warning |
+| `towers.js` | tower specialisations at level 3 (Mortar, Brazier, Ballista, Watch Bell) |
+| `loot.js`, `spots.js` | street finds, supply drops; where an objective may stand |
+| `hero.js` | xp and levels, walking and pathing, the autopilot |
+| `seasons.js` | season rules, weather from rules, difficulty |
+| `story.js`, `daily.js` | the story engine (own RNG); the daily quest |
+| `folk-build.js` | the folk build by themselves: needs, the village fund, one project a day |
+| `woods.js`, `logging.js`, `pressure.js`, `stronghold.js` | worn trails; felling trees; committed hunters; small and strong |
+| `save.js` | dawn snapshot and restore (`SAVE_V`) |
+| `flow.js`, `planner.js`, `scavenge.js`, `rng.js` | flow fields, the town builders, scavenging, seeded RNG |
 
 ### `src/render/`: the three.js view
+
+The camera is orthographic and looks straight down (`view/topdown.js`); people are drawn `TOP_FIG` (1.8×) bigger
+than true scale (`render/top.js`).
 
 | Module | Concern |
 |---|---|
 | `view.js` | composition root: builds `V` and the view modules in order, runs `frame()`, returns the API (`window.__view`) |
 | `view/shared.js` | constant tables: `lc`, `BSCALE`, `FOOT`, `UNIT`, hero rigs, house colours, `ringGeo` |
-| `view/terrain.js` | grid → world (`W`, `Wv`, plateaus), `seenAt`, city build, shroud and territory repaint, scan wave |
-| `view/feel.js` | fx hooks: `burst`, `dust`, `celebrate`, `floatLabel`; hit-stop, trauma, `mobOf`, flares list |
-| `view/events.js` | turns drained events into feedback |
-| `view/hives.js` | hive models (a hollow that took a building: the rot on that building), glow, haze, eyes, eruption swell, hive bars |
-| `view/rest.js` | the "+ RESTING" tag while the hero heals at the Camp |
-| `view/birds.js` | birds flushed from the trees as the hero walks the woods, or by a kill there (ambience only) |
-| `view/landmarks.js` | landmark and district-site models, lot frames, icons, quest marks (plus retired scavenge caches) |
-| `view/beacons.js` | supply drops, street-encounter and trial beacons |
-| `view/fences.js` | quarantine fences, scouted-district banners |
-| `view/markers.js` | selection, range, move, hero and bounty rings, contract tag |
-| `view/routes.js` | tonight's route chevrons |
-| `view/bars.js` | health bars (`makeBar`, `setBar`) |
-| `view/keep.js` | the hall: rebuilt on level change, its fires and smoke (`fires`, `smoke`) |
-| `view/buildings.js` | building models (cached, flattened), pads, cheer, ruins, pop, upgrade sweep, tower tags |
-| `view/mobs.js` | the crowd (instanced dead, dying, townsfolk, camp-fire circle), boss tags, flames |
-| `view/hero.js` | hero rig, x-ray, aura, hero and bounty ring placement, hero bar |
-| `view/allies.js` | sellswords and companions |
-| `view/projectiles.js` | arrows, spit, bolts |
-| `view/loot.js` | chests, purses, street pickups |
-| `view/placing.js` | placement ghost and build-zone overlay |
-| `view/folk.js` | villagers and scavenger crews |
-| `view/village.js` | the folk's props (instanced, `kit/village.js`) and the scaffold on today's project |
-| `view/haul.js` | `[econ3]` resource nodes (shrink as they are picked), harvester carts, a scaffold on every blueprint in the queue |
-| `view/camera.js` | zoom, follow spring, dusk dolly, orbit, shake, resize |
-| `view/weather.js` | rain, fog, lightning, ambient particles |
-| `view/lights.js` | time-of-day clock (sets `V.dark`), light pools, windows, lenses, rim, mist, blackout |
-| `view/picking.js` | `groundAt`, `pick`, `project` |
-| `view/cinema.js` | the look-at shot: camera eases to a place and back, beam, ring and tag (`lookAt`, `skipLook`, `looking`) |
-| `kit.js` + `kit/` | the city kit: `config` (CFG), `palette`, `territory` (mask and shader hook), `materials`, `rng`, `builder` (B), `helpers`, `city`, `street`, `craft`, `houses`, `defences`, `farm`, `keep`, `frontier` (hall, home), `hives`, `rig`, `people`, `overlays`, `flatten` |
-| `city.js` | woods, ground, streets and ruins from the cell map; streaming |
-| `look.js` | lights, sky, post-processing, quality levels |
-| `palette.js` | the storybook colour tokens (`PAL`: sky, haze, ground, caution-yellow, ember, System blue, warm ink, Ash-Born skin). Change a colour here, not in look.js / city.js |
-| `ink.js` | `inkify(obj, { w, color, kind })`: gives every mesh under `obj` a back-face ink hull in `PAL.ink` (constant ~1.5 px, shares the geometry, one extra draw per mesh). Call it on any new static model (nests, the Rig, carts) once, where the model is built or cached; `setInk(false)` switches all `static` hulls off. Characters (`liveRig`, `createCrowd`) have their own hulls in figures.js. |
-| `fx.js` | pooled particles, rings, labels, light pools, blob shadows |
-| `figures.js` | baked crowd figures, live rigs, x-ray material |
-| `meshes.js`, `villagers.js` | small mesh builders, villager logic |
-| `road-view.js` | the road, drawn (`[road]` feature) |
-| `view/haven.js` | `[rig3]` the Haven Rig in motion: packed ↔ anchored pose, fold → drive off (camera follows via `V.rigCam`), drive in → unfold; a tap skips |
-| `view/legs.js` | `[rig3]` an act's look: its ground colours (`GROUND_TINT` in city.js) and the rail yard's rails, boxcars, crane, water tower |
-| `kit/haven.js` | `[rig3]` the Haven Rig model (`K.haven`, `K.setHaven`): cab, tracks, flatbed, stacks, halogens, outriggers, awnings, solar pylon; turrets, plates and crates follow the Rig's systems |
+| `view/terrain.js` | grid → world (`W`, `Wv`), `seenAt`, the shroud and territory repaint |
+| `view/atoms.js` | the engine town drawn in its own flat looks (`engine/draw2d.js`) |
+| `view/topdown.js` | the top-down camera: follow spring, lead, dusk dolly, cinema, shake, resize |
+| `view/topflat.js`, `view/topmarks.js`, `view/toppop.js`, `view/topnests.js` | the flat light; bars and tags toward screen-up; the hero, buildings and dead popping from above; the nest as an infested building |
+| `view/hordes.js`, `view/routes.js`, `view/telegraph.js` | where the hordes sleep; tonight's march chevrons; wind-up rings, whiffs and the dash streak |
+| `view/feel.js`, `view/events.js` | fx hooks (`burst`, `dust`, `celebrate`, `floatLabel`, hit-stop, trauma); drained events → feedback |
+| `view/keep.js` | the camp's heart: the Haven Rig truck model (`K.haven`), its fires, smoke, beacon and hum |
+| `view/buildings.js`, `view/scaffolds.js` | building models (cached, flattened), pads, ruins, upgrade sweep; a scaffold on every blueprint |
+| `view/mobs.js`, `view/hero.js`, `view/allies.js`, `view/folk.js`, `view/village.js` | the crowd; the hero rig; sellswords and companions; townsfolk; the folk's props |
+| `view/landmarks.js`, `view/beacons.js`, `view/markers.js`, `view/loot.js`, `view/projectiles.js`, `view/bars.js` | sites and their frames and icons; drops and beacons; rings and the MAIN marker; loot; shots; health bars |
+| `view/lights.js`, `view/weather.js`, `view/birds.js`, `view/rest.js` | the time-of-day clock (`V.dark`), light pools, windows; rain and lightning; birds; the resting tag |
+| `view/picking.js`, `view/placing.js`, `view/cinema.js`, `view/gltf.js` | `groundAt`, `pick`, `project`; the ghost; the look-at shot; the GLTF test path (`--gltf`) |
+| `kit.js` + `kit/` | the model kit (`K`): `builder` (B), `materials`, `palette`, `territory`, `houses`, `defences`, `farm`, `keep`, `haven` (the truck), `people`, `hives` (landmark props), `village`, `lumber`… |
+| `city.js` | woods, ground and streets from the cell map; streaming |
+| `look.js`, `palette.js`, `readable.js`, `ink.js` | light, sky, post-processing, quality; the colour tokens; the readability colours from above; the ink line |
+| `fx.js`, `figures.js`, `meshes.js`, `villagers.js` | pooled particles, rings, labels, light pools; baked crowd figures; mesh builders; villager logic |
 
 ### `src/ui/`: screens, HUD and input
 
 | Module | Concern |
 |---|---|
 | `app.js` | composition root: `ui` context, the modules, the frame loop |
-| `shared.js` | `$`, `store`, audio, Chronicler, saves, flags, text helpers |
-| `start.js` | start screen, beginning or continuing a run, creates game and view |
-| `map.js` | world map and minimap |
-| `cards.js` | the one modal: story cards and System windows |
-| `status.js` | Status window, companion chat, More sheet |
-| `hud.js` | System strip and toasts, banners, top bar |
-| `placing.js` | build tray, placing, palisade lines |
-| `panels.js` | selection panel |
-| `input.js` | touch, mouse, keys |
-| `cinema.js` | first-time hive shots (the first hollow, city hive, burst): queues them past cards, slows the sim, tap skips |
-| `system.js`, `icons.js`, `audio.js`, `saves.js` | the System's voice, icon set, synthesised sound, cloud saves |
-| `story-ai.js` | the Chronicler: Claude rewrites words only; every answer is validated |
-| `road-ui.js` | road and mission HUD (`[road]` feature) |
-| `homeward.js` | `[pacify]` the walk home on the Camp pill and the Return to Camp button |
-| `folk-ui.js` | the folk's project chip (veto), "Let them build" in the build menu, their ledger line |
-| `rig-ui.js` | `[rig3]` the Rig section of the Camp panel (systems, what raises them, the cargo), the Pack up & roll pill and confirmation, the act change (`ui.beginRun` swaps the game and the view, then saves) |
-| `econ-ui.js` | `[econ3]` the construction queue chip (reorder, call off), the carts row in the build menu, a blueprint's panel, the Settlement report toast |
-| `hero3.js` | `[hero3]` the System Status window (stats, + buttons, abilities by threshold, hybrids), the title chip, the [+3 Stat Points] moment, the ability bar |
+| `shared.js` | `$`, `store`, audio, saves, flags, text helpers, `WHATS_NEW` |
+| `start.js`, `intro.js`, `area-flag.js` | start screen, beginning or continuing a run (creates the game and the view); the opening cards; which recipe |
+| `hud.js`, `system.js`, `solar-voice.js` | the System strip and toasts, banners, top bar; the System's voice; one crew bark a dawn |
+| `cards.js`, `status.js`, `panels.js` | the one modal (story cards, System windows); the Status window and More sheet; the selection panel |
+| `placing.js`, `econ-ui.js`, `folk-ui.js`, `logging-ui.js` | the build tray and placing; the construction queue chip; the folk's project chip; the trees panel |
+| `input.js`, `dodge.js`, `homeward.js` | touch, mouse and keys; the dash key and button; the walk home and Return to Camp |
+| `map.js`, `cinema.js` | world map and minimap; first-time look-at shots |
+| `icons.js`, `audio.js`, `saves.js`, `version.js` | the icon set, synthesised sound, cloud saves, the build tag |
 
-## The story split: the engine owns the numbers, the story AI owns the words
+## The story split
 
-`sim/story.js` and `sim/contracts.js` build every offer, cost and effect. `content/story.js` and
-`content/contracts.js` hold the offline text. `ui/story-ai.js` (the Chronicler) may rewrite names, framing and
-prose, and may pick from menus that the engine offers. Its answers are parsed and validated, and anything that
-does not validate is dropped in favour of the script. A Chronicler answer never sets a number.
+`sim/story.js` builds every offer, cost and effect; `content/story.js` (and `story1.js` for chapter 1) holds the
+text. The engine owns every number.
 
-## Build
+## Tools
 
-`node tools/build.mjs` inlines every module reachable from `src/main.js` into `index.html` as one classic
-script, and inlines the `vendor/` helpers too. The output is `dist/index.html`. The bundler is a set of regexes,
-so the module syntax must stay simple. CLAUDE.md lists the rules.
+- `tools/build.mjs`: inlines every module reachable from `src/main.js` into `index.html` as one classic script
+  (plus the `vendor/` helpers) → `dist/index.html`. `--area <id>` sets the build's default recipe, `--gltf` the
+  GLTF test path. The bundler is a set of regexes, so the module syntax must stay simple (CLAUDE.md).
+- `tools/golden.mjs`: four scripted V2 runs (A suburb survivor with a save round trip, B milltown on autopilot,
+  C downtown nightmare with nobody building, D suburb story with a hand-built camp and a claimed site), each
+  hashing the core state, the event stream and the API's queries every dawn.
+- `tools/bot.mjs`: the scripted player (day turn, hero tick, the V2 habits `storyTurn`, `dodge`, `searchTick`,
+  and `playRun`).
+- `tools/clockbot.mjs`, `tools/sweep.mjs`: the V2 survival sweep (one JSON line per seed; the sweep prints the
+  per-seed `reached` list, the falls, and how the camp held on the nights a horde marched).
