@@ -97,7 +97,12 @@ export function createMedium(o) {
         { vec2 cp = gl_FragCoord.xy / uCellPx, g = fract(cp); float rl = flatRoof > 0.5 ? 0.55 : mix(0.34, 0.95, lit); rl *= (1.0 - 0.85 * ridge) * (1.0 - 0.75 * eave) * (0.88 + 0.24 * h21(floor(cp)));
           float gm = texture2D(tGlyph, vec2((floor(pow(clamp(rl, 0.0, 0.999), 0.6) * ${NG}.0) + g.x) / ${NG}.0, g.y)).a;
           vec3 rc = vec3(0.9, 0.88, 0.82) * (0.45 + 0.6 * rl) * mix(1.0, 0.55, uNight);
-          col = mix(col, mix(rc * 0.16, rc, gm), roof); }`);
+          // a lit house at night: its windows show as warm letters along the eaves, the roof catches a little of its own glow
+          vec4 LM = texture2D(tLight, t); float win = LM.g * uNight * step(0.55, h21(floor(cp * vec2(0.5, 1.0)) + 3.1)) * smoothstep(0.35, 0.95, 1.0 - rf.a + eave);
+          rc = mix(rc, vec3(1.0, 0.7, 0.32) * (0.9 + 0.3 * rl), clamp(win * 1.4, 0.0, 1.0)); rc += vec3(0.22, 0.12, 0.04) * LM.g * uNight * 0.6;
+          col = mix(col, mix(rc * 0.16, rc, gm), roof); }
+        // the night's lights on the ground: street lamps, lit windows, a doorway left open (they breathe a little)
+        { float lm = texture2D(tLight, t).r * (0.88 + 0.12 * vnoise(w * 0.4 + uTime * 1.3)); col += vec3(1.0, 0.64, 0.3) * lm * uNight * (0.35 + 0.65 * smoothstep(0.0, 0.25, lm)) * 0.75; }`);
   swap('        gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }', `        // [medium] the solids: each cell a glyph by its light, the material's colour in the letters, glow through them
         vec2 ci = floor(gl_FragCoord.xy / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);
         // cast shadows: from this point walk toward the sun (north-west, the same sun as the town's) and ask whether
@@ -113,11 +118,12 @@ export function createMedium(o) {
           float lev = max(floor(pow(clamp(A.r, 0.0, 0.999), 0.5) * ${NG}.0), floor(em * ${NG - 1}.0));
           vec2 g = fract(gl_FragCoord.xy / uCellPx); float gm = texture2D(tGlyph, vec2((lev + g.x) / ${NG}.0, g.y)).a;
           vec3 lc = mix(vec3(0.94, 0.92, 0.87), mc, 0.6) * (0.55 + 0.75 * A.r) * mix(1.0, 0.62, uNight);   // pale letters, the colour as a tint
+          lc += vec3(1.0, 0.66, 0.32) * texture2D(tLight, t).r * uNight * 0.9;   // a figure under a lamp is lit by it
           lc *= 1.0 - 0.45 * sMask;
           col = mix(mc * (0.1 + 0.2 * A.r) * mix(1.0, 0.6, uNight), lc, gm) + ec * em * (0.25 + 1.1 * gm);   // a dark backing in the material's own colour keeps a small figure's silhouette
         }
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`);
-  const PAL = `uniform sampler2D tCells, tGlyph; uniform vec2 uCells; uniform float uCellPx;
+  const PAL = `uniform sampler2D tCells, tGlyph, tLight; uniform vec2 uCells; uniform float uCellPx;
     vec3 matCol(float m, float em){
       if (m < 1.5) return vec3(0.98, 0.72, 0.16); if (m < 2.5) return vec3(0.96, 0.24, 0.2); if (m < 3.5) return vec3(0.5, 0.38, 0.28); if (m < 4.5) return vec3(0.88, 0.9, 0.92);
       if (m < 5.5) return vec3(0.95, 0.97, 0.95); if (m < 6.5) return vec3(0.42, 0.36, 0.26); if (m < 7.5) return vec3(0.74, 0.72, 0.68); if (m < 9.5) return mix(vec3(0.24, 0.22, 0.2), vec3(1.0, 0.6, 0.25), em);
@@ -240,7 +246,7 @@ export function createMedium(o) {
 
     // ---------- zoomed out: each thing becomes one letter on a dark plate, a fixed size on screen (the roguelike map) ----------
     // far 0 at the close camera, 1 when a figure would be a couple of cells. Amber rings are yours, ember red is the dead.
-    const far = Math.max(0, Math.min(1, (21 - cam.ppm) / 9));
+    const far = Math.max(0, Math.min(1, (13.5 - cam.ppm) / 5));
     if (far > 0.01) {
       const { turrets = [], rig = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
       const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();

@@ -136,6 +136,19 @@ function start() {
   const tTown = tex(gC), tOver = tex(oC), tMach = tex(mC);
   const mtex = c => { const t = new THREE.CanvasTexture(c); t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; return t; };   // [ash2] no mips: an angle must not blur into its neighbour
   const tRoof = mtex(rC), tStreet = mtex(sC), tMisc = mtex(xC), tTreeH = mtex(hC);
+  // [night] the light map, 4 px a metre: r light on the ground (lamps, windows, doors), g a lit house's roof
+  const [lC, lX] = mcanvas('#000'); lX.globalCompositeOperation = 'lighter';
+  const hashL = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+  const pool = (x, y, r, a) => { const g = lX.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(255,0,0,${a})`); g.addColorStop(0.45, `rgba(255,0,0,${a * 0.45})`); g.addColorStop(1, 'rgba(255,0,0,0)'); lX.fillStyle = g; lX.fillRect(x - r, y - r, 2 * r, 2 * r); };
+  for (const p of W.placed) { if (!near(p, 16) || !p.def.light || hashL(p.uid + W.seed * 31) >= p.def.light * (p.def.kind === 'building' ? 0.6 : 1)) continue;
+    if (p.def.look === 'lamp') { pool(p.x, p.y, 6.5, 0.85); continue; }
+    if (p.def.kind !== 'building' || p === rigAtom) continue;
+    lX.fillStyle = 'rgba(0,255,0,1)'; obb(lX, p, 0);                                     // its roof
+    const c = Math.cos(p.rot), sn = Math.sin(p.rot);                                       // windows spill light out of both long walls
+    for (const side of [-1, 1]) for (let k = 0; k < Math.max(1, Math.floor(p.w / 4)); k++) { if (hashL(p.uid * 7 + k * 3 + side) < 0.4) continue; const lx = -p.w / 2 + (k + 0.5) * p.w / Math.max(1, Math.floor(p.w / 4)), ly = side * (p.h / 2 + 0.6); pool(p.x + lx * c - ly * sn, p.y + lx * sn + ly * c, 3.0, 0.5); }
+    if (p.door && hashL(p.uid * 13) < 0.5) pool(p.door.x, p.door.y, 4.2, 0.75);           // a door left open
+  }
+  const tLight = mtex(lC);
   const DR = 512, rtOpt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: false };
   const rts = [new THREE.WebGLRenderTarget(DR, DR, rtOpt), new THREE.WebGLRenderTarget(DR, DR, rtOpt)];
   renderer.setClearColor(new THREE.Color(0.5, 0.5, 0), 1); for (const r of rts) { renderer.setRenderTarget(r); renderer.clear(); } renderer.setRenderTarget(null);
@@ -143,7 +156,7 @@ function start() {
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
   const NS = 48, stampA = Array.from({ length: NS }, () => new THREE.Vector4()), stampB = Array.from({ length: NS }, () => new THREE.Vector4());
   const U = {
-    tTown: { value: tTown }, tOver: { value: tOver }, tMach: { value: tMach }, tRoof: { value: tRoof }, tStreet: { value: tStreet }, tMisc: { value: tMisc }, tTreeH: { value: tTreeH }, uFire: { value: new THREE.Vector2(camp.x, camp.y) }, tDist: { value: rts[0].texture }, tPrev: { value: rts[0].texture },
+    tTown: { value: tTown }, tOver: { value: tOver }, tMach: { value: tMach }, tRoof: { value: tRoof }, tStreet: { value: tStreet }, tMisc: { value: tMisc }, tTreeH: { value: tTreeH }, tLight: { value: tLight }, uFire: { value: new THREE.Vector2(camp.x, camp.y) }, tDist: { value: rts[0].texture }, tPrev: { value: rts[0].texture },
     uCam: { value: new THREE.Vector2() }, uView: { value: new THREE.Vector2(40, 80) }, uOrigin: { value: new THREE.Vector2(O.x, O.y) }, uS: { value: SPAN },
     uTime: { value: 0 }, uPpm: { value: 20 }, uNight: { value: 0 }, uKai: { value: new THREE.Vector2() },
     uA: { value: stampA }, uB: { value: stampB }, uN: { value: 0 }, uDecayPush: { value: 0 }, uDecayPress: { value: 0 },
@@ -425,7 +438,7 @@ function start() {
   }
   addEventListener('resize', resize); resize();
   const toS = (x, y) => [(x - cam.x) * cam.ppm + cssW / 2, (y - cam.y) * cam.ppm + cssH / 2];
-  const zoom = k => { cam.ppm = Math.max(5, Math.min(40, cam.ppm * k)); };
+  const zoom = k => { cam.ppm = Math.max(4, Math.min(40, cam.ppm * k)); };
   const pts = new Map(); let pinch0 = 0, drag0 = null;
   glc.addEventListener('pointerdown', e => { glc.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 1) { drag0 = { x: e.clientX, y: e.clientY }; } else { input.on = false; drag0 = null; const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); } });
   glc.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -450,7 +463,7 @@ function start() {
   };
   function setLook(id) {
     st.look = id; quad.material = LOOKS[id];
-    if (id === 'medium' && cam.ppm < 30) cam.ppm = 32;   // the glyph figures need a closer camera
+    if (id === 'medium' && (cam.ppm < 18 || cam.ppm > 26)) cam.ppm = 22;   // close enough for the glyph figures, wide enough to see the street
     for (const b of document.querySelectorAll('#tabs button')) b.setAttribute('aria-pressed', String(b.dataset.look === id));
     const [h, p, w] = NOTES[id]; $('capT').textContent = h; $('capP').textContent = p; $('capW').textContent = w;
     document.body.style.background = id === 'system' ? '#00050a' : '#0b0c0f';
