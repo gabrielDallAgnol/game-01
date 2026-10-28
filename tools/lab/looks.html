@@ -30,7 +30,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:
 #bar button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
 #hint{position:fixed;right:10px;top:calc(92px + env(safe-area-inset-top,0px));color:var(--dim);font-size:11px;text-align:right;pointer-events:none;opacity:.8}
 #err{position:fixed;inset:auto 10px 50% 10px;background:#3a0d12;color:#ffd9dd;padding:12px;border-radius:10px}
-@media (max-width:420px){#tabs button{padding:8px 7px;font-size:11px}}
+@media (max-width:420px){#tabs button{padding:8px 6px;font-size:11px}}
 </style>
 </head>
 <body>
@@ -40,7 +40,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:
   <div id="title">Hollowmere · looks lab</div>
   <div id="tabs" role="group" aria-label="Look">
     <button data-look="today" aria-pressed="false">Today</button>
-    <button data-look="ash" aria-pressed="true">Ash field</button>
+    <button data-look="ash" aria-pressed="false">Ash 1</button>
+    <button data-look="ash2" aria-pressed="true">Ash 2</button>
     <button data-look="system" aria-pressed="false">System</button>
     <button data-look="glyph" aria-pressed="false">Glyphs</button>
   </div>
