@@ -485,7 +485,7 @@ function start() {
   const onScreen = (x, y, m = 60) => x > -m && y > -m && x < cssW + m && y < cssH + m;
 
   const DRAW = {
-    medium() { medium.draw(fx, { toS, cam, cssW, cssH, kai, dead, flakes, deaths, tracers, t: st.t, night: st.night, WIND: { x: 0.731, y: 0.682 } }); },
+    medium() { medium.draw(fx, { toS, cam, cssW, cssH, kai, dead, flakes, deaths, tracers, turrets, rig, t: st.t, night: st.night, WIND: { x: 0.731, y: 0.682 } }); },
     ash3() { DRAW.ash2(); },   // the same machines and figures as round 2: the ground is what changed
     today() {
       rigShape('#3a3f44', '#e8b021'); for (const T of turrets) turretToken(T, '#1F5BFF', '#FFC531');

@@ -226,7 +226,28 @@ export function createMedium(o) {
     fx.font = '600 9px "IBM Plex Mono", ui-monospace, monospace';
     for (let i = 0; i < 60; i++) { const sp = 0.3 + hashN(i, 7) * 0.6, x = (hashN(i, 1) * cssW + t * 9 * sp * WIND.x) % (cssW + 20) - 10, y = (hashN(i, 2) * cssH + t * 9 * sp * WIND.y) % (cssH + 20) - 10, tw = 0.5 + 0.5 * Math.sin(t * (1.5 + hashN(i, 3) * 2) + i);
       fx.globalAlpha = (0.25 + 0.55 * tw) * (0.6 + 0.4 * night); fx.fillStyle = i % 8 === 0 ? '#e8c060' : '#e9e6dc'; fx.fillText('*o·*·8·°'[i % 8], x, y); }
-    fx.globalAlpha = 1;
+
+    // ---------- zoomed out: each thing becomes one letter on a dark plate, a fixed size on screen (the roguelike map) ----------
+    // far 0 at the close camera, 1 when a figure would be a couple of cells. Amber rings are yours, ember red is the dead.
+    const far = Math.max(0, Math.min(1, (21 - cam.ppm) / 9));
+    if (far > 0.01) {
+      const { turrets = [], rig = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
+      const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();
+        fx.fillStyle = col; fx.font = `700 ${px}px "IBM Plex Mono", ui-monospace, monospace`; fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.fillText(ch, x, y + 0.5); };
+      // turrets: their reach, faintly, then a T on an amber ring (a flash in the ring when it fires)
+      fx.setLineDash([3, 5]); fx.lineWidth = 1; fx.strokeStyle = `rgba(240,180,76,${0.28 * far})`; for (const T of turrets) { const [x, y] = toS(T.x, T.y); fx.beginPath(); fx.arc(x, y, 15 * cam.ppm, 0, 7); fx.stroke(); } fx.setLineDash([]);
+      for (const T of turrets) { const [x, y] = toS(T.x, T.y); if (!onS(x, y)) continue; const hot = T.shotT !== undefined && t - T.shotT < 0.1; plate(x, y, 10, hot ? '#fff2c8' : '#f0b44c', 'T', '#f6e7c8', 13, far); }
+      // Hilde: a long plate with her name
+      if (rig) { const [x, y] = toS(rig.x, rig.y); if (onS(x, y)) { fx.globalAlpha = far; fx.font = '700 11px "IBM Plex Mono", ui-monospace, monospace'; const w = fx.measureText('HILDE').width + 16;
+        fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.roundRect(x - w / 2, y - 10, w, 20, 6); fx.fill(); fx.strokeStyle = '#f0b44c'; fx.lineWidth = 2; fx.stroke(); fx.fillStyle = '#f0b44c'; fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.fillText('HILDE', x, y + 0.5); } }
+      // the dead: an ember & with a dark edge, no plate (a horde stays a horde, not a pile of discs); a Brute bigger
+      fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.lineJoin = 'round';
+      for (const d of dead) { const [x, y] = toS(d.x, d.y); if (!onS(x, y)) continue; const big = (d.kind || (d.id % 9 === 0 ? 'brute' : '')) === 'brute', px = big ? 19 : 14, hit = t - d.hit < 0.1;
+        fx.globalAlpha = far; fx.font = `800 ${px}px "IBM Plex Mono", ui-monospace, monospace`; fx.strokeStyle = 'rgba(8,8,10,.9)'; fx.lineWidth = 4; fx.strokeText('&', x, y); fx.fillStyle = hit ? '#ffffff' : night > 0.5 ? '#ff7a2a' : '#e8553a'; fx.fillText('&', x, y); }
+      // Kai: an @ on an amber ring, with a tick for where she faces
+      { const [x, y] = toS(kai.x, kai.y); plate(x, y, 12, '#f0b44c', '@', '#ffd36a', 17, far); fx.strokeStyle = '#f0b44c'; fx.lineWidth = 2.5; fx.beginPath(); fx.moveTo(x + Math.cos(kai.face) * 13, y + Math.sin(kai.face) * 13); fx.lineTo(x + Math.cos(kai.face) * 19, y + Math.sin(kai.face) * 19); fx.stroke(); }
+      fx.globalAlpha = 1;
+    }
   }
   return { material, render, draw, kaiVolumes, deadVolumes, rigVolumes, turretVolumes };
 }
