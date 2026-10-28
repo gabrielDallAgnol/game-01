@@ -55,7 +55,14 @@ function start() {
     rX.restore();
   }
   sX.lineCap = 'round';
-  for (const st2 of W.streets) for (let i = 0; i < st2.pts.length - 1; i++) { const a = st2.pts[i], b = st2.pts[i + 1]; sX.strokeStyle = `rgb(${ang(Math.atan2(b.y - a.y, b.x - a.x))},${st2.kind === 'path' ? 90 : 255},0)`; sX.lineWidth = st2.w; sX.beginPath(); sX.moveTo(a.x, a.y); sX.lineTo(b.x, b.y); sX.stroke(); }
+  // the square is paved (setts, g 200): a hard ground like the streets, its edge a kerb
+  if (W.plaza) { const P = W.plaza; for (const [inset, lvl] of [[0, 80], [1.5, 255]]) { sX.save(); sX.translate(P.x, P.y); sX.rotate(P.rot); sX.fillStyle = `rgb(${ang(P.rot)},200,${lvl})`; sX.fillRect(-P.w / 2 + inset, -P.h / 2 + inset, P.w - 2 * inset, P.h - 2 * inset); sX.restore(); } }
+  // (b: how far in from the kerb, in three passes: 80 at the edge, 170 a metre and a half in, 255 the crown of the road)
+  for (const [inset, lvl] of [[0, 80], [1.5, 170], [3.2, 255]]) for (const st2 of W.streets) for (let i = 0; i < st2.pts.length - 1; i++) { const a = st2.pts[i], b = st2.pts[i + 1], w = st2.w - 2 * inset; if (w <= 0.4) continue; sX.strokeStyle = `rgb(${ang(Math.atan2(b.y - a.y, b.x - a.x))},${st2.kind === 'path' ? 90 : 255},${lvl})`; sX.lineWidth = w; sX.beginPath(); sX.moveTo(a.x, a.y); sX.lineTo(b.x, b.y); sX.stroke(); }
+  // [ash3] worn lane marks down the middle of the wide streets (misc g), and each tree's height as a dome (its own canvas)
+  xX.strokeStyle = 'rgb(0,255,0)'; xX.lineWidth = 0.16; xX.setLineDash([3, 4]); for (const st2 of W.streets) if (st2.kind !== 'path' && st2.w >= 7) { xX.beginPath(); st2.pts.forEach((q, i) => i ? xX.lineTo(q.x, q.y) : xX.moveTo(q.x, q.y)); xX.stroke(); } xX.setLineDash([]);
+  const [hC, hX] = mcanvas('#000'); hX.globalCompositeOperation = 'lighten';
+  for (const p of W.placed) if (near(p) && p.def.look === 'tree') { const r = (p.r || p.def.size[0] / 2) * 0.86, g = hX.createRadialGradient(p.x - r * 0.15, p.y - r * 0.2, 0, p.x, p.y, r); g.addColorStop(0, '#fff'); g.addColorStop(0.6, '#bbb'); g.addColorStop(1, '#000'); hX.fillStyle = g; hX.beginPath(); hX.arc(p.x, p.y, r, 0, 7); hX.fill(); }
   // where the dead cannot walk: buildings, at 2 cells a metre
   const GR = 2, GN = SPAN * GR, solid = new Uint8Array(GN * GN);
   for (const p of W.placed) if (near(p) && p.def.kind === 'building' && p !== rigAtom) {
@@ -127,7 +134,7 @@ function start() {
   const tex = c => { const t = new THREE.CanvasTexture(c); t.encoding = THREE.LinearEncoding; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; return t; };
   const tTown = tex(gC), tOver = tex(oC), tMach = tex(mC);
   const mtex = c => { const t = new THREE.CanvasTexture(c); t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; return t; };   // [ash2] no mips: an angle must not blur into its neighbour
-  const tRoof = mtex(rC), tStreet = mtex(sC), tMisc = mtex(xC);
+  const tRoof = mtex(rC), tStreet = mtex(sC), tMisc = mtex(xC), tTreeH = mtex(hC);
   const DR = 512, rtOpt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: false };
   const rts = [new THREE.WebGLRenderTarget(DR, DR, rtOpt), new THREE.WebGLRenderTarget(DR, DR, rtOpt)];
   renderer.setClearColor(new THREE.Color(0.5, 0.5, 0), 1); for (const r of rts) { renderer.setRenderTarget(r); renderer.clear(); } renderer.setRenderTarget(null);
@@ -135,13 +142,13 @@ function start() {
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
   const NS = 48, stampA = Array.from({ length: NS }, () => new THREE.Vector4()), stampB = Array.from({ length: NS }, () => new THREE.Vector4());
   const U = {
-    tTown: { value: tTown }, tOver: { value: tOver }, tMach: { value: tMach }, tRoof: { value: tRoof }, tStreet: { value: tStreet }, tMisc: { value: tMisc }, uFire: { value: new THREE.Vector2(camp.x, camp.y) }, tDist: { value: rts[0].texture }, tPrev: { value: rts[0].texture },
+    tTown: { value: tTown }, tOver: { value: tOver }, tMach: { value: tMach }, tRoof: { value: tRoof }, tStreet: { value: tStreet }, tMisc: { value: tMisc }, tTreeH: { value: tTreeH }, uFire: { value: new THREE.Vector2(camp.x, camp.y) }, tDist: { value: rts[0].texture }, tPrev: { value: rts[0].texture },
     uCam: { value: new THREE.Vector2() }, uView: { value: new THREE.Vector2(40, 80) }, uOrigin: { value: new THREE.Vector2(O.x, O.y) }, uS: { value: SPAN },
     uTime: { value: 0 }, uPpm: { value: 20 }, uNight: { value: 0 }, uKai: { value: new THREE.Vector2() },
     uA: { value: stampA }, uB: { value: stampB }, uN: { value: 0 }, uDecayPush: { value: 0 }, uDecayPress: { value: 0 },
   };
   const HEAD = `precision highp float; varying vec2 vUv;
-    uniform sampler2D tTown, tOver, tMach, tDist, tRoof, tStreet, tMisc; uniform vec2 uCam, uView, uOrigin, uKai, uFire; uniform float uS, uTime, uPpm, uNight;
+    uniform sampler2D tTown, tOver, tMach, tDist, tRoof, tStreet, tMisc, tTreeH; uniform vec2 uCam, uView, uOrigin, uKai, uFire; uniform float uS, uTime, uPpm, uNight;
     float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
     vec2 h22(vec2 p){ float a = h21(p); return vec2(a, h21(p + a * 17.7 + 3.1)); }
     float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
@@ -239,6 +246,140 @@ function start() {
         float fire = exp(-dot(w - uFire, w - uFire) / 30.0) * mix(0.08, 0.7, uNight) * (0.88 + 0.12 * sin(uTime * 13.0) * sin(uTime * 7.3));
         col += vec3(0.62, 0.40, 0.16) * (lamp + fire) * (0.4 + 0.6 * best);
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`),
+    // ash3: overgrown. Grass has come up through the ash on open ground (blades rooted at one end, gusts rolling across
+    // them, bent by Kai, flattened by the dead); the streets are hard: asphalt, cracks, worn marks, ash dust in the
+    // gutters that feet print, weeds only at the kerb and in the cracks; trees are lit domes that sway, shadows and all.
+    ash3: mat(`float lines(float v, float sp, float wd){ float f = abs(fract(v / sp) - 0.5) * sp; return 1.0 - smoothstep(wd, wd + 1.0 / uPpm, f); }
+      const vec2 WD = vec2(0.731, 0.682); const vec2 SUNV = vec2(-0.6, -0.8);
+      float gust(vec2 p){ return smoothstep(0.3, 0.85, vnoise(p * 0.045 - WD * uTime * 0.55) * 0.7 + vnoise(p * 0.12 - WD * uTime * 0.95) * 0.3); }
+      vec2 voro(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0; for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)), r = g + h22(i + g) - f; float d = dot(r, r); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; } return vec2(sqrt(d1), sqrt(d2)); }
+      float treeH(vec2 p){ return texture2D(tTreeH, toTex(p)).r; }
+      void main(){ vec2 w = world(), t = toTex(w); float g0 = gust(w);
+        // the crown sways with the gusts: tree lookups come from upwind
+        float h0 = treeH(w); vec2 sway = WD * ((g0 - 0.3) * 0.6 + 0.08 * sin(uTime * 1.7 + w.x * 0.3)) * smoothstep(0.0, 0.25, h0 + 0.15);
+        vec2 tw = w - sway;
+        vec4 rf = texture2D(tRoof, t), sx = texture2D(tStreet, t); vec3 ms = texture2D(tMisc, t).rgb; float treeM = texture2D(tMisc, toTex(tw)).r, th = treeH(tw);
+        float roof = smoothstep(0.35, 0.65, rf.a), tree = smoothstep(0.3, 0.7, treeM) * (1.0 - roof), street = smoothstep(0.35, 0.65, sx.a) * (1.0 - roof) * (1.0 - tree), ground = (1.0 - roof) * (1.0 - tree) * (1.0 - street);
+        float inward = sx.b, lit = rf.g, flatRoof = step(rf.b, 0.5);
+        float tShadow = smoothstep(0.05, 0.35, treeH(w - SUNV * 2.4 - sway * 0.7)) * (1.0 - tree);
+        float shadow = max(smoothstep(0.7, 0.9, ms.b), tShadow) * (1.0 - roof);   // the buildings' cast shadows (the static tree ones are ash2's), and the crowns' own, swaying
+        vec4 dP = texture2D(tDist, t); float pressHere = dP.b * (1.0 - roof);
+        // grounds
+        float mott = vnoise(w * 0.35) * 0.06 + vnoise(w * 2.1) * 0.03;
+        vec3 earth = vec3(0.17, 0.175, 0.155) + mott;
+        vec3 asph = vec3(0.155, 0.16, 0.168) + (h21(floor(w * 9.0)) - 0.5) * 0.025;
+        vec2 v = voro(w / 1.9); float crack = (1.0 - smoothstep(0.012, 0.035, v.y - v.x)) * smoothstep(0.56, 0.7, vnoise(w * 0.18 + 9.0));
+        asph = mix(asph, asph * 0.4, crack); asph = mix(asph, vec3(0.24, 0.29, 0.21), crack * 0.35 * (1.0 - inward));
+        float dust = smoothstep(0.45, 0.85, vnoise(w * 2.4) * 0.6 + vnoise(w * 0.5) * 0.4) * mix(1.0, 0.25, inward) * (1.0 - pressHere * 0.95);
+        asph = mix(asph, vec3(0.56, 0.55, 0.52), dust * 0.55); asph = mix(asph, asph * 0.55, pressHere * 0.8 * (1.0 - dust * 0.3));
+        float setts = 1.0 - smoothstep(0.06, 0.12, abs(sx.g - 0.784));
+        vec2 vs = voro(w / 0.6); float grout = (1.0 - smoothstep(0.03, 0.08, vs.y - vs.x)) * smoothstep(5.0, 11.0, 0.6 * uPpm); vec3 stone = vec3(0.29, 0.285, 0.275) + (vnoise(w * 1.3) - 0.5) * 0.05;
+        stone = mix(stone, vec3(0.17, 0.175, 0.165), grout * 0.8); stone = mix(stone, vec3(0.56, 0.55, 0.52), dust * 0.5); stone = mix(stone, stone * 0.55, pressHere * 0.8);
+        asph = mix(asph, stone, setts);
+        asph = mix(asph, vec3(0.78, 0.76, 0.68), ms.g * 0.7 * (0.5 + 0.5 * vnoise(w * 1.7)) * (1.0 - setts));
+        asph = mix(asph, vec3(0.40, 0.395, 0.38), (1.0 - smoothstep(0.0, 0.33, inward)) * 0.5 * street);
+        // the dome of a tree, lit from the sun's side
+        float e = 0.35, gx = treeH(tw + vec2(e, 0.0)) - treeH(tw - vec2(e, 0.0)), gy = treeH(tw + vec2(0.0, e)) - treeH(tw - vec2(0.0, e));
+        vec3 nrm = normalize(vec3(-gx * 3.0, -gy * 3.0, 1.0)); float tl = clamp(dot(nrm, normalize(vec3(SUNV, 0.9))), 0.0, 1.0);
+        vec3 canopy = mix(vec3(0.07, 0.085, 0.07), vec3(0.30, 0.345, 0.27), tl) * (0.75 + 0.45 * th);
+        vec3 roofC = mix(mix(vec3(0.16, 0.16, 0.17), vec3(0.42, 0.415, 0.40), lit), vec3(0.30, 0.30, 0.31), flatRoof);
+        vec3 base = earth * ground + asph * street + canopy * tree + roofC * roof;
+        // strokes: blades on open ground and at the kerb, engraving on roofs, leaves on crowns
+        float c = max(0.52, 6.5 / uPpm), wid = max(0.022, 0.5 / uPpm), aa = 1.0 / uPpm;
+        float kerbWeeds = street * (1.0 - smoothstep(0.12, 0.3, inward)) + street * crack * 0.6;
+        vec2 tang = normalize(vec2(-gy, gx) + 1e-5);
+        vec2 cell = floor(w / c); float best = 0.0; vec3 sc = vec3(0.0);
+        for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+          vec2 id = cell + vec2(float(i), float(j)), r = h22(id); float jit = mix(0.8, 0.14, roof);
+          vec2 ctr = (id + 0.5 - jit * 0.5 + jit * r) * c;
+          vec4 d = texture2D(tDist, toTex(ctr)); vec2 push = (d.rg - 0.5) * 2.0; float press = d.b;
+          float m = 0.0; vec3 col = vec3(0.0); vec2 a, b;
+          if (roof > 0.5) {
+            vec2 dir = vec2(cos(rf.r * 3.14159), sin(rf.r * 3.14159)); a = ctr - dir * c * 0.58; b = ctr + dir * c * 0.58;
+            col = flatRoof > 0.5 ? mix(vec3(0.52), vec3(0.62), r.y) : mix(mix(vec3(0.30, 0.30, 0.31), vec3(0.40, 0.40, 0.41), r.y), mix(vec3(0.72, 0.71, 0.68), vec3(0.88, 0.86, 0.81), r.y), lit);
+            m = 1.0;
+          } else if (tree > 0.5) {
+            float flick = gust(ctr); vec2 dir = normalize(tang + WD * (flick - 0.3) * 0.8 + (r - 0.5) * 0.9); a = ctr - dir * c * 0.32; b = ctr + dir * c * 0.32;
+            col = mix(vec3(0.14, 0.17, 0.13), vec3(0.50, 0.56, 0.42), tl * (0.6 + 0.4 * r.y)) + vec3(0.12, 0.13, 0.08) * flick * tl;
+            m = step(0.12, r.x);
+          } else {
+            float grassK = ground * mix(0.25, 0.95, smoothstep(0.25, 0.75, vnoise(ctr * 0.08 + 3.7))) + kerbWeeds * 0.85;
+            float gl = gust(ctr), lean = atan(WD.y, WD.x) + (vnoise(ctr * 0.21) - 0.5) * 1.6 + (r.x - 0.5) * 0.7;
+            vec2 dir = normalize(mix(vec2(cos(lean), sin(lean)), WD, gl * 0.6)); float pl = length(push); if (pl > 0.02) dir = normalize(mix(dir, push / pl, clamp(pl * 1.6, 0.0, 1.0)));
+            float len = c * (0.72 + 0.26 * r.y) * mix(1.0, 0.78, gl) * mix(1.0, 0.3, press) * mix(1.0, 0.55, street);
+            a = ctr; b = ctr + dir * len;
+            vec3 tip = mix(vec3(0.52, 0.56, 0.46), vec3(0.78, 0.78, 0.68), r.y) + vec3(0.12, 0.12, 0.09) * gl;
+            col = tip * mix(0.85, 1.0, r.x) * mix(1.0, 0.6, press);
+            m = step(1.0 - grassK, h21(id + 7.31));
+          }
+          vec2 pa = w - a, ba = b - a; float q = clamp(dot(pa, ba) / max(1e-5, dot(ba, ba)), 0.0, 1.0); float dd = length(pa - ba * q);
+          float wd = roof > 0.5 ? wid * 1.25 : tree > 0.5 ? wid * 1.3 : wid * mix(1.5, 0.5, q);
+          float cov = m * (1.0 - smoothstep(wd, wd + aa, dd));
+          if (roof < 0.5 && tree < 0.5) col = mix(col * 0.45, col, smoothstep(0.0, 0.7, q));   // a blade darkens to its root
+          if (cov > best) { best = cov; sc = col; }
+        }
+        // shadow: darker, cross-hatched; ridges and eaves on roofs, a dark rim round a crown
+        float hs = max(0.3, 3.6 / uPpm), xh = max(lines(w.x - w.y, hs, wid * 0.7), lines(w.x + w.y, hs, wid * 0.7) * step(0.55, shadow));
+        base = mix(base, base * 0.5, shadow * 0.6); base = mix(base, base * 0.35, xh * shadow * (1.0 - street * 0.5));
+        float alpha = best * (roof * 0.8 + tree * 0.85 + (1.0 - roof - tree) * 0.9) * (1.0 - shadow * 0.4);
+        vec3 col = mix(base, sc * mix(1.0, 0.6, shadow), alpha);
+        float ridge = roof * (1.0 - flatRoof) * (1.0 - smoothstep(0.1, 0.25, abs(lit - 0.5))), eave = roof * (1.0 - smoothstep(0.6, 0.97, rf.a));
+        col = mix(col, vec3(0.06), max(ridge * 0.9, eave * 0.75));
+        col = mix(col, vec3(0.04, 0.05, 0.04), (1.0 - smoothstep(0.25, 0.75, treeM)) * smoothstep(0.05, 0.25, treeM) * 0.9 * (1.0 - roof));
+        col *= mix(vec3(1.0), vec3(0.33, 0.35, 0.40), uNight);
+        float lamp = exp(-dot(w - uKai, w - uKai) / mix(5.0, 20.0, uNight)) * mix(0.10, 0.6, uNight);
+        float fire = exp(-dot(w - uFire, w - uFire) / 30.0) * mix(0.08, 0.7, uNight) * (0.88 + 0.12 * sin(uTime * 13.0) * sin(uTime * 7.3));
+        col += vec3(0.62, 0.40, 0.16) * (lamp + fire) * (0.45 + 0.55 * best);
+        gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`),
+    // print: the town as a two-colour linocut. Bone paper, black ink: roofs are ink with paper carved down each slope
+    // (wide carves on the lit side), streets are paper with a few carved lines along them, grass is broken ink ticks
+    // with the wind, crowns are ink with paper flecks where the sun hits, shadows are close ink hatching. Colour comes
+    // only as overprint (view: the 2D layer): red for the dead, amber for the living, a little off register.
+    print: mat(`float lines(float v, float sp, float wd){ float f = abs(fract(v / sp) - 0.5) * sp; return 1.0 - smoothstep(wd, wd + 1.0 / uPpm, f); }
+      const vec2 SUNV = vec2(-0.6, -0.8);
+      float treeH(vec2 p){ return texture2D(tTreeH, toTex(p)).r; }
+      void main(){ vec2 w = world(), t = toTex(w); vec2 wb = w + vec2(vnoise(w * 1.3), vnoise(w * 1.3 + 5.0)) * 0.09;   // a hand-cut wobble
+        vec4 rf = texture2D(tRoof, t), sx = texture2D(tStreet, t); vec3 ms = texture2D(tMisc, t).rgb; float th = treeH(w);
+        float roof = smoothstep(0.35, 0.65, rf.a), tree = smoothstep(0.3, 0.7, ms.r) * (1.0 - roof), street = smoothstep(0.35, 0.65, sx.a) * (1.0 - roof) * (1.0 - tree), ground = (1.0 - roof) * (1.0 - tree) * (1.0 - street);
+        float lit = rf.g, flatRoof = step(rf.b, 0.5);
+        float shadow = max(smoothstep(0.7, 0.9, ms.b), smoothstep(0.05, 0.35, treeH(w - SUNV * 2.4))) * (1.0 - roof) * (1.0 - tree);
+        float lw = max(0.03, 0.75 / uPpm);
+        float ink = 0.0;
+        // grass: ink ticks with the wind, broken into dashes, thicker where it grows thick
+        vec2 W2 = normalize(vec2(0.73, 0.68) + (vec2(vnoise(w * 0.05), vnoise(w * 0.05 + 3.0)) - 0.5) * 0.9), Wp = vec2(-W2.y, W2.x);
+        float drift = smoothstep(0.3, 0.75, vnoise(w * 0.08 + 3.7)), sp = max(0.42, 6.0 / uPpm), row = floor(dot(wb, Wp) / sp);
+        float tick = lines(dot(wb, Wp), sp, lw * 0.55) * step(mix(0.82, 0.45, drift), vnoise(vec2(dot(wb, W2) * 2.2 / sp, row * 7.1)));
+        ink += ground * tick;
+        // streets: paper, a few long carved lines along the street, the kerb inked, cracks inked thin
+        float sa = sx.r * 3.14159; vec2 Sd = vec2(cos(sa), sin(sa)), Sp = vec2(-Sd.y, Sd.x); float setts = 1.0 - smoothstep(0.06, 0.12, abs(sx.g - 0.784));
+        float along = lines(dot(wb, Sp), max(0.9, 9.0 / uPpm), lw * 0.45) * step(0.62, vnoise(vec2(dot(wb, Sd) * 0.35, floor(dot(wb, Sp) / 0.9)))) * (1.0 - setts);
+        float sq = (lines(wb.x, 0.6, lw * 0.35) + lines(wb.y, 0.6, lw * 0.35)) * 0.6 * setts * smoothstep(6.0, 12.0, 0.6 * uPpm);
+        float kerb = 1.0 - smoothstep(0.0, 0.3, sx.b);
+        ink += street * max(max(along, sq), kerb * 0.9);
+        ink = max(ink, street * ms.g * 0.0);
+        // roofs: ink, paper carved down the slope; lit slopes carved wide, the others thin; a paper ridge, an ink eave
+        vec2 Rd = vec2(cos(rf.r * 3.14159), sin(rf.r * 3.14159)), Rp = vec2(-Rd.y, Rd.x);
+        float carve = lines(dot(wb, Rp), max(0.42, 5.0 / uPpm), mix(lw * 0.35, lw * 1.6, lit * (1.0 - flatRoof)) + flatRoof * lw * 0.5);
+        float ridge = (1.0 - flatRoof) * (1.0 - smoothstep(0.1, 0.25, abs(lit - 0.5)));
+        float eave = 1.0 - smoothstep(0.6, 0.97, rf.a);
+        ink += roof * (1.0 - carve * (1.0 - eave)) * (1.0 - ridge * 0.85);
+        // crowns: ink, paper flecks on the sunny side, an ink rim
+        float e = 0.35, gx = treeH(w + vec2(e, 0.0)) - treeH(w - vec2(e, 0.0)), gy = treeH(w + vec2(0.0, e)) - treeH(w - vec2(0.0, e));
+        float tl = clamp(dot(normalize(vec3(-gx * 3.0, -gy * 3.0, 1.0)), normalize(vec3(SUNV, 0.9))), 0.0, 1.0);
+        float fleck = step(mix(0.95, 0.55, tl), vnoise(wb * 3.2)) * step(0.25, tl);
+        ink += tree * (1.0 - fleck);
+        // shadows: close ink hatching
+        ink += shadow * max(lines(wb.x - wb.y, max(0.24, 3.0 / uPpm), lw * 0.8), 0.35);
+        // the dead's tracks: smudged ink where they pressed
+        float pr = texture2D(tDist, t).b * (1.0 - roof); ink += pr * 0.65 * (0.6 + 0.4 * vnoise(w * 4.0));
+        ink = clamp(ink, 0.0, 1.0);
+        vec3 paper = vec3(0.905, 0.875, 0.80) * (0.95 + 0.06 * vnoise(w * 5.0)) * mix(vec3(1.0), vec3(0.36, 0.38, 0.46), uNight);
+        vec3 inkC = vec3(0.085, 0.075, 0.07);
+        vec3 col = mix(paper, inkC, ink);
+        float lamp = exp(-dot(w - uKai, w - uKai) / mix(5.0, 20.0, uNight)) * uNight * 0.85;
+        float fire = exp(-dot(w - uFire, w - uFire) / 30.0) * uNight * 0.9 * (0.88 + 0.12 * sin(uTime * 13.0) * sin(uTime * 7.3));
+        col = mix(col, col * vec3(1.0, 0.72, 0.36) + vec3(0.35, 0.2, 0.05) * (1.0 - ink), clamp(lamp + fire, 0.0, 1.0));
+        gl_FragColor = vec4(mix(vec3(0.07), col, inside(t)), 1.0); }`),
     // glyph: the town held back (dark, half grey) so the letters carry the scene
     glyph: mat(`void main(){ vec2 w = world(), t = toTex(w); vec3 c = texture2D(tTown, t).rgb; float L = luma(c); c = mix(vec3(L), c, 0.4) * mix(0.62, 0.3, uNight);
       c *= mix(vec3(1.0), vec3(0.75, 0.82, 1.0), uNight); gl_FragColor = vec4(mix(vec3(0.03), c, inside(t)), 1.0); }`),
@@ -296,6 +437,8 @@ function start() {
   const NOTES = {
     today: ['Today', 'The game as it ships: the flat town, red tokens under the dead, guns on blue rims.', 'The baseline to compare with.'],
     ash2: ['Ash field, round 2', 'Everything is drawn in the same strokes. Strokes run along the streets and down each roof slope, curl in the trees and cross-hatch the shadows. The Rig, the guns, Kai and the dead are strokes too.', 'Two colours carry the meaning: amber is alive and yours, ember red is the dead. Zoom out and the strokes get longer, not noisier.'],
+    ash3: ['Overgrown', 'Grass has come up through the ash. Gusts roll across it, Kai bends it and the dead trample it flat. The streets stay hard: cracked asphalt, worn marks, ash dust in the gutters that takes their footprints, weeds only at the kerb.', 'Trees are lit domes that sway in the wind, shadow and all. Roofs get ridges and eaves.'],
+    print: ['Print', 'A different idea on the same town: a two-colour linocut. Bone paper and black ink, carved by hand. Roofs are ink carved down each slope, grass is broken ink ticks in the wind, shadows are close hatching.', 'Colour is only overprint, a little off register like a cheap poster: red for the dead, amber for the living and for fire.'],
     ash: ['Ash field', 'The town lies under fallen ash. Thousands of strokes drift in the wind and part round Kai, and every step the dead take presses a dark track that fades in about twenty seconds.', 'Tells you where a march came from and where the dead walk. Send a march and watch the trail.'],
     system: ['System vision', 'The town as the System sees it: a cold schematic. What you can salvage glows blue, the dead are red noise, and Kai pings the street every few seconds.', 'Tells you scrap, threats and turret reach at a glance: a night view, or a Mechanic skill.'],
     glyph: ['Glyph dead', 'The Ash-Born are made of letters that never hold still. Kill one and it comes apart into falling ash.', 'Tells you the dead can never be mistaken for anything else, at any zoom.'],
@@ -311,7 +454,7 @@ function start() {
   $('night').addEventListener('click', () => { st.nightOn = !st.nightOn; $('night').textContent = st.nightOn ? 'Day' : 'Night'; });
   $('capBtn').addEventListener('click', () => $('cap').classList.toggle('min'));
   $('zin').addEventListener('click', () => zoom(1.25)); $('zout').addEventListener('click', () => zoom(0.8));
-  setLook(new URLSearchParams(location.search).get('look') || 'ash2');
+  setLook(new URLSearchParams(location.search).get('look') || 'ash3');
 
   // ---------- the figures, per look ----------
   const FIG = 1.8;   // figures read bigger than the town, as in the game
@@ -336,6 +479,7 @@ function start() {
   const onScreen = (x, y, m = 60) => x > -m && y > -m && x < cssW + m && y < cssH + m;
 
   const DRAW = {
+    ash3() { DRAW.ash2(); },   // the same machines and figures as round 2: the ground is what changed
     today() {
       rigShape('#3a3f44', '#e8b021'); for (const T of turrets) turretToken(T, '#1F5BFF', '#FFC531');
       const s = cam.ppm * FIG;
@@ -437,6 +581,38 @@ function start() {
       for (let i = 0; i < 110; i++) { const sp = 0.4 + hashN(i, 7) * 0.9, px = (hashN(i, 1) * cssW + st.t * 16 * sp * wx + Math.sin(st.t * 0.7 + i) * 6) % (cssW + 20) - 10, py = (hashN(i, 2) * cssH + st.t * 16 * sp * wy + st.t * 8) % (cssH + 20) - 10, l = 2 + hashN(i, 3) * 4 * sp; fx.globalAlpha = (0.3 + 0.5 * hashN(i, 4)) * (1 - 0.4 * n); fx.beginPath(); L(px, py, px + wx * l, py + wy * l); fx.stroke(); }
       fx.globalAlpha = 1;
     },
+    // print: figures and machines as cut shapes in ink, colour overprinted a little off register (multiply)
+    print() {
+      const s = cam.ppm, sf = Math.max(cam.ppm * FIG, 15), INK = '#16130f', PAPER = '#e8dfcc', REG = 2;
+      const over = (col, fn) => { fx.save(); fx.globalCompositeOperation = 'multiply'; fx.translate(REG, REG * 0.6); fx.fillStyle = col; fx.strokeStyle = col; fn(); fx.restore(); };
+      const L = (x0, y0, x1, y1) => { fx.moveTo(x0, y0); fx.lineTo(x1, y1); };
+      fx.lineCap = 'round';
+      // the Rig: an ink block, paper carved along the bed, the cab overprinted amber
+      { const [x, y] = toS(rig.x, rig.y), hw = rig.w / 2 * s, hh = rig.h / 2 * s; fx.save(); fx.translate(x, y); fx.rotate(rig.rot);
+        fx.fillStyle = INK; fx.fillRect(-hw, -hh, 2 * hw, 2 * hh); fx.strokeStyle = PAPER; fx.lineWidth = 1.2; fx.beginPath(); for (let yy = -hh + 0.35 * s; yy < hh - 0.2 * s; yy += 0.45 * s) L(-hw + 0.4 * s, yy, hw - 2.4 * s, yy); fx.stroke();
+        fx.fillStyle = PAPER; fx.fillRect(hw - 2.1 * s, -hh + 0.25 * s, 1.85 * s, 2 * hh - 0.5 * s); fx.restore();
+        over('#f2a43a', () => { fx.translate(x, y); fx.rotate(rig.rot); fx.fillRect(hw - 2.3 * s, -hh, 2.3 * s, 2 * hh); }); }
+      // the guns: ink rings, paper spokes, an amber head
+      for (const T of turrets) { const [x, y] = toS(T.x, T.y); fx.fillStyle = INK; fx.beginPath(); fx.arc(x, y, 0.95 * s, 0, 7); fx.fill();
+        fx.strokeStyle = PAPER; fx.lineWidth = 1.1; fx.beginPath(); for (let k = 0; k < 12; k++) { const a = k / 12 * 6.283; L(x + Math.cos(a) * 0.5 * s, y + Math.sin(a) * 0.5 * s, x + Math.cos(a) * 0.8 * s, y + Math.sin(a) * 0.8 * s); } fx.stroke();
+        fx.save(); fx.translate(x, y); fx.rotate(T.aim); fx.strokeStyle = INK; fx.lineWidth = Math.max(2, 0.16 * s); fx.beginPath(); L(0.3 * s, -0.16 * s, 1.15 * s, -0.16 * s); L(0.3 * s, 0.16 * s, 1.15 * s, 0.16 * s); fx.stroke(); fx.restore();
+        over('#f2a43a', () => { fx.beginPath(); fx.arc(x, y, 0.42 * s, 0, 7); fx.fill(); if (T.shotT !== undefined && st.t - T.shotT < 0.08) { fx.beginPath(); fx.arc(x + Math.cos(T.aim) * 1.4 * s, y + Math.sin(T.aim) * 1.4 * s, 0.35 * s, 0, 7); fx.fill(); } }); }
+      // the dead: ink silhouettes with a carved line or two, red overprinted off register
+      const body = (x, y, a, k) => { fx.save(); fx.translate(x, y); fx.rotate(a); fx.beginPath(); fx.ellipse(-0.03 * sf, 0, 0.27 * sf * k, 0.36 * sf * k, 0, 0, 7); fx.fill(); fx.beginPath(); fx.arc(0.15 * sf, 0, 0.17 * sf * k, 0, 7); fx.fill(); fx.restore(); };
+      for (const d of dead) { const [x, y] = toS(d.x, d.y); if (!onScreen(x, y)) continue; const sp = Math.hypot(d.vx, d.vy), a = sp > 0.1 ? Math.atan2(d.vy, d.vx) : (d.fa ?? 0); d.fa = a; const hit = st.t - d.hit < 0.08, sw = Math.sin(d.ph) * 0.08 * sf;
+        fx.fillStyle = hit ? PAPER : INK; body(x, y, a, 1);
+        fx.save(); fx.translate(x, y); fx.rotate(a); fx.strokeStyle = hit ? PAPER : INK; fx.lineWidth = Math.max(2, 0.1 * sf); fx.beginPath(); L(0.0, -0.22 * sf, 0.5 * sf, -0.2 * sf + sw); L(0.0, 0.22 * sf, 0.5 * sf, 0.2 * sf - sw); fx.stroke();
+        fx.strokeStyle = PAPER; fx.lineWidth = 1; fx.beginPath(); L(-0.2 * sf, -0.08 * sf, 0.02 * sf, -0.12 * sf); L(-0.18 * sf, 0.1 * sf, 0.0, 0.06 * sf); fx.stroke(); fx.restore();
+        over('#d8262c', () => body(x, y, a, 0.92)); }
+      for (const D of deaths) { const k = (st.t - D.t0) / 1.6; if (k > 1) continue; const [x, y] = toS(D.x, D.y); fx.globalAlpha = 1 - k * 0.6;
+        fx.fillStyle = INK; for (let i = 0; i < 9; i++) { const a = hashN(D.id, i) * 6.283, r = ease(Math.min(1, k * 3)) * (0.3 + hashN(D.id, i, 1) * 0.9) * sf; fx.beginPath(); fx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, (0.06 + 0.08 * hashN(D.id, i, 2)) * sf, 0, 7); fx.fill(); }
+        over('#d8262c', () => { fx.beginPath(); fx.arc(x, y, 0.45 * sf * ease(Math.min(1, k * 3)), 0, 7); fx.fill(); }); fx.globalAlpha = 1; }
+      fx.strokeStyle = INK; fx.lineWidth = 1.4; for (const T of tracers) { const [a, b] = toS(T.x0, T.y0), [c, d] = toS(T.x1, T.y1); fx.beginPath(); L(a, b, c, d); fx.stroke(); }
+      // Kai: paper cut out of the ink, edged, amber overprinted
+      { const [x, y] = toS(kai.x, kai.y), a = kai.face; fx.fillStyle = INK; body(x, y, a, 1.18); fx.fillStyle = PAPER; body(x, y, a, 0.95);
+        const sw = kai.swing > 0 ? kai.swing / 0.2 : 0, wa = a - 0.9 + sw * 1.8; fx.strokeStyle = INK; fx.lineWidth = Math.max(2, 0.1 * sf); fx.beginPath(); L(x, y, x + Math.cos(wa) * 0.6 * sf, y + Math.sin(wa) * 0.6 * sf); fx.stroke();
+        over('#f2a43a', () => body(x, y, a, 0.9)); }
+    },
     system() {
       const s = cam.ppm, C = '111,227,255';
       // the Rig and the guns as wireframes, with their reach
@@ -507,5 +683,6 @@ function start() {
   requestAnimationFrame(frame);
   // for screenshots: run the scene ahead (the sim and the ash field, no drawing)
   const run = sec => { for (let k = 0; k < sec * 30; k++) { step(1 / 30); stepDist(1 / 30); } cam.x = kai.x; cam.y = kai.y; };
-  window.__lab = { st, setLook, wave, kai, dead, cam, run, night: on => { st.nightOn = on; } };
+  const goTo = (dx, dy) => { kai.x = camp.x + dx; kai.y = camp.y + dy; cam.x = kai.x; cam.y = kai.y; };
+  window.__lab = { st, setLook, wave, kai, dead, cam, run, goTo, night: on => { st.nightOn = on; } };
 }
