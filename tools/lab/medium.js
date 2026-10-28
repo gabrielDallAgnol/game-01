@@ -63,7 +63,7 @@ export function createMedium(o) {
       vec3 nrm = normalize(vec3(-(hx - h0) / e, -(hy - h0) / e, 1.0));
       float L = clamp(dot(nrm, normalize(vec3(-0.5, -0.62, 0.6))), 0.0, 1.0);   // world y runs down the screen: north-west is (-x, -y)
       float lum = (0.16 + 0.84 * clamp(L * 1.2, 0.0, 1.0)) * (0.8 + 0.2 * clamp(h0 / 2.4, 0.0, 1.0));   // a little sky light: no face goes fully black
-      gl_FragColor = vec4(lum, m / 32.0, em, 1.0); }` });
+      gl_FragColor = vec4(lum, m / 32.0, em, 0.52 + 0.48 * clamp(h0 / 8.0, 0.0, 1.0)); }` });   // alpha: solid, and how tall (for cast shadows)
   const cScene = new THREE.Scene(), cQuad = new THREE.Mesh(quadGeo, CELL); cQuad.frustumCulled = false; cScene.add(cQuad);
 
   // ---------- the composite: the Overgrown ground, roofs as glyphs, the solids' cells as glyphs on black ----------
@@ -100,13 +100,20 @@ export function createMedium(o) {
           col = mix(col, mix(rc * 0.16, rc, gm), roof); }`);
   swap('        gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }', `        // [medium] the solids: each cell a glyph by its light, the material's colour in the letters, glow through them
         vec2 ci = floor(gl_FragCoord.xy / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);
-        vec4 Sd = texture2D(tCells, (ci + vec2(-0.3, 0.4) * uPpm * 0.55 / uCellPx + 0.5) / uCells);
-        col *= 1.0 - 0.5 * Sd.a * (1.0 - A.a);
+        // cast shadows: from this point walk toward the sun (north-west, the same sun as the town's) and ask whether
+        // a solid stands taller than the light's ray there. The ray climbs 1.8 m a metre (shadows ~0.55× their height).
+        float h0s = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, shade = 0.0;
+        for (int k = 1; k <= 16; k++) { float d = float(k) * 0.28; vec2 sc = (gl_FragCoord.xy + vec2(-0.6, 0.8) * d * uPpm) / uCellPx;
+          vec4 S2 = texture2D(tCells, (floor(sc) + 0.5) / uCells); float hs = S2.a > 0.5 ? (S2.a - 0.52) / 0.48 * 8.0 : -1.0;
+          shade = max(shade, smoothstep(-0.15, 0.25, hs - (h0s + d * 1.8))); }
+        float sMask = shade * (A.a > 0.5 ? 0.55 : 1.0);
+        col *= 1.0 - 0.52 * sMask;
         if (A.a > 0.5) {
           float mi = floor(A.g * 32.0 + 0.5), em = A.b; vec3 mc = matCol(mi, em), ec = emCol(mi);
           float lev = max(floor(pow(clamp(A.r, 0.0, 0.999), 0.5) * ${NG}.0), floor(em * ${NG - 1}.0));
           vec2 g = fract(gl_FragCoord.xy / uCellPx); float gm = texture2D(tGlyph, vec2((lev + g.x) / ${NG}.0, g.y)).a;
           vec3 lc = mix(vec3(0.94, 0.92, 0.87), mc, 0.6) * (0.55 + 0.75 * A.r) * mix(1.0, 0.62, uNight);   // pale letters, the colour as a tint
+          lc *= 1.0 - 0.45 * sMask;
           col = mix(mc * (0.1 + 0.2 * A.r) * mix(1.0, 0.6, uNight), lc, gm) + ec * em * (0.25 + 1.1 * gm);   // a dark backing in the material's own colour keeps a small figure's silhouette
         }
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`);
@@ -127,10 +134,11 @@ export function createMedium(o) {
     { const [x, y] = P(-0.01, 0); box(x, y, 1.02 * S, 0.13 * S, 0.22 * S, 0.29 * S, 0.11 * S, a, M.suit); }
     { const [x, y] = P(0.02, 0); box(x, y, 1.04 * S, 0.032 * S, 0.215 * S, 0.29 * S, 0.02 * S, a, M.hivis); }
     for (const s of [-1, 1]) { const [x0, y0] = P(0.03, s * 0.21), [x1, y1] = P(0.17, s * 0.25); capsule(x0, y0, 1.24 * S, x1, y1, 1.0 * S, 0.068 * S, M.suit); }
-    const sw = k.swing > 0 ? k.swing / 0.2 : 0, wa = a - 0.7 + (1 - (1 - sw) * (1 - sw)) * 2.2, [hx, hy] = P(0.17, 0.25), ex = hx + Math.cos(wa) * 0.62 * S, ey = hy + Math.sin(wa) * 0.62 * S;
-    capsule(hx, hy, 1.04 * S, ex, ey, 1.12 * S, 0.042 * S, M.steel); sphere(ex, ey, 1.08 * S, 0.085 * S, M.steel);
-    { const [x, y] = P(0.03, 0); sphere(x, y, 1.42 * S, 0.135 * S, M.hair); }
-    { const [x, y] = P(0.075, 0); sphere(x, y, 1.445 * S, 0.118 * S, M.bandana); }
+    const sw = k.swing > 0 ? k.swing / 0.2 : 0, wa = a - 0.7 + (1 - (1 - sw) * (1 - sw)) * 2.2, [hx, hy] = P(0.17, 0.25), ex = hx + Math.cos(wa) * 0.82 * S, ey = hy + Math.sin(wa) * 0.82 * S;
+    capsule(hx, hy, 1.04 * S, ex, ey, 1.12 * S, 0.05 * S, M.steel); for (const j of [-1, 1]) { const ja = wa + j * 0.55; sphere(ex + Math.cos(ja) * 0.09 * S, ey + Math.sin(ja) * 0.09 * S, 1.12 * S, 0.065 * S, M.steel); }   // the jaw: two prongs
+    { const [x, y] = P(0.03, 0); sphere(x, y, 1.42 * S, 0.155 * S, M.hair); }
+    { const [x, y] = P(0.08, 0); sphere(x, y, 1.46 * S, 0.135 * S, M.bandana); }
+    { const [x, y] = P(-0.13, 0); sphere(x, y, 1.48 * S, 0.06 * S, M.bandana); }   // the knot at the back
   }
   function deadVolumes(d, t, awake, kind = 'cinder') {
     const big = kind === 'brute', S = FIGM * (big ? 1.6 : kind === 'flicker' ? 0.88 : 1), a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
@@ -145,11 +153,11 @@ export function createMedium(o) {
     for (const s of [-1, 1]) { const [x0, y0] = P(-0.03, s * 0.09), [x1, y1] = P(-0.03 + stride * s, s * 0.1); capsule(x0, y0, 0.72 * S, x1, y1, 0.1 * S, 0.075 * S, skin, hem); }
     { const [x, y] = P(0, 0); box(x, y, 0.98 * S, 0.15 * S, 0.21 * S, 0.3 * S, 0.12 * S, a, skin, hem); }
     if (big) for (const s of [-1, 1]) { const [x, y] = P(0.02, s * 0.2); sphere(x, y, 1.18 * S, 0.12 * S, skin, hem); }
-    for (const s of [-1, 1]) { const [x0, y0] = P(0.04, s * 0.2), [x1, y1] = P(0.52, s * (0.17 + sw * s)); capsule(x0, y0, 1.2 * S, x1, y1, 1.08 * S, 0.055 * S, skin, hem); }
-    { const [x, y] = P(0.14, 0); sphere(x, y, 1.32 * S, 0.13 * S, skin, hem); }
+    for (const s of [-1, 1]) { const [x0, y0] = P(0.06, s * 0.2), [x1, y1] = P(0.66, s * (0.15 + sw * s)); capsule(x0, y0, 1.18 * S, x1, y1, 1.0 * S, 0.055 * S, skin, hem); }
+    { const [x, y] = P(0.22, 0); sphere(x, y, 1.22 * S, 0.13 * S, skin, hem); }   // hunched: the head low and ahead of the shoulders
     const nc = big ? 5 : 3, hsh = (i, j) => { let q = (d.id * 374761393 + i * 668265263 + j * 1274126177) | 0; q = Math.imul(q ^ (q >>> 13), 1274126177); return ((q ^ (q >>> 16)) >>> 0) / 4294967296; };
     for (let i = 0; i < nc; i++) { const lx = (hsh(i, 1) - 0.5) * 0.22, ly = (hsh(i, 2) - 0.5) * 0.34, [x0, y0] = P(lx, ly), [x1, y1] = P(lx + (hsh(i, 3) - 0.5) * 0.16, ly + (hsh(i, 4) - 0.5) * 0.2); capsule(x0, y0, 1.285 * S, x1, y1, 1.285 * S, 0.026 * S, crackM, pulse); }
-    for (const s of [-1, 1]) { const [x, y] = P(0.24, s * 0.05); sphere(x, y, 1.39 * S, 0.032 * S, crackM, awake ? 1 : 0); }
+    for (const s of [-1, 1]) { const [x, y] = P(0.33, s * 0.05); sphere(x, y, 1.28 * S, 0.034 * S, crackM, awake ? 1 : 0); }
   }
   function turretVolumes(T, t) {
     const S = 1.3, a = T.aim, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [T.x + (lx * ca - ly * sa) * S, T.y + (lx * sa + ly * ca) * S];
@@ -192,6 +200,9 @@ export function createMedium(o) {
     for (const T of turrets) if (on(T.x, T.y)) turretVolumes(T, t);
     kaiVolumes(kai, t);
     const awake = night > 0.5 || v.forceAwake;
+    for (const D of v.deaths || []) { const k = (t - D.t0) / 0.7; if (k >= 1 || !on(D.x, D.y)) continue; const S = FIGM * (D.brute ? 1.6 : 1), a = D.fa ?? 0, hz = (1 - k) * (1 - k);
+      box(D.x, D.y, 0.5 * S * hz, 0.24 * S * (1 + k * 0.6), 0.3 * S * (1 + k * 0.4), 0.5 * S * hz + 0.05, 0.2 * S, a, M.stone);
+      sphere(D.x + Math.cos(a) * 0.3 * S * (1 + k), D.y + Math.sin(a) * 0.3 * S * (1 + k), 0.2 * S * hz, 0.13 * S, M.stone); }
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
     for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); deadVolumes(d, t, awake || sp > 0.2, d.kind || (d.id % 9 === 0 ? 'brute' : d.id % 5 === 0 ? 'flicker' : 'cinder')); }
     tPrim.needsUpdate = true; U.uPN.value = n;
@@ -218,8 +229,8 @@ export function createMedium(o) {
     if (night > 0.3) { fx.fillStyle = '#ffb060'; for (const d of dead) { const [x, y] = toS(d.x, d.y); if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; for (let i = 0; i < 3; i++) { const k = (t * 0.7 + hashN(d.id, i)) % 1; fx.globalAlpha = (1 - k) * night; fx.fillRect(x + (hashN(d.id, i, 2) - 0.5) * 0.5 * s + WIND.x * k * 10, y - k * 0.9 * s + WIND.y * k * 10, 1.6, 1.6); } } fx.globalAlpha = 1; }
     // a fall: the glyphs come apart and drift off as ash
     fx.font = `700 ${Math.max(7, Math.round(0.14 * s))}px "IBM Plex Mono", ui-monospace, monospace`; fx.textAlign = 'center'; fx.textBaseline = 'middle';
-    for (const D of deaths) { const k = (t - D.t0) / 1.6; if (k > 1) continue; const [x, y] = toS(D.x, D.y);
-      for (let i = 0; i < 16; i++) { const a = hashN(D.id, i) * 6.283, r = (1 - (1 - Math.min(1, k * 2)) ** 2) * (0.3 + hashN(D.id, i, 1) * 0.9) * s; fx.globalAlpha = 1 - k; fx.fillStyle = i % 4 === 0 && k < 0.5 ? '#ffa04a' : '#cfc9bc'; fx.fillText(k < 0.4 ? '#%@*'[i % 4] : k < 0.7 ? '+:'[i % 2] : '.,'[i % 2], x + Math.cos(a) * r + WIND.x * k * 12, y + Math.sin(a) * r + WIND.y * k * 12); } }
+    for (const D of deaths) { const k = (t - D.t0) / 2.1; if (k > 1) continue; const [x, y] = toS(D.x, D.y);
+      for (let i = 0; i < 26; i++) { const a = hashN(D.id, i) * 6.283, r = (1 - (1 - Math.min(1, k * 2)) ** 2) * (0.25 + hashN(D.id, i, 1) * 0.8) * s; fx.globalAlpha = 1 - k; fx.fillStyle = i % 4 === 0 && k < 0.5 ? '#ffa04a' : '#cfc9bc'; fx.fillText(k < 0.4 ? '#%@*'[i % 4] : k < 0.7 ? '+:'[i % 2] : '.,'[i % 2], x + Math.cos(a) * r + WIND.x * k * 12, y + Math.sin(a) * r + WIND.y * k * 12); } }
     fx.globalAlpha = 1;
     fx.strokeStyle = 'rgba(255,236,200,.9)'; fx.lineWidth = 1.2; fx.beginPath(); for (const T of tracers) { const [a, b] = toS(T.x0, T.y0), [c, d] = toS(T.x1, T.y1); L(a, b, c, d); } fx.stroke();
     // sparkles: a few glyphs adrift in the air, pale, one in eight warm

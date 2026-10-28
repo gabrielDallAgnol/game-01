@@ -85,7 +85,7 @@ function start() {
   }
   for (let k = 0; k < 34; k++) spawn(rnd() * Math.PI * 2, 16 + rnd() * 50);
   function wave() { const a = rnd() * Math.PI * 2; for (let k = 0; k < 22; k++) spawn(a + (rnd() - 0.5) * 0.35, 60 + rnd() * 14); }
-  function kill(d) { const i = dead.indexOf(d); if (i < 0) return; dead.splice(i, 1); deaths.push({ x: d.x, y: d.y, t0: st.t, id: d.id, vx: d.vx, vy: d.vy, stamp: true }); st.kills++; }
+  function kill(d) { const i = dead.indexOf(d); if (i < 0) return; dead.splice(i, 1); deaths.push({ x: d.x, y: d.y, t0: st.t, id: d.id, vx: d.vx, vy: d.vy, fa: d.fa, brute: d.id % 9 === 0, stamp: true }); st.kills++; }
   const input = { on: false, x: 0, y: 0 };
   let spawnT = 0;
   function step(dt) {
@@ -683,7 +683,7 @@ function start() {
     cam.x = lerp(cam.x, kai.x, Math.min(1, dt * 4)); cam.y = lerp(cam.y, kai.y, Math.min(1, dt * 4));
     U.uCam.value.set(cam.x, cam.y); U.uView.value.set(cssW / cam.ppm, cssH / cam.ppm); U.uPpm.value = cam.ppm * dpr; U.uTime.value = st.t; U.uNight.value = st.night; U.uKai.value.set(kai.x, kai.y);
     stepDist(dt);
-    if (st.look === 'medium') medium.render({ cam, cssW, cssH, dpr, kai, dead, turrets, rig, t: st.t, night: st.night });
+    if (st.look === 'medium') medium.render({ cam, cssW, cssH, dpr, kai, dead, deaths, turrets, rig, t: st.t, night: st.night });
     renderer.render(scene, quadCam);
     fx.clearRect(0, 0, cssW, cssH); try { DRAW[st.look](); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e.stack || e); } }   // a drawing slip never stops the loop
     requestAnimationFrame(frame);
