@@ -119,23 +119,24 @@ export function createMedium(o) {
         float hp = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, skip = A.a > 0.5 ? 0.8 : 0.25;
         // lit windows and open doors: the light falls out of the house; whoever stands in it throws a shadow away from the window
         float lm = 0.0; { float l0 = texture2D(tLight, t).r; if (l0 * uNight > 0.01) { vec3 LD = texture2D(tLDir, t).rgb; vec2 back = (LD.rg * 255.0 - 128.0) / 127.0; float dist = LD.b * 8.0;
-          lm = l0 * (0.88 + 0.12 * vnoise(w * 0.4 + uTime * 1.3)) * (1.0 - 0.85 * occl(w, w + back * dist, hp, 1.7, skip, 0.0, 0.0)); }
+          lm = l0 * (0.88 + 0.12 * vnoise(w * 0.4 + uTime * 1.3)) * (1.0 - 0.9 * occl(w, w + back * dist, hp, 1.7, skip, 1.0, 0.45)) * (1.0 - roof) * (1.0 - tree); }
           col += vec3(1.0, 0.64, 0.3) * lm * uNight * (0.35 + 0.65 * smoothstep(0.0, 0.25, lm)) * 0.75; }
         // the bike's headlight: a cone of real light; walls stop it, and the dead in it throw long shadows down the beam
         float head = 0.0; if (uHead.w > 0.01) { vec2 dv = w - uHead.xy; float r = length(dv), cs = dot(dv, vec2(cos(uHead.z), sin(uHead.z))) / max(r, 1e-3);
           head = smoothstep(0.84, 0.95, cs) * (1.0 - smoothstep(6.0, 24.0, r)) * smoothstep(0.2, 1.0, r) * uHead.w;
+          head *= (1.0 - tree) * (1.0 - roof);   // the beam runs under crowns and stops at walls: it never lights their tops
           if (head > 0.003) head *= 1.0 - occl(w, uHead.xy, hp, 1.45, skip, 1.0, 1.1);
           col += col * head * 2.2 + vec3(1.0, 0.92, 0.76) * head * 0.42; }
         vec3 under = col;   // the ground as lit, before any figure: a crown above a figure keeps most of it
         // cast shadows: from this point walk toward the sun (north-west, the same sun as the town's) and ask whether
         // a solid stands taller than the light's ray there. The ray climbs 1.8 m a metre (shadows ~0.55× their height).
         float h0s = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, shade = 0.0;
-        float clim = max(0.35, uSun.z), stp = 0.28 * clamp(1.8 / clim, 1.0, 2.2);
-        for (int k = 1; k <= 16; k++) { float d = float(k) * stp; vec2 sc = (gl_FragCoord.xy + vec2(SUNV.x, -SUNV.y) * d * uPpm) / uCellPx;
+        float clim = max(0.85, uSun.z), stp = 0.26 * clamp(1.8 / clim, 1.0, 2.0), j2 = h21(gl_FragCoord.xy * 0.53);   // figures are drawn big: a low sun would throw a 10 m shadow
+        for (int k = 0; k < 14; k++) { float d = (float(k) + 0.6 + j2) * stp; vec2 sc = (gl_FragCoord.xy + vec2(SUNV.x, -SUNV.y) * d * uPpm) / uCellPx;
           vec4 S2 = texture2D(tCells, (floor(sc) + 0.5) / uCells); float hs = S2.a > 0.5 ? (S2.a - 0.52) / 0.48 * 8.0 : -1.0;
           shade = max(shade, smoothstep(-0.15, 0.25, hs - (h0s + d * clim))); }
         float sMask = shade * (A.a > 0.5 ? 0.55 : 1.0) * (1.0 - tree) * mix(1.0, 0.3, uNight);   // a crown is above any figure's shadow
-        col *= 1.0 - 0.52 * sMask;
+        col *= 1.0 - 0.42 * sMask;
         if (A.a > 0.5) {
           float mi = floor(A.g * 32.0 + 0.5), em = A.b; vec3 mc = matCol(mi, em), ec = emCol(mi);
           float lev = max(max(floor(pow(clamp(A.r, 0.0, 0.999), 0.5) * ${NG}.0), floor(em * ${NG - 1}.0)), floor(clamp(head * 1.4 + lm * uNight, 0.0, 0.95) * ${NG}.0));   // light on it fills its letters
@@ -155,7 +156,7 @@ export function createMedium(o) {
       vec2 dv = L - w; float r = length(dv), o = 0.0;
       float j = h21(gl_FragCoord.xy * 0.71);
       for (int k = 0; k < 7; k++) { float u = (float(k) + j) / 7.5, s = r * u; if (s < skip || s > r - tail) continue; vec2 q = w + dv * u;
-        if (bld > 0.5) o = max(o, smoothstep(0.45, 0.7, texture2D(tRoof, toTex(q)).a));
+        if (bld > 0.5) o = max(o, max(smoothstep(0.45, 0.7, texture2D(tRoof, toTex(q)).a), smoothstep(0.93, 0.97, texture2D(tTreeH, toTex(q)).r)));   // walls, and tree trunks
         vec4 S3 = texture2D(tCells, (floor((gl_FragCoord.xy + vec2(dv.x, -dv.y) * u * uPpm) / uCellPx) + 0.5) / uCells);
         float hs = S3.a > 0.5 ? (S3.a - 0.52) / 0.48 * 8.0 : -1.0; o = max(o, smoothstep(0.0, 0.4, hs - mix(hp, hl, u))); }
       return o; }

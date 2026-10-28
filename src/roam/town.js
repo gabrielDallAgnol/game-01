@@ -41,6 +41,12 @@ export function buildTown(seed = 7) {
   xX.strokeStyle = 'rgb(0,255,0)'; xX.lineWidth = 0.16; xX.setLineDash([3, 4]); for (const st of W.streets) if (st.kind !== 'path' && st.w >= 7) { xX.beginPath(); st.pts.forEach((q, i) => i ? xX.lineTo(q.x, q.y) : xX.moveTo(q.x, q.y)); xX.stroke(); } xX.setLineDash([]);
   hX.globalCompositeOperation = 'lighten';
   for (const p of trees) { const r = (p.r || p.def.size[0] / 2) * 0.86, g = hX.createRadialGradient(p.x - r * 0.15, p.y - r * 0.2, 0, p.x, p.y, r); g.addColorStop(0, '#fff'); g.addColorStop(0.6, '#bbb'); g.addColorStop(1, '#000'); hX.fillStyle = g; hX.beginPath(); hX.arc(p.x, p.y, r, 0, 7); hX.fill(); }
+  // walls: buildings and the edge of the town
+  const GR = 2, GN = SPAN * GR, solid = new Uint8Array(GN * GN);
+  const mark = (p, pad) => { const r = Math.hypot(p.w, p.h) / 2 + pad + 0.5, gx0 = Math.max(0, Math.floor((p.x - r - O.x) * GR)), gx1 = Math.min(GN - 1, Math.ceil((p.x + r - O.x) * GR)), gy0 = Math.max(0, Math.floor((p.y - r - O.y) * GR)), gy1 = Math.min(GN - 1, Math.ceil((p.y + r - O.y) * GR));
+    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, O.x + (gx + 0.5) / GR, O.y + (gy + 0.5) / GR, pad)) solid[gy * GN + gx] = 1; };
+  for (const p of buildings) mark(p, 0.15);
+  const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor((x - O.x) * GR), gy = Math.floor((y - O.y) * GR); return gx < 0 || gy < 0 || gx >= GN || gy >= GN || solid[gy * GN + gx] === 1; };
   // the night: no street lamps (the power died in the Ashfall); one house in five has someone hiding in it
   const [lC, lX] = canvas(MPX, '#000'); lX.globalCompositeOperation = 'lighter';
   const [dC, dX] = canvas(MPX, '#808000');   // r,g: the way back to the window; b: how far from it (8 m = 255)
@@ -52,15 +58,10 @@ export function buildTown(seed = 7) {
   for (const p of buildings) { if (!p.def.light || hashL(p.uid + W.seed * 31) >= 0.42) continue;
     lX.fillStyle = 'rgba(0,255,0,1)'; obb(lX, p, 0); const c = Math.cos(p.rot), sn = Math.sin(p.rot), big = hashL(p.uid * 5 + 1), ww = 0.7 + big * 1.9, len = 2.4 + big * 3.4, gap = ww + 1.6 + hashL(p.uid * 11) * 2.5;
     const wall = (L, ox, oy, ex, ey, nx, ny, salt) => { const m = Math.max(1, Math.floor(L / gap)); for (let k = 0; k < m; k++) { if (hashL(p.uid * 7 + k * 3 + salt) < 0.35) continue; const u = (k + 0.5) / m - 0.5, lx = ox + ex * u * L, ly = oy + ey * u * L, a = 0.75 + 0.25 * hashL(p.uid * 3 + k + salt);
+      const wx = p.x + lx * c - ly * sn, wy = p.y + lx * sn + ly * c, ox2 = nx * c - ny * sn, oy2 = nx * sn + ny * c; if (blocked(wx + ox2 * 0.6, wy + oy2 * 0.6) || blocked(wx + ox2 * 1.4, wy + oy2 * 1.4)) continue;   // a wall shared with the house next door has no window
       spill(p.x + lx * c - ly * sn, p.y + lx * sn + ly * c, nx * c - ny * sn, nx * sn + ny * c, ww, len, a); } };
     for (const side of [-1, 1]) { wall(p.w, 0, side * p.h / 2, 1, 0, 0, side, side + 2); if (p.h > 5 && hashL(p.uid * 17 + side) < 0.6) wall(p.h, side * p.w / 2, 0, 0, 1, side, 0, side + 6); }
     if (p.door && hashL(p.uid * 13) < 0.4) { const dx = p.door.x - p.x, dy = p.door.y - p.y, r = Math.hypot(dx, dy) || 1; spill(p.door.x, p.door.y, dx / r, dy / r, 1.1, 4.0, 1.0); } }
-  // walls: buildings and the edge of the town
-  const GR = 2, GN = SPAN * GR, solid = new Uint8Array(GN * GN);
-  const mark = (p, pad) => { const r = Math.hypot(p.w, p.h) / 2 + pad + 0.5, gx0 = Math.max(0, Math.floor((p.x - r - O.x) * GR)), gx1 = Math.min(GN - 1, Math.ceil((p.x + r - O.x) * GR)), gy0 = Math.max(0, Math.floor((p.y - r - O.y) * GR)), gy1 = Math.min(GN - 1, Math.ceil((p.y + r - O.y) * GR));
-    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, O.x + (gx + 0.5) / GR, O.y + (gy + 0.5) / GR, pad)) solid[gy * GN + gx] = 1; };
-  for (const p of buildings) mark(p, 0.15);
-  const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor((x - O.x) * GR), gy = Math.floor((y - O.y) * GR); return gx < 0 || gy < 0 || gx >= GN || gy >= GN || solid[gy * GN + gx] === 1; };
   // where on a street: for spawning the dead and parking the bike (a street cell, 1 m grid)
   const streetCells = []; { const d = sX.getImageData(0, 0, sC.width, sC.height).data; for (let y = 4; y < W.h - 4; y += 2) for (let x = 4; x < W.w - 4; x += 2) { const i = (Math.floor((y - O.y) * MPX) * sC.width + Math.floor((x - O.x) * MPX)) * 4; if (d[i + 3] > 128 && !blocked(x, y)) streetCells.push(x, y); } }
   // the nests: infested and nestable buildings first, then the biggest houses, spread across the town
