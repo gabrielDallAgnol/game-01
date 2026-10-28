@@ -8,6 +8,8 @@
 import { BUILDINGS } from '../../content/buildings.js';
 import { READ } from '../readable.js';
 import { lc } from './shared.js';
+// [medium] the One-medium look draws the guns as glyphs: no tokens
+import { MEDIUM } from '../medium.js';
 
 const Y = 4.2;   // over a turret's roof, under the labels
 export function createClarity(V) {
@@ -60,6 +62,7 @@ export function createClarity(V) {
   const rangeOf = b => { const R = BUILDINGS.tower.range; return (R[Math.max(0, Math.min(R.length - 1, b.level - 1))] || 8) * 1.15; };
 
   function update(dt, events) {
+    if (MEDIUM) { for (const t of tokens.values()) t.g.visible = false; return; }   // [medium]
     const kk = k(), sc = Math.min(1.9, 1.05 + 0.32 * kk), time = V.time;
     // a tower's shot: flash the muzzle of the turret it left from
     if (events) for (const e of events) if (e.type === 'shot' && e.src === 'tower') {

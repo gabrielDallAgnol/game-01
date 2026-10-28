@@ -1,6 +1,8 @@
 // Hollowmere city kit · The world-space hook every lit material shares: the territory / fog-of-war mask and the territory() shader patch.
 /* global THREE */
 import { lin } from './palette.js';
+// [medium] the Glyph atom's shared uniforms (render/medium.js)
+import { MU } from '../medium.js';
 // [top]
 
 // ---------- the world-space hook every lit material shares ----------
@@ -60,12 +62,13 @@ const NOISE = `
  *   ground: ground textures with organic path edges and noise variation (see city.js)
  *   sway:  wind sway for instanced trees and scrub
  *   fog: false to skip the fog of war (things drawn above it)
+ *   glyph: false to keep it out of the One-medium glyph pass (the town's ground: it is strands, not letters)
  */
 function territory(m, o = {}) {
-  const defs = [o.emit && 'T_EMIT', o.rim && 'T_RIM', o.flash && 'T_FLASH', o.ground && 'T_GROUND', o.sway && 'T_SWAY', o.fog === false && 'T_NOFOG', 'T_FLAT'].filter(Boolean);   // [top] T_FLAT
+  const defs = [o.emit && 'T_EMIT', o.rim && 'T_RIM', o.flash && 'T_FLASH', o.ground && 'T_GROUND', o.sway && 'T_SWAY', o.fog === false && 'T_NOFOG', o.glyph === false && 'T_NOGLYPH', 'T_FLAT'].filter(Boolean);   // [top] T_FLAT
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, { tMask: T.mask, tOff: T.off, tAmount: T.amount, tDark: T.dark, tLight: T.light, tLightO: T.lightO, tLightS: T.lightS, tLightK: T.lightK,
-      tEmitK: T.emitK, tEmitCol: T.emitCol, tRim: T.rim, tMist: T.mist, tTime: T.time, tAO: T.ao, tFogCol: T.fogCol, tCyan: T.cyan, tFront: T.front, tScan: T.scan, tSway: T.sway, tNight: T.night, tFlat: T.flat }, o.uniforms || {});
+      tEmitK: T.emitK, tEmitCol: T.emitCol, tRim: T.rim, tMist: T.mist, tTime: T.time, tAO: T.ao, tFogCol: T.fogCol, tCyan: T.cyan, tFront: T.front, tScan: T.scan, tSway: T.sway, tNight: T.night, tFlat: T.flat }, MU, o.uniforms || {});   // [medium] MU
     const head = defs.map(d => `#define ${d}`).join('\n');
     sh.vertexShader = head + '\n' + sh.vertexShader.replace('#include <common>', `#include <common>
 varying vec3 vTWorld;
@@ -101,6 +104,8 @@ varying float vEmit;
 #ifdef T_FLASH
 varying float vFlash;
 #endif
+uniform float mOn, mCell, mPxM, mTime, mNight; uniform sampler2D mGlyph, mPress; uniform float mPressN, mPressO; uniform vec4 mPush[8];   // [medium]
+float tNoGlyph = 0.0;   // [medium] a material's own fragColor may set it (a tree crown drawn as strands, not letters)
 ${NOISE}
 ${o.fragHead || ''}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
@@ -142,6 +147,25 @@ gl_FragColor.rgb += tRim.rgb * rim * tRim.a;
 #ifdef T_FLASH
 gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(2.4, 2.3, 2.2), vFlash);
 #endif
+// [medium] begin: the Glyph atom. Solids become letters by their light: one sun from the north-west, high; shadow is
+// empty dark, light is dense letters (' .,:-=+*%#@'), the material's colour sits inside them. The cell grid is the
+// screen's, so every object shares it and the town reads as one printed thing.
+#ifndef T_NOGLYPH
+if (mOn > 0.5 && tNoGlyph < 0.5) {
+  float ndl = 0.72;
+#if defined(STANDARD) || defined(PHONG)
+  ndl = clamp(dot(normalize((vec4(normal, 0.0) * viewMatrix).xyz), normalize(vec3(-0.5, 0.75, -0.62))), 0.0, 1.0);
+#endif
+  vec3 cc = sqrt(max(gl_FragColor.rgb, 0.0)); float L0 = dot(cc, vec3(0.2126, 0.7152, 0.0722));   // (worked in screen values, written back linear)
+  float lum = clamp(L0 * (0.42 + 0.78 * ndl) * 1.15, 0.0, 0.999);
+  vec2 gq = fract(gl_FragCoord.xy / mCell); float lev = floor(pow(lum, 0.7) * 11.0);
+  float gm = texture2D(mGlyph, vec2((lev + gq.x) / 11.0, gq.y)).a;
+  vec3 tint = cc / max(max(cc.r, max(cc.g, cc.b)), 0.03);
+  vec3 gc = mix(tint * L0 * 0.22, mix(vec3(0.95, 0.93, 0.88), tint, 0.55) * (0.3 + 0.8 * lum) * clamp(max(cc.r, max(cc.g, cc.b)) * 1.3, 0.35, 1.0), gm);
+  gl_FragColor.rgb = gc * gc;
+}
+#endif
+// [medium] end
 float mist = tMist.a * exp(-max(vTWorld.y, 0.0) * 1.5) * (0.5 + 0.5 * tNoise(vTWorld.xz * 0.08 + tTime * vec2(0.035, 0.02)));
 gl_FragColor.rgb = mix(gl_FragColor.rgb, tMist.rgb, clamp(mist, 0.0, 1.0));
 #ifndef T_NOFOG
@@ -155,6 +179,7 @@ if (seen < 0.999 || tScan.w > 0.001) {
   float grid = smoothstep(0.455, 0.49, max(gq.x, gq.y));
   // [polish] a light veil, not a shroud: the town's shapes, streets and roofs still read, desaturated and cooled
   vec3 bp = mix(mix(vec3(gl), gl_FragColor.rgb, 0.35) * 0.8 + tFogCol * 0.35, tFogCol * 0.9 + gl * 0.35, 0.22 * tNight) + tCyan * grid * 0.035;
+  if (mOn > 0.5) bp = mix(vec3(gl), gl_FragColor.rgb, 0.3) * 0.32 + tFogCol * 0.02 + tCyan * grid * 0.012;   // [medium] the unknown is darker, not paler
   float front = smoothstep(0.11, 0.0, abs(sw - 0.48)) * tFront;
   float sd = distance(vTWorld.xz, tScan.xy);
   float scan = tScan.w * smoothstep(1.4, 0.0, abs(sd - tScan.z)) * smoothstep(tScan.z + 1.0, tScan.z - 6.0, sd);

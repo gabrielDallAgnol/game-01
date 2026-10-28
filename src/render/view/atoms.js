@@ -6,11 +6,36 @@
 /* global THREE */
 import { K } from '../kit.js';
 import { paintWorld } from '../../engine/draw2d.js';
+// [medium] the Strand atom, and whether the One-medium look is on
+import { STRAND } from '../kit/strand.js';
+import { MEDIUM } from '../medium.js';
 
 const TILE = 32, PX = 10, RES = TILE * PX;   // tiles of 32 m at 10 px/m
 const OVER_Y = 3.4;                           // the overhead plane: above a standing figure
 const PER_FRAME = 1, BUDGET = 6, POOL = 48;   // at least one tile a frame, more while under 6 ms (no hitch when you walk far); tiles kept
 
+// [medium] begin: the town's tiles in the One-medium look. Painted grass (green over blue) becomes combed strands that
+// bend with the gusts, part round Kai and the dead and lie flat where they trod; the rest of the ground darkens so only
+// light carries form. Painted crowns overhead become strands too (and skip the glyph pass); roofs become glyphs.
+const GRASS = `if (mOn > 0.5) {
+  vec3 pc = diffuseColor.rgb, sg = sqrt(max(pc, 0.0)); float grass = smoothstep(0.08, 0.15, sg.g - sg.b) * smoothstep(0.35, 0.55, sg.g);
+  vec2 w = vTWorld.xz, dir = strandWind(w, mTime), push = vec2(0.0);
+  for (int k = 0; k < 8; k++) { vec2 d = w - mPush[k].xy; float r = length(d); if (r < mPush[k].z) push += d / max(r, 0.01) * (1.0 - r / mPush[k].z); }
+  float pl = length(push); if (pl > 0.02) dir = normalize(mix(dir, push / pl, clamp(pl * 1.4, 0.0, 1.0)));
+  float press = texture2D(mPress, (w + mPressO) / mPressN).r, fq = clamp(mPxM * 0.3, 3.0, 13.0), g0 = strandGust(w, mTime);
+  vec2 sd = strand(w, dir, fq, 0.9 * (13.0 / fq) * mix(1.0, 0.4, press));
+  vec3 hc = mix(vec3(0.05, 0.075, 0.07), vec3(0.36, 0.43, 0.39), sd.y) * (0.75 + 0.5 * g0) * mix(1.0, 0.5, press);
+  vec3 grassC = mix(vec3(0.035, 0.05, 0.048), hc, smoothstep(0.1, 0.6, sd.x) * (0.5 + 0.5 * smoothstep(0.2, 0.75, sNoise(w * 0.07 + 3.7))));
+  vec3 hard = mix(vec3(dot(sg, vec3(0.3, 0.59, 0.11))), sg, 0.35) * vec3(0.17, 0.18, 0.21);   // screen values   // streets, setts, lots: a dark, cool, quiet ground
+  diffuseColor.rgb = pow(mix(hard, grassC, grass) * mix(1.0, 0.62, press * (1.0 - grass)), vec3(2.2));   // (the lab's colours are screen values: to linear)
+}`;
+const CROWN = `if (mOn > 0.5) {
+  vec3 pc = diffuseColor.rgb, sg = sqrt(max(pc, 0.0)); float tr = smoothstep(0.16, 0.22, sg.g - sg.b);
+  if (tr > 0.5) { tNoGlyph = 1.0; vec2 w = vTWorld.xz; float g0 = strandGust(w, mTime);
+    vec2 dir = normalize(strandWind(w * 1.7, mTime) + (vec2(sNoise(w * 0.6), sNoise(w * 0.6 + 7.0)) - 0.5) * 1.6), sd = strand(w, dir, clamp(mPxM * 0.3, 3.0, 13.0), 0.5 * 13.0 / clamp(mPxM * 0.3, 3.0, 13.0));
+    diffuseColor.rgb = pow(mix(vec3(0.03, 0.045, 0.04), vec3(0.3, 0.38, 0.3) + 0.05 * g0, smoothstep(0.1, 0.6, sd.x) * (0.4 + 0.6 * sd.y)), vec3(2.2)); }
+}`;
+// [medium] end
 export function createAtoms(V) {
   const A = V.map.area; if (!A) return null;
   const { world, S, C, map } = V, Wd = A.W, palette = Wd.chapter || 'ch1';
@@ -21,8 +46,8 @@ export function createAtoms(V) {
     const cv = document.createElement('canvas'); cv.width = cv.height = RES;
     const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.anisotropy = 4;
     const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0, transparent: over, alphaTest: over ? 0.02 : 0.5, depthWrite: !over, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-    if (over) K.territory(mat, { uniforms: { uHole: hero }, fragHead: 'uniform vec3 uHole;', fragColor: 'diffuseColor.a *= mix(1.0, mix(0.1, 1.0, smoothstep(2.2, 4.2, distance(vTWorld.xz, uHole.xy))), uHole.z);' });
-    else K.territory(mat, { ground: false });
+    if (over) K.territory(mat, { uniforms: { uHole: hero }, fragHead: 'uniform vec3 uHole;' + STRAND, fragColor: 'diffuseColor.a *= mix(1.0, mix(0.1, 1.0, smoothstep(2.2, 4.2, distance(vTWorld.xz, uHole.xy))), uHole.z);' + CROWN });
+    else K.territory(mat, { ground: false, glyph: false, fragHead: STRAND, fragColor: GRASS });   // [medium] the ground is strands, not letters
     const mesh = new THREE.Mesh(geo, mat); mesh.rotation.x = -Math.PI / 2; mesh.visible = false; if (over) mesh.renderOrder = 5; else mesh.receiveShadow = true; world.add(mesh);
     return { cv, ctx: cv.getContext('2d'), tex, mesh };
   };
@@ -88,7 +113,8 @@ export function createAtoms(V) {
   // and paints the night's light pools like the camp's fires do
   const LAMP = new THREE.Color('#ffd9a0').convertSRGBToLinear(), WIN = new THREE.Color('#ffb868').convertSRGBToLinear(), FIRE = new THREE.Color('#ff7a3a').convertSRGBToLinear();
   const hash = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
-  const lamps = Wd.placed.filter(p => p.def.light && !p.def.tags.includes('camp') && hash(p.uid + Wd.seed * 31) < p.def.light).map(p => {
+  // [medium] the power died in the Ashfall: no street lamps, light only in the houses someone hides in (one in five)
+  const lamps = Wd.placed.filter(p => p.def.light && !p.def.tags.includes('camp') && (MEDIUM ? p.def.kind === 'building' && hash(p.uid + Wd.seed * 31) < 0.2 : hash(p.uid + Wd.seed * 31) < p.def.light)).map(p => {
     const x = p.x + A.ox - C, z = p.y + A.oy - C, look = p.def.look;
     return look === 'lamp' ? { x, z, r: 5.5, c: LAMP, k: 0.9, core: 0.35 } : look === 'nest' ? { x, z, r: 14, c: FIRE, k: 1.6, core: 0.4 } : { x, z, r: 2.6 + Math.min(p.w, p.h) * 0.12, c: WIN, k: 0.42, core: 0.1, win: true, id: p.uid };
   });

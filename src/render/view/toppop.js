@@ -10,6 +10,8 @@ import { outlineMat } from '../figures.js';
 import { TOP_FIG } from '../top.js';
 import { READ } from '../readable.js';
 import { K } from '../kit.js';
+// [medium] in the One-medium look the figures read by themselves (glyphs): no tokens under them
+import { MEDIUM } from '../medium.js';
 import { lc, FOOT, HERO_OUTLINE } from './shared.js';
 
 const Y = 0.075, FIG = Math.sqrt(TOP_FIG);   // tokens grow with the bigger figures, a little less than they do
@@ -83,6 +85,7 @@ export function createTopPop(V) {
   const frames = new Map();
 
   function update() {
+    if (MEDIUM) { hero.visible = false; pips.count = 0; glows.count = 0; for (const f of frames.values()) f.visible = false; if (V.markers && V.markers.heroRing) V.markers.heroRing.visible = false; if (V.crowd && V.crowd.mats) { V.crowd.mats.body.color.setRGB(0.74, 0.72, 0.68); } return; }   // [medium] pale stone dead, no tokens
     const time = V.time, dark = V.dark, h = S.hero, kk = k();
     // hero
     hero.visible = !h.dead;
