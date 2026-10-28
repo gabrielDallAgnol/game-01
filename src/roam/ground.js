@@ -122,6 +122,6 @@ export const DIST = `precision highp float; varying vec2 vUv;
       vec2 w = uOrigin + vec2(vUv.x, 1.0 - vUv.y) * uS;
       for (int k = 0; k < 48; k++) { if (k >= uN) break; vec4 A = uA[k], B = uB[k]; vec2 dv = w - A.xy; float r = length(dv);
         if (r < B.x) { float f = 1.0 - r / B.x; vec2 o = r > 0.001 ? dv / r : vec2(0.0); float vl = length(A.zw); vec2 v = vl > 0.05 ? A.zw / vl : vec2(0.0);
-          vec2 p = o * 0.85 + v * 0.55; float q = length(p); if (q > 0.001) push = mix(push, p / q * min(1.0, q), clamp(f * 0.7, 0.0, 1.0));
+          vec2 p = (o * 0.85 + v * 0.55) * min(1.0, vl / 1.2);   // only what moves parts the grass (a standing figure just presses it: no cowlick) float q = length(p); if (q > 0.001) push = mix(push, p / q * min(1.0, q), clamp(f * 0.7, 0.0, 1.0));
           press = max(press, B.y * smoothstep(0.0, 0.55, f)); } }
       gl_FragColor = vec4(push * 0.5 + 0.5, press, 1.0); }`;

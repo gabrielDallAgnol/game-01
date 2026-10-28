@@ -37,7 +37,10 @@ export function buildTown(seed = 7) {
   }
   sX.lineCap = 'round';
   if (W.plaza) { const P = W.plaza; for (const [inset, lvl] of [[0, 80], [1.5, 255]]) { sX.save(); sX.translate(P.x, P.y); sX.rotate(P.rot); sX.fillStyle = `rgb(${ang(P.rot)},200,${lvl})`; sX.fillRect(-P.w / 2 + inset, -P.h / 2 + inset, P.w - 2 * inset, P.h - 2 * inset); sX.restore(); } }
-  for (const [inset, lvl] of [[0, 80], [1.5, 170], [3.2, 255]]) for (const st of W.streets) for (let i = 0; i < st.pts.length - 1; i++) { const a = st.pts[i], b = st.pts[i + 1], w = st.w - 2 * inset; if (w <= 0.4) continue; sX.strokeStyle = `rgb(${ang(Math.atan2(b.y - a.y, b.x - a.x))},${st.kind === 'path' ? 90 : 255},${lvl})`; sX.lineWidth = w; sX.beginPath(); sX.moveTo(a.x, a.y); sX.lineTo(b.x, b.y); sX.stroke(); }
+  // streets drawn wider than the engine lays them (x1.6, paths x1.4) with 2.4 m pavements: the figures are drawn big, and a
+  // life-size road looked like a lane beside them (roofs still win where a house stands close to the kerb)
+  const sw = st => st.w * (st.kind === 'path' ? 1.4 : 1.6);
+  for (const [inset, lvl] of [[0, 80], [2.4, 170], [3.9, 255]]) for (const st of W.streets) for (let i = 0; i < st.pts.length - 1; i++) { const a = st.pts[i], b = st.pts[i + 1], w = sw(st) - 2 * inset; if (w <= 0.4) continue; sX.strokeStyle = `rgb(${ang(Math.atan2(b.y - a.y, b.x - a.x))},${st.kind === 'path' ? 90 : 255},${lvl})`; sX.lineWidth = w; sX.beginPath(); sX.moveTo(a.x, a.y); sX.lineTo(b.x, b.y); sX.stroke(); }
   xX.strokeStyle = 'rgb(0,255,0)'; xX.lineWidth = 0.16; xX.setLineDash([3, 4]); for (const st of W.streets) if (st.kind !== 'path' && st.w >= 7) { xX.beginPath(); st.pts.forEach((q, i) => i ? xX.lineTo(q.x, q.y) : xX.moveTo(q.x, q.y)); xX.stroke(); } xX.setLineDash([]);
   hX.globalCompositeOperation = 'lighten';
   for (const p of trees) { const r = (p.r || p.def.size[0] / 2) * 0.86, g = hX.createRadialGradient(p.x - r * 0.15, p.y - r * 0.2, 0, p.x, p.y, r); g.addColorStop(0, '#fff'); g.addColorStop(0.6, '#bbb'); g.addColorStop(1, '#000'); hX.fillStyle = g; hX.beginPath(); hX.arc(p.x, p.y, r, 0, 7); hX.fill(); }

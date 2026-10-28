@@ -31,7 +31,10 @@ function start() {
   let cssW = 0, cssH = 0, dpr = 1;
   function resize() { cssW = innerWidth; cssH = innerHeight; dpr = Math.min(devicePixelRatio || 1, 1.5); look.resize(cssW, cssH, dpr); const f = Math.min(devicePixelRatio || 1, 2); fxc.width = Math.round(cssW * f); fxc.height = Math.round(cssH * f); fx.setTransform(f, 0, 0, f, 0, 0); }
   addEventListener('resize', resize); resize();
-  const toS = (x, y) => [(x - cam.x) * cam.ppm + cssW / 2, (y - cam.y) * cam.ppm + cssH / 2];
+  // what is drawn uses `view`: the camera snapped to the glyph grid (and the zoom to small steps), so a still roof keeps its
+  // letters while the camera glides; without it every cell re-samples a little each frame and the letters flicker
+  const view = { x: 0, y: 0, ppm: 22, base: 22 };
+  const toS = (x, y) => [(x - view.x) * view.ppm + cssW / 2, (y - view.y) * view.ppm + cssH / 2];
   let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; });
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
   const falls = []; let acc = 0, last = performance.now(), t = 0;
@@ -46,10 +49,12 @@ function start() {
     const k = S.kai, lead = k.riding ? 0.55 : 0.3, sp = k.riding ? S.bike.speed / ROAM.bike.top : 0;
     cam.x += (k.x + k.vx * lead - cam.x) * Math.min(1, dt * 5); cam.y += (k.y + k.vy * lead - cam.y) * Math.min(1, dt * 5);
     const wantPpm = cam.base * (1 - 0.3 * sp); cam.ppm += (wantPpm - cam.ppm) * Math.min(1, dt * 2.5);
-    look.render({ cam, cssW, cssH, dpr, S, falls, t, night, dt, sun });
+    view.ppm = Math.pow(2, Math.round(Math.log2(cam.ppm) * 32) / 32); view.base = cam.base;
+    { const cs = Math.max(3, Math.round(3 * dpr)) / (dpr * view.ppm); view.x = Math.round(cam.x / cs) * cs; view.y = Math.round(cam.y / cs) * cs; }
+    look.render({ cam: view, cssW, cssH, dpr, S, falls, t, night, dt, sun });
     fx.clearRect(0, 0, cssW, cssH);
     const kaiUnder = town.trees.some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
-    try { look.draw(fx, { kaiUnder, toS, cam, cssW, cssH, kai: S.kai, dead: S.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: S.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
+    try { look.draw(fx, { kaiUnder, toS, cam: view, cssW, cssH, kai: S.kai, dead: S.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: S.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
     ui.arrows(toS, cssW, cssH); ui.update(evs);
     requestAnimationFrame(frame);
   }

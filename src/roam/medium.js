@@ -79,13 +79,14 @@ export function createMedium(o) {
   swap('        vec3 col = mix(base, sc * mix(1.0, 0.6, shadow), alpha);', `        vec3 col = mix(base, sc * mix(1.0, 0.6, shadow), alpha);
         float hairK = ground + street * (1.0 - smoothstep(0.12, 0.3, inward)) * 0.8 + tree;
         if (hairK > 0.01) {
-          vec4 dH = texture2D(tDist, t); vec2 pushH = (dH.rg - 0.5) * 2.0; float pressH = dH.b;
+          vec2 o1 = vec2(0.45 / uS, 0.0), o2 = vec2(0.0, 0.45 / uS);   // the field is coarse (0.42 m a texel): blurred, so up close the parting is one smooth flow, not rings
+          vec4 dH = (texture2D(tDist, t) * 2.0 + texture2D(tDist, t + o1) + texture2D(tDist, t - o1) + texture2D(tDist, t + o2) + texture2D(tDist, t - o2)) / 6.0; vec2 pushH = (dH.rg - 0.5) * 2.0; float pressH = dH.b;
           float th = atan(WD.y, WD.x) + 2.4 * (vnoise(w * 0.05 + vec2(uTime * 0.01, 0.0)) - 0.5) + 1.1 * (vnoise(w * 0.21) - 0.5) + (g0 - 0.4) * 0.6;
           vec2 dir = vec2(cos(th), sin(th)); if (tree > 0.5) dir = normalize(tang + WD * (g0 - 0.3) * 0.5);   // a crown is combed round its middle
           float pl = length(pushH); if (pl > 0.02) dir = normalize(mix(dir, pushH / pl, clamp(pl * 1.6, 0.0, 1.0)));
           // (the seeds sit on a turned, jittered lattice, so the strands never line up in columns)
           float fq = clamp(uGrid * 0.45, 4.0, 22.0);   // seeds a metre: fewer when a pixel covers more ground, so they never alias into lines
-          float stepL = 0.036 * (20.0 / fq) * mix(1.0, 0.4, pressH), acc = 0.0, tip = 0.0;   // finer, shorter strands
+          float stepL = 0.036 * (20.0 / fq) * mix(1.0, 0.65, pressH), acc = 0.0, tip = 0.0;   // finer, shorter strands
           for (int k = -9; k <= 9; k++) { float fk = float(k); vec2 q = w + dir * fk * stepL; q = mat2(0.866, 0.5, -0.5, 0.866) * q; float sd = step(0.8, h21(floor(q * fq + vec2(h21(vec2(floor(q.y * fq), 3.0)), 0.0)))); acc += sd; tip += sd * (fk + 9.0) / 18.0; }
           float hair = clamp(acc / 4.0, 0.0, 1.0), hl = clamp(tip / max(acc, 1e-3), 0.0, 1.0);
           float thick = smoothstep(0.2, 0.75, vnoise(w * 0.07 + 3.7)) * 0.55 + 0.45;
