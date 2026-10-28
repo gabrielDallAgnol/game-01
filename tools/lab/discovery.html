@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Hollowmere Design Discovery</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Allerta+Stencil&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a field sheet. One section per subject (Kai, the Ash-Born, Hilde); three concept cards each, side by side on a
+   wide screen and a swipeable row on a phone. Every card is a live drawing in the Overgrown stroke style: close up, and at
+   the size it has in the game. A pick bar at the bottom collects the choices. Single dark theme on purpose: the game's. */
+:root{
+  --bg:#0d0e0f; --panel:#17181a; --panel2:#1f2023; --fg:#efe9dc; --dim:#9c978c; --line:rgba(239,233,220,.10);
+  --amber:#f0b44c; --ember:#ff7a2a; --ink:#0a0a0b;
+  --display:'Allerta Stencil',Impact,'Arial Narrow',sans-serif; --body:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 15px/1.5 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 120px}
+[hidden]{display:none!important}
+header{max-width:1180px;margin:0 auto;padding-block:28px 8px;display:grid;gap:10px}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+h1{font:400 clamp(28px,6vw,44px)/1.05 var(--display);letter-spacing:.02em;margin:0;text-wrap:balance}
+h1 span{color:var(--amber)}
+.lede{max-width:64ch;color:#d5cfc2;margin:0}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button,.btn{font:500 13px var(--mono);color:var(--dim);background:transparent;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;min-height:36px}
+.seg button[aria-pressed=true]{background:var(--fg);color:#111}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+section{max-width:1180px;margin:0 auto;padding-block:30px 6px;border-top:1px solid var(--line);margin-top:22px}
+.shead{display:grid;gap:6px;margin-bottom:14px}
+h2{font:400 26px/1.1 var(--display);margin:0;letter-spacing:.02em}
+.canon{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 0;padding:0;list-style:none}
+.canon li{font:400 12px/1.3 var(--mono);color:#d9d2c3;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
+.row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.row{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px));padding-bottom:6px;scrollbar-width:none}.row::-webkit-scrollbar{display:none}.card{flex:0 0 min(86vw,380px);scroll-snap-align:center}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.card.picked{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
+.cv{display:block;width:100%;background:#1b1c1a}
+.cvwrap{position:relative}
+.tag{position:absolute;left:8px;top:8px;font:500 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#e9e3d6;background:rgba(10,10,11,.6);padding:5px 7px;border-radius:6px}
+.ruler{position:absolute;right:8px;bottom:8px;font:500 10px/1 var(--mono);color:#e9e3d6;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.ruler i{display:block;height:3px;background:#e9e3d6;border-radius:2px}
+.body{padding:12px 14px 14px;display:grid;gap:8px;flex:1}
+.title{display:flex;align-items:baseline;gap:8px}
+.title b{font:400 20px/1.1 var(--display);letter-spacing:.02em}
+.title em{font:500 12px var(--mono);color:var(--amber);font-style:normal}
+.pitch{margin:0;color:#ddd6c8;font-size:14px}
+.notes{margin:0;padding:0;list-style:none;display:grid;gap:5px}
+.notes li{font-size:13px;color:#c9c2b4;display:grid;grid-template-columns:62px 1fr;gap:8px}
+.notes li span{font:500 11px/1.6 var(--mono);color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.foot{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:0 14px 14px}
+.pick{font:600 13px var(--mono);border-radius:9px;padding:9px 14px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);cursor:pointer;min-height:40px}
+.pick[aria-pressed=true]{background:var(--amber);color:#1a1206;border-color:transparent}
+.lvl{display:flex;align-items:center;gap:8px;font:500 12px var(--mono);color:var(--dim)}
+.lvl input{accent-color:var(--amber);width:120px}
+#bar{position:fixed;left:0;right:0;bottom:0;background:rgba(13,14,15,.94);border-top:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));backdrop-filter:blur(8px)}
+#bar .in{max-width:1180px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#picks{font:500 13px var(--mono);color:#e7e0d1;min-width:0}
+#picks b{color:var(--amber);font-weight:500}
+#copied{font:500 12px var(--mono);color:var(--amber)}
+@media (prefers-reduced-motion:reduce){.row{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Hollowmere · Overgrown style · design discovery</div>
+  <h1>Kai, the <span>Ash-Born</span>, and Hilde</h1>
+  <p class="lede">Three concepts each for the hero, the monster and the base, drawn in the same strokes as the Overgrown ground, from straight above. The big picture is a close-up; the small one is the size it has in the game, where it has to read at a glance. Pick one per row, or mix parts and tell me.</p>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Time of day"><button id="day" aria-pressed="false">Day</button><button id="night" aria-pressed="true">Night</button><button id="cycle" aria-pressed="false">Cycle</button></div>
+    <button class="btn" id="pause" aria-pressed="false">Pause motion</button>
+  </div>
+</header>
+
+<section id="s-kai" aria-labelledby="h-kai">
+  <div class="shead"><div class="eyebrow">01 · the hero</div><h2 id="h-kai">Kai Brenner, the Mechanic</h2>
+  <ul class="canon"><li>23, runs Brenner's Garage</li><li>caution-yellow jumpsuit</li><li>sleeves tied round the waist</li><li>red bandana</li><li>a huge wrench</li><li>cheerful, stubborn, a bit reckless</li></ul></div>
+  <div class="row" data-sec="kai"></div>
+</section>
+<section id="s-dead" aria-labelledby="h-dead">
+  <div class="shead"><div class="eyebrow">02 · the monster</div><h2 id="h-dead">The Ash-Born</h2>
+  <ul class="canon"><li>went still in the Ashfall</li><li>grey like statues by day</li><li>cracks glow orange at night</li><li>not rotting, never "zombies"</li><li>Cinder · Flicker · Slag Brute</li></ul></div>
+  <div class="row" data-sec="dead"></div>
+</section>
+<section id="s-rig" aria-labelledby="h-rig">
+  <div class="shead"><div class="eyebrow">03 · the base</div><h2 id="h-rig">Hilde, the Haven Rig</h2>
+  <ul class="canon"><li>yellow 1990s recovery truck</li><li>crane boom, "Brenner Recovery"</li><li>broke down in the church square</li><li>bunks · roof turret · workshop · floodlights · radio · plating</li><li>rolls north at the end</li></ul></div>
+  <div class="row" data-sec="rig"></div>
+</section>
+
+<div id="bar"><div class="in"><div id="picks" aria-live="polite"></div><div style="display:flex;gap:8px;align-items:center"><span id="copied" hidden>Copied</span><button class="btn" id="copy">Copy my picks</button></div></div></div>
+
+<script>
+(() => {
+'use strict';
+// ---------- shared: time, hashing, the sun, palettes ----------
+const st = { night: true, cycle: false, paused: false, t: 0, nightK: 1 };
+const hash = (a, b = 0, c = 0) => { let n = (a * 374761393 + b * 668265263 + c * 1274126177) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+const SH = { x: 0.34, y: 0.45 };            // a shadow's offset per metre of height (sun high in the north-west)
+const WIND = { x: 0.731, y: 0.682 };
+const C = { yellow: '#e9b423', yellowD: '#a9790f', hivis: '#e6eaec', red: '#d8322c', hair: '#3a2a1e', steel: '#c3c9ce', steelD: '#6f767c', ink: '#0d0c0c', amber: '#f0b44c', ember: '#ff7a2a', emberHot: '#ffc06a', stone: '#8f8a80', stoneD: '#5d5952', tarp: '#5f6a52', rust: '#9a4a2a' };
+const ease = k => 1 - (1 - k) * (1 - k);
+
+// ---------- grounds, painted once per canvas: overgrown grass, or the square's setts ----------
+function paintGround(g, w, h, k, kind, seed) {
+  g.fillStyle = kind === 'setts' ? '#34332f' : '#262722'; g.fillRect(0, 0, w, h);
+  if (kind === 'setts') {
+    const s = 0.55 * k; for (let y = -s, r = 0; y < h + s; y += s * 0.8, r++) for (let x = -s + (r % 2) * s * 0.5; x < w + s; x += s) { const v = hash(x | 0, y | 0, seed); g.fillStyle = `rgb(${66 + v * 16},${65 + v * 15},${61 + v * 14})`; g.beginPath(); g.roundRect(x + 1, y + 1, s - 2, s * 0.8 - 2, Math.min(4, s * 0.2)); g.fill(); }
+    for (let i = 0; i < 90; i++) { const x = hash(i, 1, seed) * w, y = hash(i, 2, seed) * h, r = (0.3 + hash(i, 3, seed) * 1.2) * k; g.fillStyle = 'rgba(150,146,138,.10)'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }   // ash dust
+    return;
+  }
+  for (let i = 0; i < 70; i++) { const x = hash(i, 9, seed) * w, y = hash(i, 8, seed) * h, r = (0.8 + hash(i, 7, seed) * 2.2) * k; g.fillStyle = `rgba(${hash(i, 6, seed) > 0.5 ? '60,62,52' : '30,31,27'},.35)`; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
+  const cell = 0.24, n = Math.ceil(w / (cell * k)) * Math.ceil(h / (cell * k)), cols = Math.ceil(w / (cell * k));
+  g.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const cx = (i % cols + hash(i, 1, seed)) * cell * k, cy = (Math.floor(i / cols) + hash(i, 2, seed)) * cell * k;
+    const thick = hash(Math.floor(cx / (2.6 * k)), Math.floor(cy / (2.6 * k)), seed + 5); if (hash(i, 3, seed) > 0.35 + thick * 0.6) continue;
+    const a = Math.atan2(WIND.y, WIND.x) + (hash(i, 4, seed) - 0.5) * 1.3, len = (0.28 + 0.2 * hash(i, 5, seed)) * k, tx = cx + Math.cos(a) * len, ty = cy + Math.sin(a) * len, mx = (cx + tx) / 2, my = (cy + ty) / 2, lw = Math.max(1, 0.035 * k);
+    g.strokeStyle = 'rgba(28,30,24,.9)'; g.lineWidth = lw * 1.3; g.beginPath(); g.moveTo(cx, cy); g.lineTo(mx, my); g.stroke();
+    const v = hash(i, 6, seed); g.strokeStyle = `rgba(${150 + v * 50},${154 + v * 46},${130 + v * 40},.85)`; g.lineWidth = lw; g.beginPath(); g.moveTo(mx, my); g.lineTo(tx, ty); g.stroke();
+  }
+}
+
+// ---------- a drawing surface: a canvas, a scale (px a metre), its ground, and what to draw each frame ----------
+const surfaces = [];
+function surface(parent, aspect, metresWide, ground, draw, opts = {}) {
+  const wrap = document.createElement('div'); wrap.className = 'cvwrap'; const cv = document.createElement('canvas'); cv.className = 'cv'; cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', opts.label || 'concept drawing'); wrap.appendChild(cv);
+  if (opts.tag) { const t = document.createElement('div'); t.className = 'tag'; t.textContent = opts.tag; wrap.appendChild(t); }
+  const ru = document.createElement('div'); ru.className = 'ruler'; wrap.appendChild(ru); parent.appendChild(wrap);
+  const S = { cv, ctx: cv.getContext('2d'), aspect, metresWide, ground, draw, bg: null, w: 0, h: 0, k: 1, visible: true, ru, rulerM: opts.ruler || 1 };
+  surfaces.push(S); return S;
+}
+function sizeSurface(S) {
+  const dpr = Math.min(devicePixelRatio || 1, 2), w = S.cv.clientWidth || 300, h = Math.round(w * S.aspect);
+  if (w === S.w && h === S.h) return; S.w = w; S.h = h; S.dpr = dpr; S.cv.width = Math.round(w * dpr); S.cv.height = Math.round(h * dpr); S.cv.style.height = h + 'px';
+  S.k = w / S.metresWide;
+  S.bg = document.createElement('canvas'); S.bg.width = S.cv.width; S.bg.height = S.cv.height; const g = S.bg.getContext('2d'); g.scale(dpr, dpr); paintGround(g, w, h, S.k, S.ground, (S.metresWide * 100) | 0);
+  S.ru.innerHTML = `<i style="width:${Math.round(S.rulerM * S.k)}px"></i>${S.rulerM} m`;
+}
+function frameSurface(S, t) {
+  const c = S.ctx; c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(S.bg, 0, 0);
+  // night: the ground goes blue-dark; lights are added by each drawing
+  if (st.nightK > 0.01) { c.fillStyle = `rgba(8,12,24,${0.58 * st.nightK})`; c.fillRect(0, 0, S.cv.width, S.cv.height); }
+  c.setTransform(S.dpr * S.k, 0, 0, S.dpr * S.k, S.dpr * S.w / 2, S.dpr * S.h / 2);   // metres, origin in the middle
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  S.draw(c, t, 1 / S.k, S);
+}
+const glow = (c, x, y, r, rgb, a) => { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); };
+const lighter = (c, fn) => { c.save(); c.globalCompositeOperation = 'lighter'; fn(); c.restore(); };
+const L = (c, x0, y0, x1, y1) => { c.moveTo(x0, y0); c.lineTo(x1, y1); };
+const shadow = (c, x, y, rx, ry, a, hgt = 1) => { c.save(); c.translate(x + SH.x * hgt * 0.32, y + SH.y * hgt * 0.32);   // a figure's shadow stays at its feet (the sun is high)
+  c.rotate(a); c.fillStyle = 'rgba(0,0,0,.38)'; c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, 7); c.fill(); c.restore(); };
+const hatchEllipse = (c, rx, ry, n, col, lw, ang = 0) => { c.save(); c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, 7); c.clip(); c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); const R = Math.max(rx, ry); for (let i = 0; i <= n; i++) { const o = -R + 2 * R * i / n; L(c, -R * 1.5 * Math.cos(ang) - o * Math.sin(ang), -R * 1.5 * Math.sin(ang) + o * Math.cos(ang), R * 1.5 * Math.cos(ang) - o * Math.sin(ang), R * 1.5 * Math.sin(ang) + o * Math.cos(ang)); } c.stroke(); c.restore(); };
+
+// ---------- motion: a figure walking a loop, with a swing now and then ----------
+function walker(t, r, speed, phase0 = 0) {
+  const a = phase0 + t * speed / r, cyc = (t + phase0 * 3) % 4.2, stop = cyc > 3.2, sw = stop ? Math.max(0, 1 - (cyc - 3.2) / 0.35) : 0;
+  return { x: Math.cos(a) * r, y: Math.sin(a) * r * 0.75, face: a + Math.PI / 2 * Math.sign(speed), ph: t * 9, swing: sw, moving: !stop };
+}
+
+// =====================================================================================================
+// KAI: three concepts. Each draws her at (x, y) facing `face` (radians, forward = +x), in metres.
+// =====================================================================================================
+function kaiHivis(c, o, px) {
+  const { x, y, face, ph, swing } = o, night = st.nightK;
+  if (night > 0.01) lighter(c, () => glow(c, x, y, 3.2, '255,190,110', 0.28 * night));
+  shadow(c, x, y, 0.3, 0.22, face, 1.4);
+  c.save(); c.translate(x, y); c.rotate(face);
+  // legs, then the tied sleeves swinging behind
+  c.strokeStyle = '#3b3326'; c.lineWidth = 0.07; c.beginPath(); for (const s of [-1, 1]) L(c, -0.04, s * 0.09, -0.04 + 0.2 * Math.sin(ph + (s > 0 ? 0 : Math.PI)) * (o.moving ? 1 : 0.2), s * 0.1); c.stroke();
+  c.strokeStyle = C.yellowD; c.lineWidth = 0.065; c.beginPath(); for (const s of [-1, 1]) L(c, -0.1, s * 0.15, -0.36 - 0.05 * Math.sin(ph * 0.5 + s), s * (0.2 + 0.05 * Math.sin(ph * 0.7 + s))); c.stroke();
+  // the jumpsuit: yellow, hatched darker on the back, a hi-vis band over the shoulders, an ink edge
+  c.fillStyle = C.yellow; c.beginPath(); c.ellipse(0, 0, 0.17, 0.25, 0, 0, 7); c.fill();
+  hatchEllipse(c, 0.17, 0.25, 7, 'rgba(120,80,8,.6)', px * 1.2, 0.2);
+  c.strokeStyle = C.hivis; c.lineWidth = 0.035; c.beginPath(); L(c, 0.0, -0.23, 0.0, 0.23); L(c, 0.05, -0.22, 0.05, 0.22); c.stroke();
+  c.strokeStyle = C.ink; c.lineWidth = px * 1.8; c.beginPath(); c.ellipse(0, 0, 0.17, 0.25, 0, 0, 7); c.stroke();
+  // arms and the wrench (it swings through on a hit)
+  const wa = -0.7 + ease(swing) * 2.2;
+  c.strokeStyle = C.yellow; c.lineWidth = 0.075; c.beginPath(); L(c, 0.03, -0.21, 0.17, -0.2); L(c, 0.03, 0.21, 0.18, 0.25); c.stroke();
+  c.save(); c.translate(0.18, 0.25); c.rotate(wa); c.strokeStyle = C.ink; c.lineWidth = 0.1; c.beginPath(); L(c, 0, 0, 0.55, 0); c.stroke(); c.strokeStyle = C.steel; c.lineWidth = 0.06; c.beginPath(); L(c, 0, 0, 0.55, 0); c.stroke();
+  c.lineWidth = 0.05; c.beginPath(); c.arc(0.6, 0, 0.08, 0.7, Math.PI * 2 - 0.7); c.stroke(); c.restore();
+  if (swing > 0.1) { c.strokeStyle = `rgba(255,240,210,${0.5 * swing})`; c.lineWidth = px * 1.4; c.beginPath(); c.arc(0.18, 0.25, 0.7, -0.7, -0.7 + 2.2 * ease(swing)); c.stroke(); }
+  // head: hair, the red bandana, its knot tails fluttering
+  c.fillStyle = C.hair; c.beginPath(); c.arc(0.04, 0, 0.12, 0, 7); c.fill();
+  c.fillStyle = C.red; c.beginPath(); c.arc(0.04, 0, 0.12, -1.25, 1.25); c.closePath(); c.fill();
+  c.strokeStyle = C.red; c.lineWidth = 0.04; c.beginPath(); for (const s of [-1, 1]) L(c, -0.07, s * 0.02, -0.26 - 0.03 * Math.sin(ph * 0.8 + s), s * (0.06 + 0.04 * Math.sin(ph + s))); c.stroke();
+  c.strokeStyle = C.ink; c.lineWidth = px * 1.6; c.beginPath(); c.arc(0.04, 0, 0.12, 0, 7); c.stroke();
+  c.restore();
+}
+function kaiLamp(c, o, px) {
+  const { x, y, face, ph, swing } = o, night = st.nightK;
+  // the headlamp's cone: her facing, always; it carries her at night
+  lighter(c, () => { c.save(); c.translate(x, y); c.rotate(face); const g = c.createRadialGradient(0.15, 0, 0.05, 0.15, 0, 4.2); g.addColorStop(0, `rgba(255,232,180,${0.18 + 0.4 * night})`); g.addColorStop(1, 'rgba(255,232,180,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(0.15, 0); c.arc(0.15, 0, 4.2, -0.42, 0.42); c.closePath(); c.fill(); c.restore(); glow(c, x, y, 1.1, '255,200,130', 0.15 + 0.15 * night); });
+  shadow(c, x, y, 0.28, 0.22, face, 1.4);
+  c.save(); c.translate(x, y); c.rotate(face);
+  c.strokeStyle = '#2f2a20'; c.lineWidth = 0.07; c.beginPath(); for (const s of [-1, 1]) L(c, -0.04, s * 0.09, -0.04 + 0.2 * Math.sin(ph + (s > 0 ? 0 : Math.PI)) * (o.moving ? 1 : 0.2), s * 0.1); c.stroke();
+  // a work coat in muted yellow, the wrench strapped across her back
+  c.fillStyle = '#b89a3a'; c.beginPath(); c.ellipse(-0.01, 0, 0.18, 0.26, 0, 0, 7); c.fill(); hatchEllipse(c, 0.18, 0.26, 8, 'rgba(70,55,15,.55)', px * 1.2, 1.1);
+  c.strokeStyle = C.ink; c.lineWidth = 0.09; c.beginPath(); L(c, -0.2, -0.2, 0.12, 0.22); c.stroke(); c.strokeStyle = C.steel; c.lineWidth = 0.05; c.beginPath(); L(c, -0.2, -0.2, 0.12, 0.22); c.stroke();
+  c.strokeStyle = C.ink; c.lineWidth = px * 1.8; c.beginPath(); c.ellipse(-0.01, 0, 0.18, 0.26, 0, 0, 7); c.stroke();
+  // arms: one reaches forward when she works
+  c.strokeStyle = '#b89a3a'; c.lineWidth = 0.075; c.beginPath(); L(c, 0.03, -0.21, 0.16 + 0.12 * swing, -0.17); L(c, 0.03, 0.21, 0.15 + 0.15 * swing, 0.18); c.stroke();
+  // the hood, a red scarf at the neck, the lamp's bright eye
+  c.fillStyle = C.red; c.beginPath(); c.ellipse(-0.02, 0, 0.08, 0.17, 0, 0, 7); c.fill();
+  c.fillStyle = '#4b3f2c'; c.beginPath(); c.moveTo(-0.2, 0); c.quadraticCurveTo(-0.08, -0.15, 0.08, -0.12); c.arc(0.06, 0, 0.12, -1.5, 1.5); c.quadraticCurveTo(-0.08, 0.15, -0.2, 0); c.fill();
+  c.strokeStyle = C.ink; c.lineWidth = px * 1.6; c.stroke();
+  c.fillStyle = '#fff6dc'; c.beginPath(); c.arc(0.17, 0, 0.04, 0, 7); c.fill(); lighter(c, () => glow(c, 0.17, 0, 0.25, '255,240,200', 0.8));
+  c.restore();
+}
+function kaiWrench(c, o, px) {
+  const { x, y, face, ph, swing } = o, night = st.nightK, ink = px * 2.6;
+  if (night > 0.01) lighter(c, () => glow(c, x, y, 3.0, '255,190,110', 0.26 * night));
+  shadow(c, x, y, 0.36, 0.28, face, 1.5);
+  c.save(); c.translate(x, y); c.rotate(face);
+  // a small body, a big head (the light anime proportion), the wrench as big as she is
+  c.strokeStyle = C.ink; c.lineWidth = 0.1; c.beginPath(); for (const s of [-1, 1]) L(c, -0.05, s * 0.08, -0.05 + 0.16 * Math.sin(ph + (s > 0 ? 0 : Math.PI)) * (o.moving ? 1 : 0.2), s * 0.09); c.stroke();
+  c.fillStyle = C.yellow; c.strokeStyle = C.ink; c.lineWidth = ink; c.beginPath(); c.ellipse(-0.04, 0, 0.14, 0.2, 0, 0, 7); c.fill(); c.stroke();
+  c.strokeStyle = C.yellowD; c.lineWidth = 0.06; c.beginPath(); for (const s of [-1, 1]) L(c, -0.12, s * 0.12, -0.32, s * (0.18 + 0.05 * Math.sin(ph * 0.7 + s))); c.stroke();
+  // the wrench: resting over the shoulder, swung in a wide arc with streaks
+  const rest = -2.3, hit = 0.5, wa = rest + (hit - rest) * ease(swing);
+  if (swing > 0.05) { c.strokeStyle = `rgba(255,236,200,${0.55 * swing})`; c.lineWidth = 0.06; c.beginPath(); for (const r of [0.75, 0.9, 1.04]) c.arc(0.02, 0.14, r, rest, wa); c.stroke(); }
+  c.save(); c.translate(0.02, 0.14); c.rotate(wa);
+  c.strokeStyle = C.ink; c.lineWidth = 0.17; c.beginPath(); L(c, 0, 0, 0.95, 0); c.stroke(); c.strokeStyle = C.steel; c.lineWidth = 0.11; c.beginPath(); L(c, 0, 0, 0.95, 0); c.stroke();
+  c.strokeStyle = '#e0702a'; c.lineWidth = 0.12; c.beginPath(); L(c, 0.08, 0, 0.3, 0); c.stroke();   // orange tape on the grip
+  c.fillStyle = C.steel; c.strokeStyle = C.ink; c.lineWidth = ink; c.beginPath(); c.arc(1.05, 0, 0.17, 0.8, Math.PI * 2 - 0.8); c.lineTo(1.05, 0); c.closePath(); c.fill(); c.stroke();
+  c.restore();
+  // the head: big, hair, a red bandana with a big bow behind
+  c.fillStyle = C.red; c.strokeStyle = C.ink; c.lineWidth = ink; for (const s of [-1, 1]) { c.beginPath(); c.moveTo(-0.15, 0); c.lineTo(-0.36, s * (0.15 + 0.03 * Math.sin(ph + s))); c.lineTo(-0.3, s * 0.02); c.closePath(); c.fill(); c.stroke(); }
+  c.fillStyle = C.hair; c.beginPath(); c.arc(0.06, 0, 0.19, 0, 7); c.fill(); c.stroke();
+  c.fillStyle = C.red; c.beginPath(); c.arc(0.06, 0, 0.19, -1.15, 1.15); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = '#ffffff'; c.globalAlpha = 0.35; c.beginPath(); c.arc(0.12, -0.06, 0.05, 0, 7); c.fill(); c.globalAlpha = 1;
+  c.restore();
+}
+
+// =====================================================================================================
+// THE ASH-BORN: three concepts. kind: cinder | flicker | brute. awake at night, asleep (still, grey) by day.
+// =====================================================================================================
+const KIND = { cinder: { s: 1, sp: 1 }, flicker: { s: 0.9, sp: 1.9 }, brute: { s: 1.75, sp: 0.7 } };
+function cracksOf(id, n, rx, ry) { const out = []; for (let i = 0; i < n; i++) { let x = (hash(id, i, 1) - 0.5) * rx * 1.2, y = (hash(id, i, 2) - 0.5) * ry * 1.2; const pts = [[x, y]]; for (let j = 0; j < 3; j++) { x += (hash(id, i, 10 + j) - 0.5) * rx * 0.8; y += (hash(id, i, 20 + j) - 0.5) * ry * 0.8; pts.push([x, y]); } out.push(pts); } return out; }
+function deadStatue(c, o, px) {
+  const { x, y, face, ph, kind, id } = o, K = KIND[kind], s = K.s, awake = st.nightK > 0.5, pulse = 0.75 + 0.25 * Math.sin(st.t * 3 + id);
+  const rx = (kind === 'brute' ? 0.3 : 0.2) * s, ry = (kind === 'brute' ? 0.36 : 0.27) * s;
+  if (kind === 'flicker' && awake) for (let g = 2; g >= 1; g--) { c.globalAlpha = 0.18 / g; c.save(); c.translate(x - Math.cos(face) * 0.35 * g, y - Math.sin(face) * 0.35 * g); c.rotate(face); c.fillStyle = C.stone; c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, 7); c.fill(); c.restore(); c.globalAlpha = 1; }
+  shadow(c, x, y, rx * 1.2, ry * 1.1, face, awake ? 1.4 * s : 0.5);
+  if (awake) lighter(c, () => glow(c, x, y, 0.9 * s, '255,110,40', 0.22 * pulse));
+  c.save(); c.translate(x, y); c.rotate(face);
+  if (!awake) {   // asleep: kneeling, curled, grey as rubble, dusted with ash
+    c.fillStyle = '#9b968c'; c.beginPath(); c.ellipse(-0.05 * s, 0, rx * 1.1, ry * 0.95, 0, 0, 7); c.fill();
+    hatchEllipse(c, rx * 1.1, ry * 0.95, 9, 'rgba(60,58,52,.5)', px * 1.1, 0.6);
+    c.fillStyle = '#a8a397'; c.beginPath(); c.arc(0.12 * s, 0, 0.11 * s, 0, 7); c.fill();
+    c.strokeStyle = '#4c4943'; c.lineWidth = px * 1.2; c.beginPath(); for (const p of cracksOf(id, kind === 'brute' ? 5 : 3, rx, ry)) { c.moveTo(p[0][0], p[0][1]); for (const q of p) c.lineTo(q[0], q[1]); } c.stroke();
+    c.fillStyle = 'rgba(220,216,206,.55)'; for (let i = 0; i < 10; i++) c.fillRect((hash(id, i, 5) - 0.5) * rx * 1.6, (hash(id, i, 6) - 0.5) * ry * 1.6, px * 2, px * 2);
+    c.strokeStyle = C.ink; c.lineWidth = px * 1.4; c.beginPath(); c.ellipse(-0.05 * s, 0, rx * 1.1, ry * 0.95, 0, 0, 7); c.stroke();
+    c.restore(); return;
+  }
+  // awake: standing, arms reaching, cracks burning
+  const sw = Math.sin(ph) * 0.06 * s;
+  c.strokeStyle = '#5f5b54'; c.lineWidth = 0.08 * s; c.beginPath(); for (const sd of [-1, 1]) L(c, 0.02 * s, sd * ry * 0.8, (0.46 + (kind === 'brute' ? 0.1 : 0)) * s, sd * (ry * 0.75 + sw * sd)); c.stroke();
+  c.fillStyle = '#77736b'; c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, 7); c.fill();
+  if (kind === 'brute') { c.fillStyle = '#6a665f'; for (const sd of [-1, 1]) { c.beginPath(); c.ellipse(0.02, sd * ry * 0.72, rx * 0.55, ry * 0.32, 0, 0, 7); c.fill(); } }
+  hatchEllipse(c, rx, ry, 9, 'rgba(40,38,34,.5)', px * 1.1, 0.6);
+  c.fillStyle = '#86827a'; c.beginPath(); c.arc(0.13 * s, 0, 0.11 * s, 0, 7); c.fill();
+  const cr = cracksOf(id, kind === 'brute' ? 6 : kind === 'flicker' ? 4 : 3, rx, ry), hot = kind === 'flicker' ? '255,214,120' : '255,140,50';
+  lighter(c, () => { c.strokeStyle = `rgba(${hot},${0.55 * pulse})`; c.lineWidth = 0.06 * s; c.beginPath(); for (const p of cr) { c.moveTo(p[0][0], p[0][1]); for (const q of p) c.lineTo(q[0], q[1]); } c.stroke(); });
+  c.strokeStyle = kind === 'flicker' ? '#ffe2a0' : C.emberHot; c.lineWidth = Math.max(px * 1.2, 0.018 * s); c.beginPath(); for (const p of cr) { c.moveTo(p[0][0], p[0][1]); for (const q of p) c.lineTo(q[0], q[1]); } c.stroke();
+  c.fillStyle = C.emberHot; for (const sd of [-1, 1]) c.fillRect(0.19 * s, sd * 0.045 * s - 0.012 * s, 0.05 * s, 0.024 * s);
+  c.strokeStyle = C.ink; c.lineWidth = px * 1.5; c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, 7); c.stroke();
+  c.restore();
+}
+function deadShed(c, o, px) {
+  const { x, y, face, ph, kind, id } = o, K = KIND[kind], s = K.s, awake = st.nightK > 0.5, q = Math.floor(st.t * 7);
+  const R = (kind === 'brute' ? 0.5 : 0.38) * s;
+  shadow(c, x, y, R * 0.8, R * 0.6, face, awake ? 1.2 * s : 0.4);
+  // the ash it sheds, drifting off behind it
+  if (awake) { c.strokeStyle = '#1d1a19'; c.lineWidth = px * 1.4; for (let i = 0; i < 10; i++) { const k = ((st.t * 0.5 + hash(id, i)) % 1), bx = x - Math.cos(face) * (0.3 + k * 1.4) * s + WIND.x * k * 0.6 + (hash(id, i, 2) - 0.5) * 0.3, by = y - Math.sin(face) * (0.3 + k * 1.4) * s + WIND.y * k * 0.6 + (hash(id, i, 3) - 0.5) * 0.3, a = hash(id, i, 4) * 6.28; c.globalAlpha = 1 - k; c.beginPath(); L(c, bx, by, bx + Math.cos(a) * 0.1, by + Math.sin(a) * 0.1); c.stroke(); } c.globalAlpha = 1; }
+  c.save(); c.translate(x, y); c.rotate(face);
+  if (awake) lighter(c, () => glow(c, 0, 0, 0.35 * s, '255,110,40', 0.55));
+  c.strokeStyle = awake ? '#141113' : '#3a3735'; c.lineWidth = Math.max(px * 1.8, 0.05 * s); c.beginPath();
+  const n = kind === 'brute' ? 30 : 18, qq = awake ? q : 0;
+  for (let k = 0; k < n; k++) { const h1 = hash(id, k, qq), h2 = hash(id, k + 30, qq), h3 = hash(id, k + 60), rr = Math.sqrt(h1) * R, aa = h2 * 6.283, X = Math.cos(aa) * rr * (awake ? 0.8 : 1) - 0.04, Y = Math.sin(aa) * rr * (awake ? 1 : 0.8), l = (0.12 + 0.18 * h3) * s, an = (awake ? 0 : 1.2) + (h3 - 0.5) * 1.1; L(c, X - Math.cos(an) * l / 2, Y - Math.sin(an) * l / 2, X + Math.cos(an) * l / 2, Y + Math.sin(an) * l / 2); }
+  if (awake) { const sw = Math.sin(ph) * 0.07 * s; for (const sd of [-1, 1]) L(c, 0.05 * s, sd * 0.2 * s, 0.5 * s, sd * (0.17 * s + sw)); }
+  c.stroke();
+  if (awake) { c.fillStyle = C.ember; for (const sd of [-1, 1]) c.fillRect(0.18 * s, sd * 0.065 * s - 0.03 * s, 0.06 * s, 0.06 * s); }
+  else { c.fillStyle = 'rgba(200,196,186,.4)'; for (let i = 0; i < 8; i++) c.fillRect((hash(id, i, 5) - 0.5) * R * 1.4, (hash(id, i, 6) - 0.5) * R * 1.2, px * 2, px * 2); }
+  c.restore();
+}
+function deadCoal(c, o, px) {
+  const { x, y, face, ph, kind, id } = o, K = KIND[kind], s = K.s, awake = st.nightK > 0.5, flick = 0.8 + 0.2 * Math.sin(st.t * 11 + id * 3) * Math.sin(st.t * 7 + id);
+  const rx = (kind === 'brute' ? 0.32 : 0.17) * s, ry = (kind === 'brute' ? 0.4 : 0.24) * s, hx = 0.14 * s, hr = (kind === 'brute' ? 0.15 : 0.12) * s;
+  // smoke off the coal, drifting with the wind (long on a Flicker: it streaks)
+  if (awake) { c.strokeStyle = 'rgba(150,146,140,.45)'; c.lineWidth = px * 1.5; for (let i = 0; i < (kind === 'flicker' ? 10 : 6); i++) { const k = ((st.t * 0.6 + hash(id, i)) % 1), dx = -Math.cos(face) * k * (kind === 'flicker' ? 1.8 : 0.9) + WIND.x * k * 0.8, dy = -Math.sin(face) * k * (kind === 'flicker' ? 1.8 : 0.9) + WIND.y * k * 0.8; c.globalAlpha = 0.8 * (1 - k); c.beginPath(); c.arc(x + Math.cos(face) * hx + dx, y + Math.sin(face) * hx + dy, 0.04 + k * 0.12, 0, 7); c.stroke(); } c.globalAlpha = 1; }
+  shadow(c, x, y, rx * 1.2, ry * 1.1, face, awake ? 1.4 * s : 0.5);
+  c.save(); c.translate(x, y); c.rotate(face);
+  const sw = Math.sin(ph) * 0.06 * s;
+  c.strokeStyle = '#18161a'; c.lineWidth = 0.07 * s; c.beginPath(); if (awake) for (const sd of [-1, 1]) L(c, 0.02, sd * ry * 0.8, 0.44 * s, sd * (ry * 0.8 + sw * sd)); c.stroke();
+  c.fillStyle = awake ? '#1a181b' : '#4a4644'; c.beginPath(); c.ellipse(-0.03 * s, 0, rx, ry, 0, 0, 7); c.fill(); hatchEllipse(c, rx, ry, 8, awake ? 'rgba(70,64,62,.6)' : 'rgba(110,106,100,.6)', px * 1.1, 0.5);
+  // the head: a coal, hot at night, a dull grey lump by day
+  if (awake) lighter(c, () => glow(c, hx, 0, hr * 4, '255,120,40', 0.5 * flick));
+  const g = c.createRadialGradient(hx - hr * 0.3, -hr * 0.3, hr * 0.1, hx, 0, hr);
+  if (awake) { g.addColorStop(0, '#fff2b0'); g.addColorStop(0.45, '#ffad3a'); g.addColorStop(0.85, '#d8461c'); g.addColorStop(1, '#3a1208'); } else { g.addColorStop(0, '#6e6a64'); g.addColorStop(0.8, '#4d4945'); g.addColorStop(1, '#2a2826'); }
+  c.fillStyle = g; c.beginPath(); c.arc(hx, 0, hr, 0, 7); c.fill(); c.strokeStyle = C.ink; c.lineWidth = px * 1.5; c.stroke();
+  if (kind === 'brute' && awake) { c.fillStyle = '#ff9a3a'; c.beginPath(); c.arc(-0.06 * s, 0, 0.09 * s * flick, 0, 7); c.fill(); }
+  c.restore();
+}
+
+// =====================================================================================================
+// HILDE: three concepts, each with a level 0 (broken down) to 3 (every module). Truck forward = +x, metres.
+// =====================================================================================================
+function truck(c, o, px, opts = {}) {
+  const { lvl, t } = o, night = st.nightK;
+  c.save(); c.translate(o.x || 0, o.y || 0); c.rotate(o.rot || 0);
+  // shadow, tyres
+  c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(-4.5 + SH.x * 2.4, -1.3 + SH.y * 2.4, 9, 2.6);
+  c.fillStyle = '#121214'; for (const ax of [3.3, -1.5, -2.8]) for (const sd of [-1, 1]) { c.beginPath(); c.roundRect(ax - 0.5, sd * 1.32 - 0.18, 1.0, 0.36, 0.08); c.fill(); }
+  // the bed: steel deck, planks along it
+  c.fillStyle = '#4b5056'; c.fillRect(-4.4, -1.2, 6.0, 2.4); c.strokeStyle = '#6f767c'; c.lineWidth = px * 1.2; c.beginPath(); for (let yy = -1.05; yy < 1.1; yy += 0.3) L(c, -4.3, yy, 1.5, yy); c.stroke();
+  // rear chevrons
+  c.save(); c.beginPath(); c.rect(-4.45, -1.2, 0.35, 2.4); c.clip(); for (let k = -6; k < 6; k++) { c.fillStyle = k % 2 ? '#d8322c' : '#efe9dc'; c.beginPath(); c.moveTo(-4.45, k * 0.4); c.lineTo(-4.1, k * 0.4 + 0.35); c.lineTo(-4.1, k * 0.4 + 0.55); c.lineTo(-4.45, k * 0.4 + 0.2); c.fill(); } c.restore();
+  // the cab: yellow, hatched, a dark windscreen, the light bar (amber beacons that turn at night)
+  c.fillStyle = C.yellow; c.beginPath(); c.roundRect(1.6, -1.25, 2.9, 2.5, 0.25); c.fill();
+  c.save(); c.beginPath(); c.roundRect(1.6, -1.25, 2.9, 2.5, 0.25); c.clip(); c.strokeStyle = 'rgba(120,80,8,.55)'; c.lineWidth = px * 1.2; c.beginPath(); for (let k = -3; k < 6; k += 0.18) L(c, 1.6 + k, -1.3, 1.6 + k + 1.2, 1.3); c.stroke(); c.restore();
+  c.fillStyle = '#f2c94a'; c.fillRect(2.0, -1.0, 1.55, 2.0);
+  c.fillStyle = '#1c2228'; c.fillRect(3.6, -1.05, 0.38, 2.1);
+  if (lvl === 0 && !opts.noHood) { c.fillStyle = '#d6a51c'; c.save(); c.translate(4.0, 0); for (const sd of [-1, 1]) { c.save(); c.rotate(sd * 0.5); c.fillRect(0, sd > 0 ? 0 : -0.95, 0.9, 0.95); c.restore(); } c.restore(); c.fillStyle = '#2a2b2e'; c.fillRect(4.05, -0.6, 0.4, 1.2);
+    c.strokeStyle = 'rgba(160,156,150,.5)'; c.lineWidth = 0.06; c.beginPath(); for (let i = 0; i < 4; i++) { const k = ((t * 0.4 + i / 4) % 1); c.globalAlpha = 1 - k; c.arc(4.3 + WIND.x * k * 2, WIND.y * k * 2, 0.1 + k * 0.35, 0, 7); } c.stroke(); c.globalAlpha = 1;
+    c.strokeStyle = C.steel; c.lineWidth = 0.06; c.beginPath(); for (let i = 0; i < 6; i++) { const a = hash(i, 3) * 6.28, X = 5.0 + hash(i, 1) * 1.2, Y = (hash(i, 2) - 0.5) * 2.4; L(c, X, Y, X + Math.cos(a) * 0.3, Y + Math.sin(a) * 0.3); } c.stroke(); }
+  else { c.fillStyle = '#c99a1a'; c.fillRect(4.0, -1.1, 0.5, 2.2); }
+  const beacon = night > 0.05 ? (Math.sin(t * 6) > 0 ? 1 : 0.25) : 0.35;
+  for (const sd of [-0.55, 0.55]) { c.fillStyle = `rgba(255,${150 + 60 * beacon},40,1)`; c.beginPath(); c.roundRect(3.2, sd - 0.16, 0.3, 0.32, 0.08); c.fill(); if (night > 0.05) lighter(c, () => glow(c, 3.35, sd, 1.4, '255,170,60', 0.4 * beacon * night)); }
+  c.strokeStyle = C.ink; c.lineWidth = px * 1.8; c.beginPath(); c.roundRect(1.6, -1.25, 2.9, 2.5, 0.25); c.stroke(); c.strokeRect(-4.4, -1.2, 6.0, 2.4);
+  // the crane: a turntable and the boom reaching back over the bed, swinging a little
+  if (!opts.noCrane) { const ba = Math.PI + Math.sin(t * 0.35) * 0.25; c.fillStyle = '#3a3e43'; c.beginPath(); c.arc(-0.6, 0, 0.55, 0, 7); c.fill(); c.strokeStyle = C.ink; c.stroke();
+    c.save(); c.translate(-0.6, 0); c.rotate(ba); c.fillStyle = C.yellow; c.fillRect(0, -0.22, 4.4, 0.44); c.strokeStyle = 'rgba(120,80,8,.7)'; c.lineWidth = px * 1.2; c.beginPath(); for (let k = 0.3; k < 4.3; k += 0.35) { L(c, k, -0.22, k + 0.3, 0.22); } c.stroke(); c.strokeStyle = C.ink; c.lineWidth = px * 1.6; c.strokeRect(0, -0.22, 4.4, 0.44); c.strokeStyle = '#cfd4d8'; c.lineWidth = px * 1.4; c.beginPath(); L(c, 4.4, 0, 4.7, 0.1); c.stroke(); c.beginPath(); c.arc(4.75, 0.12, 0.12, 0, 5); c.stroke(); c.restore(); }
+  c.restore();
+}
+function modulesOn(c, o, px) {
+  const { lvl, t } = o, night = st.nightK; c.save(); c.translate(o.x || 0, o.y || 0); c.rotate(o.rot || 0);
+  if (lvl >= 1) {   // bunks: a tarp tent over the bed
+    c.fillStyle = C.tarp; c.beginPath(); c.roundRect(-3.9, -1.15, 2.9, 2.3, 0.2); c.fill(); c.strokeStyle = 'rgba(30,36,26,.7)'; c.lineWidth = px * 1.2; c.beginPath(); for (let k = -3.8; k < -1.0; k += 0.22) { L(c, k, -1.1, k + 0.15, -0.02); L(c, k + 0.15, 0.02, k, 1.1); } c.stroke(); c.strokeStyle = '#2a3022'; c.lineWidth = 0.06; c.beginPath(); L(c, -3.9, 0, -1.0, 0); c.stroke(); c.strokeStyle = C.ink; c.lineWidth = px * 1.6; c.beginPath(); c.roundRect(-3.9, -1.15, 2.9, 2.3, 0.2); c.stroke();
+    if (night > 0.05) lighter(c, () => glow(c, -2.4, 0, 1.6, '255,190,110', 0.25 * night)); }
+  if (lvl >= 2) {   // the roof turret on the cab
+    const aim = o.aim ?? t * 0.6; c.fillStyle = '#2a2d31'; c.beginPath(); c.arc(2.8, 0, 0.55, 0, 7); c.fill(); c.strokeStyle = '#b3bac0'; c.lineWidth = px * 1.4; c.stroke();
+    c.save(); c.translate(2.8, 0); c.rotate(aim); c.strokeStyle = C.ink; c.lineWidth = 0.14; c.beginPath(); L(c, 0.2, -0.13, 1.0, -0.13); L(c, 0.2, 0.13, 1.0, 0.13); c.stroke(); c.fillStyle = C.amber; c.fillRect(-0.3, -0.27, 0.6, 0.54); c.strokeStyle = 'rgba(90,60,10,.7)'; c.lineWidth = px * 1.2; c.beginPath(); for (let k = -0.25; k < 0.3; k += 0.1) L(c, k, -0.25, k, 0.25); c.stroke(); c.restore(); }
+  if (lvl >= 3) {   // the workshop trailer, the floodlight mast, the radio, the plating
+    c.fillStyle = '#2b2b2c'; c.fillRect(-5.1, -0.08, 0.8, 0.16);
+    c.fillStyle = C.rust; c.beginPath(); c.roundRect(-7.6, -1.05, 2.5, 2.1, 0.15); c.fill(); c.strokeStyle = 'rgba(50,20,10,.6)'; c.lineWidth = px * 1.2; c.beginPath(); for (let k = -7.5; k < -5.1; k += 0.25) L(c, k, -1.0, k, 1.0); c.stroke(); c.strokeStyle = C.steel; c.lineWidth = 0.05; c.beginPath(); L(c, -7.2, -0.5, -6.4, -0.3); L(c, -6.8, 0.4, -5.6, 0.5); c.stroke(); c.strokeStyle = C.ink; c.lineWidth = px * 1.6; c.beginPath(); c.roundRect(-7.6, -1.05, 2.5, 2.1, 0.15); c.stroke();
+    c.fillStyle = '#7b8288'; for (const sd of [-1, 1]) { c.fillRect(-4.3, sd * 1.22 - (sd > 0 ? 0 : 0.14), 5.8, 0.14); c.fillStyle = '#c3c9ce'; for (let k = -4.1; k < 1.5; k += 0.5) c.fillRect(k, sd * 1.29 - 0.02, 0.04, 0.04); c.fillStyle = '#7b8288'; }
+    c.fillStyle = '#3a3e43'; c.beginPath(); c.arc(1.25, -0.95, 0.16, 0, 7); c.fill(); c.fillStyle = '#fff4cc'; c.fillRect(1.35, -1.15, 0.22, 0.4);
+    if (night > 0.05) lighter(c, () => { const g = c.createRadialGradient(1.5, -0.95, 0.1, 1.5, -0.95, 9); g.addColorStop(0, `rgba(255,236,190,${0.35 * night})`); g.addColorStop(1, 'rgba(255,236,190,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(1.5, -0.95); c.arc(1.5, -0.95, 9, -0.6, 0.35); c.closePath(); c.fill(); });
+    c.strokeStyle = '#cfd4d8'; c.lineWidth = px * 1.4; c.beginPath(); L(c, 1.9, 1.0, 1.9, 1.0); c.stroke(); c.fillStyle = '#cfd4d8'; c.beginPath(); c.arc(1.9, 1.0, 0.08, 0, 7); c.fill(); if (Math.sin(t * 4) > 0.6) lighter(c, () => glow(c, 1.9, 1.0, 0.5, '120,200,255', 0.8)); }
+  c.restore();
+}
+function rigTruck(c, o, px) { truck(c, o, px); modulesOn(c, o, px); }
+function rigCamp(c, o, px) {
+  const { lvl, t } = o, night = st.nightK;
+  // the place round Hilde: tarps and a fire, then a barricade of wrecks, then a closed ring with a gate and lit cables
+  const fire = { x: -2, y: 4.2 };
+  if (lvl >= 1) { c.fillStyle = '#3d3a33'; c.beginPath(); c.arc(fire.x, fire.y, 0.6, 0, 7); c.fill(); const f = 0.8 + 0.2 * Math.sin(t * 13) * Math.sin(t * 7); lighter(c, () => { glow(c, fire.x, fire.y, 3.5 + 2 * night, '255,150,60', (0.25 + 0.4 * night) * f); }); c.fillStyle = '#ffb04a'; c.beginPath(); c.arc(fire.x, fire.y, 0.25 * f, 0, 7); c.fill();
+    for (const [x, y, r] of [[-5.5, 4.8, 0.4], [3.5, 5.2, -0.3]]) { c.save(); c.translate(x, y); c.rotate(r); c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(-1.4 + 0.5, -1.0 + 0.7, 2.8, 2.0); c.fillStyle = C.tarp; c.fillRect(-1.4, -1.0, 2.8, 2.0); c.strokeStyle = 'rgba(30,36,26,.7)'; c.lineWidth = px * 1.2; c.beginPath(); for (let k = -1.3; k < 1.4; k += 0.22) { L(c, k, -0.95, k + 0.1, 0); L(c, k + 0.1, 0, k, 0.95); } c.stroke(); c.strokeStyle = C.ink; c.lineWidth = px * 1.6; c.strokeRect(-1.4, -1.0, 2.8, 2.0); c.restore(); }
+    c.fillStyle = '#6b4a2a'; for (const [x, y] of [[0.6, 3.2], [1.4, 3.6], [-6.8, 1.8]]) { c.fillRect(x, y, 0.8, 0.8); c.strokeStyle = C.ink; c.strokeRect(x, y, 0.8, 0.8); } }
+  const R = 9.5, gate = Math.PI * 0.5, seg = 0.36;
+  if (lvl >= 2) for (let a = 0; a < Math.PI * 2; a += seg) { if (lvl < 3 && (a > Math.PI * 0.25 && a < Math.PI * 1.15)) continue; if (Math.abs(((a - gate + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < 0.3) continue;
+    const x = Math.cos(a) * R, y = Math.sin(a) * R * 0.8; c.save(); c.translate(x, y); c.rotate(a + Math.PI / 2 + (hash(a * 10 | 0) - 0.5) * 0.4);
+    const car = hash(a * 10 | 0, 2) > 0.45; c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(-1.6 + 0.4, -0.75 + 0.55, 3.2, 1.5);
+    c.fillStyle = car ? ['#4a5866', '#6b4b44', '#5d6150'][Math.floor(hash(a * 10 | 0, 3) * 3)] : '#6d6556'; c.beginPath(); c.roundRect(-1.6, -0.75, 3.2, 1.5, car ? 0.3 : 0.6); c.fill();
+    c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = px * 1.1; c.beginPath(); for (let k = -1.5; k < 1.6; k += 0.2) L(c, k, -0.7, k + 0.1, 0.7); c.stroke(); c.strokeStyle = C.ink; c.lineWidth = px * 1.6; c.beginPath(); c.roundRect(-1.6, -0.75, 3.2, 1.5, car ? 0.3 : 0.6); c.stroke(); c.restore(); }
+  truck(c, { ...o, lvl: Math.max(1, lvl) }, px); modulesOn(c, { ...o, lvl: Math.min(lvl, 2) }, px);
+  if (lvl >= 3) {   // cables from Hilde to the posts, with lamps on them
+    const posts = [[-7, -5], [7, -5.5], [7.5, 4], [-7.5, 3.5]];
+    for (const [px2, py2] of posts) { c.fillStyle = '#2a2b2e'; c.beginPath(); c.arc(px2, py2, 0.25, 0, 7); c.fill(); c.strokeStyle = '#141416'; c.lineWidth = 0.05; c.beginPath(); c.moveTo(0.5, 0); c.quadraticCurveTo((px2 + 0.5) / 2 + 0.5, (py2) / 2 + 1.2, px2, py2); c.stroke();
+      for (let k = 1; k < 6; k++) { const u = k / 6, X = (1 - u) * (1 - u) * 0.5 + 2 * (1 - u) * u * ((px2 + 0.5) / 2 + 0.5) + u * u * px2, Y = 2 * (1 - u) * u * (py2 / 2 + 1.2) + u * u * py2; c.fillStyle = '#ffd38a'; c.beginPath(); c.arc(X, Y, 0.09, 0, 7); c.fill(); if (night > 0.05) lighter(c, () => glow(c, X, Y, 1.0, '255,200,120', 0.35 * night)); } }
+    c.fillStyle = '#2a2d31'; c.beginPath(); c.arc(6.5, -2.2, 0.75, 0, 7); c.fill(); c.strokeStyle = '#b3bac0'; c.lineWidth = px * 1.4; c.stroke(); c.save(); c.translate(6.5, -2.2); c.rotate(t * 0.7); c.fillStyle = C.amber; c.fillRect(-0.3, -0.25, 0.6, 0.5); c.strokeStyle = C.ink; c.lineWidth = 0.12; c.beginPath(); L(c, 0.3, -0.1, 1.0, -0.1); L(c, 0.3, 0.1, 1.0, 0.1); c.stroke(); c.restore(); }
+}
+function rigCrab(c, o, px) {
+  const { lvl, t } = o, night = st.nightK, dep = 0.5 + 0.5 * Math.sin(t * 0.8), legOut = lvl === 0 ? 0.3 : ease(Math.min(1, Math.max(0, dep * 1.4 - 0.2)));
+  // outrigger legs: they unfold when Hilde parks, the silhouette of a crab
+  c.lineCap = 'round';
+  for (const [ax, sd] of [[2.2, -1], [2.2, 1], [-3.2, -1], [-3.2, 1]]) { const ang = (ax > 0 ? -0.55 : -2.55) * sd * -1, len = 1.2 + 2.0 * legOut, ex = ax + Math.cos(ang) * len * (ax > 0 ? 1 : 1), ey = sd * 1.1 + Math.sin(ang) * 0 + sd * len * 0.85;
+    c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 0.4; c.beginPath(); L(c, ax + SH.x, sd * 1.1 + SH.y, ex + SH.x, ey + SH.y); c.stroke();
+    c.strokeStyle = C.ink; c.lineWidth = 0.42; c.beginPath(); L(c, ax, sd * 1.1, ex, ey); c.stroke(); c.strokeStyle = C.yellow; c.lineWidth = 0.28; c.beginPath(); L(c, ax, sd * 1.1, ex, ey); c.stroke();
+    c.strokeStyle = 'rgba(20,20,20,.8)'; c.lineWidth = 0.06; c.beginPath(); for (let k = 0.2; k < 0.95; k += 0.18) { const X = ax + (ex - ax) * k, Y = sd * 1.1 + (ey - sd * 1.1) * k; L(c, X - 0.1, Y - 0.1, X + 0.1, Y + 0.1); } c.stroke();
+    c.fillStyle = '#2a2b2e'; c.beginPath(); c.roundRect(ex - 0.35, ey - 0.35, 0.7, 0.7, 0.12); c.fill(); }
+  if (lvl >= 2) {   // a dozer blade with spikes at the front
+    c.fillStyle = '#3d4247'; c.beginPath(); c.moveTo(4.8, -1.8); c.quadraticCurveTo(5.5, 0, 4.8, 1.8); c.lineTo(5.15, 1.8); c.quadraticCurveTo(5.85, 0, 5.15, -1.8); c.closePath(); c.fill(); c.strokeStyle = C.ink; c.lineWidth = px * 1.6; c.stroke();
+    c.fillStyle = '#c3c9ce'; for (let k = -1.5; k <= 1.5; k += 0.5) { c.beginPath(); c.moveTo(5.4 + 0.08 * (1 - k * k / 3), k - 0.12); c.lineTo(5.9 + 0.08 * (1 - k * k / 3), k); c.lineTo(5.4 + 0.08 * (1 - k * k / 3), k + 0.12); c.fill(); } }
+  truck(c, { ...o, lvl: Math.max(1, lvl) }, px, { noCrane: lvl >= 1 });
+  if (lvl >= 1) {   // the shell: angular plates over the bed, hazard edges, a hatch
+    c.fillStyle = '#3a3f45'; c.beginPath(); c.moveTo(-4.6, -1.0); c.lineTo(-3.8, -1.45); c.lineTo(1.4, -1.45); c.lineTo(1.7, -1.0); c.lineTo(1.7, 1.0); c.lineTo(1.4, 1.45); c.lineTo(-3.8, 1.45); c.lineTo(-4.6, 1.0); c.closePath(); c.fill();
+    c.save(); c.clip(); c.strokeStyle = 'rgba(160,168,176,.35)'; c.lineWidth = px * 1.2; c.beginPath(); for (let k = -6; k < 3; k += 0.25) L(c, k, -1.5, k + 1.4, 1.5); c.stroke(); c.restore();
+    c.strokeStyle = '#1a1c1f'; c.lineWidth = px * 2; c.beginPath(); for (const xx of [-2.6, -0.9]) L(c, xx, -1.45, xx, 1.45); c.stroke();
+    c.save(); c.beginPath(); c.rect(-4.6, -1.5, 6.4, 0.12); c.rect(-4.6, 1.38, 6.4, 0.12); c.clip(); for (let k = -5; k < 2; k += 0.3) { c.fillStyle = Math.round(k / 0.3) % 2 ? '#1a1a1a' : C.yellow; c.fillRect(k, -1.5, 0.3, 3.0); } c.restore();
+    c.fillStyle = '#2a2d31'; c.beginPath(); c.roundRect(-3.4, -0.45, 1.0, 0.9, 0.1); c.fill(); if (night > 0.05) lighter(c, () => glow(c, -2.9, 0, 1.3, '255,190,110', 0.35 * night));
+    c.strokeStyle = C.ink; c.lineWidth = px * 1.8; c.beginPath(); c.moveTo(-4.6, -1.0); c.lineTo(-3.8, -1.45); c.lineTo(1.4, -1.45); c.lineTo(1.7, -1.0); c.lineTo(1.7, 1.0); c.lineTo(1.4, 1.45); c.lineTo(-3.8, 1.45); c.lineTo(-4.6, 1.0); c.closePath(); c.stroke(); }
+  if (lvl >= 2) { c.fillStyle = '#26292d'; c.beginPath(); c.arc(-1.7, 0, 0.95, 0, 7); c.fill(); c.strokeStyle = '#b3bac0'; c.lineWidth = px * 1.6; c.stroke(); c.strokeStyle = '#5b636a'; c.lineWidth = px * 1.2; c.beginPath(); for (let k = 0; k < 18; k++) { const a = k / 18 * 6.283; L(c, -1.7 + Math.cos(a) * 0.55, Math.sin(a) * 0.55, -1.7 + Math.cos(a) * 0.9, Math.sin(a) * 0.9); } c.stroke();
+    c.save(); c.translate(-1.7, 0); c.rotate(o.aim ?? t * 0.5); c.strokeStyle = C.ink; c.lineWidth = 0.16; c.beginPath(); L(c, 0.2, -0.15, 1.3, -0.15); L(c, 0.2, 0.15, 1.3, 0.15); c.stroke(); c.fillStyle = C.amber; c.fillRect(-0.35, -0.32, 0.7, 0.64); c.restore(); }
+  if (lvl >= 3) {   // the crane, a gun now, and two floodlight eyes
+    c.save(); c.translate(-4.2, 0); c.rotate(Math.PI + Math.sin(t * 0.5) * 0.4); c.fillStyle = C.yellow; c.fillRect(0, -0.22, 3.2, 0.44); c.strokeStyle = C.ink; c.lineWidth = px * 1.6; c.strokeRect(0, -0.22, 3.2, 0.44); c.fillStyle = '#26292d'; c.fillRect(3.0, -0.35, 0.8, 0.7); c.strokeStyle = C.ink; c.lineWidth = 0.14; c.beginPath(); L(c, 3.8, -0.15, 4.5, -0.15); L(c, 3.8, 0.15, 4.5, 0.15); c.stroke(); c.restore();
+    for (const sd of [-0.75, 0.75]) { c.fillStyle = '#fff4cc'; c.beginPath(); c.arc(4.45, sd, 0.16, 0, 7); c.fill(); if (night > 0.05) lighter(c, () => { const g = c.createRadialGradient(4.5, sd, 0.1, 4.5, sd, 8); g.addColorStop(0, `rgba(255,236,190,${0.3 * night})`); g.addColorStop(1, 'rgba(255,236,190,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(4.5, sd); c.arc(4.5, sd, 8, -0.3 + sd * 0.2, 0.3 + sd * 0.2); c.closePath(); c.fill(); }); } }
+}
+
+// =====================================================================================================
+// the cards
+// =====================================================================================================
+const PICKS = { kai: null, dead: null, rig: null };
+const NAMES = { kai: 'Kai', dead: 'Ash-Born', rig: 'Hilde' };
+const CARDS = {
+  kai: [
+    { id: 'A', name: 'Hi-vis', short: 'hi-vis jumpsuit', fn: kaiHivis, pitch: 'The canon look, made to read from above: caution yellow, a reflective band across the shoulders, the red bandana with its knot tails, and the tied sleeves swinging behind her.',
+      notes: [['Reads', 'Yellow body plus a red head is unique on the map. The reflective band shows which way she faces.'], ['Moves', 'Sleeves and knot tails swing as she walks; the wrench swings through on a hit.'], ['Risk', 'Small at game size: the shape is mostly colour.']] },
+    { id: 'B', name: 'Headlamp', short: 'headlamp', fn: kaiLamp, pitch: 'She carries the light. A headlamp throws a cone ahead of her, day and night. The wrench is strapped across her back; the hood and scarf keep the red.',
+      notes: [['Reads', 'The cone shows where she looks, even in a crowd and in the dark. Light means the living in this style.'], ['Moves', 'The cone sweeps the grass as she turns; she reaches out to work.'], ['Risk', 'Less colour on the body. The cone may hide what is in front of her.']] },
+    { id: 'C', name: 'Big wrench', short: 'big wrench', fn: kaiWrench, pitch: 'The light-anime proportion: a big head, a big bow in the bandana, and a wrench as long as she is, resting over her shoulder and swung in wide arcs.',
+      notes: [['Reads', 'The wrench is the silhouette: a long bar with a jaw. Nothing else on the map has it.'], ['Moves', 'Big swings with streaks: hits feel heavy, even when the wrench is weak.'], ['Risk', 'Cartoonier than the town around her.']] },
+  ],
+  dead: [
+    { id: 'A', name: 'Cracked statues', short: 'cracked statues', fn: deadStatue, pitch: 'The canon, literally. By day a sleeper is a grey kneeling statue dusted with ash, easy to take for rubble. At night it stands, and its cracks burn orange.',
+      notes: [['Reads', 'At night the glowing cracks carry it. By day a sleeping horde looks like stones, which is the tension the story wants.'], ['Kinds', 'A Flicker burns yellow and leaves afterimages; a Brute is a slab with many cracks.'], ['Risk', 'Pale grey bodies sit close to the ash in tone by day.']] },
+    { id: 'B', name: 'Shedding ash', short: 'shedding ash', fn: deadShed, pitch: 'Round 2\'s figure, refined: a clump of dark strokes that never holds still, an ember glowing through the chest, ash flaking off behind it as it walks.',
+      notes: [['Reads', 'Dark on the light grass, and the trail of flakes shows where it is going.'], ['Kinds', 'A Brute is a bigger, denser clump. A Flicker is lean and sheds more.'], ['Risk', 'By day, asleep, it is a dark smudge: less story than A.']] },
+    { id: 'C', name: 'Ember heads', short: 'ember heads', fn: deadCoal, pitch: 'A dark body with a burning coal for a head, smoke drifting off it. By day the coal is a dull grey lump.',
+      notes: [['Reads', 'At game size it is a bright dot on a dark body: the most readable at night, and you see where it looks.'], ['Kinds', 'A Flicker trails a long smoke streak; a Brute has a second coal in its chest.'], ['Risk', 'Furthest from "people who went still": more monster than person.']] },
+  ],
+  rig: [
+    { id: 'A', name: 'Recovery truck', short: 'recovery truck', fn: rigTruck, wide: 13, pitch: 'Hilde as she is: a yellow heavy recovery truck with a crane boom over the bed. Modules bolt onto her: a tarp tent of bunks, a turret on the cab roof, a workshop trailer, a floodlight mast, a radio, side plating.',
+      notes: [['Grows', '0 broken down (hood up, smoke); 1 bunks; 2 roof turret; 3 trailer, lights, radio, plating.'], ['Reads', 'One big yellow object in the square; every module is visible from above.'], ['Risk', 'The base stays a truck: the camp around it has to come from your turrets.']] },
+    { id: 'B', name: 'Camp ring', short: 'camp ring', fn: rigCamp, wide: 24, pitch: 'Hilde is the heart of a place that grows round her: tarps and a fire, then a barricade of wrecked cars, then a closed ring with a gate and cables strung with lamps.',
+      notes: [['Grows', '1 tarps, crates, the fire; 2 a barricade arc and a gun; 3 the full ring, the gate, lit cables to the posts.'], ['Reads', 'The base becomes the shape on the map: you see home from far off, and its edge is the defence line.'], ['Risk', 'More to draw and to explain; the ring must match the build rules.']] },
+    { id: 'C', name: 'Crab fortress', short: 'crab fortress', fn: rigCrab, wide: 15, pitch: 'Hilde turns into the fortress. Parked, she unfolds four outrigger legs; plating closes over the bed; a turret ring sits on top; later a spiked dozer blade and the crane as a gun.',
+      notes: [['Grows', '0 legs only; 1 the armoured shell; 2 the turret ring and the blade; 3 the crane gun and floodlight eyes.'], ['Reads', 'The legs make a silhouette nothing else has, and they unfold when she parks: a moment.'], ['Risk', 'Turns a tow truck into a mech: fun, but it bends the canon.']] },
+  ],
+};
+// a scene at game size for each card: the concept among the others, at the scale the game draws (12 px a metre, figures ×1.8)
+const GAME_K = 12, FIG = 1.8;
+function sceneKai(fn) { return (c, t, px) => { const n = st.nightK > 0.5; for (let i = 0; i < 3; i++) { const a = t * 0.18 + i * 2.1, o = { x: Math.cos(a) * 4.5 - 1, y: Math.sin(a) * 3.0, face: a + Math.PI, ph: t * 7 + i, kind: 'cinder', id: 11 + i }; c.save(); c.translate(o.x, o.y); c.scale(FIG, FIG); deadShed(c, { ...o, x: 0, y: 0 }, px / FIG); c.restore(); } const w = walker(t, 1.6, 1.3); c.save(); c.translate(w.x, w.y); c.scale(FIG, FIG); fn(c, { ...w, x: 0, y: 0 }, px / FIG); c.restore(); }; }
+function sceneDead(fn) { return (c, t, px) => { const kinds = ['cinder', 'cinder', 'flicker', 'cinder', 'brute', 'cinder']; kinds.forEach((kind, i) => { const sp = KIND[kind].sp, x = -7 + ((t * 0.55 * sp + i * 2.3) % 12), y = -2.4 + (i % 3) * 2.1 + Math.sin(t + i) * 0.2; c.save(); c.translate(x, y); c.scale(FIG, FIG); fn(c, { x: 0, y: 0, face: 0, ph: t * 8 * sp + i, kind, id: 40 + i }, px / FIG); c.restore(); }); const w = { x: 5.5, y: 0.5, face: Math.PI, ph: 0, swing: (t % 2) < 0.3 ? 1 - (t % 2) / 0.3 : 0, moving: false }; c.save(); c.translate(w.x, w.y); c.scale(FIG, FIG); kaiHivis(c, { ...w, x: 0, y: 0 }, px / FIG); c.restore(); }; }
+function sceneRig(fn, lvlOf) { return (c, t, px) => { const lvl = lvlOf(); fn(c, { x: 0, y: 0, rot: -0.12, lvl, t }, px); if (st.nightK > 0.5) for (let i = 0; i < 4; i++) { const a = -0.6 + i * 0.5, r = 13 - ((t * 0.9 + i * 2.3) % 6), x = Math.cos(a) * r, y = Math.sin(a) * r * 0.7; c.save(); c.translate(x, y); c.scale(FIG, FIG); deadShed(c, { x: 0, y: 0, face: Math.atan2(-y, -x), ph: t * 8 + i, kind: 'cinder', id: 70 + i }, px / FIG); c.restore(); } const w = walker(t, 3.0, 1.2, 2); c.save(); c.translate(w.x, w.y + 3.2); c.scale(FIG, FIG); kaiHivis(c, { ...w, x: 0, y: 0 }, px / FIG); c.restore(); }; }
+
+function buildCards() {
+  for (const sec of ['kai', 'dead', 'rig']) {
+    const row = document.querySelector(`.row[data-sec="${sec}"]`);
+    CARDS[sec].forEach((cd, idx) => {
+      const card = document.createElement('article'); card.className = 'card'; card.setAttribute('aria-label', `${NAMES[sec]} concept ${cd.id}: ${cd.name}`); row.appendChild(card);
+      let lvl = 3;
+      if (sec === 'kai') {
+        surface(card, 0.82, 3.4, 'grass', (c, t, px) => { const w = walker(t, 0.75, 0.9, idx); cd.fn(c, w, px); }, { tag: 'close-up', label: `Kai, ${cd.name}, close up`, ruler: 0.5 });
+        surface(card, 0.5, 300 / GAME_K, 'grass', sceneKai(cd.fn), { tag: 'game size', label: `Kai, ${cd.name}, at game size among the dead`, ruler: 2 });
+      } else if (sec === 'dead') {
+        surface(card, 0.82, 3.4, 'grass', (c, t, px) => { const a = t * 0.35 + idx, o = { x: Math.cos(a) * 0.55, y: Math.sin(a) * 0.4, face: a + Math.PI / 2, ph: t * 7, kind: 'cinder', id: 3 + idx }; cd.fn(c, o, px); }, { tag: 'close-up · Cinder', label: `Ash-Born, ${cd.name}, close up`, ruler: 0.5 });
+        surface(card, 0.42, 6.4, 'grass', (c, t, px) => { [['cinder', -2.1], ['flicker', 0], ['brute', 2.2]].forEach(([kind, x], i) => cd.fn(c, { x, y: 0.1, face: -Math.PI / 2 + Math.sin(t * 0.5 + i) * 0.25, ph: t * 7 * KIND[kind].sp + i, kind, id: 20 + i + idx * 5 }, px)); }, { tag: 'Cinder · Flicker · Brute', label: `Ash-Born, ${cd.name}: the three kinds`, ruler: 1 });
+        surface(card, 0.5, 300 / GAME_K, 'grass', sceneDead(cd.fn), { tag: 'game size', label: `Ash-Born, ${cd.name}, a march at game size`, ruler: 2 });
+      } else {
+        surface(card, 0.72, cd.wide, 'setts', (c, t, px) => cd.fn(c, { x: cd.id === 'A' ? 1.3 : 0, y: 0, rot: 0, lvl, t }, px), { tag: 'close-up', label: `Hilde, ${cd.name}, close up`, ruler: 2 });
+        surface(card, 0.6, 360 / GAME_K, 'setts', sceneRig(cd.fn, () => lvl), { tag: 'game size', label: `Hilde, ${cd.name}, at game size`, ruler: 5 });
+      }
+      const body = document.createElement('div'); body.className = 'body';
+      body.innerHTML = `<div class="title"><b>${cd.name}</b><em>${NAMES[sec]} · ${cd.id}</em></div><p class="pitch">${cd.pitch}</p><ul class="notes">${cd.notes.map(([k, v]) => `<li><span>${k}</span>${v}</li>`).join('')}</ul>`;
+      card.appendChild(body);
+      const foot = document.createElement('div'); foot.className = 'foot'; card.appendChild(foot);
+      if (sec === 'rig') { const id = `lvl-${cd.id}`; const l = document.createElement('label'); l.className = 'lvl'; l.htmlFor = id; l.innerHTML = `Level <input id="${id}" type="range" min="0" max="3" step="1" value="3"> <output>3</output>`; foot.appendChild(l); const inp = l.querySelector('input'), out = l.querySelector('output'); inp.addEventListener('input', () => { lvl = +inp.value; out.textContent = inp.value; }); }
+      else foot.appendChild(document.createElement('span'));
+      const pick = document.createElement('button'); pick.className = 'pick'; pick.id = `pick-${sec}-${cd.id}`; pick.textContent = 'Pick'; pick.setAttribute('aria-pressed', 'false'); foot.appendChild(pick);
+      pick.addEventListener('click', () => { PICKS[sec] = PICKS[sec] === cd.id ? null : cd.id; savePicks(); syncPicks(); });
+      cd.card = card; cd.pick = pick;
+    });
+  }
+}
+function syncPicks() {
+  for (const sec of Object.keys(CARDS)) for (const cd of CARDS[sec]) { const on = PICKS[sec] === cd.id; cd.card.classList.toggle('picked', on); cd.pick.setAttribute('aria-pressed', String(on)); cd.pick.textContent = on ? 'Picked' : 'Pick'; }
+  $('#picks').innerHTML = Object.keys(CARDS).map(sec => { const cd = CARDS[sec].find(c => c.id === PICKS[sec]); return `${NAMES[sec]}: <b>${cd ? cd.id + ' ' + cd.short : '—'}</b>`; }).join(' · ');
+}
+const $ = s => document.querySelector(s);
+const pickText = () => 'Hollowmere picks — ' + Object.keys(CARDS).map(sec => { const cd = CARDS[sec].find(c => c.id === PICKS[sec]); return `${NAMES[sec]}: ${cd ? cd.id + ' (' + cd.name + ')' : 'none yet'}`; }).join('; ');
+function savePicks() { try { localStorage.setItem('hm-picks', JSON.stringify(PICKS)); } catch (e) {} }
+function loadPicks() { try { Object.assign(PICKS, JSON.parse(localStorage.getItem('hm-picks') || '{}')); } catch (e) {} }
+
+// ---------- controls ----------
+function setTime(mode) { st.cycle = mode === 'cycle'; if (!st.cycle) st.night = mode === 'night'; for (const id of ['day', 'night', 'cycle']) $('#' + id).setAttribute('aria-pressed', String(id === mode)); }
+$('#day').addEventListener('click', () => setTime('day')); $('#night').addEventListener('click', () => setTime('night')); $('#cycle').addEventListener('click', () => setTime('cycle'));
+$('#pause').addEventListener('click', () => { st.paused = !st.paused; $('#pause').setAttribute('aria-pressed', String(st.paused)); $('#pause').textContent = st.paused ? 'Play motion' : 'Pause motion'; });
+$('#copy').addEventListener('click', () => { const text = pickText(), done = () => { $('#copied').hidden = false; setTimeout(() => { $('#copied').hidden = true; }, 1600); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => { prompt0(text); }); else prompt0(text); });
+function prompt0(text) { const p = $('#picks'); p.textContent = text; const r = document.createRange(); r.selectNodeContents(p); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+// ---------- the loop ----------
+loadPicks(); buildCards(); syncPicks();
+const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => { for (const e of es) { const S = surfaces.find(s => s.cv === e.target); if (S) S.visible = e.isIntersecting; } }, { rootMargin: '120px' }) : null;
+for (const S of surfaces) { if (io) io.observe(S.cv); sizeSurface(S); }
+addEventListener('resize', () => { for (const S of surfaces) sizeSurface(S); });
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; if (reduce) { st.paused = true; $('#pause').setAttribute('aria-pressed', 'true'); $('#pause').textContent = 'Play motion'; }
+let last = performance.now();
+function frame(now) {
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
+  if (!st.paused) st.t += dt;
+  if (st.cycle) st.night = (st.t % 16) > 8;
+  st.nightK += ((st.night ? 1 : 0) - st.nightK) * Math.min(1, dt * 3);
+  for (const S of surfaces) if (S.visible) { if (!S.w) sizeSurface(S); try { frameSurface(S, st.t); } catch (e) { console.error(e); } }
+  requestAnimationFrame(frame);
+}
+st.nightK = st.night ? 1 : 0;
+requestAnimationFrame(frame);
+window.__disc = { st, setTime, PICKS };
+})();
+</script>
+</body>
+</html>
