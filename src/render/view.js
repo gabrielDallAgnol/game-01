@@ -65,6 +65,7 @@ import { createCarryView } from './view/carry.js';
 import { createClarity } from './view/clarity.js';
 // [medium] the One-medium look (glyphs, strands, trample)
 import { createMedium } from './view/medium.js';
+import { createFigs } from './view/figs.js';
 // [top] end
 
 export function createView(canvas, game, opts = {}) {
@@ -130,6 +131,7 @@ export function createView(canvas, game, opts = {}) {
   V.chapter = createChapterView(V);   // [ch1] jobs, hearts, survivors, radios, the torch, the beacon, the Rig rolling out
   V.clarity = createClarity(V);   // [clarity] turrets read as guns from above
   V.medium = createMedium(V);   // [medium]
+  V.figs = createFigs(V);   // [medium] Kai and the dead as solids for the glyph atom
   V.crew = createCrewView(V);   // [polish] the survivors as figures that walk home to the Rig
   V.carry = createCarryView(V);   // [polish] the crankshaft on Kai and the slow cue
 
@@ -187,6 +189,7 @@ export function createView(canvas, game, opts = {}) {
     if (V.chapter) V.chapter.update(dt);   // [ch1]
     if (V.clarity) V.clarity.update(dt, ui.events);   // [clarity]
     if (V.medium) V.medium.update(dt);   // [medium]
+    if (V.figs) V.figs.update(dt);   // [medium]
     if (V.crew) V.crew.update(dt);   // [polish]
     if (V.carry) V.carry.update(dt);   // [polish]
     look.render(V.time);

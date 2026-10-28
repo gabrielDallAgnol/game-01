@@ -85,7 +85,7 @@ export function createTopPop(V) {
   const frames = new Map();
 
   function update() {
-    if (MEDIUM) { hero.visible = false; pips.count = 0; glows.count = 0; for (const f of frames.values()) f.visible = false; if (V.markers && V.markers.heroRing) V.markers.heroRing.visible = false; if (V.crowd && V.crowd.mats) { V.crowd.mats.body.color.setRGB(0.74, 0.72, 0.68); } return; }   // [medium] pale stone dead, no tokens
+    if (MEDIUM) { hero.visible = false; pips.count = 0; glows.count = 0; for (const f of frames.values()) f.visible = false; if (V.markers && V.markers.heroRing) V.markers.heroRing.visible = false; if (V.crowd && V.crowd.mats) { V.crowd.mats.body.color.setRGB(2.2, 2.1, 1.95); } return; }   // [medium] pale stone dead, no tokens
     const time = V.time, dark = V.dark, h = S.hero, kk = k();
     // hero
     hero.visible = !h.dead;

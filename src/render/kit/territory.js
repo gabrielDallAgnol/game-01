@@ -157,7 +157,7 @@ if (mOn > 0.5 && tNoGlyph < 0.5) {
   ndl = clamp(dot(normalize((vec4(normal, 0.0) * viewMatrix).xyz), normalize(vec3(-0.5, 0.75, -0.62))), 0.0, 1.0);
 #endif
   vec3 cc = sqrt(max(gl_FragColor.rgb, 0.0)); float L0 = dot(cc, vec3(0.2126, 0.7152, 0.0722));   // (worked in screen values, written back linear)
-  float lum = clamp(L0 * (0.42 + 0.78 * ndl) * 1.15, 0.0, 0.999);
+  float lum = clamp((0.18 + 0.82 * ndl) * (0.55 + 0.45 * clamp(L0 * 2.0, 0.0, 1.0)), 0.0, 0.999);   // the light sets the letters (as in the lab); a dark material only thins them a little
   vec2 gq = fract(gl_FragCoord.xy / mCell); float lev = floor(pow(lum, 0.7) * 11.0);
   float gm = texture2D(mGlyph, vec2((lev + gq.x) / 11.0, gq.y)).a;
   vec3 tint = cc / max(max(cc.r, max(cc.g, cc.b)), 0.03);

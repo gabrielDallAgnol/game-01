@@ -6,7 +6,8 @@
 // the half span of the screen's SHORT side in metres at zoom 1 (1 cell ≈ 1 m): a phone shows ~24 m across, a
 // desktop ~32 m top to bottom; zoom runs 0.45 … 4 (pull back to ~100 m across)
 const SPAN_PORTRAIT = 12, SPAN_LANDSCAPE = 16, ZMIN = 0.45, ZMAX = 4, HEIGHT = 80;
-const ZSTART = 1.25;   // [toppop] the opening view: ~30 m across a phone (pinch out to ~100 m)
+// [medium] the One-medium figures are letters and need ~18 px a metre: open a little closer (~22 m across a phone)
+const ZSTART = typeof location !== 'undefined' && /[?&]look=classic\b/.test(location.search) ? 1.25 : 0.92;   // [toppop] classic: ~30 m across a phone (pinch out to ~100 m)
 
 export function createTopCamera(V) {
   const { S, C, canvas, camera, look, W, Wv, opts } = V;
