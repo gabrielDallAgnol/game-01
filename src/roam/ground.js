@@ -4,7 +4,7 @@
 // builds on GROUND (hair grass, glyph roofs and solids). NS: the stamps a frame.
 export const NS = 48;
 export const HEAD = `precision highp float; varying vec2 vUv;
-    uniform sampler2D tTown, tOver, tMach, tDist, tRoof, tStreet, tMisc, tTreeH; uniform vec2 uCam, uView, uOrigin, uKai, uFire; uniform float uS, uTime, uPpm, uNight;
+    uniform sampler2D tTown, tOver, tMach, tDist, tRoof, tStreet, tMisc, tTreeH; uniform vec2 uCam, uView, uOrigin, uKai, uFire; uniform float uS, uTime, uPpm, uNight, uGrid; uniform vec4 uSun;   // uSun: the way to the sun (xy), the ray's climb a metre (z), the dawn/dusk warmth (w); uGrid: the zoom the grass's seeds are laid for (steps, not every frame)
     float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
     vec2 h22(vec2 p){ float a = h21(p); return vec2(a, h21(p + a * 17.7 + 3.1)); }
     float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
@@ -13,7 +13,9 @@ export const HEAD = `precision highp float; varying vec2 vUv;
     float inside(vec2 t){ vec2 e = smoothstep(0.0, 0.03, t) * smoothstep(0.0, 0.03, 1.0 - t); return e.x * e.y; }
     float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }`;
 export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(fract(v / sp) - 0.5) * sp; return 1.0 - smoothstep(wd, wd + 1.0 / uPpm, f); }
-      const vec2 WD = vec2(0.731, 0.682); const vec2 SUNV = vec2(-0.6, -0.8);
+      const vec2 WD = vec2(0.731, 0.682);
+#define SUNV (uSun.xy)
+
       float gust(vec2 p){ return smoothstep(0.3, 0.85, vnoise(p * 0.045 - WD * uTime * 0.55) * 0.7 + vnoise(p * 0.12 - WD * uTime * 0.95) * 0.3); }
       vec2 voro(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0; for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)), r = g + h22(i + g) - f; float d = dot(r, r); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; } return vec2(sqrt(d1), sqrt(d2)); }
       float treeH(vec2 p){ return texture2D(tTreeH, toTex(p)).r; }
@@ -24,8 +26,14 @@ export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(f
         vec4 rf = texture2D(tRoof, t), sx = texture2D(tStreet, t); vec3 ms = texture2D(tMisc, t).rgb; float treeM = texture2D(tMisc, toTex(tw)).r, th = treeH(tw);
         float roof = smoothstep(0.35, 0.65, rf.a), tree = smoothstep(0.3, 0.7, treeM) * (1.0 - roof), street = smoothstep(0.35, 0.65, sx.a) * (1.0 - roof) * (1.0 - tree), ground = (1.0 - roof) * (1.0 - tree) * (1.0 - street);
         float inward = sx.b, lit = rf.g, flatRoof = step(rf.b, 0.5), edgeLine = 0.0;
-        float tShadow = smoothstep(0.05, 0.35, treeH(w - SUNV * 2.4 - sway * 0.7)) * (1.0 - tree);
-        float shadow = max(smoothstep(0.7, 0.9, ms.b), tShadow) * (1.0 - roof);   // the buildings' cast shadows (the static tree ones are ash2's), and the crowns' own, swaying
+        float side = lit; { vec2 ax = vec2(cos(rf.r * 3.14159), sin(rf.r * 3.14159)) * (side * 2.0 - 1.0); lit = flatRoof > 0.5 ? lit : smoothstep(0.2, 0.98, dot(normalize(vec3(ax * 0.62, 0.78)), normalize(vec3(SUNV, uSun.z)))); }   // a slope lit by where the sun is now
+        // cast shadows from the sun where it is now: walk toward it and ask whether a roof (6 m) or a crown (3–7 m) stands above the ray
+        float bShadow = 0.0, tShadow = 0.0; { float clim = max(0.12, uSun.z), D = min(6.0 / clim, 18.0), Dt = min(7.0 / clim, 14.0);
+          float jt = h21(gl_FragCoord.xy * 0.37);   // a jittered start: few taps, no banding
+          for (int k = 0; k < 6; k++) { float d = D * (float(k) + jt) / 6.0; bShadow = max(bShadow, smoothstep(0.4, 0.7, texture2D(tRoof, toTex(w + SUNV * d)).a) * step(d * clim, 6.0)); }
+          for (int k = 0; k < 4; k++) { float d = Dt * (float(k) + jt) / 4.0, hh = treeH(w + SUNV * d - sway * 0.7); tShadow = max(tShadow, smoothstep(0.03, 0.2, hh) * smoothstep(-0.6, 0.6, 3.0 + 4.0 * hh - d * clim)); } }
+        tShadow *= 1.0 - tree;
+        float shadow = max(bShadow, tShadow) * (1.0 - roof) * mix(1.0, 0.55, uNight);   // the buildings' cast shadows (the static tree ones are ash2's), and the crowns' own, swaying
         vec4 dP = texture2D(tDist, t); float pressHere = dP.b * (1.0 - roof);
         // grounds
         float mott = vnoise(w * 0.35) * 0.06 + vnoise(w * 2.1) * 0.03;
@@ -55,12 +63,12 @@ export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(f
           edgeLine = 1.0 - smoothstep(0.0, 0.1, abs(sx.a - 0.5)); }
         // the dome of a tree, lit from the sun's side
         float e = 0.35, gx = treeH(tw + vec2(e, 0.0)) - treeH(tw - vec2(e, 0.0)), gy = treeH(tw + vec2(0.0, e)) - treeH(tw - vec2(0.0, e));
-        vec3 nrm = normalize(vec3(-gx * 3.0, -gy * 3.0, 1.0)); float tl = clamp(dot(nrm, normalize(vec3(SUNV, 0.9))), 0.0, 1.0);
+        vec3 nrm = normalize(vec3(-gx * 3.0, -gy * 3.0, 1.0)); float tl = clamp(dot(nrm, normalize(vec3(SUNV, max(0.3, uSun.z)))), 0.0, 1.0);
         vec3 canopy = mix(vec3(0.07, 0.085, 0.07), vec3(0.30, 0.345, 0.27), tl) * (0.75 + 0.45 * th);
         vec3 roofC = mix(mix(vec3(0.16, 0.16, 0.17), vec3(0.42, 0.415, 0.40), lit), vec3(0.30, 0.30, 0.31), flatRoof);
         vec3 base = earth * ground + asph * street + canopy * tree + roofC * roof;
         // strokes: blades on open ground and at the kerb, engraving on roofs, leaves on crowns
-        float c = max(0.52, 6.5 / uPpm), wid = max(0.022, 0.5 / uPpm), aa = 1.0 / uPpm;
+        float c = max(0.52, 6.5 / uGrid), wid = max(0.022, 0.5 / uPpm), aa = 1.0 / uPpm;
         float kerbWeeds = street * (1.0 - smoothstep(0.12, 0.3, inward)) + street * crack * 0.6;
         vec2 tang = normalize(vec2(-gy, gx) + 1e-5);
         vec2 cell = floor(w / c); float best = 0.0; vec3 sc = vec3(0.0);
@@ -98,7 +106,7 @@ export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(f
         base = mix(base, base * 0.5, shadow * 0.6); base = mix(base, base * 0.35, xh * shadow * (1.0 - street * 0.5));
         float alpha = best * (roof * 0.8 + tree * 0.85 + (1.0 - roof - tree) * 0.9) * (1.0 - shadow * 0.4);
         vec3 col = mix(base, sc * mix(1.0, 0.6, shadow), alpha);
-        float ridge = roof * (1.0 - flatRoof) * (1.0 - smoothstep(0.1, 0.25, abs(lit - 0.5))), eave = roof * (1.0 - smoothstep(0.6, 0.97, rf.a));
+        float ridge = roof * (1.0 - flatRoof) * (1.0 - smoothstep(0.1, 0.25, abs(side - 0.5))), eave = roof * (1.0 - smoothstep(0.6, 0.97, rf.a));
         col = mix(col, vec3(0.06), max(ridge * 0.9, eave * 0.75));
         col = mix(col, vec3(0.04, 0.05, 0.04), (1.0 - smoothstep(0.25, 0.75, treeM)) * smoothstep(0.05, 0.25, treeM) * 0.9 * (1.0 - roof));
         col = mix(col, vec3(0.05, 0.055, 0.05), edgeLine * 0.8 * (1.0 - roof)); col = mix(col, vec3(0.55, 0.54, 0.5), (1.0 - smoothstep(0.0, 0.05, abs(sx.a - 0.62))) * 0.6 * (1.0 - roof) * (1.0 - tree));   // grass | pavement: a dark line, a pale lip

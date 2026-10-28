@@ -42,7 +42,7 @@ export function createMedium(o) {
   let rt = null; const cells = new THREE.Vector2(1, 1), res = new THREE.Vector2(1, 1);
   Object.assign(U, { tPrim: { value: tPrim }, uPN: { value: 0 }, tCells: { value: null }, tGlyph: { value: tGlyph }, uCells: { value: cells }, uCellPx: { value: 6 }, uRes: { value: res } });
   const CELL = new THREE.ShaderMaterial({ uniforms: U, vertexShader: VERT, depthTest: false, depthWrite: false, fragmentShader: `precision highp float; varying vec2 vUv;
-    uniform sampler2D tPrim; uniform float uPN, uCellPx; uniform vec2 uCam, uView, uCells, uRes;
+    uniform sampler2D tPrim; uniform float uPN, uCellPx; uniform vec2 uCam, uView, uCells, uRes; uniform vec4 uSun;
     vec4 P(float i, float k){ return texture2D(tPrim, vec2((k + 0.5) / 3.0, (i + 0.5) / ${MAXP}.0)); }
     float sdRect(vec2 p, vec2 b){ vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
     float hOf(vec2 q, vec4 A, vec4 B, vec4 C){
@@ -61,7 +61,7 @@ export function createMedium(o) {
       if (h0 < -1.0) { gl_FragColor = vec4(0.0); return; }
       if (hx < -1.0) hx = h0 - 0.15; if (hy < -1.0) hy = h0 - 0.15;
       vec3 nrm = normalize(vec3(-(hx - h0) / e, -(hy - h0) / e, 1.0));
-      float L = clamp(dot(nrm, normalize(vec3(-0.5, -0.62, 0.6))), 0.0, 1.0);   // world y runs down the screen: north-west is (-x, -y)
+      float L = clamp(dot(nrm, normalize(vec3(uSun.xy, max(0.3, uSun.z)))), 0.0, 1.0);   // the sun where it is now (world y runs down the screen)
       float lum = (0.16 + 0.84 * clamp(L * 1.2, 0.0, 1.0)) * (0.8 + 0.2 * clamp(h0 / 2.4, 0.0, 1.0));   // a little sky light: no face goes fully black
       gl_FragColor = vec4(lum, m / 32.0, em, 0.52 + 0.48 * clamp(h0 / 8.0, 0.0, 1.0)); }` });   // alpha: solid, and how tall (for cast shadows)
   const cScene = new THREE.Scene(), cQuad = new THREE.Mesh(quadGeo, CELL); cQuad.frustumCulled = false; cScene.add(cQuad);
@@ -84,7 +84,7 @@ export function createMedium(o) {
           vec2 dir = vec2(cos(th), sin(th)); if (tree > 0.5) dir = normalize(tang + WD * (g0 - 0.3) * 0.5);   // a crown is combed round its middle
           float pl = length(pushH); if (pl > 0.02) dir = normalize(mix(dir, pushH / pl, clamp(pl * 1.6, 0.0, 1.0)));
           // (the seeds sit on a turned, jittered lattice, so the strands never line up in columns)
-          float fq = clamp(uPpm * 0.45, 4.0, 22.0);   // seeds a metre: fewer when a pixel covers more ground, so they never alias into lines
+          float fq = clamp(uGrid * 0.45, 4.0, 22.0);   // seeds a metre: fewer when a pixel covers more ground, so they never alias into lines
           float stepL = 0.036 * (20.0 / fq) * mix(1.0, 0.4, pressH), acc = 0.0, tip = 0.0;   // finer, shorter strands
           for (int k = -9; k <= 9; k++) { float fk = float(k); vec2 q = w + dir * fk * stepL; q = mat2(0.866, 0.5, -0.5, 0.866) * q; float sd = step(0.8, h21(floor(q * fq + vec2(h21(vec2(floor(q.y * fq), 3.0)), 0.0)))); acc += sd; tip += sd * (fk + 9.0) / 18.0; }
           float hair = clamp(acc / 4.0, 0.0, 1.0), hl = clamp(tip / max(acc, 1e-3), 0.0, 1.0);
@@ -93,49 +93,72 @@ export function createMedium(o) {
           if (tree > 0.5) { hc = mix(vec3(0.07, 0.09, 0.07), vec3(0.62, 0.7, 0.55), tl * (0.5 + 0.5 * hl)) * (0.85 + 0.3 * g0); thick = 1.0; }
           col = mix(col * mix(1.0, 0.7, hairK), hc, hairK * thick * smoothstep(0.1, 0.6, hair));
           // bigger plants: leafy clumps every few metres of open grass, swaying in the gusts; some in flower
-          if (ground > 0.5) { vec2 cid = floor(w / 2.4), rr = h22(cid + 4.7);
-            if (h21(cid + 9.1) < 0.3) { vec2 ctr = (cid + 0.2 + 0.6 * rr) * 2.4 + WD * (gust(cid * 2.4) - 0.35) * 0.18; vec2 dv = w - ctr; float R0 = 0.42 + 0.38 * rr.x, d = length(dv);
+          if (ground > 0.5) { vec2 cid = floor(w / 4.6), rr = h22(cid + 4.7);
+            if (h21(cid + 9.1) < 0.45) { vec2 ctr = (cid + 0.33 + 0.34 * rr) * 4.6 + WD * (gust(cid * 4.6) - 0.35) * 0.3; vec2 dv = w - ctr; float R0 = 0.8 + 0.55 * rr.x, d = length(dv);
               if (d < R0 * 1.1) { float a = atan(dv.y, dv.x), nl = 5.0 + floor(rr.y * 4.0), leaf = abs(fract(a * nl / 6.2832 + rr.x) - 0.5) * 2.0;   // leaves fanned round the middle
                 float shape = 1.0 - smoothstep(0.0, mix(0.85, 0.35, d / R0), leaf); float body = shape * (1.0 - smoothstep(R0 * 0.85, R0 * 1.05, d)) * (1.0 - pressH * 0.85);
                 vec3 lc = mix(vec3(0.1, 0.16, 0.1), vec3(0.55, 0.7, 0.44), clamp(0.35 + 0.65 * dot(normalize(dv + 1e-4), -normalize(SUNV)) * (d / R0), 0.0, 1.0)) * (0.8 + 0.3 * g0);
-                col = mix(col * (1.0 - 0.35 * (1.0 - smoothstep(0.0, R0 * 1.2, length(dv - SUNV * 0.25)))), lc, body * 0.95);
+                col = mix(col * (1.0 - 0.4 * (1.0 - smoothstep(0.0, R0 * 1.2, length(dv + SUNV * min(1.2, 0.5 / max(0.3, uSun.z)))))), lc, body * 0.95);   // its shadow falls away from the sun
                 float fl = h21(cid + 2.3);   // in flower: a ring of small blooms
                 if (fl < 0.55) { vec3 fc = fl < 0.2 ? vec3(0.95, 0.82, 0.28) : fl < 0.38 ? vec3(0.93, 0.92, 0.86) : vec3(0.92, 0.48, 0.58);
-                  for (int f = 0; f < 5; f++) { float fa = rr.x * 6.28 + float(f) * 1.31, fd = R0 * (0.35 + 0.45 * h21(cid + float(f))); vec2 fp = ctr + vec2(cos(fa), sin(fa)) * fd; float fdd = length(w - fp), fr = 0.07 + 0.03 * h21(cid * 3.0 + float(f));
+                  for (int f = 0; f < 7; f++) { float fa = rr.x * 6.28 + float(f) * 0.9, fd = R0 * (0.3 + 0.5 * h21(cid + float(f))); vec2 fp = ctr + vec2(cos(fa), sin(fa)) * fd; float fdd = length(w - fp), fr = 0.15 + 0.08 * h21(cid * 3.0 + float(f));
                     col = mix(col, fc * mix(1.0, 0.45, uNight) * (0.75 + 0.35 * smoothstep(fr, 0.0, fdd)), (1.0 - smoothstep(fr * 0.6, fr, fdd)) * (1.0 - pressH)); col = mix(col, vec3(0.5, 0.36, 0.08), 1.0 - smoothstep(0.0, fr * 0.35, fdd)); } } } } }
         }`);
-  swap('        col *= mix(vec3(1.0), vec3(0.33, 0.35, 0.40), uNight);', `        col *= mix(vec3(0.5, 0.56, 0.66), vec3(0.24, 0.27, 0.36), uNight);   // [medium] a dark, cool ground: only the light carries form
+  swap('        col *= mix(vec3(1.0), vec3(0.33, 0.35, 0.40), uNight);', `        col *= mix(vec3(1.02, 1.04, 1.04) * tint(), vec3(0.24, 0.27, 0.36), uNight);   // [medium] by day bright, warm when the sun is low; by night dark and cool
         // [medium] roofs: the same cells and ramp as the solids, lit by slope (after the ground's darkening: they are solids)
         { vec2 cp = gl_FragCoord.xy / uCellPx, g = fract(cp); float rl = flatRoof > 0.5 ? 0.55 : mix(0.34, 0.95, lit); rl *= (1.0 - 0.85 * ridge) * (1.0 - 0.75 * eave) * (0.88 + 0.24 * h21(floor(cp)));
           float gm = texture2D(tGlyph, vec2((floor(pow(clamp(rl, 0.0, 0.999), 0.6) * ${NG}.0) + g.x) / ${NG}.0, g.y)).a;
-          vec3 rc = vec3(0.9, 0.88, 0.82) * (0.45 + 0.6 * rl) * mix(1.0, 0.55, uNight);
+          vec3 rc = vec3(0.9, 0.88, 0.82) * (0.45 + 0.6 * rl) * mix(tint(), vec3(0.55), uNight);
           // a lit house at night: its windows show as warm letters along the eaves, the roof catches a little of its own glow
           vec4 LM = texture2D(tLight, t); float win = LM.g * uNight * step(0.55, h21(floor(cp * vec2(0.5, 1.0)) + 3.1)) * smoothstep(0.35, 0.95, 1.0 - rf.a + eave);
           rc = mix(rc, vec3(1.0, 0.7, 0.32) * (0.9 + 0.3 * rl), clamp(win * 1.4, 0.0, 1.0)); rc += vec3(0.22, 0.12, 0.04) * LM.g * uNight * 0.6;
           col = mix(col, mix(rc * 0.16, rc, gm), roof); }
-        // the night's lights on the ground: street lamps, lit windows, a doorway left open (they breathe a little)
-        { float lm = texture2D(tLight, t).r * (0.88 + 0.12 * vnoise(w * 0.4 + uTime * 1.3)); col += vec3(1.0, 0.64, 0.3) * lm * uNight * (0.35 + 0.65 * smoothstep(0.0, 0.25, lm)) * 0.75; }`);
+`);
   swap('        gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }', `        // [medium] the solids: each cell a glyph by its light, the material's colour in the letters, glow through them
         vec2 ci = floor(gl_FragCoord.xy / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);
+        float hp = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, skip = A.a > 0.5 ? 0.8 : 0.25;
+        // lit windows and open doors: the light falls out of the house; whoever stands in it throws a shadow away from the window
+        float lm = 0.0; { float l0 = texture2D(tLight, t).r; if (l0 * uNight > 0.01) { vec3 LD = texture2D(tLDir, t).rgb; vec2 back = (LD.rg * 255.0 - 128.0) / 127.0; float dist = LD.b * 8.0;
+          lm = l0 * (0.88 + 0.12 * vnoise(w * 0.4 + uTime * 1.3)) * (1.0 - 0.85 * occl(w, w + back * dist, hp, 1.7, skip, 0.0, 0.0)); }
+          col += vec3(1.0, 0.64, 0.3) * lm * uNight * (0.35 + 0.65 * smoothstep(0.0, 0.25, lm)) * 0.75; }
+        // the bike's headlight: a cone of real light; walls stop it, and the dead in it throw long shadows down the beam
+        float head = 0.0; if (uHead.w > 0.01) { vec2 dv = w - uHead.xy; float r = length(dv), cs = dot(dv, vec2(cos(uHead.z), sin(uHead.z))) / max(r, 1e-3);
+          head = smoothstep(0.84, 0.95, cs) * (1.0 - smoothstep(6.0, 24.0, r)) * smoothstep(0.2, 1.0, r) * uHead.w;
+          if (head > 0.003) head *= 1.0 - occl(w, uHead.xy, hp, 1.45, skip, 1.0, 1.1);
+          col += col * head * 2.2 + vec3(1.0, 0.92, 0.76) * head * 0.42; }
+        vec3 under = col;   // the ground as lit, before any figure: a crown above a figure keeps most of it
         // cast shadows: from this point walk toward the sun (north-west, the same sun as the town's) and ask whether
         // a solid stands taller than the light's ray there. The ray climbs 1.8 m a metre (shadows ~0.55× their height).
         float h0s = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, shade = 0.0;
-        for (int k = 1; k <= 16; k++) { float d = float(k) * 0.28; vec2 sc = (gl_FragCoord.xy + vec2(-0.6, 0.8) * d * uPpm) / uCellPx;
+        float clim = max(0.35, uSun.z), stp = 0.28 * clamp(1.8 / clim, 1.0, 2.2);
+        for (int k = 1; k <= 16; k++) { float d = float(k) * stp; vec2 sc = (gl_FragCoord.xy + vec2(SUNV.x, -SUNV.y) * d * uPpm) / uCellPx;
           vec4 S2 = texture2D(tCells, (floor(sc) + 0.5) / uCells); float hs = S2.a > 0.5 ? (S2.a - 0.52) / 0.48 * 8.0 : -1.0;
-          shade = max(shade, smoothstep(-0.15, 0.25, hs - (h0s + d * 1.8))); }
-        float sMask = shade * (A.a > 0.5 ? 0.55 : 1.0);
+          shade = max(shade, smoothstep(-0.15, 0.25, hs - (h0s + d * clim))); }
+        float sMask = shade * (A.a > 0.5 ? 0.55 : 1.0) * (1.0 - tree) * mix(1.0, 0.3, uNight);   // a crown is above any figure's shadow
         col *= 1.0 - 0.52 * sMask;
         if (A.a > 0.5) {
           float mi = floor(A.g * 32.0 + 0.5), em = A.b; vec3 mc = matCol(mi, em), ec = emCol(mi);
-          float lev = max(floor(pow(clamp(A.r, 0.0, 0.999), 0.5) * ${NG}.0), floor(em * ${NG - 1}.0));
+          float lev = max(max(floor(pow(clamp(A.r, 0.0, 0.999), 0.5) * ${NG}.0), floor(em * ${NG - 1}.0)), floor(clamp(head * 1.4 + lm * uNight, 0.0, 0.95) * ${NG}.0));   // light on it fills its letters
           vec2 g = fract(gl_FragCoord.xy / uCellPx); float gm = texture2D(tGlyph, vec2((lev + g.x) / ${NG}.0, g.y)).a;
-          vec3 lc = mix(vec3(0.94, 0.92, 0.87), mc, 0.6) * (0.55 + 0.75 * A.r) * mix(1.0, 0.62, uNight);   // pale letters, the colour as a tint
-          lc += vec3(1.0, 0.66, 0.32) * texture2D(tLight, t).r * uNight * 0.9;   // a figure under a lamp is lit by it
+          vec3 lc = mix(vec3(0.94, 0.92, 0.87), mc, 0.6) * (0.55 + 0.75 * A.r) * mix(tint(), vec3(0.62), uNight);   // pale letters, the colour as a tint
+          lc += vec3(1.0, 0.66, 0.32) * lm * uNight * 0.9 + vec3(1.0, 0.92, 0.76) * head * 0.9;   // a figure in a window's light or the headlight is lit by it
           lc *= 1.0 - 0.45 * sMask;
           col = mix(mc * (0.1 + 0.2 * A.r) * mix(1.0, 0.6, uNight), lc, gm) + ec * em * (0.25 + 1.1 * gm);   // a dark backing in the material's own colour keeps a small figure's silhouette
+          col = mix(col, under, tree * 0.8);   // under a tree: the crown covers the figure, a ghost of it shows through
         }
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`);
-  const PAL = `uniform sampler2D tCells, tGlyph, tLight; uniform vec2 uCells; uniform float uCellPx;
+  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir; uniform vec2 uCells; uniform float uCellPx; uniform vec4 uHead;
+    vec3 tint(){ return mix(vec3(1.0), vec3(1.1, 0.88, 0.68), uSun.w); }
+    // how much stands between the point w (at height hp) and a light at L (height hl): solids taller than the ray, from the cell
+    // pass; roofs too when bld. Taps within skip of w (the figure itself) and within tail of the light (its own bike) don't count
+    float occl(vec2 w, vec2 L, float hp, float hl, float skip, float bld, float tail){
+      vec2 dv = L - w; float r = length(dv), o = 0.0;
+      float j = h21(gl_FragCoord.xy * 0.71);
+      for (int k = 0; k < 7; k++) { float u = (float(k) + j) / 7.5, s = r * u; if (s < skip || s > r - tail) continue; vec2 q = w + dv * u;
+        if (bld > 0.5) o = max(o, smoothstep(0.45, 0.7, texture2D(tRoof, toTex(q)).a));
+        vec4 S3 = texture2D(tCells, (floor((gl_FragCoord.xy + vec2(dv.x, -dv.y) * u * uPpm) / uCellPx) + 0.5) / uCells);
+        float hs = S3.a > 0.5 ? (S3.a - 0.52) / 0.48 * 8.0 : -1.0; o = max(o, smoothstep(0.0, 0.4, hs - mix(hp, hl, u))); }
+      return o; }
     vec3 matCol(float m, float em){
       if (m < 1.5) return vec3(0.98, 0.72, 0.16); if (m < 2.5) return vec3(0.96, 0.24, 0.2); if (m < 3.5) return vec3(0.5, 0.38, 0.28); if (m < 4.5) return vec3(0.88, 0.9, 0.92);
       if (m < 5.5) return vec3(0.95, 0.97, 0.95); if (m < 6.5) return vec3(0.42, 0.36, 0.26); if (m < 7.5) return vec3(0.74, 0.72, 0.68); if (m < 9.5) return mix(vec3(0.24, 0.22, 0.2), vec3(1.0, 0.6, 0.25), em);
@@ -224,7 +247,7 @@ export function createMedium(o) {
     const { toS, cam, cssW, cssH, kai, dead, flakes, deaths, tracers, t, night, WIND } = v, s = cam.ppm * FIGM, L = (x0, y0, x1, y1) => { fx.moveTo(x0, y0); fx.lineTo(x1, y1); };
     fx.lineCap = 'round';
     // Kai's tied sleeves and bandana tails: bundles of thin strands that trail with her walk and the wind
-    { const [x, y] = toS(kai.x, kai.y), a = kai.face, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [x + (lx * ca - ly * sa) * s, y + (lx * sa + ly * ca) * s], mv = Math.min(1, Math.hypot(kai.vx, kai.vy) / 3);
+    if (!v.kaiUnder) { const [x, y] = toS(kai.x, kai.y), a = kai.face, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [x + (lx * ca - ly * sa) * s, y + (lx * sa + ly * ca) * s], mv = Math.min(1, Math.hypot(kai.vx, kai.vy) / 3);
       const strand = (lx, ly, len, col, k, w) => { fx.strokeStyle = col; fx.lineWidth = w; fx.beginPath(); for (let i = 0; i < k; i++) { const [x0, y0] = P(lx, ly + (i - k / 2) * 0.012), wob = Math.sin(t * 7 + i * 1.7 + lx * 9) * 0.05 * (0.4 + mv); let px = x0, py = y0; fx.moveTo(px, py); for (let j = 1; j <= 4; j++) { const u = j / 4, [qx, qy] = P(lx - len * u, ly + (i - k / 2) * 0.02 * u + wob * u * u * 2); px = qx + WIND.x * u * 3 * (1 - mv); py = qy + WIND.y * u * 3 * (1 - mv); fx.lineTo(px, py); } } fx.stroke(); };
       for (const sd of [-1, 1]) strand(-0.1, sd * 0.17, 0.26 + 0.04 * Math.sin(t * 5 + sd), '#d9a01c', 5, Math.max(1, s * 0.012));
       for (const sd of [-1, 1]) strand(-0.06, sd * 0.03, 0.22, '#e8392f', 4, Math.max(1, s * 0.01)); }
@@ -238,7 +261,6 @@ export function createMedium(o) {
       for (let i = 0; i < 22; i++) { const a0 = hashN(nst.id, i) * 6.283, len = (1.6 + hashN(nst.id, i, 1) * 2.8) * s * 0.5, w0 = Math.max(1.5, s * 0.05) * (1 - hashN(nst.id, i, 2) * 0.5);
         fx.strokeStyle = i % 3 ? 'rgba(40,10,12,.85)' : 'rgba(120,24,20,.8)'; fx.lineWidth = w0; fx.beginPath(); fx.moveTo(x, y);
         for (let j = 1; j <= 6; j++) { const u = j / 6, a = a0 + Math.sin(t * 1.6 + i + u * 3) * 0.5 * u; fx.lineTo(x + Math.cos(a) * len * u, y + Math.sin(a) * len * u); } fx.stroke(); } }
-    if (kai.riding && night > 0.05) { const b = v.bike, [x, y] = toS(b.x, b.y); fx.save(); fx.globalCompositeOperation = 'lighter'; fx.translate(x, y); fx.rotate(b.ang); const g = fx.createRadialGradient(0, 0, 4, 0, 0, 16 * cam.ppm); g.addColorStop(0, `rgba(255,236,190,${0.35 * night})`); g.addColorStop(1, 'rgba(255,236,190,0)'); fx.fillStyle = g; fx.beginPath(); fx.moveTo(0, 0); fx.arc(0, 0, 16 * cam.ppm, -0.38, 0.38); fx.closePath(); fx.fill(); fx.restore(); }
     // a fall: the glyphs come apart and drift off as ash
     fx.font = `700 ${Math.max(7, Math.round(0.14 * s))}px "IBM Plex Mono", ui-monospace, monospace`; fx.textAlign = 'center'; fx.textBaseline = 'middle';
     for (const D of deaths) { const k = (t - D.t0) / 2.1; if (k > 1) continue; const [x, y] = toS(D.x, D.y);

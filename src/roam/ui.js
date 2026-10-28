@@ -1,6 +1,6 @@
 // [roam] The HUD and the controls: health, nests left, the clock; the Ride and Dash buttons; a floating stick (drag
 // anywhere), pinch and wheel to zoom, WASD/arrows, E to ride, Space to dash; toasts from the sim's events; and the
-// arrows at the screen's edge to the nearest nest and to the parked bike. Writes only `input` and the camera's zoom.
+// arrows at the screen's edge to the nearest nest and to the parked bike. Writes only `input` and the camera's base zoom.
 export function createUi({ canvas, fx, sim, cam, input }) {
   const $ = id => document.getElementById(id), S = sim.state;
   const hpEl = $('hp'), hpBar = hpEl.querySelector('i'), nestsEl = $('nests').querySelector('b'), clockEl = $('clock'), rideBtn = $('ride'), dashBtn = $('dash'), stick = $('stick'), toasts = $('toasts');
@@ -10,7 +10,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   press(rideBtn, () => { input.ride = true; }); press(dashBtn, () => { input.dash = true; });
   // ---------- the stick, pinch, wheel ----------
   const pts = new Map(); let mover = null, pinch0 = 0;
-  const zoom = k => { cam.ppm = Math.max(4, Math.min(40, cam.ppm * k)); };
+  const zoom = k => { cam.base = Math.max(4, Math.min(40, cam.base * k)); };   // the base zoom: the bike's speed pulls back from it, it never fights a pinch
   canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY });
     if (pts.size === 2) { mover = null; input.x = input.y = 0; stick.hidden = true; const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); return; }
     mover = e.pointerId; stick.hidden = false; stick.style.left = e.clientX + 'px'; stick.style.top = e.clientY + 'px'; stick.firstElementChild.style.transform = ''; });
