@@ -8,6 +8,7 @@
 //   · Soft things are strokes on the 2D layer: Kai's bandana tails and tied sleeves, shed ash, embers, sparkles.
 // Lab code: it reads the lab's little scene and draws it; nothing here reaches the game yet.
 /* global THREE */
+import { gardenLook } from './garden-look.js';
 
 export const MAXP = 384;          // volumes a frame (the dead off screen are left out)
 const RAMP = ' .,:-=+*%#@';
@@ -102,6 +103,19 @@ export function createMedium(o) {
   let src = ASH3F;
   const swap = (a, b) => { if (!src.includes(a)) throw new Error('medium: the Overgrown shader moved: ' + a.slice(0, 40)); src = src.replace(a, b); };
   swap('        float inward = sx.b, lit = rf.g, flatRoof = step(rf.b, 0.5), edgeLine = 0.0;', '        float inward = sx.b, lit = rf.g, flatRoof = step(rf.b, 0.5), edgeLine = 0.0;\n        { float sk = 1.0 - smoothstep(0.06, 0.12, abs(sx.g - 0.784)); street *= 1.0 - sk * 0.88; ground = (1.0 - roof) * (1.0 - tree) * (1.0 - street); }   // [medium] the square is overgrown too: grass through the setts');
+  // [garden] begin: the plants' clump as a function, shared by the open grass and the gardens: leaves fanned round the
+  // middle, lit from the sun's side, the shadow falling away; in flower (bloom 1) a ring of seven blooms of colour fc, size fs
+  swap('      void main(){ vec2 w = world(), t = toTex(w); float g0 = gust(w);', `      vec3 clump(vec3 col, vec2 w, vec2 ctr, float R0, vec2 rr, vec2 cid, float bloom, vec3 fc, float fs, float g0, float pressH){
+        vec2 dv = w - ctr; float d = length(dv); if (d >= R0 * 1.1) return col;
+        float a = atan(dv.y, dv.x), nl = 5.0 + floor(rr.y * 4.0), leaf = abs(fract(a * nl / 6.2832 + rr.x) - 0.5) * 2.0;
+        float shape = 1.0 - smoothstep(0.0, mix(0.85, 0.35, d / R0), leaf); float body = shape * (1.0 - smoothstep(R0 * 0.85, R0 * 1.05, d)) * (1.0 - pressH * 0.85);
+        vec3 lc = mix(vec3(0.1, 0.16, 0.1), vec3(0.55, 0.7, 0.44), clamp(0.35 + 0.65 * dot(normalize(dv + 1e-4), -normalize(SUNV)) * (d / R0), 0.0, 1.0)) * (0.8 + 0.3 * g0);
+        col = mix(col * (1.0 - 0.4 * (1.0 - smoothstep(0.0, R0 * 1.2, length(dv + SUNV * min(1.2, 0.5 / max(0.3, uSun.z)) * min(1.0, R0 / 0.8))))), lc, body * 0.95);
+        if (bloom > 0.5) for (int f = 0; f < 7; f++) { float fa = rr.x * 6.28 + float(f) * 0.9, fd = R0 * (0.3 + 0.5 * h21(cid + float(f))); vec2 fp = ctr + vec2(cos(fa), sin(fa)) * fd; float fdd = length(w - fp), fr = (0.15 + 0.08 * h21(cid * 3.0 + float(f))) * fs;
+          col = mix(col, fc * mix(1.0, 0.45, uNight) * (0.75 + 0.35 * smoothstep(fr, 0.0, fdd)), (1.0 - smoothstep(fr * 0.6, fr, fdd)) * (1.0 - pressH)); col = mix(col, vec3(0.5, 0.36, 0.08), 1.0 - smoothstep(0.0, fr * 0.35, fdd)); }
+        return col; }
+      void main(){ vec2 w = world(), t = toTex(w); float g0 = gust(w);`);
+  // [garden] end
   swap('            m = 1.0;\n          } else if (tree > 0.5) {', '            m = 0.0;   // [medium] roofs are glyphs, not strokes\n          } else if (tree > 0.5) {');
 
   // [medium] the grass as combed hair (a line integral of fine noise along the flow): dense, continuous strands that curve
@@ -127,16 +141,13 @@ export function createMedium(o) {
           col = mix(col * mix(1.0, 0.7, hairK), hc, hairK * thick * smoothstep(0.1, 0.6, hair));
           // bigger plants: leafy clumps every few metres of open grass, swaying in the gusts; some in flower
           if (ground > 0.5) { vec2 cid = floor(w / 4.6), rr = h22(cid + 4.7);
-            if (h21(cid + 9.1) < 0.45) { vec2 ctr = (cid + 0.33 + 0.34 * rr) * 4.6 + WD * (gust(cid * 4.6) - 0.35) * 0.3; vec2 dv = w - ctr; float R0 = 0.8 + 0.55 * rr.x, d = length(dv);
-              if (d < R0 * 1.1) { float a = atan(dv.y, dv.x), nl = 5.0 + floor(rr.y * 4.0), leaf = abs(fract(a * nl / 6.2832 + rr.x) - 0.5) * 2.0;   // leaves fanned round the middle
-                float shape = 1.0 - smoothstep(0.0, mix(0.85, 0.35, d / R0), leaf); float body = shape * (1.0 - smoothstep(R0 * 0.85, R0 * 1.05, d)) * (1.0 - pressH * 0.85);
-                vec3 lc = mix(vec3(0.1, 0.16, 0.1), vec3(0.55, 0.7, 0.44), clamp(0.35 + 0.65 * dot(normalize(dv + 1e-4), -normalize(SUNV)) * (d / R0), 0.0, 1.0)) * (0.8 + 0.3 * g0);
-                col = mix(col * (1.0 - 0.4 * (1.0 - smoothstep(0.0, R0 * 1.2, length(dv + SUNV * min(1.2, 0.5 / max(0.3, uSun.z)))))), lc, body * 0.95);   // its shadow falls away from the sun
-                float fl = h21(cid + 2.3);   // in flower: a ring of small blooms
-                if (fl < 0.55) { vec3 fc = fl < 0.2 ? vec3(0.95, 0.82, 0.28) : fl < 0.38 ? vec3(0.93, 0.92, 0.86) : vec3(0.92, 0.48, 0.58);
-                  for (int f = 0; f < 7; f++) { float fa = rr.x * 6.28 + float(f) * 0.9, fd = R0 * (0.3 + 0.5 * h21(cid + float(f))); vec2 fp = ctr + vec2(cos(fa), sin(fa)) * fd; float fdd = length(w - fp), fr = 0.15 + 0.08 * h21(cid * 3.0 + float(f));
-                    col = mix(col, fc * mix(1.0, 0.45, uNight) * (0.75 + 0.35 * smoothstep(fr, 0.0, fdd)), (1.0 - smoothstep(fr * 0.6, fr, fdd)) * (1.0 - pressH)); col = mix(col, vec3(0.5, 0.36, 0.08), 1.0 - smoothstep(0.0, fr * 0.35, fdd)); } } } } }
+            if (h21(cid + 9.1) < 0.45) { vec2 ctr = (cid + 0.33 + 0.34 * rr) * 4.6 + WD * (gust(cid * 4.6) - 0.35) * 0.3; float fl = h21(cid + 2.3);   // in flower: a ring of small blooms
+              if (texture2D(tMisc, toTex(ctr)).b < 0.02)   // [garden] a garden grows its own
+              col = clump(col, w, ctr, 0.8 + 0.55 * rr.x, rr, cid, step(fl, 0.549), fl < 0.2 ? vec3(0.95, 0.82, 0.28) : fl < 0.38 ? vec3(0.93, 0.92, 0.86) : vec3(0.92, 0.48, 0.58), 1.0, g0, pressH); } }
         }`);
+  // [garden] begin
+  gardenLook(swap, NG);
+  // [garden] end
   swap('        col *= mix(vec3(1.0), vec3(0.33, 0.35, 0.40), uNight);', `        col *= mix(vec3(1.02, 1.04, 1.04) * tint(), vec3(0.24, 0.27, 0.36), uNight);   // [medium] by day bright, warm when the sun is low; by night dark and cool
         // [medium] roofs: the same cells and ramp as the solids, lit by slope (after the ground's darkening: they are solids)
         { vec2 cp = gl_FragCoord.xy / uCellPx, g = fract(cp); float rl = flatRoof > 0.5 ? 0.55 : mix(0.34, 0.95, lit); rl *= (1.0 - 0.85 * ridge) * (1.0 - 0.75 * eave) * (0.88 + 0.24 * h21(floor(cp)));

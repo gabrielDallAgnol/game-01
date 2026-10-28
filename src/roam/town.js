@@ -5,6 +5,7 @@
 import { RECIPES, recipeRegistry, buildArea } from '../engine/recipes.js';
 import { paintWorld } from '../engine/draw2d.js';
 import { pointInObb } from '../engine/geom.js';
+import { paintGardens } from './gardens.js';
 
 export function buildTown(seed = 7) {
   const W = buildArea('hollowmere', seed, recipeRegistry('hollowmere'), RECIPES.hollowmere.game).W;
@@ -65,6 +66,9 @@ export function buildTown(seed = 7) {
       spill(p.x + lx * c - ly * sn, p.y + lx * sn + ly * c, nx * c - ny * sn, nx * sn + ny * c, ww, len, a); } };
     for (const side of [-1, 1]) { wall(p.w, 0, side * p.h / 2, 1, 0, 0, side, side + 2); if (p.h > 5 && hashL(p.uid * 17 + side) < 0.6) wall(p.h, side * p.w / 2, 0, 0, 1, side, 0, side + 6); }
     if (p.door && hashL(p.uid * 13) < 0.4) { const dx = p.door.x - p.x, dy = p.door.y - p.y, r = Math.hypot(dx, dy) || 1; spill(p.door.x, p.door.y, dx / r, dy / r, 1.1, 4.0, 1.0); } }
+  // [garden] begin
+  paintGardens({ buildings, blocked, sC, xX, hX, lX, O, SPAN, MPX, seed: W.seed });
+  // [garden] end
   // where on a street: for spawning the dead and parking the bike (a street cell, 1 m grid)
   const streetCells = []; { const d = sX.getImageData(0, 0, sC.width, sC.height).data; for (let y = 4; y < W.h - 4; y += 2) for (let x = 4; x < W.w - 4; x += 2) { const i = (Math.floor((y - O.y) * MPX) * sC.width + Math.floor((x - O.x) * MPX)) * 4; if (d[i + 3] > 128 && !blocked(x, y)) streetCells.push(x, y); } }
   // the nests: infested and nestable buildings first, then the biggest houses, spread across the town
