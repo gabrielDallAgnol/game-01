@@ -84,8 +84,9 @@ export function createMedium(o) {
           vec2 dir = vec2(cos(th), sin(th)); if (tree > 0.5) dir = normalize(tang + WD * (g0 - 0.3) * 0.5);   // a crown is combed round its middle
           float pl = length(pushH); if (pl > 0.02) dir = normalize(mix(dir, pushH / pl, clamp(pl * 1.6, 0.0, 1.0)));
           // (the seeds sit on a turned, jittered lattice, so the strands never line up in columns)
-          float stepL = 0.055 * mix(1.0, 0.4, pressH), acc = 0.0, tip = 0.0;
-          for (int k = -9; k <= 9; k++) { float fk = float(k); vec2 q = w + dir * fk * stepL; q = mat2(0.866, 0.5, -0.5, 0.866) * q; float sd = step(0.8, h21(floor(q * 13.0 + vec2(h21(vec2(floor(q.y * 13.0), 3.0)), 0.0)))); acc += sd; tip += sd * (fk + 9.0) / 18.0; }
+          float fq = clamp(uPpm * 0.3, 3.0, 13.0);   // seeds a metre: fewer when a pixel covers more ground, so they never alias into lines
+          float stepL = 0.055 * (13.0 / fq) * mix(1.0, 0.4, pressH), acc = 0.0, tip = 0.0;
+          for (int k = -9; k <= 9; k++) { float fk = float(k); vec2 q = w + dir * fk * stepL; q = mat2(0.866, 0.5, -0.5, 0.866) * q; float sd = step(0.8, h21(floor(q * fq + vec2(h21(vec2(floor(q.y * fq), 3.0)), 0.0)))); acc += sd; tip += sd * (fk + 9.0) / 18.0; }
           float hair = clamp(acc / 4.0, 0.0, 1.0), hl = clamp(tip / max(acc, 1e-3), 0.0, 1.0);
           float thick = smoothstep(0.2, 0.75, vnoise(w * 0.07 + 3.7)) * 0.55 + 0.45;
           vec3 hc = mix(vec3(0.16, 0.2, 0.17), vec3(0.6, 0.67, 0.57), hl) * (0.75 + 0.5 * g0) * mix(1.0, 0.55, pressH) * mix(1.0, 0.6, shadow);
@@ -249,14 +250,14 @@ export function createMedium(o) {
 
     // ---------- zoomed out: each thing becomes one letter on a dark plate, a fixed size on screen (the roguelike map) ----------
     // far 0 at the close camera, 1 when a figure would be a couple of cells. Amber rings are yours, ember red is the dead.
-    const far = Math.max(0, Math.min(1, (13.5 - cam.ppm) / 5));
+    const far = Math.max(0, Math.min(1, (11 - cam.ppm) / 4));
     if (far > 0.01) {
       const { turrets = [], rig = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
       const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();
         fx.fillStyle = col; fx.font = `700 ${px}px "IBM Plex Mono", ui-monospace, monospace`; fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.fillText(ch, x, y + 0.5); };
       // turrets: their reach, faintly, then a T on an amber ring (a flash in the ring when it fires)
       fx.setLineDash([3, 5]); fx.lineWidth = 1; fx.strokeStyle = `rgba(240,180,76,${0.28 * far})`; for (const T of turrets) { const [x, y] = toS(T.x, T.y); fx.beginPath(); fx.arc(x, y, 15 * cam.ppm, 0, 7); fx.stroke(); } fx.setLineDash([]);
-      for (const T of turrets) { const [x, y] = toS(T.x, T.y); if (!onS(x, y)) continue; const hot = T.shotT !== undefined && t - T.shotT < 0.1; plate(x, y, 10, hot ? '#fff2c8' : '#f0b44c', 'T', '#f6e7c8', 13, far); }
+      for (const T of turrets) { const [x, y] = toS(T.x, T.y); if (!onS(x, y)) continue; const hot = T.shotT !== undefined && t - T.shotT < 0.1, R = Math.max(8, 1.1 * cam.ppm); fx.globalAlpha = far; fx.strokeStyle = hot ? '#fff2c8' : '#f0b44c'; fx.lineWidth = 2; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke(); plate(x + R * 0.8, y - R * 0.8, 7, hot ? '#fff2c8' : '#f0b44c', 'T', '#f6e7c8', 10, far); }
       // Hilde: a long plate with her name
       if (rig) { const [x, y] = toS(rig.x, rig.y); if (onS(x, y)) { fx.globalAlpha = far; fx.font = '700 11px "IBM Plex Mono", ui-monospace, monospace'; const w = fx.measureText('HILDE').width + 16;
         fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.roundRect(x - w / 2, y - 10, w, 20, 6); fx.fill(); fx.strokeStyle = '#f0b44c'; fx.lineWidth = 2; fx.stroke(); fx.fillStyle = '#f0b44c'; fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.fillText('HILDE', x, y + 0.5); } }
@@ -265,7 +266,10 @@ export function createMedium(o) {
       for (const d of dead) { const [x, y] = toS(d.x, d.y); if (!onS(x, y)) continue; const big = (d.kind || (d.id % 9 === 0 ? 'brute' : '')) === 'brute', px = big ? 19 : 14, hit = t - d.hit < 0.1;
         fx.globalAlpha = far; fx.font = `800 ${px}px "IBM Plex Mono", ui-monospace, monospace`; fx.strokeStyle = 'rgba(8,8,10,.9)'; fx.lineWidth = 4; fx.strokeText('&', x, y); fx.fillStyle = hit ? '#ffffff' : night > 0.5 ? '#ff7a2a' : '#e8553a'; fx.fillText('&', x, y); }
       // Kai: an @ on an amber ring, with a tick for where she faces
-      { const [x, y] = toS(kai.x, kai.y); plate(x, y, 12, '#f0b44c', '@', '#ffd36a', 17, far); fx.strokeStyle = '#f0b44c'; fx.lineWidth = 2.5; fx.beginPath(); fx.moveTo(x + Math.cos(kai.face) * 13, y + Math.sin(kai.face) * 13); fx.lineTo(x + Math.cos(kai.face) * 19, y + Math.sin(kai.face) * 19); fx.stroke(); }
+      // Kai: a hollow ring as wide as her wrench's reach (a dead inside it is in the fight), the @ on a small tag above, a facing tick
+      { const [x, y] = toS(kai.x, kai.y), R = Math.max(11, 1.8 * cam.ppm); fx.globalAlpha = far; fx.strokeStyle = 'rgba(10,11,13,.7)'; fx.lineWidth = 4; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke(); fx.strokeStyle = '#f0b44c'; fx.lineWidth = 2; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke();
+        fx.beginPath(); fx.moveTo(x + Math.cos(kai.face) * R, y + Math.sin(kai.face) * R); fx.lineTo(x + Math.cos(kai.face) * (R + 6), y + Math.sin(kai.face) * (R + 6)); fx.lineWidth = 2.5; fx.stroke();
+        plate(x, y - R - 10, 8, '#f0b44c', '@', '#ffd36a', 11, far); fx.fillStyle = '#ffd36a'; fx.beginPath(); fx.arc(x, y, 2.2, 0, 7); fx.fill(); }
       fx.globalAlpha = 1;
     }
   }

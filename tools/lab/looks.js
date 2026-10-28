@@ -144,7 +144,7 @@ function start() {
   const spill = (x, y, nx, ny, w, len, a) => {   // a window's light: a short fan out of the wall, wider than deep
     lX.save(); lX.translate(x, y); lX.rotate(Math.atan2(ny, nx)); const g = lX.createRadialGradient(0, 0, 0, 0, 0, len); g.addColorStop(0, `rgba(255,0,0,${a})`); g.addColorStop(0.5, `rgba(255,0,0,${a * 0.35})`); g.addColorStop(1, 'rgba(255,0,0,0)');
     lX.fillStyle = g; lX.beginPath(); lX.moveTo(0, -w / 2); lX.lineTo(len, -w * 0.9); lX.lineTo(len, w * 0.9); lX.lineTo(0, w / 2); lX.closePath(); lX.fill(); lX.restore(); };
-  const lit = buildings.filter(p => p.def.light && hashL(p.uid + W.seed * 31) < 0.09);
+  const lit = buildings.filter(p => p.def.light && hashL(p.uid + W.seed * 31) < 0.2);
   for (const p of lit) {
     lX.fillStyle = 'rgba(0,255,0,1)'; obb(lX, p, 0);
     const c = Math.cos(p.rot), sn = Math.sin(p.rot), n = Math.max(1, Math.floor(p.w / 5));
