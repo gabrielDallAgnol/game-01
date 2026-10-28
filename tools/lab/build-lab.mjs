@@ -1,5 +1,6 @@
 // Bundles the Atom Lab (tools/lab/main.js + the engine) into one self-contained page,
-// with the same module rules as tools/build.mjs.   node tools/lab/build-lab.mjs [out]
+// with the same module rules as tools/build.mjs.   node tools/lab/build-lab.mjs [out] [entry.js page.html]
+// (the Looks Lab: node tools/lab/build-lab.mjs dist/looks.html tools/lab/looks.js tools/lab/looks.html)
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -16,11 +17,12 @@ function visit(file) {
   if (/^export\s/m.test(code)) throw new Error(`Unsupported export form in ${rel(file)}`);
   mods.set(file, `__m[${JSON.stringify(rel(file))}] = (function () {\n${code}\nreturn { ${ex.join(', ')} };\n})();`); order.push(file);
 }
-visit(path.join(root, 'tools/lab/main.js'));
+const entry = path.resolve(root, process.argv[3] || 'tools/lab/main.js'), page = path.resolve(root, process.argv[4] || 'tools/lab/atomlab.html');
+visit(entry);
 const bundle = `(function () {\n'use strict';\nconst __m = {};\n${order.map(f => mods.get(f)).join('\n\n')}\n})();`;
-const html = fs.readFileSync(path.join(root, 'tools/lab/atomlab.html'), 'utf8');
-const tag = '<script type="module" src="./main.js"></script>';
-if (!html.includes(tag)) throw new Error('atomlab.html is missing the module entry tag');
+const html = fs.readFileSync(page, 'utf8');
+const tag = `<script type="module" src="./${path.basename(entry)}"></script>`;
+if (!html.includes(tag)) throw new Error(`${path.basename(page)} is missing the module entry tag ${tag}`);
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, html.replace(tag, () => `<script>\n${bundle}\n</script>`));
 console.log(`wrote ${rel(out)} (${(fs.statSync(out).size / 1024).toFixed(0)} KB, ${order.length} modules)`);
