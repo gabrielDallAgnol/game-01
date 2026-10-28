@@ -65,6 +65,38 @@ export function createMedium(o) {
       float lum = (0.16 + 0.84 * clamp(L * 1.2, 0.0, 1.0)) * (0.8 + 0.2 * clamp(h0 / 2.4, 0.0, 1.0));   // a little sky light: no face goes fully black
       gl_FragColor = vec4(lum, m / 32.0, em, 0.52 + 0.48 * clamp(h0 / 8.0, 0.0, 1.0)); }` });   // alpha: solid, and how tall (for cast shadows)
   const cScene = new THREE.Scene(), cQuad = new THREE.Mesh(quadGeo, CELL); cQuad.frustumCulled = false; cScene.add(cQuad);
+  // the same pass, drawn the cheap way: each volume is a quad over its own footprint (not every cell asking every volume),
+  // its height written as depth so the tallest wins. Cost goes with the area the figures cover, not cells x volumes, so a
+  // night horde no longer drowns the phone. Needs fragment depth (WebGL2, or EXT_frag_depth); else the full-screen pass.
+  const fragDepth = renderer.capabilities.isWebGL2 || !!renderer.extensions.get('EXT_frag_depth');
+  const qA = new Float32Array(MAXP * 16), qB = new Float32Array(MAXP * 16), qC = new Float32Array(MAXP * 16), qK = new Float32Array(MAXP * 8), qI = [];
+  for (let i = 0; i < MAXP; i++) { qK.set([-1, -1, 1, -1, 1, 1, -1, 1], i * 8); const v = i * 4; qI.push(v, v + 1, v + 2, v, v + 2, v + 3); }
+  const qGeo = new THREE.BufferGeometry(), at = (a, k) => { const b = new THREE.BufferAttribute(a, k); b.setUsage(THREE.DynamicDrawUsage); return b; };
+  qGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXP * 12), 3)); qGeo.setAttribute('aA', at(qA, 4)); qGeo.setAttribute('aB', at(qB, 4)); qGeo.setAttribute('aC', at(qC, 4)); qGeo.setAttribute('aK', new THREE.BufferAttribute(qK, 2)); qGeo.setIndex(qI);
+  const QUADS = new THREE.ShaderMaterial({ uniforms: U, depthTest: true, depthWrite: true, side: THREE.DoubleSide, extensions: { fragDepth: true },
+    vertexShader: `attribute vec4 aA, aB, aC; attribute vec2 aK; uniform vec2 uCam, uView, uCells, uRes; uniform float uCellPx; varying vec4 vA, vB, vC;
+      void main(){ vA = aA; vB = aB; vC = aC; vec2 w = aA.yz + aK * aC.w;
+        vec2 s = vec2((w.x - uCam.x) / uView.x + 0.5, 0.5 - (w.y - uCam.y) / uView.y) * uRes / (uCells * uCellPx);   // the cell grid's own mapping
+        gl_Position = vec4(s * 2.0 - 1.0, 0.0, 1.0); }`,
+    fragmentShader: `precision highp float; uniform vec2 uCam, uView, uCells, uRes; uniform float uCellPx; uniform vec4 uSun; varying vec4 vA, vB, vC;
+      float sdRect(vec2 p, vec2 b){ vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
+      float hOf(vec2 q, vec4 A, vec4 B, vec4 C){
+        if (A.x < 0.5) { float d = length(q - A.yz), r = B.w; return d < r ? A.w + sqrt(r * r - d * d) : -9.0; }
+        if (A.x < 1.5) { vec2 pa = q - A.yz, ba = B.xy - A.yz; float t = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0), d = length(pa - ba * t), r = B.w; return d < r ? mix(A.w, B.z, t) + sqrt(r * r - d * d) : -9.0; }
+        float c = cos(C.x), s = sin(C.x); vec2 l = q - A.yz; l = vec2(c * l.x + s * l.y, -s * l.x + c * l.y);
+        float r = min(B.w, min(B.x, B.y)), d = sdRect(l, B.xy - r), top = A.w + B.z;
+        if (d <= 0.0) return top; if (d < r) return top - r + sqrt(r * r - d * d); return -9.0; }
+      void main(){
+        vec2 fc = (floor(gl_FragCoord.xy) + 0.5) * uCellPx, w = uCam + vec2(fc.x / uRes.x - 0.5, 0.5 - fc.y / uRes.y) * uView;
+        float e = 0.05, h0 = hOf(w, vA, vB, vC); if (h0 < -1.0) discard;
+        float hx = hOf(w + vec2(e, 0.0), vA, vB, vC), hy = hOf(w + vec2(0.0, e), vA, vB, vC); if (hx < -1.0) hx = h0 - 0.15; if (hy < -1.0) hy = h0 - 0.15;
+        vec3 nrm = normalize(vec3(-(hx - h0) / e, -(hy - h0) / e, 1.0));
+        float L = clamp(dot(nrm, normalize(vec3(uSun.xy, max(0.3, uSun.z)))), 0.0, 1.0);
+        float lum = (0.16 + 0.84 * clamp(L * 1.2, 0.0, 1.0)) * (0.8 + 0.2 * clamp(h0 / 2.4, 0.0, 1.0));
+        gl_FragDepthEXT = clamp(1.0 - (h0 + 1.0) / 12.0, 0.0, 1.0);   // the tallest volume over a cell wins
+        gl_FragColor = vec4(lum, vC.y / 32.0, vC.z, 0.52 + 0.48 * clamp(h0 / 8.0, 0.0, 1.0)); }` });
+  const qMesh = new THREE.Mesh(qGeo, QUADS); qMesh.frustumCulled = false; const qScene = new THREE.Scene(); qScene.add(qMesh);
+  const clearC = new THREE.Color(); let clearA = 1;
 
   // ---------- the composite: the Overgrown ground, roofs as glyphs, the solids' cells as glyphs on black ----------
   let src = ASH3F;
@@ -238,9 +270,15 @@ export function createMedium(o) {
     for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); deadVolumes(d, t, d.state !== 'sleep', d.kind); }
     tPrim.needsUpdate = true; U.uPN.value = n;
     const cp = Math.max(3, Math.round(3 * dpr)), W = Math.round(cssW * dpr), H = Math.round(cssH * dpr), cw = Math.ceil(W / cp), ch = Math.ceil(H / cp);
-    if (!rt || rt.width !== cw || rt.height !== ch) { if (rt) rt.dispose(); rt = new THREE.WebGLRenderTarget(cw, ch, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: false }); }
+    if (!rt || rt.width !== cw || rt.height !== ch) { if (rt) rt.dispose(); rt = new THREE.WebGLRenderTarget(cw, ch, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: fragDepth }); }
     paintAtlas(cp); cells.set(cw, ch); res.set(W, H); U.uCellPx.value = cp; U.tCells.value = rt.texture;
-    renderer.setRenderTarget(rt); renderer.render(cScene, quadCam); renderer.setRenderTarget(null);
+    if (fragDepth) {   // the volumes as quads into a cleared cell target
+      for (let i = 0; i < n; i++) for (let v = 0; v < 4; v++) { const o = (i * 4 + v) * 4, d = i * 12; qA.set(data.subarray(d, d + 4), o); qB.set(data.subarray(d + 4, d + 8), o); qC.set(data.subarray(d + 8, d + 12), o); }
+      for (const k of ['aA', 'aB', 'aC']) { const a = qGeo.getAttribute(k); a.needsUpdate = true; a.updateRange.offset = 0; a.updateRange.count = n * 16; }
+      qGeo.setDrawRange(0, n * 6);
+      renderer.getClearColor(clearC); clearA = renderer.getClearAlpha(); renderer.setClearColor(0x000000, 0);
+      renderer.setRenderTarget(rt); renderer.clear(true, true, false); if (n) renderer.render(qScene, quadCam); renderer.setRenderTarget(null); renderer.setClearColor(clearC, clearA);
+    } else { renderer.setRenderTarget(rt); renderer.render(cScene, quadCam); renderer.setRenderTarget(null); }
   }
 
   // ---------- the soft things, in strokes; sparkles in the dark ----------

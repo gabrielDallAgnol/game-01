@@ -28,8 +28,10 @@ function start() {
   const input = { x: 0, y: 0, ride: false, dash: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
-  let cssW = 0, cssH = 0, dpr = 1;
-  function resize() { cssW = innerWidth; cssH = innerHeight; dpr = Math.min(devicePixelRatio || 1, 1.5); look.resize(cssW, cssH, dpr); const f = Math.min(devicePixelRatio || 1, 2); fxc.width = Math.round(cssW * f); fxc.height = Math.round(cssH * f); fx.setTransform(f, 0, 0, f, 0, 0); }
+  // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
+  let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
+  const fpsEl = $('fps'), fixedRes = !!qs.get('fixedres');
+  function resize() { cssW = innerWidth; cssH = innerHeight; dpr = Math.min(devicePixelRatio || 1, 1.5) * scale; look.resize(cssW, cssH, dpr); const f = Math.min(devicePixelRatio || 1, 2); fxc.width = Math.round(cssW * f); fxc.height = Math.round(cssH * f); fx.setTransform(f, 0, 0, f, 0, 0); }
   addEventListener('resize', resize); resize();
   // what is drawn uses `view`: the camera snapped to the glyph grid (and the zoom to small steps), so a still roof keeps its
   // letters while the camera glides; without it every cell re-samples a little each frame and the letters flicker
@@ -39,7 +41,13 @@ function start() {
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
   const falls = []; let acc = 0, last = performance.now(), t = 0;
   function frame(now) {
-    const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; t += dt;
+    const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw); last = now; t += dt;
+    if (raw < 2) { ema += (raw * 1000 - ema) * 0.08; fpsT += raw; fpsN++; }
+    { const rt = Math.min(raw, 2); if (ema > 24) { slowT += rt; fastT = 0; } else if (ema < 15) { fastT += rt; slowT = 0; } else slowT = fastT = 0; }   // real seconds, not game time
+    if (fixedRes) slowT = fastT = 0;   // ?fixedres=1: for measuring
+    if (slowT > 1.2 && scale > 0.7) { scale = Math.max(0.7, scale - 0.15); fastNeed = Math.min(60, fastNeed * 2); slowT = 0; ema = 18; resize(); }
+    else if (fastT > fastNeed && scale < 1) { scale = Math.min(1, scale + 0.15); fastT = 0; resize(); }
+    if (fpsT > 0.5) { fpsEl.textContent = `${Math.round(fpsN / fpsT)} fps · ${Math.round(scale * 100)}%`; fpsT = 0; fpsN = 0; }
     if (running) { acc += dt; while (acc >= ROAM.step) { sim.step(input); acc -= ROAM.step; } }
     const evs = sim.drain();
     for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, brute: e.kind === 'brute', stamp: true });

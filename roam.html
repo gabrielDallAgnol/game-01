@@ -39,6 +39,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #start p{margin:0;color:#d8d2c4;font-weight:500;font-size:13px;line-height:1.55}
 #start ul{margin:0;padding:0;list-style:none;display:grid;gap:4px;color:var(--dim);font-weight:500}
 #start button{justify-self:center;font:700 15px var(--mono);background:var(--amber);color:#1a1206;border:0;border-radius:12px;padding:14px 28px;cursor:pointer}
+#fps{position:fixed;left:max(10px,env(safe-area-inset-left,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font:600 10px var(--mono);color:rgba(242,238,226,.55);pointer-events:none}
 #err{position:fixed;inset:auto 12px 50% 12px;background:#3a0d12;color:#ffd9dd;padding:12px;border-radius:10px}
 </style>
 </head>
@@ -51,6 +52,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <div class="chip" id="clock">☀ 4:00</div>
 </div>
 <div id="toasts"></div>
+<div id="fps" aria-hidden="true"></div>
 <div id="btns">
   <button class="rb" id="ride" aria-label="Get on the motorcycle" hidden>RIDE</button>
   <button class="rb go" id="dash" aria-label="Dash">DASH</button>
