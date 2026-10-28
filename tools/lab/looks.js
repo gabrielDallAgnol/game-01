@@ -136,17 +136,21 @@ function start() {
   const tTown = tex(gC), tOver = tex(oC), tMach = tex(mC);
   const mtex = c => { const t = new THREE.CanvasTexture(c); t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; return t; };   // [ash2] no mips: an angle must not blur into its neighbour
   const tRoof = mtex(rC), tStreet = mtex(sC), tMisc = mtex(xC), tTreeH = mtex(hC);
-  // [night] the light map, 4 px a metre: r light on the ground (lamps, windows, doors), g a lit house's roof
+  // [night] the light map, 4 px a metre: r light on the ground, g a lit house's roof. The power died with the Ashfall:
+  // no street lamps. Light comes only from the few houses where someone is hiding (candles, a lantern): small warm
+  // patches hugging the windows, a doorway now and then. One lit house in a dozen, and it means something: someone's in.
   const [lC, lX] = mcanvas('#000'); lX.globalCompositeOperation = 'lighter';
   const hashL = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
-  const pool = (x, y, r, a) => { const g = lX.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(255,0,0,${a})`); g.addColorStop(0.45, `rgba(255,0,0,${a * 0.45})`); g.addColorStop(1, 'rgba(255,0,0,0)'); lX.fillStyle = g; lX.fillRect(x - r, y - r, 2 * r, 2 * r); };
-  for (const p of W.placed) { if (!near(p, 16) || !p.def.light || hashL(p.uid + W.seed * 31) >= p.def.light * (p.def.kind === 'building' ? 0.6 : 1)) continue;
-    if (p.def.look === 'lamp') { pool(p.x, p.y, 6.5, 0.85); continue; }
-    if (p.def.kind !== 'building' || p === rigAtom) continue;
-    lX.fillStyle = 'rgba(0,255,0,1)'; obb(lX, p, 0);                                     // its roof
-    const c = Math.cos(p.rot), sn = Math.sin(p.rot);                                       // windows spill light out of both long walls
-    for (const side of [-1, 1]) for (let k = 0; k < Math.max(1, Math.floor(p.w / 4)); k++) { if (hashL(p.uid * 7 + k * 3 + side) < 0.4) continue; const lx = -p.w / 2 + (k + 0.5) * p.w / Math.max(1, Math.floor(p.w / 4)), ly = side * (p.h / 2 + 0.6); pool(p.x + lx * c - ly * sn, p.y + lx * sn + ly * c, 3.0, 0.5); }
-    if (p.door && hashL(p.uid * 13) < 0.5) pool(p.door.x, p.door.y, 4.2, 0.75);           // a door left open
+  const spill = (x, y, nx, ny, w, len, a) => {   // a window's light: a short fan out of the wall, wider than deep
+    lX.save(); lX.translate(x, y); lX.rotate(Math.atan2(ny, nx)); const g = lX.createRadialGradient(0, 0, 0, 0, 0, len); g.addColorStop(0, `rgba(255,0,0,${a})`); g.addColorStop(0.5, `rgba(255,0,0,${a * 0.35})`); g.addColorStop(1, 'rgba(255,0,0,0)');
+    lX.fillStyle = g; lX.beginPath(); lX.moveTo(0, -w / 2); lX.lineTo(len, -w * 0.9); lX.lineTo(len, w * 0.9); lX.lineTo(0, w / 2); lX.closePath(); lX.fill(); lX.restore(); };
+  const lit = buildings.filter(p => p.def.light && hashL(p.uid + W.seed * 31) < 0.09);
+  for (const p of lit) {
+    lX.fillStyle = 'rgba(0,255,0,1)'; obb(lX, p, 0);
+    const c = Math.cos(p.rot), sn = Math.sin(p.rot), n = Math.max(1, Math.floor(p.w / 5));
+    for (const side of [-1, 1]) for (let k = 0; k < n; k++) { if (hashL(p.uid * 7 + k * 3 + side) < 0.45) continue; const lx = -p.w / 2 + (k + 0.5) * p.w / n, ly = side * p.h / 2, nx = -sn * side, ny = c * side;
+      spill(p.x + lx * c - ly * sn, p.y + lx * sn + ly * c, nx, ny, 1.2, 3.2, 0.9); }
+    if (p.door && hashL(p.uid * 13) < 0.4) { const dx = p.door.x - p.x, dy = p.door.y - p.y, r = Math.hypot(dx, dy) || 1; spill(p.door.x, p.door.y, dx / r, dy / r, 1.1, 4.0, 1.0); }
   }
   const tLight = mtex(lC);
   const DR = 512, rtOpt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: false };

@@ -206,9 +206,12 @@ export function createMedium(o) {
     for (const T of turrets) if (on(T.x, T.y)) turretVolumes(T, t);
     kaiVolumes(kai, t);
     const awake = night > 0.5 || v.forceAwake;
-    for (const D of v.deaths || []) { const k = (t - D.t0) / 0.7; if (k >= 1 || !on(D.x, D.y)) continue; const S = FIGM * (D.brute ? 1.6 : 1), a = D.fa ?? 0, hz = (1 - k) * (1 - k);
-      box(D.x, D.y, 0.5 * S * hz, 0.24 * S * (1 + k * 0.6), 0.3 * S * (1 + k * 0.4), 0.5 * S * hz + 0.05, 0.2 * S, a, M.stone);
-      sphere(D.x + Math.cos(a) * 0.3 * S * (1 + k), D.y + Math.sin(a) * 0.3 * S * (1 + k), 0.2 * S * hz, 0.13 * S, M.stone); }
+    // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
+    // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
+    for (const D of v.deaths || []) { const k = (t - D.t0) / 0.8; if (k >= 1 || !on(D.x, D.y)) continue; const S = FIGM * (D.brute ? 1.6 : 1), a = D.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), e = 1 - (1 - k) * (1 - k);
+      const r = 0.24 * S * (1 - 0.7 * k), fx0 = 0.25 * S * e;
+      sphere(D.x + ca * fx0, D.y + sa * fx0, r * 0.4 - k * r * 1.2, r, M.stone);
+      for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), M.stone); } }
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
     for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); deadVolumes(d, t, awake || sp > 0.2, d.kind || (d.id % 9 === 0 ? 'brute' : d.id % 5 === 0 ? 'flicker' : 'cinder')); }
     tPrim.needsUpdate = true; U.uPN.value = n;
