@@ -8,6 +8,9 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   // ---------- buttons ----------
   const press = (el, fn) => el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
   press(rideBtn, () => { input.ride = true; }); press(dashBtn, () => { input.dash = true; });
+  // the clock speed (a test control): 1x, 10x, 30x; only the day passes faster
+  const speedEl = $('speed'), RATES = [1, 10, 30];
+  press(speedEl, () => { const r = RATES[(RATES.indexOf(S.clockRate) + 1) % RATES.length]; sim.setClockRate(r); speedEl.textContent = r + '×'; speedEl.classList.toggle('fast', r > 1); speedEl.setAttribute('aria-label', `Clock speed: ${r}x. Tap to change`); });
   // ---------- the stick, pinch, wheel ----------
   const pts = new Map(); let mover = null, pinch0 = 0;
   const zoom = k => { cam.base = Math.max(4, Math.min(40, cam.base * k)); };   // the base zoom: the bike's speed pulls back from it, it never fights a pinch
@@ -21,7 +24,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
   canvas.addEventListener('wheel', e => { e.preventDefault(); zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
   const keys = {};
-  addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'e') input.ride = true; if (k === ' ') { input.dash = true; e.preventDefault(); } if (k === '+' || k === '=') zoom(1.2); if (k === '-') zoom(0.83); });
+  addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'e') input.ride = true; if (k === ' ') { input.dash = true; e.preventDefault(); } if (k === '+' || k === '=') zoom(1.2); if (k === '-') zoom(0.83); if (k === 't') speedEl.dispatchEvent(new PointerEvent('pointerdown')); });
   addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
   function keyInput() { if (mover !== null) return; const x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), y = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0); if (x || y) { const r = Math.hypot(x, y); input.x = x / r; input.y = y / r; input.key = true; } else if (input.key) { input.x = input.y = 0; input.key = false; } }
   // ---------- events → words ----------

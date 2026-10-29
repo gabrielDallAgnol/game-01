@@ -21,6 +21,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:
 #hp.low .bar i{background:var(--ember)}
 #nests b{color:var(--ember)}
 #clock{margin-left:auto}
+#speed{pointer-events:auto;border:0;color:var(--fg);font:700 12px var(--mono);cursor:pointer;min-width:44px;justify-content:center}
+#speed.fast{color:#1a1206;background:var(--amber)}
 #toasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(56px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;width:min(420px,calc(100vw - 24px))}
 .toast{background:var(--panel);border-radius:10px;padding:8px 12px;text-align:center;animation:t 3.2s forwards}
 .toast.big{font:400 18px var(--display);letter-spacing:.06em;color:var(--amber)}
@@ -50,6 +52,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <div class="chip" id="hp"><span>HP</span><div class="bar"><i></i></div></div>
   <div class="chip" id="nests">Nests <b>9</b></div>
   <div class="chip" id="clock">☀ 4:00</div>
+  <button class="chip" id="speed" aria-label="Clock speed: 1x. Tap to make the day pass faster">1×</button>
 </div>
 <div id="toasts"></div>
 <div id="fps" aria-hidden="true"></div>

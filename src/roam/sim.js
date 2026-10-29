@@ -16,7 +16,7 @@ export const ROAM = {
 export function createRoam(town, seed = 1) {
   const R = ROAM, rng = new Rng(hashSeed(seed, 'roam')), { blocked, streetCells } = town;
   const S = {
-    t: 0, clock: 40, night: false, kills: 0, nestsLeft: town.nests.length, won: false, events: [],
+    t: 0, clock: 40, clockRate: 1, night: false, kills: 0, nestsLeft: town.nests.length, won: false, events: [],
     kai: { x: town.start.x + 3, y: town.start.y + 5, vx: 0, vy: 0, face: 0, hp: R.kai.hp, maxHp: R.kai.hp, cd: 0, swing: 0, hurtT: -9, dead: 0, dash: 0, dashCd: 0, riding: false },
     bike: { x: town.start.x + 0.8, y: town.start.y + 6.2, ang: 0, speed: 0 },
     dead: [], nests: town.nests.map((n, id) => ({ id, x: n.x, y: n.y, b: n.b, hp: R.nest.hp, maxHp: R.nest.hp, alive: true, spawnT: rng.range(0, 4), hit: -9 })),
@@ -108,11 +108,12 @@ export function createRoam(town, seed = 1) {
   // ---------- the loop ----------
   let popT = 0;
   function step(inp) {
-    const dt = R.step; S.t += dt; S.clock += dt;
+    const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; ev(night ? 'dusk' : 'dawn', {}); }
     stepKai(dt, inp); stepDead(dt); stepNests(dt);
     if ((popT -= dt) <= 0) { popT = 1; populate(); }
   }
   for (let k = 0; k < 6; k++) populate();
-  return { state: S, step, drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
+  return { state: S, step, setClockRate, drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }
