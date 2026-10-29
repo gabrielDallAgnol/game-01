@@ -95,6 +95,13 @@ export function buildRegion(seed = 7) {
   for (const wt of W.water) claim.line(wt.pts, (wt.w || 6) / 2 + 4, CLAIM.water);
   for (const r of W.rails) claim.line(r.pts, 6);
 
+  // ---------- water: the lake in the north-west woods, the brook from it south through the farms ----------
+  const lake = blob(232, 268, 125, 76, seed, 7, 22, 0.12);
+  claim.poly(lake, CLAIM.water, 6);   // its water is laid over the woods' floor below
+  const brook = { id: 'brook', name: 'the mere brook', w: 4.5, pts: smooth([P(300, 335), P(318, 420), P(362, 560), P(332, 700), P(384, 850), P(470, 1000), P(556, 1150), P(512, 1330), P(468, 1500), P(560, 1700), P(650, 1900), P(700, WORLD.h + 6)], 2, 10) };
+  W.water.push(brook); claim.line(brook.pts, 7, CLAIM.water);
+  const wet = (x, y) => polyDist(x, y, brook.pts) < 60;
+
   // ---------- sites: along a road, set back past its verge, the footprint clear of every claim ----------
   const sites = W.sites, H = seed * 131;
   function siteAt(id, roadName, s0, sides, extra = {}) { const r = byName[roadName], pts = r.pts, L = len(pts), sz = (SITES[id] && SITES[id].size) || SIZE[id], hw = halfOf(r);
@@ -128,13 +135,6 @@ export function buildRegion(seed = 7) {
     else standIn(site, ctx);
     site.buildings = W.placed.slice(ids0).filter(p => p.def.kind === 'building');
     if (nestSites.has(site) && site.buildings.length) { const b = site.buildings.slice().sort((a, q) => q.w * q.h - a.w * a.h)[0]; b.def = { ...b.def, tags: [...b.def.tags, 'nestable'] }; site.nest = true; } }
-
-  // ---------- water: the lake in the north-west woods, the brook from it south through the farms ----------
-  const lake = blob(232, 268, 125, 76, seed, 7, 22, 0.12);
-  claim.poly(lake, CLAIM.water, 6);   // its water is laid over the woods' floor below
-  const brook = { id: 'brook', name: 'the mere brook', w: 4.5, pts: smooth([P(300, 335), P(318, 420), P(362, 560), P(332, 700), P(384, 850), P(470, 1000), P(556, 1150), P(512, 1330), P(468, 1500), P(560, 1700), P(650, 1900), P(700, WORLD.h + 6)], 2, 10) };
-  W.water.push(brook); claim.line(brook.pts, 7, CLAIM.water);
-  const wet = (x, y) => polyDist(x, y, brook.pts) < 60;
 
   // ---------- woods: polygons of trees with the woods floor under them ----------
   const treeDefs = ['tree.forest.a', 'tree.forest.b'].map(id => reg.get(id)), hedgeDef = reg.get('tree.yard.a'), trees = [];
