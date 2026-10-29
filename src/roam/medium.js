@@ -8,14 +8,15 @@
 //   · Soft things are strokes on the 2D layer: Kai's bandana tails and tied sleeves, shed ash, embers, sparkles.
 // Lab code: it reads the lab's little scene and draws it; nothing here reaches the game yet.
 /* global THREE */
+import { M, MATCOL } from './dress/mats.js';
 import { gardenLook } from './garden-look.js';
 
-export const MAXP = 384;          // volumes a frame (the dead off screen are left out)
+export const MAXP = 1024;          // volumes a frame (the dead off screen are left out)
 const RAMP = ' .,:-=+*%#@';
 const NG = RAMP.length;
 export const FIGM = 2.6;          // figures are drawn bigger than life, as in the game (Thronefall-style)
 // materials (the composite's palette): ids are stored in the cell pass as id / 32
-const M = { suit: 1, bandana: 2, hair: 3, steel: 4, hivis: 5, pants: 6, stone: 7, crack: 8, crackHot: 9, paint: 10, truck: 11, dark: 12, tarp: 13, rust: 14, flash: 15, lamp: 16 };
+// the materials (the composite's palette) are shared with the city's atoms: src/roam/dress/mats.js
 
 export function createMedium(o) {
   const { renderer, U, mat, VERT, quadGeo, quadCam, ASH3F } = o;
@@ -27,6 +28,9 @@ export function createMedium(o) {
   const sphere = (x, y, z, r, m, em = 0) => put(0, x, y, z, 0, 0, 0, r, 0, m, em, r + 0.2);
   const capsule = (x0, y0, z0, x1, y1, z1, r, m, em = 0) => put(1, x0, y0, z0, x1, y1, z1, r, 0, m, em, Math.hypot(x1 - x0, y1 - y0) + r + 0.2);
   const box = (x, y, cz, hx, hy, hz, r, rot, m, em = 0) => put(2, x, y, cz, hx, hy, hz, r, rot, m, em, Math.hypot(hx, hy) + 0.2);   // (x, y) the centre, cz the centre's height
+
+  // the kit a city atom draws its solids with (props are drawn 1.3x life: between the houses, 1x, and the figures, 2.6x)
+  const K = { sphere, capsule, box, M, S: 1.3 };
 
   // ---------- the glyph ramp, one row of white letters ----------
   // drawn at the cell's own pixel size and sampled nearest: a big atlas shrunk without mips loses the letters' strokes
@@ -167,6 +171,12 @@ export function createMedium(o) {
           col = mix(col, mix(rc * 0.16, rc, gm), roof); }
 `);
   swap('        gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }', `        // [medium] the solids: each cell a glyph by its light, the material's colour in the letters, glow through them
+        // the city's ground marks (atoms paint them once): r pale paint, worn; g dark (stains, oil, char, holes); b water
+        { vec3 dk = texture2D(tDecal, t).rgb * (1.0 - roof) * (1.0 - tree);
+          col = mix(col, vec3(0.8, 0.79, 0.74) * mix(tint(), vec3(0.42), uNight) * (0.8 + 0.2 * vnoise(w * 3.0)), clamp(dk.r * (0.65 + 0.45 * vnoise(w * 1.7 + 4.0)), 0.0, 1.0));
+          col *= 1.0 - 0.7 * dk.g;
+          vec3 sky = mix(vec3(0.5, 0.57, 0.64) * tint(), vec3(0.05, 0.06, 0.09), uNight);   // a puddle holds the sky, a little moving
+          col = mix(col, sky * (0.5 + 0.5 * vnoise(w * 0.8 + vec2(uTime * 0.07, 0.0))) + vec3(0.25) * pow(max(0.0, vnoise(w * 6.0 + uTime * 0.3)), 6.0) * (1.0 - uNight), smoothstep(0.15, 0.55, dk.b) * 0.85); }
         vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);
         float hp = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, skip = A.a > 0.5 ? 0.8 : 0.25;
         // lit windows and open doors: the light falls out of the house; whoever stands in it throws a shadow away from the window
@@ -200,7 +210,7 @@ export function createMedium(o) {
           col = mix(col, under, tree * 0.8);   // under a tree: the crown covers the figure, a ghost of it shows through
         }
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`);
-  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
+  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir, tDecal; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
     // one layer of strands with a fixed size in the world: seeds on a turned, jittered lattice (f a metre, p of the cells),
     // each combed len metres along the flow, r wide at the root and tapering. A pixel asks the cells behind it along the
     // flow whether a strand passes within its width; edges are antialiased by the pixel's own size. Returns (coverage, how
@@ -224,10 +234,7 @@ export function createMedium(o) {
         float hs = S3.a > 0.5 ? (S3.a - 0.52) / 0.48 * 8.0 : -1.0; o = max(o, smoothstep(0.0, 0.4, hs - mix(hp, hl, u))); }
       return o; }
     vec3 matCol(float m, float em){
-      if (m < 1.5) return vec3(0.98, 0.72, 0.16); if (m < 2.5) return vec3(0.96, 0.24, 0.2); if (m < 3.5) return vec3(0.5, 0.38, 0.28); if (m < 4.5) return vec3(0.88, 0.9, 0.92);
-      if (m < 5.5) return vec3(0.95, 0.97, 0.95); if (m < 6.5) return vec3(0.42, 0.36, 0.26); if (m < 7.5) return vec3(0.74, 0.72, 0.68); if (m < 9.5) return mix(vec3(0.24, 0.22, 0.2), vec3(1.0, 0.6, 0.25), em);
-      if (m < 10.5) return vec3(1.0, 0.78, 0.2); if (m < 11.5) return vec3(0.72, 0.75, 0.78); if (m < 12.5) return vec3(0.3, 0.31, 0.33); if (m < 13.5) return vec3(0.58, 0.66, 0.5); if (m < 14.5) return vec3(0.82, 0.44, 0.26); if (m < 15.5) return vec3(1.0); return vec3(1.0, 0.8, 0.45); }
-    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42, 0.1); if (m > 8.5 && m < 9.5) return vec3(1.0, 0.78, 0.3); if (m > 14.5 && m < 15.5) return vec3(0.9); return vec3(1.0, 0.68, 0.28); }
+${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42, 0.1); if (m > 8.5 && m < 9.5) return vec3(1.0, 0.78, 0.3); if (m > 14.5 && m < 15.5) return vec3(0.9); return vec3(1.0, 0.68, 0.28); }
   `;
   const material = mat(PAL + src);
 
@@ -298,6 +305,8 @@ export function createMedium(o) {
       for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), M.stone); } }
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
     for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); deadVolumes(d, t, d.state !== 'sleep', d.kind); }
+    // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
+    for (const i of v.props || []) if (on(i.x, i.y)) i.atom.volumes(i, K, t, v);
     tPrim.needsUpdate = true; U.uPN.value = n;
     // the glyph grid is pinned to the world, not the screen: the camera glides freely and a still roof keeps its letters.
     // uCellOff is where the screen sits inside the world's grid (one spare cell each way covers the slide)
@@ -334,6 +343,10 @@ export function createMedium(o) {
       for (let i = 0; i < 22; i++) { const a0 = hashN(nst.id, i) * 6.283, len = (1.6 + hashN(nst.id, i, 1) * 2.8) * s * 0.5, w0 = Math.max(1.5, s * 0.05) * (1 - hashN(nst.id, i, 2) * 0.5);
         fx.strokeStyle = i % 3 ? 'rgba(40,10,12,.85)' : 'rgba(120,24,20,.8)'; fx.lineWidth = w0; fx.beginPath(); fx.moveTo(x, y);
         for (let j = 1; j <= 6; j++) { const u = j / 6, a = a0 + Math.sin(t * 1.6 + i + u * 3) * 0.5 * u; fx.lineTo(x + Math.cos(a) * len * u, y + Math.sin(a) * len * u); } fx.stroke(); } }
+    // the city's soft atoms (wires, washing, smoke) and its little lives (birds, paper), in view
+    { const onS = (x, y, m) => { const [X, Y] = toS(x, y); return X > -m && Y > -m && X < cssW + m && Y < cssH + m; };
+      for (const i of v.strands || []) if (onS(i.x, i.y, 300)) { fx.save(); i.atom.strands(fx, i, v); fx.restore(); }
+      for (const i of v.live || []) if (i.st && onS(i.st.x ?? i.x, i.st.y ?? i.y, 60)) { fx.save(); i.atom.live.draw(fx, i, v); fx.restore(); } }
     // a fall: the glyphs come apart and drift off as ash
     fx.font = `700 ${Math.max(7, Math.round(0.14 * s))}px "IBM Plex Mono", ui-monospace, monospace`; fx.textAlign = 'center'; fx.textBaseline = 'middle';
     for (const D of deaths) { const k = (t - D.t0) / 2.1; if (k > 1) continue; const [x, y] = toS(D.x, D.y);

@@ -18,7 +18,7 @@ export function createLook(canvas, town) {
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
   const stampA = Array.from({ length: NS }, () => new THREE.Vector4()), stampB = Array.from({ length: NS }, () => new THREE.Vector4());
   const U = {
-    tTown: { value: tex(C.gC) }, tOver: { value: tex(C.oC) }, tMach: { value: tex(C.mC) }, tRoof: { value: mtex(C.rC) }, tStreet: { value: mtex(C.sC) }, tMisc: { value: mtex(C.xC) }, tTreeH: { value: mtex(C.hC) }, tLight: { value: mtex(C.lC) }, tLDir: { value: mtex(C.dC) },
+    tTown: { value: tex(C.gC) }, tOver: { value: tex(C.oC) }, tMach: { value: tex(C.mC) }, tRoof: { value: mtex(C.rC) }, tStreet: { value: mtex(C.sC) }, tMisc: { value: mtex(C.xC) }, tTreeH: { value: mtex(C.hC) }, tLight: { value: mtex(C.lC) }, tLDir: { value: mtex(C.dC) }, tDecal: { value: mtex(C.kC) },
     uFire: { value: new THREE.Vector2(-1e4, -1e4) }, tDist: { value: rts[0].texture }, tPrev: { value: rts[0].texture },
     uCam: { value: new THREE.Vector2() }, uView: { value: new THREE.Vector2(40, 80) }, uOrigin: { value: new THREE.Vector2(O.x, O.y) }, uS: { value: SPAN },
     uTime: { value: 0 }, uPpm: { value: 20 }, uGrid: { value: 20 },  uSun: { value: new THREE.Vector4(-0.6, -0.8, 1.8, 0) }, uHead: { value: new THREE.Vector4() }, uNight: { value: 0 }, uKai: { value: new THREE.Vector2() },
@@ -59,7 +59,7 @@ export function createLook(canvas, town) {
     { const b = S.bike, a = b.ang, f = 0.72 * 0.9 * 2.6; U.uHead.value.set(b.x + Math.cos(a) * f, b.y + Math.sin(a) * f, a, S.kai.riding ? 0.25 + 0.75 * night : 0); }
     U.uCam.value.set(cam.x, cam.y); U.uView.value.set(cssW / cam.ppm, cssH / cam.ppm); U.uPpm.value = cam.ppm * dpr; U.uTime.value = t; U.uNight.value = night; U.uKai.value.set(S.kai.x, S.kai.y);
     stepDist(v.dt, S, v.falls, cam, cssW, cssH);
-    medium.render({ cam, cssW, cssH, dpr, kai: S.kai, dead: S.dead, deaths: v.falls, bike: S.bike, nests: S.nests, t, night });
+    medium.render({ cam, cssW, cssH, dpr, kai: S.kai, dead: S.dead, deaths: v.falls, bike: S.bike, nests: S.nests, t, night, props: town.dress.volumes });
     renderer.render(scene, quadCam);
   }
   return { render, resize, draw: medium.draw, U };

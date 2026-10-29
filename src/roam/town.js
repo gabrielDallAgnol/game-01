@@ -6,6 +6,11 @@ import { RECIPES, recipeRegistry, buildArea } from '../engine/recipes.js';
 import { paintWorld } from '../engine/draw2d.js';
 import { pointInObb } from '../engine/geom.js';
 import { paintGardens } from './gardens.js';
+import { makeCare } from './dress/care.js';
+import { makeSlots } from './dress/slots.js';
+import { makePlacer } from './dress/place.js';
+import { STORIES } from './dress/stories.js';
+import { ATOMS } from './atoms/index.js';
 
 export function buildTown(seed = 7) {
   const W = buildArea('hollowmere', seed, recipeRegistry('hollowmere'), RECIPES.hollowmere.game).W;
@@ -51,7 +56,19 @@ export function buildTown(seed = 7) {
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, O.x + (gx + 0.5) / GR, O.y + (gy + 0.5) / GR, pad)) solid[gy * GN + gx] = 1; };
   for (const p of buildings) mark(p, 0.15);
   const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor((x - O.x) * GR), gy = Math.floor((y - O.y) * GR); return gx < 0 || gy < 0 || gx >= GN || gy >= GN || solid[gy * GN + gx] === 1; };
-  // the night: no street lamps (the power died in the Ashfall); one house in five has someone hiding in it
+  // the nests: infested and nestable buildings first, then the biggest houses, spread across the town
+  const cand = buildings.filter(p => p.def.tags.includes('infested') || p.def.tags.includes('nestable')).concat(buildings.slice().sort((a, b) => b.w * b.h - a.w * a.h));
+  const nests = [];
+  for (const p of cand) { if (nests.length >= 9) break; if (Math.hypot(p.x - start.x, p.y - start.y) < 70 || nests.some(q => Math.hypot(q.b.x - p.x, q.b.y - p.y) < 80)) continue;
+    let at = p.door || { x: p.x, y: p.y + p.h / 2 + 1.5 }; for (let k = 0; k < 12 && blocked(at.x, at.y); k++) at = { x: at.x + (at.x - p.x) * 0.15, y: at.y + (at.y - p.y) * 0.15 };
+    if (!blocked(at.x, at.y)) nests.push({ b: p, x: at.x, y: at.y }); }
+  // [dress] begin: how kept each place is, where things may stand, and the stories (they mark houses the lights and gardens read)
+  const care = makeCare({ W, nests, buildings, seed: W.seed }), slots = makeSlots({ W, buildings, trees, blocked, care, sw });
+  const flags = {}, placer = makePlacer({ ATOMS, STORIES, slots, care, seed: W.seed, flags });
+  placer.stories((x, y) => !blocked(x, y));
+  const kept = p => flags.survivor && flags.survivor.has(p.uid) ? 1 : care.at(p.x, p.y);
+  // [dress] end
+  // the night: no street lamps (the power died in the Ashfall); someone hides in some houses: more where it is kept
   const [lC, lX] = canvas(MPX, '#000'); lX.globalCompositeOperation = 'lighter';
   const [dC, dX] = canvas(MPX, '#808000');   // r,g: the way back to the window; b: how far from it (8 m = 255)
   const hashL = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
@@ -59,7 +76,7 @@ export function buildTown(seed = 7) {
     dX.save(); dX.translate(x, y); dX.rotate(Math.atan2(ny, nx)); const r = Math.round(128 - nx * 127), gg = Math.round(128 - ny * 127), dg = dX.createLinearGradient(0, 0, 8, 0); dg.addColorStop(0, `rgb(${r},${gg},0)`); dg.addColorStop(1, `rgb(${r},${gg},255)`); dX.fillStyle = dg; shape(dX); dX.restore(); };
   // about two houses in five: a house's windows share a size (a cottage's small panes, a shopfront's wide glass), and
   // light shows on any wall, the ends too
-  for (const p of buildings) { if (!p.def.light || hashL(p.uid + W.seed * 31) >= 0.42) continue;
+  for (const p of buildings) { const kp = kept(p); if (!p.def.light || hashL(p.uid + W.seed * 31) >= (kp >= 0.99 ? 1 : kp > 0.62 ? 0.5 : kp > 0.32 ? 0.4 : 0.1)) continue;
     lX.fillStyle = 'rgba(0,255,0,1)'; obb(lX, p, 0); const c = Math.cos(p.rot), sn = Math.sin(p.rot), big = hashL(p.uid * 5 + 1), ww = 0.7 + big * 1.9, len = 2.4 + big * 3.4, gap = ww + 1.6 + hashL(p.uid * 11) * 2.5;
     const wall = (L, ox, oy, ex, ey, nx, ny, salt) => { const m = Math.max(1, Math.floor(L / gap)); for (let k = 0; k < m; k++) { if (hashL(p.uid * 7 + k * 3 + salt) < 0.35) continue; const u = (k + 0.5) / m - 0.5, lx = ox + ex * u * L, ly = oy + ey * u * L, a = 0.75 + 0.25 * hashL(p.uid * 3 + k + salt);
       const wx = p.x + lx * c - ly * sn, wy = p.y + lx * sn + ly * c, ox2 = nx * c - ny * sn, oy2 = nx * sn + ny * c; if (blocked(wx + ox2 * 0.6, wy + oy2 * 0.6) || blocked(wx + ox2 * 1.4, wy + oy2 * 1.4)) continue;   // a wall shared with the house next door has no window
@@ -67,15 +84,17 @@ export function buildTown(seed = 7) {
     for (const side of [-1, 1]) { wall(p.w, 0, side * p.h / 2, 1, 0, 0, side, side + 2); if (p.h > 5 && hashL(p.uid * 17 + side) < 0.6) wall(p.h, side * p.w / 2, 0, 0, 1, side, 0, side + 6); }
     if (p.door && hashL(p.uid * 13) < 0.4) { const dx = p.door.x - p.x, dy = p.door.y - p.y, r = Math.hypot(dx, dy) || 1; spill(p.door.x, p.door.y, dx / r, dy / r, 1.1, 4.0, 1.0); } }
   // [garden] begin
-  paintGardens({ buildings, blocked, sC, xX, hX, lX, O, SPAN, MPX, seed: W.seed });
+  paintGardens({ buildings, blocked, sC, xX, hX, lX, O, SPAN, MPX, seed: W.seed, keep: kept });
   // [garden] end
+  // [dress] begin: the atoms, round the gardens; their ground marks into the decal map (r pale paint, g dark: stains, oil,
+  // char, holes; b water); the solid ones (cars, barriers, lamps) become walls
+  let dress; const [kC, kX] = canvas(MPX, '#000'); {
+    const gd = xX.getImageData(0, 0, xC.width, xC.height).data, XW = xC.width, garden = (x, y) => { const px = Math.floor((x - O.x) * MPX), py = Math.floor((y - O.y) * MPX); return px >= 0 && py >= 0 && px < XW && py < XW && gd[(py * XW + px) * 4 + 2] > 20; };
+    placer.atoms((x, y) => !blocked(x, y) && !garden(x, y)); dress = placer.done();
+    kX.globalCompositeOperation = 'lighter'; for (const i of dress.paint) { kX.save(); i.atom.paint(kX, i); kX.restore(); }
+    for (const i of dress.solid) mark({ x: i.x, y: i.y, rot: i.ang, w: i.atom.collide.w, h: i.atom.collide.h }, 0); }
+  // [dress] end
   // where on a street: for spawning the dead and parking the bike (a street cell, 1 m grid)
   const streetCells = []; { const d = sX.getImageData(0, 0, sC.width, sC.height).data; for (let y = 4; y < W.h - 4; y += 2) for (let x = 4; x < W.w - 4; x += 2) { const i = (Math.floor((y - O.y) * MPX) * sC.width + Math.floor((x - O.x) * MPX)) * 4; if (d[i + 3] > 128 && !blocked(x, y)) streetCells.push(x, y); } }
-  // the nests: infested and nestable buildings first, then the biggest houses, spread across the town
-  const cand = buildings.filter(p => p.def.tags.includes('infested') || p.def.tags.includes('nestable')).concat(buildings.slice().sort((a, b) => b.w * b.h - a.w * a.h));
-  const nests = [];
-  for (const p of cand) { if (nests.length >= 9) break; if (Math.hypot(p.x - start.x, p.y - start.y) < 70 || nests.some(q => Math.hypot(q.b.x - p.x, q.b.y - p.y) < 80)) continue;
-    let at = p.door || { x: p.x, y: p.y + p.h / 2 + 1.5 }; for (let k = 0; k < 12 && blocked(at.x, at.y); k++) at = { x: at.x + (at.x - p.x) * 0.15, y: at.y + (at.y - p.y) * 0.15 };
-    if (!blocked(at.x, at.y)) nests.push({ b: p, x: at.x, y: at.y }); }
-  return { W, start, SPAN, O, PX, MPX, canvases: { gC, oC, mC, rC, sC, xC, hC, lC, dC }, blocked, streetCells, nests, buildings, trees, cars };
+  return { W, start, SPAN, O, PX, MPX, canvases: { gC, oC, mC, rC, sC, xC, hC, lC, dC, kC }, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress };
 }

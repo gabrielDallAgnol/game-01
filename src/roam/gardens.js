@@ -10,7 +10,9 @@
 const hashG = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 const KIND = { strip: 64, hedge: 128, fence: 192, wild: 255 };
 
-export function paintGardens({ buildings, blocked, sC, xX, hX, lX, O, SPAN, MPX, seed }) {
+// keep(p, r) → 0..1: how kept the house's ground is (care, or a story's override); undefined keeps the old even odds
+export function paintGardens({ buildings, blocked, sC, xX, hX, lX, O, SPAN, MPX, seed, keep }) {
+  let wildness = 0.2;
   const sd = sC.getContext('2d').getImageData(0, 0, sC.width, sC.height).data, SW = sC.width;
   const street = (x, y) => { const px = Math.floor((x - O.x) * MPX), py = Math.floor((y - O.y) * MPX); return px < 0 || py < 0 || px >= SW || py >= SW || sd[(py * SW + px) * 4 + 3] > 20; };
   const GR = 2, GN = SPAN * GR, taken = new Uint8Array(GN * GN);   // the gardens' padded plots, so no two touch
@@ -50,7 +52,7 @@ export function paintGardens({ buildings, blocked, sC, xX, hX, lX, O, SPAN, MPX,
     const F = frame(p, s); let fit = null;
     for (const D of [9, 8, 7, 6, 5, 4]) { for (const ex of [1.5, 0.6, 0]) { const u0 = -F.L / 2 - ex, u1 = F.L / 2 + ex; if (u1 - u0 > 4 && u1 - u0 < 22 && free(F, u0, u1, 0.35, D, 0.3)) { fit = [u0, u1, D]; break; } } if (fit) break; }
     if (!fit) return false;
-    const [u0, u1, D] = fit, k = hashG(h + 5), wild = k < 0.2, fence = !wild && k > 0.62, bw = wild ? 0.9 : fence ? 0.32 : 0.75, iv = 0.35;
+    const [u0, u1, D] = fit, k = hashG(h + 5), wild = k < wildness, fence = !wild && k > 0.62, bw = wild ? 0.9 : fence ? 0.32 : 0.75, iv = 0.35;
     take(F, u0, u1, iv, D); rect(F, 'gate', wild ? KIND.wild : fence ? KIND.fence : KIND.hedge, u0 - 0.5, 0, u1 + 0.5, D + 0.5);
     const gapL = hashG(h + 7) < 0.5, gv = iv + 0.6;   // the way in: a gap in one side, near the house
     const side = (ua, ub, va, vb) => { if (!wild) return border(F, 'border', 255, ua, va, ub, vb);
@@ -78,7 +80,11 @@ export function paintGardens({ buildings, blocked, sC, xX, hX, lX, O, SPAN, MPX,
     return true;
   }
   for (const p of buildings) { const t = p.def.tags; if (!t.includes('house') || t.includes('poi') || t.includes('row-shop')) continue;
-    const h = Math.floor(hashG(p.uid * 977 + seed * 31) * 1e9); if (hashG(h) >= 0.48) continue;
+    const h = Math.floor(hashG(p.uid * 977 + seed * 31) * 1e9), c = keep ? keep(p) : 0.5;
+    // a tended street: most houses keep a garden, few gone wild; a worn one: fewer, more of them wild; the ruins: almost
+    // none, and those all wild, unless a story says someone still keeps this one (keep returns 1)
+    const odds = c >= 0.99 ? 1 : c > 0.62 ? 0.62 : c > 0.32 ? 0.36 : 0.08; if (hashG(h) >= odds) continue;
+    wildness = c >= 0.99 ? 0 : c > 0.62 ? 0.06 : c > 0.32 ? 0.35 : 0.9;
     const front = p.door ? sideOf(p, p.door) : p.w >= p.h ? 0 : 2, pick = hashG(h + 1);
     if (pick < 0.3) { strip(p, front, h, p.door); continue; }
     if (back(p, OPP[front], h)) { if (pick > 0.85) strip(p, front, h + 17, p.door); continue; }
