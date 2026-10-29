@@ -6,21 +6,19 @@ import { HEAD, GROUND, DIST, NS } from './ground.js';
 import { createMedium } from './medium.js';
 
 export function createLook(canvas, town) {
-  const { SPAN, O, canvases: C, start } = town;
+  const { tiles, size } = town, WIN = tiles.WIN, T = n => tiles.byName[n].tex;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
-  const tex = c => { const t = new THREE.CanvasTexture(c); t.encoding = THREE.LinearEncoding; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4; return t; };
-  const mtex = c => { const t = new THREE.CanvasTexture(c); t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; return t; };
-  // the field (push, press) over the whole town at ~0.42 m a texel
-  const DR = Math.min(2048, Math.ceil(SPAN / 0.42)), rtOpt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: false };
+  // the field (push, press): a ring like the data maps, WIN metres at 0.25 m a texel, sampled with repeat wrapping
+  const DR = 2048, rtOpt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: false, wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping };
   const rts = [new THREE.WebGLRenderTarget(DR, DR, rtOpt), new THREE.WebGLRenderTarget(DR, DR, rtOpt)];
   renderer.setClearColor(new THREE.Color(0.5, 0.5, 0), 1); for (const r of rts) { renderer.setRenderTarget(r); renderer.clear(); } renderer.setRenderTarget(null);
   const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), quadGeo = new THREE.PlaneGeometry(2, 2);
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
   const stampA = Array.from({ length: NS }, () => new THREE.Vector4()), stampB = Array.from({ length: NS }, () => new THREE.Vector4());
   const U = {
-    tTown: { value: tex(C.gC) }, tOver: { value: tex(C.oC) }, tMach: { value: tex(C.mC) }, tRoof: { value: mtex(C.rC) }, tStreet: { value: mtex(C.sC) }, tMisc: { value: mtex(C.xC) }, tTreeH: { value: mtex(C.hC) }, tLight: { value: mtex(C.lC) }, tLDir: { value: mtex(C.dC) }, tDecal: { value: mtex(C.kC) },
+    tRoof: { value: T('roof') }, tStreet: { value: T('street') }, tMisc: { value: T('misc') }, tTreeH: { value: T('trees') }, tLight: { value: T('light') }, tLDir: { value: T('ldir') }, tDecal: { value: T('decal') }, uWorld: { value: new THREE.Vector2(size.w, size.h) },
     uFire: { value: new THREE.Vector2(-1e4, -1e4) }, tDist: { value: rts[0].texture }, tPrev: { value: rts[0].texture },
-    uCam: { value: new THREE.Vector2() }, uView: { value: new THREE.Vector2(40, 80) }, uOrigin: { value: new THREE.Vector2(O.x, O.y) }, uS: { value: SPAN },
+    uCam: { value: new THREE.Vector2() }, uView: { value: new THREE.Vector2(40, 80) }, uOrigin: { value: new THREE.Vector2(0, 0) }, uS: { value: WIN },
     uTime: { value: 0 }, uPpm: { value: 20 }, uGrid: { value: 20 },  uSun: { value: new THREE.Vector4(-0.6, -0.8, 1.8, 0) }, uHead: { value: new THREE.Vector4() }, uNight: { value: 0 }, uKai: { value: new THREE.Vector2() },
     uA: { value: stampA }, uB: { value: stampB }, uN: { value: 0 }, uDecayPush: { value: 0 }, uDecayPress: { value: 0 },
   };
@@ -34,8 +32,7 @@ export function createLook(canvas, town) {
   // looping over the stamps, which a phone cannot afford every frame. Trails off screen simply wait.
   function stepDist(dt, S, falls, cam, cssW, cssH) {
     const hw = cssW / cam.ppm / 2 + 8, hh = cssH / cam.ppm / 2 + 8, inV = (x, y) => Math.abs(x - cam.x) < hw && Math.abs(y - cam.y) < hh;
-    const tx0 = Math.max(0, Math.floor((cam.x - hw - O.x) / SPAN * DR)), tx1 = Math.min(DR, Math.ceil((cam.x + hw - O.x) / SPAN * DR));
-    const ty0 = Math.max(0, Math.floor((1 - (cam.y + hh - O.y) / SPAN) * DR)), ty1 = Math.min(DR, Math.ceil((1 - (cam.y - hh - O.y) / SPAN) * DR));
+    const tx0 = Math.floor((cam.x - hw) / WIN * DR), tx1 = Math.ceil((cam.x + hw) / WIN * DR), ty0 = Math.floor((cam.y - hh) / WIN * DR), ty1 = Math.ceil((cam.y + hh) / WIN * DR);
     let n = 0; const put = (x, y, vx, vy, r, p) => { if (n >= NS) return; stampA[n].set(x, y, vx, vy); stampB[n].set(r, p, 0, 0); n++; };
     const k = S.kai; if (!k.dead) put(k.x, k.y, k.vx, k.vy, k.riding ? 2.2 : 1.6, k.riding ? 0.7 : 0.3);
     if (!k.riding) put(S.bike.x, S.bike.y, 0, 0, 1.4, 0.4);
@@ -44,18 +41,30 @@ export function createLook(canvas, town) {
     for (const d of byNear) put(d.x, d.y, d.vx, d.vy, 0.8, Math.hypot(d.vx, d.vy) > 0.2 ? 1 : 0.6);
     U.uN.value = n;
     decayAcc += dt; if (decayAcc >= 0.2) { U.uDecayPush.value = decayAcc * 0.35; U.uDecayPress.value = decayAcc / 22; decayAcc = 0; } else { U.uDecayPush.value = 0; U.uDecayPress.value = 0; }
-    const out = rts[1 - ping]; out.scissor.set(tx0, ty0, Math.max(1, tx1 - tx0), Math.max(1, ty1 - ty0)); out.scissorTest = true;
-    U.tPrev.value = rts[ping].texture; renderer.setRenderTarget(out); renderer.render(dScene, quadCam); renderer.setRenderTarget(null);
+    // the view's patch of the ring, split where it wraps (up to four scissored passes into the same target)
+    const out = rts[1 - ping]; U.tPrev.value = rts[ping].texture; out.scissorTest = true;
+    for (const [x0, x1] of wrapSpan(tx0, tx1)) for (const [y0, y1] of wrapSpan(ty0, ty1)) { out.scissor.set(x0, y0, x1 - x0, y1 - y0); renderer.setRenderTarget(out); renderer.render(dScene, quadCam); }
+    renderer.setRenderTarget(null);
     ping = 1 - ping; U.tDist.value = rts[ping].texture;
   }
   // the zoom the grass is laid for: it moves in steps, and only when the zoom has moved well away (a pinch), so the strands
   // never crawl while the camera breathes with the bike's speed
   let grid = 0; const gridFor = ppm => { if (!grid || Math.abs(Math.log2(ppm / grid)) > 0.4) grid = Math.pow(2, Math.round(Math.log2(ppm) * 2) / 2); return grid; };
+  const wrapSpan = (a, b) => { if (b - a >= DR) return [[0, DR]]; const m = v => ((v % DR) + DR) % DR, A = m(a), B = A + (b - a); return B <= DR ? [[A, B]] : [[A, DR], [0, B - DR]]; };
+  // a tile freshly painted into a slot: its patch of the field starts flat (it held some other place's trails)
+  const flat = new THREE.Color(0.5, 0.5, 0);
+  function clearPatch(i, j) { const S = tiles.TILE / WIN * DR, x = (((i * S) % DR) + DR) % DR, y = (((j * S) % DR) + DR) % DR, c = new THREE.Color(), a = renderer.getClearAlpha(); renderer.getClearColor(c); renderer.setClearColor(flat, 1);
+    for (const r of rts) { r.scissor.set(x, y, S, S); r.scissorTest = true; renderer.setRenderTarget(r); renderer.clear(true, false, false); } renderer.setRenderTarget(null); renderer.setClearColor(c, a); }
+  // streaming: paint what the camera will need (all of it at the start, then a few ms a frame) and upload it
+  tiles.update(town.start.x, town.start.y, Infinity);
+  function stream(cam, vx, vy) { tiles.update(cam.x + vx * 3, cam.y + vy * 3, 5, clearPatch); tiles.upload(renderer); }
   function resize(w, h, dpr) { renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); }
   /** v: { cam, cssW, cssH, dpr, S, falls, t, night, dt } */
   function render(v) {
     const { cam, cssW, cssH, dpr, S, t, night, sun } = v;
-    U.uGrid.value = gridFor((cam.base || cam.ppm) * dpr);   // the stepped zoom the ground's blade strokes and the hedges are laid for (the grass itself is world-sized) U.uSun.value.set(sun.x, sun.y, sun.climb, sun.warm);
+    U.uGrid.value = gridFor((cam.base || cam.ppm) * dpr);   // the stepped zoom the ground's blade strokes and the hedges are laid for (the grass itself is world-sized)
+    U.uSun.value.set(sun.x, sun.y, sun.climb, sun.warm);
+    stream(cam, S.kai.vx, S.kai.vy);
     { const b = S.bike, a = b.ang, f = 0.72 * 0.9 * 2.6; U.uHead.value.set(b.x + Math.cos(a) * f, b.y + Math.sin(a) * f, a, S.kai.riding ? 0.25 + 0.75 * night : 0); }
     U.uCam.value.set(cam.x, cam.y); U.uView.value.set(cssW / cam.ppm, cssH / cam.ppm); U.uPpm.value = cam.ppm * dpr; U.uTime.value = t; U.uNight.value = night; U.uKai.value.set(S.kai.x, S.kai.y);
     stepDist(v.dt, S, v.falls, cam, cssW, cssH);

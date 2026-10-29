@@ -4,13 +4,14 @@
 // builds on GROUND (hair grass, glyph roofs and solids). NS: the stamps a frame.
 export const NS = 48;
 export const HEAD = `precision highp float; varying vec2 vUv;
-    uniform sampler2D tTown, tOver, tMach, tDist, tRoof, tStreet, tMisc, tTreeH; uniform vec2 uCam, uView, uOrigin, uKai, uFire; uniform float uS, uTime, uPpm, uNight, uGrid; uniform vec4 uSun;   // uSun: the way to the sun (xy), the ray's climb a metre (z), the dawn/dusk warmth (w); uGrid: the zoom the grass's seeds are laid for (steps, not every frame)
+    uniform sampler2D tDist, tRoof, tStreet, tMisc, tTreeH; uniform vec2 uCam, uView, uOrigin, uKai, uFire, uWorld; uniform float uS, uTime, uPpm, uNight, uGrid; uniform vec4 uSun;   // uSun: the way to the sun (xy), the ray's climb a metre (z), the dawn/dusk warmth (w); uGrid: the zoom the grass's seeds are laid for (steps, not every frame)
     float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
     vec2 h22(vec2 p){ float a = h21(p); return vec2(a, h21(p + a * 17.7 + 3.1)); }
     float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
     vec2 world(){ return uCam + vec2(vUv.x - 0.5, 0.5 - vUv.y) * uView; }
-    vec2 toTex(vec2 w){ return vec2((w.x - uOrigin.x) / uS, 1.0 - (w.y - uOrigin.y) / uS); }
-    float inside(vec2 t){ vec2 e = smoothstep(0.0, 0.03, t) * smoothstep(0.0, 0.03, 1.0 - t); return e.x * e.y; }
+    // the data maps are streamed tiles in a ring (src/roam/tiles.js), sampled with repeat wrapping: world metres / the ring's span
+    vec2 toTex(vec2 w){ return (w - uOrigin) / uS; }
+    float inside(vec2 t){ vec2 w = t * uS + uOrigin, e = smoothstep(0.0, 8.0, w) * smoothstep(0.0, 8.0, uWorld - w); return e.x * e.y; }
     float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }`;
 export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(fract(v / sp) - 0.5) * sp; return 1.0 - smoothstep(wd, wd + 1.0 / uPpm, f); }
       const vec2 WD = vec2(0.731, 0.682);
@@ -116,10 +117,10 @@ export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(f
         col += vec3(0.62, 0.40, 0.16) * (lamp + fire) * (0.45 + 0.55 * best);
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`;
 export const DIST = `precision highp float; varying vec2 vUv;
-    uniform sampler2D tPrev; uniform vec4 uA[48]; uniform vec4 uB[48]; uniform int uN; uniform float uDecayPush, uDecayPress, uS; uniform vec2 uOrigin;
+    uniform sampler2D tPrev; uniform vec4 uA[48]; uniform vec4 uB[48]; uniform int uN; uniform float uDecayPush, uDecayPress, uS; uniform vec2 uOrigin, uCam;
     void main(){ vec4 d = texture2D(tPrev, vUv); vec2 push = (d.rg - 0.5) * 2.0; float press = d.b;
       float pl = length(push); if (pl > 0.0) push *= max(0.0, pl - uDecayPush) / pl; press = max(0.0, press - uDecayPress);
-      vec2 w = uOrigin + vec2(vUv.x, 1.0 - vUv.y) * uS;
+      vec2 w0 = uOrigin + vUv * uS, w = w0 + uS * floor((uCam - w0) / uS + 0.5);   // the field is a ring too: this texel's place nearest the camera
       for (int k = 0; k < 48; k++) { if (k >= uN) break; vec4 A = uA[k], B = uB[k]; vec2 dv = w - A.xy; float r = length(dv);
         if (r < B.x) { float f = 1.0 - r / B.x; vec2 o = r > 0.001 ? dv / r : vec2(0.0); float vl = length(A.zw); vec2 v = vl > 0.05 ? A.zw / vl : vec2(0.0);
           vec2 p = (o * 0.85 + v * 0.55) * min(1.0, vl / 1.2);   // only what moves parts the grass (a standing figure just presses it: no cowlick) float q = length(p); if (q > 0.001) push = mix(push, p / q * min(1.0, q), clamp(f * 0.7, 0.0, 1.0));

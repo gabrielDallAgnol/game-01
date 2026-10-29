@@ -11,12 +11,12 @@ const hashG = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n
 const KIND = { strip: 64, hedge: 128, fence: 192, wild: 255 };
 
 // keep(p, r) → 0..1: how kept the house's ground is (care, or a story's override); undefined keeps the old even odds
-export function paintGardens({ buildings, blocked, sC, xX, hX, lX, O, SPAN, MPX, seed, keep }) {
+// Lays the gardens out once (street(x, y): on a street or pavement; blocked(x, y): a wall) and returns their shapes as
+// paint items for the tiles (src/roam/tiles.js) and `at(x, y)`: whether a point is in a garden plot (padded).
+export function layoutGardens({ buildings, blocked, street, size, seed, keep }) {
   let wildness = 0.2;
-  const sd = sC.getContext('2d').getImageData(0, 0, sC.width, sC.height).data, SW = sC.width;
-  const street = (x, y) => { const px = Math.floor((x - O.x) * MPX), py = Math.floor((y - O.y) * MPX); return px < 0 || py < 0 || px >= SW || py >= SW || sd[(py * SW + px) * 4 + 3] > 20; };
-  const GR = 2, GN = SPAN * GR, taken = new Uint8Array(GN * GN);   // the gardens' padded plots, so no two touch
-  const cellOf = (x, y) => { const gx = Math.floor((x - O.x) * GR), gy = Math.floor((y - O.y) * GR); return gx < 0 || gy < 0 || gx >= GN || gy >= GN ? -1 : gy * GN + gx; };
+  const GR = 2, GW = Math.ceil(size.w * GR) + 1, GH = Math.ceil(size.h * GR) + 1, taken = new Uint8Array(GW * GH);   // the gardens' padded plots, so no two touch
+  const cellOf = (x, y) => { const gx = Math.floor(x * GR), gy = Math.floor(y * GR); return gx < 0 || gy < 0 || gx >= GW || gy >= GH ? -1 : gy * GW + gx; };
   // a side of a house as a frame: u along the wall, v out from it (0 at the wall)
   const SIDES = [[0, 1], [Math.PI, 1], [-Math.PI / 2, 0], [Math.PI / 2, 0]];
   const frame = (p, s) => { const [a, ax] = SIDES[s], half = ax ? p.h / 2 : p.w / 2, A = p.rot + a, c = Math.cos(A), sn = Math.sin(A);
@@ -91,15 +91,14 @@ export function paintGardens({ buildings, blocked, sC, xX, hX, lX, O, SPAN, MPX,
     if (p.h < 9 && p.w < 9 && back(p, front < 2 ? 2 + (h & 1) : h & 1, h)) continue;   // a detached house: off the gable end
     strip(p, front, h, p.door); }
 
-  // paint: clear the free channels, then each layer in its own pass (gardens never overlap, so lighten is a plain fill)
-  const pass = (X, op, style, layer) => { X.save(); X.globalCompositeOperation = op; for (const S of shapes) { if (S.layer !== layer) continue; X.fillStyle = style(S.val); X.save(); X.translate(S.F.ox, S.F.oy); X.rotate(S.F.A);
-    if (S.r) X.fillRect(S.r[0], S.r[1], S.r[2] - S.r[0], S.r[3] - S.r[1]); else { X.beginPath(); X.arc(S.c[0], S.c[1], S.c[2], 0, 7); X.fill(); } X.restore(); } X.restore(); };
-  const wipe = (X, style) => { X.save(); X.globalCompositeOperation = 'multiply'; X.fillStyle = style; X.fillRect(O.x, O.y, SPAN, SPAN); X.restore(); };
-  wipe(xX, 'rgb(255,255,0)'); wipe(hX, 'rgb(255,0,0)');   // xC.b held the old baked shadows, hC.gb a grey copy of the crowns
-  pass(xX, 'lighten', v => `rgb(0,0,${v})`, 'gate');
-  pass(hX, 'lighten', v => `rgb(0,${v},0)`, 'grow');
-  pass(hX, 'multiply', v => `rgb(255,${255 - v},255)`, 'cut');
-  pass(hX, 'lighten', v => `rgb(0,0,${v})`, 'border');
-  pass(lX, 'lighten', v => `rgb(0,0,${v})`, 'path');
-  return shapes.filter(S => S.layer === 'gate').length;
+  // the paint items, pass by pass (gardens never overlap, so lighten is a plain fill): misc.b the plot and its kind,
+  // trees.g what grows, trees.g cut by borders and paths, trees.b the borders, light.b the paths
+  const PASS = [['gate', 'misc', 'lighten', v => `rgb(0,0,${v})`], ['grow', 'trees', 'lighten', v => `rgb(0,${v},0)`], ['cut', 'trees', 'multiply', v => `rgb(255,${255 - v},255)`],
+    ['border', 'trees', 'lighten', v => `rgb(0,0,${v})`], ['path', 'light', 'lighten', v => `rgb(0,0,${v})`]];
+  const items = [];
+  for (const [k, [layer, canvas, op, style]] of PASS.entries()) for (const S of shapes) { if (S.layer !== layer) continue;
+    const ext = S.r ? Math.hypot(Math.max(Math.abs(S.r[0]), Math.abs(S.r[2])), Math.max(Math.abs(S.r[1]), Math.abs(S.r[3]))) : Math.hypot(S.c[0], S.c[1]) + S.c[2];
+    items.push({ layer: canvas, order: 50000 + k * 10000, x: S.F.ox, y: S.F.oy, r: ext + 1, draw(X) { X.globalCompositeOperation = op; X.fillStyle = style(S.val); X.translate(S.F.ox, S.F.oy); X.rotate(S.F.A);
+      if (S.r) X.fillRect(S.r[0], S.r[1], S.r[2] - S.r[0], S.r[3] - S.r[1]); else { X.beginPath(); X.arc(S.c[0], S.c[1], S.c[2], 0, 7); X.fill(); } } }); }
+  return { items, at: (x, y) => { const k = cellOf(x, y); return k >= 0 && taken[k] === 1; }, count: shapes.filter(S => S.layer === 'gate').length };
 }
