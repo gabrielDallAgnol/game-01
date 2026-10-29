@@ -18,5 +18,16 @@ export const STORIES = [
   // a fallen tree across a road after the storm that came with the ash: in worn places
   { id: 'fallen', slot: 'roadway', count: 3, apart: 140, r: 7, where: c => c > 0.25 && c < 0.6 ? 0.8 : 0,
     build(s, put, h) { put('fallenTree', 0, 0, { turn: Math.PI / 2 + (h - 0.5) * 0.7 }); put('leaves', 1.5, 1, {}); put('leaves', -2, -1.5, {}); } },
+  // [sites] begin: the special places' scenes (world/sites.js anchors, atoms/sites.js)
+  // the forecourt fire: someone tried to fill up when it came; the car went up at the pump and took the pump with it.
+  // Where the blight reached, now and then where it is only worn
+  { id: 'pumpFire', slot: 'fixture', count: 4, apart: 160, r: 4.5, where: (c, s) => s.use !== 'pump' ? 0 : c < 0.32 ? 1 : c < 0.55 ? 0.12 : 0,
+    build(s, put, h) { put('pump', 0, 0, { variant: 'burnt' }); put('bayCar', (h - 0.5) * 1.6, 3.0 * (h < 0.5 ? 1 : -1), { variant: 'burnt', turn: (h - 0.5) * 0.3 }); put('burn', 0.4, 2.4 * (h < 0.5 ? 1 : -1), {}); } },
+  // the looting: a car driven through a store's glass front, trolleys tipped all round, the stock dragged out
+  { id: 'looted', slot: 'fixture', count: 4, apart: 200, r: 13, where: (c, s) => s.role === 'entrance' && c < 0.45 ? 1 - c : 0,
+    build(s, put, h) { put('shopfront', 0, 0, { variant: 'smashed' }); put('bayCar', (h - 0.5) * 3, 3.2, { variant: 'crashed', turn: -Math.PI / 2 + (h - 0.5) * 0.5 });
+      for (let k = 0; k < 7; k++) put('trolley', -9 + k * 3 + (hashish(h, k) - 0.5) * 2, 4 + hashish(h, k + 9) * 7, { variant: hashish(h, k + 3) < 0.6 ? 'tipped' : 'up', turn: hashish(h, k + 5) * 6 });
+      put('debris', -2.5, 2.2, {}); put('debris', 3.5, 5.5, {}); put('pallet', 6.5, 3, {}); } },
+  // [sites] end
 ];
 const hashish = (h, k) => { const x = Math.sin((h + k * 0.37) * 9999.1) * 43758.5453; return x - Math.floor(x); };

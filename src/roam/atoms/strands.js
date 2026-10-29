@@ -89,6 +89,7 @@ export const STRANDS = [
     fit: (c, s, f) => { const t = s.tags || [];
       if (f && f.survivor && f.survivor.has(s.uid)) { s.survivor = true; return 1; }   // marked on the slot, for variant()
       if (/mast|tower|canopy|camp/.test(s.look) || t.includes('camp')) return 0;
+      if (s.spot) return 0;   // [sites] a rooftop plant spot (world/sites.js) is not a chimney
       return c > 0.62 ? (t.includes('house') ? 0.22 : 0) : c > 0.32 ? (t.includes('house') ? 0.04 : 0) : 0.16; },
     variant: (c, h, s) => s.survivor || c > 0.32 ? 'hearth' : 'smoulder',
     volumes(i, K) { if (i.variant !== 'hearth' || !(i.slot.look === 'gable' || i.slot.look === 'flat')) return; const [x, y] = vent(i);
