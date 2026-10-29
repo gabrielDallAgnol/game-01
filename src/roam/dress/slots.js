@@ -17,6 +17,7 @@
 // Slots are sampled every `step` metres along streets; placement (place.js) spaces atoms itself.
 export const PAVE = 2.4;   // the pavement's width (matches town.js's street painting)
 import { profileOf } from '../world/streets.js';
+import { landSlots } from '../world/land.js';
 export function makeSlots({ W, buildings, trees, blocked, care, sw, step = 3 }) {
   const TG = 12, tgrid = new Map(); for (const p of trees) { const k = Math.floor(p.x / TG) * 4096 + Math.floor(p.y / TG); if (!tgrid.has(k)) tgrid.set(k, []); tgrid.get(k).push(p); }
   const crown = (x, y) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) for (const p of tgrid.get((Math.floor(x / TG) + i) * 4096 + Math.floor(y / TG) + j) || []) if (Math.hypot(p.x - x, p.y - y) < (p.r || p.def.size[0] / 2) * 0.9 + 0.4) return true; return false; };
@@ -55,6 +56,9 @@ export function makeSlots({ W, buildings, trees, blocked, care, sw, step = 3 }) 
   for (const st of W.sites || []) for (const a of st.anchors || []) push(a.kind, a.x, a.y, a.ang, a);
   { const works = new Set(buildings.filter(p => p.def.tags.includes('site') && !p.def.tags.includes('house')).map(p => p.uid)); for (let k = S.length - 1; k >= 0; k--) if (S[k].kind === 'yard' && works.has(S[k].uid)) S.splice(k, 1); }
   // [sites] end
+  // [land] begin: inside fields and woods ('field'), along field edges ('edge'), where a field meets its lane ('gate'): world/land.js
+  landSlots({ W, push, blocked, care });
+  // [land] end
   const by = {}; for (const s of S) (by[s.kind] ||= []).push(s);
   return { all: S, by };
 }

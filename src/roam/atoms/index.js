@@ -6,6 +6,7 @@ import { LIFE, LITTER } from './life.js';
 import { STRANDS } from './strands.js';
 import { GROUND_MARKS } from './marks.js';
 import { SITE_ATOMS } from './sites.js';
+import { FARM } from './farm.js';
 export const ATOMS = [
   ...STREET,
   ...MARKS,
@@ -15,4 +16,5 @@ export const ATOMS = [
   ...STRANDS,
   ...GROUND_MARKS,
   ...SITE_ATOMS,
+  ...FARM,
 ];
