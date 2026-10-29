@@ -3,10 +3,12 @@
 import { STREET, MARKS } from './street.js';
 import { PROPS } from './props.js';
 import { LIFE, LITTER } from './life.js';
+import { STRANDS } from './strands.js';
 export const ATOMS = [
   ...STREET,
   ...MARKS,
   ...PROPS,
   ...LIFE,
   ...LITTER,
+  ...STRANDS,
 ];
