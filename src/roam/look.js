@@ -11,7 +11,7 @@ export function createLook(canvas, town) {
   // the field (push, press): a ring like the data maps, WIN metres at 0.25 m a texel, sampled with repeat wrapping
   const DR = 2048, rtOpt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: false, wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping };
   const rts = [new THREE.WebGLRenderTarget(DR, DR, rtOpt), new THREE.WebGLRenderTarget(DR, DR, rtOpt)];
-  renderer.setClearColor(new THREE.Color(0.5, 0.5, 0), 1); for (const r of rts) { renderer.setRenderTarget(r); renderer.clear(); } renderer.setRenderTarget(null);
+  renderer.setClearColor(new THREE.Color(0.5, 0.5, 0), 0); for (const r of rts) { renderer.setRenderTarget(r); renderer.clear(); } renderer.setRenderTarget(null);
   const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), quadGeo = new THREE.PlaneGeometry(2, 2);
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
   const stampA = Array.from({ length: NS }, () => new THREE.Vector4()), stampB = Array.from({ length: NS }, () => new THREE.Vector4());
@@ -20,27 +20,29 @@ export function createLook(canvas, town) {
     uFire: { value: new THREE.Vector2(-1e4, -1e4) }, tDist: { value: rts[0].texture }, tPrev: { value: rts[0].texture },
     uCam: { value: new THREE.Vector2() }, uView: { value: new THREE.Vector2(40, 80) }, uOrigin: { value: new THREE.Vector2(0, 0) }, uS: { value: WIN },
     uTime: { value: 0 }, uPpm: { value: 20 }, uGrid: { value: 20 },  uSun: { value: new THREE.Vector4(-0.6, -0.8, 1.8, 0) }, uHead: { value: new THREE.Vector4() }, uNight: { value: 0 }, uKai: { value: new THREE.Vector2() },
-    uA: { value: stampA }, uB: { value: stampB }, uN: { value: 0 }, uDecayPush: { value: 0 }, uDecayPress: { value: 0 },
+    uA: { value: stampA }, uB: { value: stampB }, uN: { value: 0 }, uDecayPush: { value: 0 }, uDecayPress: { value: 0 }, uDecayFlat: { value: 0 },
   };
   const mat = frag => new THREE.ShaderMaterial({ uniforms: U, vertexShader: VERT, fragmentShader: HEAD + frag, depthTest: false, depthWrite: false });
   const medium = createMedium({ renderer, U, mat, VERT, quadGeo, quadCam, ASH3F: GROUND });
   const scene = new THREE.Scene(), quad = new THREE.Mesh(quadGeo, medium.material); quad.frustumCulled = false; scene.add(quad);
   const dScene = new THREE.Scene(), dQuad = new THREE.Mesh(quadGeo, new THREE.ShaderMaterial({ uniforms: U, vertexShader: VERT, fragmentShader: DIST, depthTest: false, depthWrite: false })); dQuad.frustumCulled = false; dScene.add(dQuad);
-  let ping = 0, decayAcc = 0;
+  let ping = 0, decayAcc = 0, flatAcc = 0;
   /** what parts and presses the grass this frame: Kai (or the bike), the nearest dead, the falls */
   // only the part of the field around the view is stepped (a scissor): the whole town's field is 2048² texels, each
   // looping over the stamps, which a phone cannot afford every frame. Trails off screen simply wait.
   function stepDist(dt, S, falls, cam, cssW, cssH) {
     const hw = cssW / cam.ppm / 2 + 8, hh = cssH / cam.ppm / 2 + 8, inV = (x, y) => Math.abs(x - cam.x) < hw && Math.abs(y - cam.y) < hh;
     const tx0 = Math.floor((cam.x - hw) / WIN * DR), tx1 = Math.ceil((cam.x + hw) / WIN * DR), ty0 = Math.floor((cam.y - hh) / WIN * DR), ty1 = Math.ceil((cam.y + hh) / WIN * DR);
-    let n = 0; const put = (x, y, vx, vy, r, p) => { if (n >= NS) return; stampA[n].set(x, y, vx, vy); stampB[n].set(r, p, 0, 0); n++; };
-    const k = S.kai; if (!k.dead) put(k.x, k.y, k.vx, k.vy, k.riding ? 2.2 : 1.6, k.riding ? 0.7 : 0.3);
+    // f: how hard it lays tall plants down (only what moves: a wheel or a stride, not a standing figure)
+    let n = 0; const put = (x, y, vx, vy, r, p, f = 0) => { if (n >= NS) return; stampA[n].set(x, y, vx, vy); stampB[n].set(r, p, f, 0); n++; };
+    const k = S.kai, ks = Math.hypot(k.vx, k.vy); if (!k.dead) put(k.x, k.y, k.vx, k.vy, k.riding ? 2.2 : 1.6, k.riding ? 0.7 : 0.3, k.riding ? Math.min(1, ks / 3) : Math.min(0.55, ks / 6));
     if (!k.riding) put(S.bike.x, S.bike.y, 0, 0, 1.4, 0.4);
     for (const f of falls) if (f.stamp) { put(f.x, f.y, 0, 0, 1.4, 1); f.stamp = false; }
     const byNear = S.dead.filter(d => inV(d.x, d.y)).sort((a, b) => Math.hypot(a.x - k.x, a.y - k.y) - Math.hypot(b.x - k.x, b.y - k.y));
-    for (const d of byNear) put(d.x, d.y, d.vx, d.vy, 0.8, Math.hypot(d.vx, d.vy) > 0.2 ? 1 : 0.6);
+    for (const d of byNear) { const sp = Math.hypot(d.vx, d.vy); put(d.x, d.y, d.vx, d.vy, 0.8, sp > 0.2 ? 1 : 0.6, Math.min(0.4, sp / 4)); }
     U.uN.value = n;
-    decayAcc += dt; if (decayAcc >= 0.2) { U.uDecayPush.value = decayAcc * 0.35; U.uDecayPress.value = decayAcc / 22; decayAcc = 0; } else { U.uDecayPush.value = 0; U.uDecayPress.value = 0; }
+    decayAcc += dt; if (decayAcc >= 0.2) { U.uDecayPush.value = decayAcc * 0.35; U.uDecayPress.value = decayAcc / 22; U.uDecayFlat.value = Math.max(1, Math.round(decayAcc / 240 * 255)) / 255 * (decayAcc > 0.9 ? 1 : 0); flatAcc += decayAcc; decayAcc = 0; } else { U.uDecayPush.value = 0; U.uDecayPress.value = 0; U.uDecayFlat.value = 0; }
+    if (flatAcc >= 0.94) { U.uDecayFlat.value = 1 / 255; flatAcc = 0; }   // a laid crop rises over ~4 minutes: one step every second (8-bit channel)
     // the view's patch of the ring, split where it wraps (up to four scissored passes into the same target)
     const out = rts[1 - ping]; U.tPrev.value = rts[ping].texture; out.scissorTest = true;
     for (const [x0, x1] of wrapSpan(tx0, tx1)) for (const [y0, y1] of wrapSpan(ty0, ty1)) { out.scissor.set(x0, y0, x1 - x0, y1 - y0); renderer.setRenderTarget(out); renderer.render(dScene, quadCam); }
@@ -53,7 +55,7 @@ export function createLook(canvas, town) {
   const wrapSpan = (a, b) => { if (b - a >= DR) return [[0, DR]]; const m = v => ((v % DR) + DR) % DR, A = m(a), B = A + (b - a); return B <= DR ? [[A, B]] : [[A, DR], [0, B - DR]]; };
   // a tile freshly painted into a slot: its patch of the field starts flat (it held some other place's trails)
   const flat = new THREE.Color(0.5, 0.5, 0);
-  function clearPatch(i, j) { const S = tiles.TILE / WIN * DR, x = (((i * S) % DR) + DR) % DR, y = (((j * S) % DR) + DR) % DR, c = new THREE.Color(), a = renderer.getClearAlpha(); renderer.getClearColor(c); renderer.setClearColor(flat, 1);
+  function clearPatch(i, j) { const S = tiles.TILE / WIN * DR, x = (((i * S) % DR) + DR) % DR, y = (((j * S) % DR) + DR) % DR, c = new THREE.Color(), a = renderer.getClearAlpha(); renderer.getClearColor(c); renderer.setClearColor(flat, 0);
     for (const r of rts) { r.scissor.set(x, y, S, S); r.scissorTest = true; renderer.setRenderTarget(r); renderer.clear(true, false, false); } renderer.setRenderTarget(null); renderer.setClearColor(c, a); }
   // streaming: paint what the camera will need (all of it at the start, then a few ms a frame) and upload it
   tiles.update(town.start.x, town.start.y, Infinity);

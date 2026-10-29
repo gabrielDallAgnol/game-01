@@ -130,7 +130,10 @@ export function buildRegion(seed = 7) {
       place(b) { const def = { kind: 'building', look: 'flat', light: 0.5, height: 6, collide: 'box', ...b.def, size: (b.def && b.def.size) || [b.w, b.h] }; def.tags = [...((b.def && b.def.tags) || []), 'site', 'site.' + site.id]; def.id = def.id || 'site.' + site.id;
         const p = { ...Object.fromEntries(Object.entries(b).filter(([k]) => !reserved.has(k))), uid: ++W.uid, id: def.id, def, rot: b.rot || 0, district: 'site:' + site.id, site: site.id }; b.uid = p.uid; W.placed.push(p); return p; },   // the template's own object learns its uid (its rooftop anchors read it)
       land(poly, kind, extra = {}) { const l = { kind, poly, ...extra, site: site.id }; W.land.push(l); return l; },
-      street(pts, kind = 'service', w = 5) { const st = { id: 'ws' + W.streets.length, kind, w, walk: 0, marks: 'none', role: kind, pts, ends: [], district: 'site:' + site.id, site: site.id }; W.streets.push(st); return st; } };
+      street(pts, kind = 'service', w = 5) { if (pts.length >= 2) { const ext = (a, b, d) => { const L = Math.hypot(a.x - b.x, a.y - b.y) || 1; return { x: a.x + (a.x - b.x) / L * d, y: a.y + (a.y - b.y) / L * d }; };   // reach into the road and the yard: no gap at either end
+          const n = pts.length; pts = [ext(pts[0], pts[1], 3), ...pts.slice(1, n - 1), ext(pts[n - 1], pts[n - 2], 3)]; const dRoad = p => -((p.x - site.x) * -Math.sin(site.rot) + (p.y - site.y) * Math.cos(site.rot));
+          const ri = dRoad(pts[0]) < dRoad(pts[n - 1]) ? 0 : n - 1; pts[ri] = ext(pts[ri], pts[ri === 0 ? 1 : n - 2], 7); }
+        const st = { id: 'ws' + W.streets.length, kind, w, walk: 0, marks: 'none', role: kind, pts, ends: [], district: 'site:' + site.id, site: site.id }; W.streets.push(st); return st; } };
     if (SITES[site.id] && SITES[site.id].build) SITES[site.id].build(site, ctx);
     else standIn(site, ctx);
     site.buildings = W.placed.slice(ids0).filter(p => p.def.kind === 'building');

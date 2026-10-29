@@ -133,7 +133,8 @@ export function createMedium(o) {
   swap('            m = step(1.0 - grassK, h21(id + 7.31));', '            m = 0.0;   // [medium] the grass is hair, below');
   swap('            m = step(0.12, r.x);', '            m = 0.0;   // [medium] crowns are hair too, below');
   swap('        vec3 col = mix(base, sc * mix(1.0, 0.6, shadow), alpha);', `        vec3 col = mix(base, sc * mix(1.0, 0.6, shadow), alpha);
-        float hairK = ground + street * (1.0 - smoothstep(0.12, 0.3, inward)) * 0.8 + tree;
+        float trkM = street * step(0.08, sx.g) * (1.0 - step(0.2, sx.g));   // a farm track's grass crown and verges
+        float hairK = ground + street * (1.0 - smoothstep(0.12, 0.3, inward)) * 0.8 + tree + trkM * max(smoothstep(0.86, 0.97, inward), 1.0 - smoothstep(0.15, 0.3, inward)) * 0.9;
         if (hairK > 0.01) {
           vec2 o1 = vec2(0.45 / uS, 0.0), o2 = vec2(0.0, 0.45 / uS);   // the field is coarse (0.42 m a texel): blurred, so up close the parting is one smooth flow, not rings
           vec4 dH = (texture2D(tDist, t) * 2.0 + texture2D(tDist, t + o1) + texture2D(tDist, t - o1) + texture2D(tDist, t + o2) + texture2D(tDist, t - o2)) / 6.0; vec2 pushH = (dH.rg - 0.5) * 2.0; float pressH = dH.b;
@@ -143,6 +144,10 @@ export function createMedium(o) {
           // the grass has a size in the world (three layers: clumps, tufts, blades); the zoom only reveals or hides detail. A
           // layer too fine for the pixels fades into its own average, so nothing swaps as you zoom (see strands())
           float pr = mix(1.0, 0.65, pressH), thick = smoothstep(0.2, 0.75, vnoise(w * 0.07 + 3.7)) * 0.55 + 0.45;
+          // how tall this grass stands (a lawn ~12 cm; the land makes pasture shorter, a meadow knee-high): the trample
+          // rule answers by height: a lawn only presses and springs back; a meadow keeps a laid, combed track for minutes
+          float grassH = 0.12; vec4 trG = trample(w, grassH);
+          if (trG.z > 0.05 && dot(trG.xy, trG.xy) > 0.1) dir = normalize(mix(dir, trG.xy * sign(dot(trG.xy, dir) + 1e-3), trG.z));
           if (tree > 0.5) thick = 1.0;
           col *= mix(1.0, 0.7, hairK);
           // the combed partings: dark lanes where the strands part, running along the flow (world-fixed, so every zoom has them)
@@ -155,6 +160,7 @@ export function createMedium(o) {
             vec2 st = vis > 0.01 ? strands(w, dir, f, len, r, p, float(L) * 17.3) : vec2(0.0, 0.5);
             float cov = mix(mean, st.x, vis), hl = mix(0.5, st.y, vis);
             vec3 hc = mix(vec3(0.16, 0.2, 0.17), vec3(0.6, 0.67, 0.57), hl) * (0.75 + 0.5 * g0) * mix(1.0, 0.55, pressH) * mix(1.0, 0.6, shadow) * (L == 0 ? 0.8 : L == 1 ? 0.92 : 1.05);
+            hc = mix(hc, hc * 1.28 + vec3(0.03, 0.03, 0.0), trG.z * (1.0 - uNight * 0.6)) * (1.0 - 0.35 * trG.w);   // laid grass shows its pale sheen; the standing edge shades it
             if (tree > 0.5) hc = mix(vec3(0.07, 0.09, 0.07), vec3(0.62, 0.7, 0.55), tl * (0.5 + 0.5 * hl)) * (0.85 + 0.3 * g0) * (L == 0 ? 0.75 : 1.0);
             col = mix(col, hc * (L == 0 ? 1.0 : mix(0.8, 1.0, part)), hairK * thick * cov * (L == 0 ? 0.7 : mix(0.82, 1.0, part))); }   // the lanes only shade the grass, they never thin it
           // bigger plants: leafy clumps every few metres of open grass, swaying in the gusts; some in flower

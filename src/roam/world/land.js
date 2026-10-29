@@ -132,7 +132,7 @@ export function landSlots({ W, push, blocked, care }) {
 // ---------- the look: swaps into the ground shader (after the gardens'; see medium.js) ----------
 const MAIN = '      void main(){ vec2 w = world(), t = toTex(w); float g0 = gust(w);';
 const NIGHT = '        col *= mix(vec3(1.0), vec3(0.33, 0.35, 0.40), uNight);';
-const HAIRK = '        float hairK = ground + street * (1.0 - smoothstep(0.12, 0.3, inward)) * 0.8 + tree;';
+const HAIRK = '        float hairK = ground + street * (1.0 - smoothstep(0.12, 0.3, inward)) * 0.8 + tree + trkM * max(smoothstep(0.86, 0.97, inward), 1.0 - smoothstep(0.15, 0.3, inward)) * 0.9;';
 const HAIRL = '            float f = L == 0 ? 1.5 : L == 1 ? 4.2 : 12.0, len = (L == 0 ? 2.4 : L == 1 ? 0.85 : 0.34) * pr,';
 const HAIRC = '            vec3 hc = mix(vec3(0.16, 0.2, 0.17), vec3(0.6, 0.67, 0.57), hl) * (0.75 + 0.5 * g0) * mix(1.0, 0.55, pressH) * mix(1.0, 0.6, shadow) * (L == 0 ? 0.8 : L == 1 ? 0.92 : 1.05);';
 const CLUMP = '            if (h21(cid + 9.1) < 0.45) {';
@@ -169,6 +169,7 @@ ${MAIN}`);
 ${HAIRK}
         lGrass = mix(1.0, lGrass, lCov); hairK -= ground * (1.0 - clamp(lGrass, 0.0, 1.0));   // [land] crops, woods floor, water and hard lots grow no lawn`);
   swap(HAIRL, HAIRL.replace('* pr,', '* pr * lLen,'));
+  swap('          float grassH = 0.12;', '          float grassH = 0.12 * pow(lLen, 3.8);');   // the land's grass height for the trample rule: lawn 12 cm, pasture a few, meadow ~50 cm
   swap(HAIRC, HAIRC + '\n            hc *= lTone;');
   swap(CLUMP, '            if (h21(cid + 9.1) < lClump) {');   // [land] 0.45 on a lawn
   swap(BLOOM, 'step(fl, lBloom)');
@@ -190,15 +191,18 @@ ${HAIRK}
               dk *= 0.92 + 0.16 * lFv; lt *= 0.94 + 0.12 * lFv;
               float lodge = smoothstep(0.62, 0.72, vnoise(w * 0.2 + lFv * 5.0)) * (1.0 - lCare);   // flattened by the rain where nobody came
               vec2 sd = normalize(rd + WD * (g0 - 0.25) * 1.3 + rp * (vnoise(w * 0.3) - 0.5) * 0.5); if (lodge > 0.5) sd = normalize(rp + rd * 0.3);
-              if (lPl > 0.02) sd = normalize(mix(sd, lPush / lPl, clamp(lPl * 1.6, 0.0, 1.0)));
+              if (lPl > 0.02) sd = normalize(mix(sd, lPush / lPl, clamp(lPl * 2.2, 0.0, 1.0)));   // a metre tall: it parts wide round what pushes through
+              vec4 tr = trample(w, bar ? 0.85 : 1.0); if (tr.z > 0.05 && dot(tr.xy, tr.xy) > 0.1) sd = normalize(mix(sd, tr.xy * sign(dot(tr.xy, sd) + 1e-3), tr.z));   // laid: the stalks lie along the track
               vec3 cc = mix(dk * 0.7, dk, rowc) * (0.85 + 0.3 * g0);
-              for (int L = 0; L < 2; L++) { float f = L == 0 ? 3.0 : 8.0, len = (L == 0 ? (bar ? 0.55 : 0.42) : 0.22) * mix(1.0, 0.6, dP.b), r = L == 0 ? 0.05 : 0.022, p = 0.85;
+              for (int L = 0; L < 2; L++) { float f = L == 0 ? 3.0 : 8.0, len = (L == 0 ? (bar ? 0.55 : 0.42) : 0.22) * mix(1.0, 0.6, dP.b) * (1.0 + 0.9 * tr.z), r = L == 0 ? 0.05 : 0.022, p = 0.85;   // a laid stalk shows its whole length
                 float vis = smoothstep(0.35, 1.0, 2.0 * r * uPpm), mean = 1.0 - exp(-p * f * f * 1.4 * r * len);
                 vec2 st = vis > 0.01 ? strands(w, sd, f, len, r, p, float(L) * 23.1 + 5.0) : vec2(0.0, 0.5);
                 float cov = mix(mean, st.x, vis), hl = mix(0.55, st.y, vis);
                 vec3 sc = mix(dk, lt, hl) * (0.8 + 0.4 * g0) * (L == 0 ? 0.92 : 1.05);
                 cc = mix(cc, sc, cov * 0.92); }
-              cc *= mix(1.0, 0.62 + 0.38 * smoothstep(0.1, 0.6, rowc), rowVis * (1.0 - lodge)); cc = mix(cc, cc * vec3(0.8, 0.8, 0.85), lodge * 0.5);
+              cc *= mix(1.0, 0.62 + 0.38 * smoothstep(0.1, 0.6, rowc), rowVis * (1.0 - lodge) * (1.0 - tr.z)); cc = mix(cc, cc * vec3(0.8, 0.8, 0.85), lodge * 0.5);
+              // a laid track: the flattened straw catches the sun (a paler, glossier band), the standing wall shades its far side
+              cc = mix(cc, mix(cc, lt * 1.12, 0.45), tr.z * 0.8 * (1.0 - uNight * 0.6)); cc *= 1.0 - 0.45 * tr.w;
               cc = mix(cc, mix(cc, vec3(0.34, 0.31, 0.25), 0.35), (1.0 - lCare) * 0.6);   // a neglected crop goes grey
               lc = mix(cc, soil * 0.9, tram * 0.85);
             } else if (lK < 3.5) {   // rape, the young winter crop: dark leafy rosettes in rows on bare soil
@@ -210,13 +214,20 @@ ${HAIRK}
                   rc = clump(rc, w, ctr, 0.24 + 0.08 * rr.y, rr, cid, step(h21(cid + 8.8), 0.05 * (1.0 - lCare)), vec3(0.88, 0.78, 0.26), 0.55, g0, dP.b); } }
               vec3 avg = mix(soil, vec3(0.2, 0.3, 0.18), 0.62);
               lc = mix(avg, rc * vec3(0.72, 0.84, 0.76), vis);
-            } else if (lK < 4.5) {   // plough: turned furrows along the rows, lit by the sun on their faces; clods
-              float ph = fract(rv); vec3 n3 = normalize(vec3(rp * -sin(ph * 6.2832) * 0.9 * rowVis, 1.0)); float li = clamp(dot(n3, SUN3), 0.0, 1.0);
-              float cv = smoothstep(2.0, 5.0, 0.18 * uPpm), clod = (vnoise(w * 5.5 + lFv * 3.0) - 0.5) * cv + (h21(floor(w * 7.0)) - 0.5) * 0.4 * cv;
-              lc = mix(vec3(0.15, 0.115, 0.09), vec3(0.4, 0.31, 0.22), clamp(li * 0.9 + clod * 0.35 - 0.12, 0.0, 1.0)) * (0.9 + 0.2 * vnoise(w * 0.3 + 2.0));
-              lc *= mix(1.0, 0.8 + 0.2 * smoothstep(0.0, 0.3, abs(ph - 0.5)), rowVis);
+            } else if (lK < 4.5) {   // plough: turned furrows along the rows, a pale crest and a dark trough (they read in any light), the
+              // sun on their faces, clods along the ridges, damp patches, and rain standing in some troughs
+              float ph = fract(rv), ridge = 1.0 - abs(ph - 0.5) * 2.0, slope = ph < 0.5 ? 1.0 : -1.0;
+              vec3 n3 = normalize(vec3(rp * slope * 0.75 * rowVis, 1.0)); float li = clamp(dot(n3, SUN3), 0.0, 1.0);
+              float cv = smoothstep(2.0, 5.0, 0.18 * uPpm), clod = (vnoise(vec2(u * 2.2, v * 9.0) + lFv * 3.0) - 0.5) * cv * (0.4 + 0.6 * ridge);
+              float damp = smoothstep(0.45, 0.75, vnoise(w * 0.06 + lFv * 7.0) * 0.7 + vnoise(w * 0.4) * 0.3);
+              vec3 dry = vec3(0.36, 0.28, 0.2), wet = vec3(0.2, 0.15, 0.11);
+              lc = mix(dry, wet, damp * 0.7) * (0.55 + 0.55 * li + clod * 0.5);
+              lc *= mix(1.0, 0.55 + 0.6 * smoothstep(0.08, 0.7, ridge), rowVis);   // crest light, trough dark (ambient), whatever the sun
+              lc = mix(lc, lc * 1.25 + vec3(0.03, 0.025, 0.02), (1.0 - smoothstep(0.0, 0.12, abs(ph - 0.5))) * rowVis * 0.6);   // the crest's dry pale lip
+              { float pool = step(0.62, vnoise(vec2(u * 0.12, floor(rv) * 0.7) + lFv * 4.0)) * damp * (1.0 - smoothstep(0.0, 0.1, ridge)) * rowVis;   // rain in a trough
+                vec3 sky = mix(vec3(0.5, 0.57, 0.64) * tint(), vec3(0.05, 0.06, 0.09), uNight); lc = mix(lc, sky * 0.55, pool * 0.75); }
               { vec2 sc = floor(w / 0.9); vec2 sp2 = (sc + 0.2 + 0.6 * h22(sc + 3.3)) * 0.9; float sv = smoothstep(2.0, 4.0, 0.07 * uPpm);   // stones the plough turned up
-                lc = mix(lc, vec3(0.5, 0.48, 0.44) * (0.6 + 0.6 * li), step(h21(sc + 7.7), 0.18) * (1.0 - smoothstep(0.045, 0.075, length(w - sp2))) * sv); }
+                lc = mix(lc, vec3(0.5, 0.48, 0.44) * (0.6 + 0.6 * li), step(h21(sc + 7.7), 0.12) * (1.0 - smoothstep(0.045, 0.075, length(w - sp2))) * sv); }
             } else {   // stubble: last year's cut, pale short stalks in the combine's swaths, a windrow of loose straw
               float sw = fract(v / 6.0 + lFv), wr = 1.0 - smoothstep(0.06, 0.12, abs(sw - 0.5));
               vec3 sb = vec3(0.42, 0.38, 0.28) * (0.94 + 0.08 * step(0.5, fract(v / 12.0 + lFv))) * (0.88 + 0.24 * vnoise(w * 0.8));

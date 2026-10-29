@@ -35,14 +35,18 @@ export function buildTown(seed = 7) {
   // window), decal (the atoms' marks: r paint, g dark, b water)
   const tiles = createTiles({ world: size, layers: [{ name: 'roof', bg: 'rgba(0,0,0,0)' }, { name: 'street', bg: 'rgba(0,0,0,0)' }, { name: 'misc', bg: '#000' }, { name: 'trees', bg: '#000' },
     { name: 'light', bg: '#000' }, { name: 'ldir', bg: '#808000' }, { name: 'decal', bg: '#000' }, { name: 'land', bg: '#000' }] });
+  // brooks and rivers are water like the lake (the land map: shore, reeds, the sky in them), as a ribbon round their line;
+  // a road over one is a bridge (the street draws over it). They don't block feet: a brook is forded
+  for (const wt of W.water || []) { const half = (wt.w || 6) / 2, L = [], R = [], pts = wt.pts;
+    for (let i = 0; i < pts.length; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], d = Math.hypot(b.x - a.x, b.y - a.y) || 1, nx = -(b.y - a.y) / d, ny = (b.x - a.x) / d;
+      L.push({ x: pts[i].x + nx * half, y: pts[i].y + ny * half }); R.push({ x: pts[i].x - nx * half, y: pts[i].y - ny * half }); }
+    W.land.push({ kind: 'water', poly: L.concat(R.reverse()), name: wt.name || 'the brook', brook: true }); }
   landItems(W, (layer, order, x, y, r, draw) => tiles.add({ layer, order, x, y, r, draw }));   // the land's map (world/land.js)
   const item = (layer, order, x, y, r, draw) => tiles.add({ layer, order, x, y, r, draw });
   const rOf = p => Math.hypot(p.w, p.h) / 2 + 1;
   for (const p of trees) { const r = (p.r || p.def.size[0] / 2) * 0.86;
     item('misc', 1000, p.x, p.y, r + 1, X => { X.globalCompositeOperation = 'lighter'; X.fillStyle = 'rgb(255,0,0)'; X.beginPath(); X.arc(p.x, p.y, r, 0, 7); X.fill(); });
     item('trees', 1000, p.x, p.y, r + 1, X => { X.globalCompositeOperation = 'lighten'; const g = X.createRadialGradient(p.x - r * 0.15, p.y - r * 0.2, 0, p.x, p.y, r); g.addColorStop(0, 'rgb(255,0,0)'); g.addColorStop(0.6, 'rgb(187,0,0)'); g.addColorStop(1, 'rgb(0,0,0)'); X.fillStyle = g; X.beginPath(); X.arc(p.x, p.y, r, 0, 7); X.fill(); }); }
-  for (const wt of W.water || []) { const xs = wt.pts.map(q => q.x), ys = wt.pts.map(q => q.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    item('misc', 1500, cx, cy, Math.hypot(Math.max(...xs) - cx, Math.max(...ys) - cy) + (wt.w || 6), X => { X.globalCompositeOperation = 'lighter'; X.strokeStyle = 'rgb(0,255,0)'; X.lineWidth = wt.w || 6; X.beginPath(); wt.pts.forEach((q, i) => i ? X.lineTo(q.x, q.y) : X.moveTo(q.x, q.y)); X.stroke(); }); }
   // roofs: r the slope's axis, g which way along it this side faces (the shader lights it from the moving sun), b gable
   for (const p of buildings) item('roof', 1000, p.x, p.y, rOf(p), X => { X.translate(p.x, p.y); X.rotate(p.rot);
     if (p.def.look === 'gable' || p.def.look === 'church') for (const side of [-1, 1]) { const nx = -Math.sin(p.rot) * side, ny = Math.cos(p.rot) * side, A = ang(p.rot + Math.PI / 2) / 255 * Math.PI, pos = nx * Math.cos(A) + ny * Math.sin(A) > 0; X.fillStyle = `rgb(${Math.round(A / Math.PI * 255)},${pos ? 255 : 0},255)`; X.fillRect(-p.w / 2, side < 0 ? -p.h / 2 : 0, p.w, p.h / 2); }
@@ -50,10 +54,11 @@ export function buildTown(seed = 7) {
   if (W.plaza) { const P = W.plaza; item('street', 2000, P.x, P.y, Math.hypot(P.w, P.h) / 2 + 1, X => { for (const [inset, lvl] of [[0, 80], [1.5, 255]]) { X.save(); X.translate(P.x, P.y); X.rotate(P.rot); X.fillStyle = `rgb(${ang(P.rot)},200,${lvl})`; X.fillRect(-P.w / 2 + inset, -P.h / 2 + inset, P.w - 2 * inset, P.h - 2 * inset); X.restore(); } }); }
   // streets drawn wider than the engine lays them (x1.6, paths x1.4) with 2.4 m pavements: the figures are drawn big, and a
   // life-size road looked like a lane beside them (roofs still win where a house stands close to the kerb)
+  // (a drive or track draws under the roads: where it overlaps one, the road wins)
   // each street kind has its profile (world/streets.js): width, the bands from its edge in (pavement, kerb, road), marks
   const sw = st => profileOf(st).width(st);
-  for (let k = 0; k < 3; k++) for (const st of W.streets) { const P = profileOf(st), band = P.bands[k]; if (!band) continue; const [inset, lvl] = band; for (let i = 0; i < st.pts.length - 1; i++) { const a = st.pts[i], b = st.pts[i + 1], w = sw(st) - 2 * inset; if (w <= 0.4) continue;
-    item('street', 3000 + k * 1000, (a.x + b.x) / 2, (a.y + b.y) / 2, Math.hypot(b.x - a.x, b.y - a.y) / 2 + w / 2 + 1, X => { X.lineCap = 'round'; X.strokeStyle = `rgb(${ang(Math.atan2(b.y - a.y, b.x - a.x))},${P.kind},${lvl})`; X.lineWidth = w; X.beginPath(); X.moveTo(a.x, a.y); X.lineTo(b.x, b.y); X.stroke(); }); } }
+  for (let k = 0; k < 5; k++) for (const st of W.streets) { const P = profileOf(st), band = P.bands[k]; if (!band) continue; const [inset, lvl] = band, under = st.kind === 'drive' || st.kind === 'track' ? -2500 : 0; for (let i = 0; i < st.pts.length - 1; i++) { const a = st.pts[i], b = st.pts[i + 1], w = sw(st) - 2 * inset; if (w <= 0.4) continue;
+    item('street', 3000 + k * 1000 + under, (a.x + b.x) / 2, (a.y + b.y) / 2, Math.hypot(b.x - a.x, b.y - a.y) / 2 + w / 2 + 1, X => { X.lineCap = 'round'; X.strokeStyle = `rgb(${ang(Math.atan2(b.y - a.y, b.x - a.x))},${P.kind},${lvl})`; X.lineWidth = w; X.beginPath(); X.moveTo(a.x, a.y); X.lineTo(b.x, b.y); X.stroke(); }); } }
   for (const st of W.streets) if (profileOf(st).marks && st.w >= 7) { const xs = st.pts.map(q => q.x), ys = st.pts.map(q => q.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
     item('misc', 6000, cx, cy, Math.hypot(Math.max(...xs) - cx, Math.max(...ys) - cy) + 1, X => { X.globalCompositeOperation = 'lighter'; X.strokeStyle = 'rgb(0,255,0)'; X.lineWidth = 0.24; X.setLineDash([3, 4]); X.beginPath(); st.pts.forEach((q, i) => i ? X.lineTo(q.x, q.y) : X.moveTo(q.x, q.y)); X.stroke(); }); }
   // on a street or its pavement (from the streets' own lines, on a 16 m grid of segments): for the gardens, the dead's
@@ -69,7 +74,7 @@ export function buildTown(seed = 7) {
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, (gx + 0.5) / GR, (gy + 0.5) / GR, pad)) solid.set(gx, gy, 1); };
   for (const p of buildings) if (p.def.collide !== 'none') mark(p, 0.15);
   // the lake and the ponds are walls too, a metre in from the shore (the reeds and the mud stay walkable); the brook is crossed by the roads' bridges
-  for (const l of W.land || []) { if (l.kind !== 'water') continue; const xs = l.poly.map(q => q.x), ys = l.poly.map(q => q.y);
+  for (const l of W.land || []) { if (l.kind !== 'water' || l.brook) continue; const xs = l.poly.map(q => q.x), ys = l.poly.map(q => q.y);
     for (let gy = Math.max(0, Math.floor(Math.min(...ys) * GR)); gy <= Math.min(GH - 1, Math.ceil(Math.max(...ys) * GR)); gy++) for (let gx = Math.max(0, Math.floor(Math.min(...xs) * GR)); gx <= Math.min(GW - 1, Math.ceil(Math.max(...xs) * GR)); gx++) {
       const x = (gx + 0.5) / GR, y = (gy + 0.5) / GR; if (pip(l.poly, x, y) && pip(l.poly, x + 1, y) && pip(l.poly, x - 1, y) && pip(l.poly, x, y + 1) && pip(l.poly, x, y - 1)) solid.set(gx, gy, 1); } }   // a canopy (a gas station's) is ridden under
   const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); return gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid.get(gx, gy) === 1; };

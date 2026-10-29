@@ -25,7 +25,7 @@ function frame(site, ctx) {
       def: { kind: 'building', look, tags: ['site', 'site.' + site.id, ...tags], light: o.light || 0, height: o.height || 6, size: [w, h], ...(o.collide ? { collide: o.collide } : {}) } };
     if (o.door) b.door = P(o.door[0], o.door[1]); ctx.place(b); return b; };
   const land = (u0, v0, u1, v1, kind) => ctx.land([P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1)], kind);
-  const drive = (pts, w = 7) => ctx.street(pts.map(([u, v]) => P(u, v)), 'drive', w);
+  const drive = (pts, w = 7, kind = 'drive') => ctx.street(pts.map(([u, v]) => P(u, v)), kind, w);
   // a big flat roof's plant: skylight strips in rows, HVAC units near the back, a few vents
   const plant = (b, u0, v0, w, h) => { const spot = (u, v, plant, extra = {}) => an('roof', u, v, 0, { spot: true, plant, look: b.def.look, tags: b.def.tags, uid: b.uid, w: 4, h: 4, ...extra });
     const rows = h > 30 ? 3 : 2; for (let r = 0; r < rows; r++) { const v = v0 - h / 2 + h * (r + 1) / (rows + 1) + 1.5; for (let u = u0 - w / 2 + 7; u + 5 < u0 + w / 2 - 4; u += 13) spot(u + 5, v, 'sky', { len: 10 }); }
@@ -155,7 +155,7 @@ export const SITES = {
     for (const [u, v] of [[-28, -29], [-24, -33], [16, -16]]) an('apron', U(u), v, 0.2 * R(u + 40), { zone: 'bales' });
     if (R(10) < 0.6) bld(U(27), 0, 14, 6, 'gable', ['outbuilding', 'farm'], { a: PI / 2, height: 5 });
     grid(U(-34) < U(22) ? U(-34) : U(22), -20, U(-34) < U(22) ? U(22) : U(-34), 12, 6.5, 'farmyard', (u, v) => Math.hypot(u - U(23), v + 17) > 6);
-    drive([[U(-12), 12], [U(-12), H / 2 + 5]], 5); } },
+    drive([[U(-12), 12], [U(-12), H / 2 + 5]], 5, 'track'); } },
 
   // a car repair garage: a ribbed workshop unit with one or two roller doors, a ramp on the forecourt, tyres against the
   // walls, the cars waiting in a row of bays by the road

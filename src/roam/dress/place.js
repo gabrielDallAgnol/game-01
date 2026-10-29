@@ -30,7 +30,14 @@ export function makePlacer({ ATOMS, STORIES, slots, care, seed, flags }) {
       if (st.build(c.s, put, hash(seed, c.s.x, c.s.y, 5), flags) === false) continue;
       claimed.push({ x: c.s.x, y: c.s.y, r: st.r, story: st.id }); n++; } } }
   // 2. atoms
-  function atoms(free) { for (const atom of ATOMS) { if (!atom.slot) continue; const list = slots.by[atom.slot] || [];
+  // an atom that attaches to others (on: { atom, variant?, story? } a placed host; or { slot, tags?, care? } a slot kind):
+  // it stands where its host stands, at its offset `at` [along, across] in the host's frame
+  function attach(atom) { const o = atom.on, hits = [];
+    if (o.atom) for (const h of out) { if (h.atom.id !== o.atom || (o.variant && !o.variant.includes(h.variant)) || (o.story && h.story !== o.story)) continue; hits.push(h); }
+    else for (const s of slots.by[o.slot] || []) { if (o.tags && !(s.tags || []).some(t => o.tags.includes(t))) continue; if (o.care && (s.care < o.care[0] || s.care > o.care[1])) continue; if (s.spot) continue; hits.push(s); }
+    for (const h of hits) { if (hash(seed, h.x, h.y, 41, atom.id.length) >= atom.chance) continue; const a = h.ang || 0, [dx, dy] = atom.at || [0, 0];
+      add(atom, { ...(h.slot || h), x: h.x + dx * Math.cos(a) - dy * Math.sin(a), y: h.y + dx * Math.sin(a) + dy * Math.cos(a), ang: a, care: h.care }, { host: h.id }); } }
+  function atoms(free) { for (const atom of ATOMS) { if (atom.on) { attach(atom); continue; } if (!atom.slot) continue; const list = slots.by[atom.slot] || [];
     for (const s of list) { const r = hash(seed, s.x, s.y, atom.id.charCodeAt(0), atom.id.length); if (r >= atom.chance) continue;
       const f = atom.fit(s.care, s, flags); if (f <= 0 || hash(seed, s.y, s.x, 3, atom.id.length) > f) continue;
       if (s.kind !== 'roof' && (!free(s.x, s.y) || claimed.some(q => Math.hypot(q.x - s.x, q.y - s.y) < q.r))) continue;   // a roof is not ground: it stands on the house, not on what the stories claimed

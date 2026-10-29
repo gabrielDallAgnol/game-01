@@ -7,6 +7,7 @@ import { STRANDS } from './strands.js';
 import { GROUND_MARKS } from './marks.js';
 import { SITE_ATOMS } from './sites.js';
 import { FARM } from './farm.js';
+import { PLUMES } from './plume.js';
 export const ATOMS = [
   ...STREET,
   ...MARKS,
@@ -17,4 +18,5 @@ export const ATOMS = [
   ...GROUND_MARKS,
   ...SITE_ATOMS,
   ...FARM,
+  ...PLUMES,   // last: plumes attach to atoms already placed
 ];

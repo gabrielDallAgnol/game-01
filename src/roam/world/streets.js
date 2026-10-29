@@ -18,4 +18,6 @@ export const STREET_KINDS = {
 };
 // a site's drive or lot lane: plain tarmac its own width, no pavement, no marks
 STREET_KINDS.drive = { width: st => st.w, bands: [[0, 150], [0.8, 255]], kind: 255, pavement: false, parking: false, marks: false };
+// a farm track: packed earth, two wheel ruts, grass down the middle (the street map's g 40; inward rises to the centre)
+STREET_KINDS.track = { width: st => st.w, bands: [[0, 30], [0.6, 90], [1.1, 150], [1.6, 205], [2.1, 255]], kind: 40, pavement: false, parking: false, marks: false };
 export const profileOf = st => STREET_KINDS[st.kind] || STREET_KINDS.local;

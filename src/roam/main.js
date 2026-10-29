@@ -5,6 +5,7 @@ import { buildTown } from './town.js';
 import { createRoam, ROAM } from './sim.js';
 import { createLook } from './look.js';
 import { createUi } from './ui.js';
+import { emit as plumeEmit, drawPlumes } from './atoms/plume.js';
 
 const $ = id => document.getElementById(id);
 try { start(); } catch (e) { console.error(e); const el = $('err'); el.hidden = false; el.textContent = 'The game could not start: ' + (e && e.message || e); }
@@ -51,6 +52,23 @@ function start() {
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
   // the trees on a 16 m grid (a crown never spans more than one cell's neighbours: each tree is filed in every cell its crown touches)
   const treeGrid = new Map(); for (const p of town.trees) { const r = (p.r || p.def.size[0] / 2); for (let j = Math.floor((p.y - r) / 16); j <= Math.floor((p.y + r) / 16); j++) for (let i = Math.floor((p.x - r) / 16); i <= Math.floor((p.x + r) / 16); i++) { const kk = i * 4096 + j; if (!treeGrid.has(kk)) treeGrid.set(kk, []); treeGrid.get(kk).push(p); } }
+  // chaff: what the bike (or Kai at a run) throws up from tall plants, by what it is riding through (the char map): straw
+  // and ears from wheat and barley, grass seed from a meadow. Render-side only; a fixed pool
+  const CHAFF = { w: ['#e2c27a', '#c9a35a', 0.9], b: ['#d8d6a4', '#b8b582', 0.85], m: ['#b9c79a', '#8fa07a', 0.4], r: ['#5d7d45', '#3f5a30', 1.1, 'leaf'] };   // rape: leaves torn off the rosettes
+  const chaff = Array.from({ length: 90 }, () => ({ life: 0 })); let chaffI = 0, chaffAcc = 0;
+  function throwChaff(k, dt) { const sp = Math.hypot(k.vx, k.vy), c = town.chars && CHAFF[town.chars.at(k.x, k.y)]; if (!c || sp < 2) return;
+    chaffAcc += dt * sp * c[2] * (k.riding ? 3.2 : 1.2);
+    while (chaffAcc >= 1) { chaffAcc -= 1; const p = chaff[chaffI++ % chaff.length], a = Math.atan2(k.vy, k.vx) + Math.PI + (Math.random() - 0.5) * 1.6, v = 1.5 + Math.random() * 2.5;
+      Object.assign(p, { x: k.x - k.vx * 0.08, y: k.y - k.vy * 0.08, z: 0.6 + Math.random() * 0.6, vx: Math.cos(a) * v + k.vx * 0.25, vy: Math.sin(a) * v + k.vy * 0.25, vz: 1.8 + Math.random() * 2.2, life: 1.2 + Math.random() * 0.9, rot: Math.random() * 6.3, spin: (Math.random() - 0.5) * 14, col: Math.random() < 0.5 ? c[0] : c[1], leaf: c[3] === 'leaf' }); if (p.leaf) { p.vz += 1.5; p.life += 0.8; } } }
+  function drawChaff(dt) { fx.lineCap = 'round'; for (const p of chaff) { if (p.life <= 0) continue; p.life -= dt; p.vz -= 6 * dt; p.z += p.vz * dt; if (p.z < 0) { p.z = 0; p.vx *= 0.5; p.vy *= 0.5; p.vz = 0; }
+      const drag = Math.exp(-dt * 1.8); p.vx = p.vx * drag + 0.731 * 1.2 * dt; p.vy = p.vy * drag + 0.682 * 1.2 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.spin * dt;
+      const [X, Y] = toS(p.x, p.y - p.z * 0.5), L = Math.max(1.5, 0.22 * view.ppm); fx.globalAlpha = Math.min(1, p.life * 2); fx.strokeStyle = p.col; fx.lineWidth = Math.max(1, view.ppm * 0.035);
+      if (p.leaf) { const fl = Math.abs(Math.cos(p.rot * 1.7)); fx.fillStyle = p.col; fx.beginPath(); fx.ellipse(X, Y, L * 0.7, Math.max(0.6, L * 0.32 * fl), p.rot, 0, 6.29); fx.fill(); continue; }   // a leaf tumbles: it thins to its edge as it turns
+      fx.beginPath(); fx.moveTo(X - Math.cos(p.rot) * L / 2, Y - Math.sin(p.rot) * L / 2); fx.lineTo(X + Math.cos(p.rot) * L / 2, Y + Math.sin(p.rot) * L / 2); fx.stroke(); } fx.globalAlpha = 1; }
+  // the bike's dust on dirt (ploughed fields, stubble, gravel, yards, farm tracks): the plume atom's 'dust' preset
+  const DUSTY = new Set(['%', 's', ':']); let dustAcc = 0;
+  function dustOf(k, dt) { if (!k.riding || !town.chars) return; const sp = Math.hypot(k.vx, k.vy); if (sp < 3 || !DUSTY.has(town.chars.at(k.x, k.y))) return;
+    dustAcc += dt * sp * 1.4; while (dustAcc >= 1) { dustAcc -= 1; plumeEmit('dust', k.x - k.vx * 0.12, k.y - k.vy * 0.12, 0.2, -k.vx * 0.15, -k.vy * 0.15, 0.7 + sp / 20); } }
   const falls = []; let acc = 0, last = performance.now(), t = 0;
   function frame(now) {
     const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw); last = now; t += dt;
@@ -81,6 +99,8 @@ function start() {
     for (const i of town.dress.live) { if (Math.abs(i.x - cam.x) > 90 || Math.abs(i.y - cam.y) > 120) continue; if (!i.st) i.atom.live.init(i); i.atom.live.step(i, dt, { kai: R.kai, t, night, WIND: { x: 0.731, y: 0.682 }, town }); }
     try { look.draw(fx, { sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
     for (const o of R.dead) if (o.fa !== undefined) faMap.set(o.id, o.fa); if (faMap.size > 4 * S.dead.length + 50) faMap.clear();   // the dead keep facing where they last walked
+    dustOf(R.kai, dt); drawPlumes(fx, toS, view.ppm, dt, { x: 0.731, y: 0.682 }, night, cssW, cssH);
+    throwChaff(R.kai, dt); drawChaff(dt);
     ui.arrows(toS, cssW, cssH); ui.update(evs);
     requestAnimationFrame(frame);
   }

@@ -20,6 +20,13 @@ export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(f
       float gust(vec2 p){ return smoothstep(0.3, 0.85, vnoise(p * 0.045 - WD * uTime * 0.55) * 0.7 + vnoise(p * 0.12 - WD * uTime * 0.95) * 0.3); }
       vec2 voro(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0; for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)), r = g + h22(i + g) - f; float d = dot(r, r); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; } return vec2(sqrt(d1), sqrt(d2)); }
       float treeH(vec2 p){ return texture2D(tTreeH, toTex(p)).r; }
+      // trample(w, H): how a plant H metres tall answers what passed over it. x,y: the way its stalks lie (along the track:
+      // across the laid field's gradient); z: how laid it is (short grass springs back at once: only the fast press shows;
+      // knee-high and taller stays down); w: the shadow the standing wall beside a laid track throws into it (tall only)
+      vec4 trample(vec2 w, float H){ float e = 0.35, fl = texture2D(tDist, toTex(w)).a, fx = texture2D(tDist, toTex(w + vec2(e, 0.0))).a - texture2D(tDist, toTex(w - vec2(e, 0.0))).a, fy = texture2D(tDist, toTex(w + vec2(0.0, e))).a - texture2D(tDist, toTex(w - vec2(0.0, e))).a;
+        vec2 g = vec2(fx, fy); float gl = length(g); vec2 lay = gl > 0.02 ? vec2(-g.y, g.x) / gl : vec2(0.0);
+        float laid = smoothstep(0.08, 0.5, fl) * smoothstep(0.12, 0.6, H), wall = H * 0.9, up = texture2D(tDist, toTex(w + SUNV * min(1.6, wall / max(0.3, uSun.z)))).a;
+        return vec4(lay, laid, laid * (1.0 - smoothstep(0.05, 0.4, up)) * smoothstep(0.4, 1.0, H)); }
       void main(){ vec2 w = world(), t = toTex(w); float g0 = gust(w);
         // the crown sways with the gusts: tree lookups come from upwind
         float h0 = treeH(w); vec2 sway = WD * ((g0 - 0.3) * 0.6 + 0.08 * sin(uTime * 1.7 + w.x * 0.3)) * smoothstep(0.0, 0.25, h0 + 0.15);
@@ -58,7 +65,11 @@ export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(f
         // stone where the slabs meet the road, and a fine dark-and-light edge where the grass meets the pavement
         { float walk = street * (1.0 - smoothstep(0.44, 0.52, inward)) * step(sx.g, 0.6) + street * step(0.25, sx.g) * (1.0 - step(0.5, sx.g)) * 0.0;
           float footpath = street * (1.0 - smoothstep(0.3, 0.4, sx.g)) * step(0.2, sx.g);
-          walk = max(street * (1.0 - smoothstep(0.44, 0.52, inward)) * (1.0 - setts), footpath);
+          // a farm track (g ~0.16): packed earth, two wheel ruts, a grass crown down the middle (the hair grows there too)
+          float trk = street * step(0.08, sx.g) * (1.0 - step(0.2, sx.g));
+          if (trk > 0.0) { float rut = 1.0 - smoothstep(0.08, 0.2, abs(inward - 0.55)); vec3 earth2 = vec3(0.3, 0.25, 0.19) * (0.85 + 0.3 * vnoise(w * 1.3)) + (h21(floor(w * 14.0)) - 0.5) * 0.04 * smoothstep(1.2, 3.0, uPpm / 14.0);
+            earth2 = mix(earth2, earth2 * 0.62, rut); earth2 = mix(earth2, vec3(0.42, 0.36, 0.28), dust * 0.5); asph = mix(asph, earth2, trk); }
+          walk = max(street * (1.0 - smoothstep(0.44, 0.52, inward)) * (1.0 - setts), footpath) * (1.0 - trk);
           float sa2 = sx.r * 3.14159; vec2 Sd = vec2(cos(sa2), sin(sa2)), Sp = vec2(-Sd.y, Sd.x); float lw = max(0.018, 0.55 / uPpm);
           float joint = max(lines(dot(w, Sd), 1.1, lw), lines(dot(w, Sp) + 0.3, 0.75, lw) * 0.0 + lines(dot(w, Sp), 1.5, lw) * 0.6);
           vec3 slab = vec3(0.27, 0.27, 0.265) + (h21(floor(vec2(dot(w, Sd) / 1.1, dot(w, Sp) / 1.5))) - 0.5) * 0.035; slab = mix(slab, vec3(0.13, 0.135, 0.13), joint * 0.85);
@@ -122,12 +133,13 @@ export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(f
         col += vec3(0.62, 0.40, 0.16) * (lamp + fire) * (0.45 + 0.55 * best);
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`;
 export const DIST = `precision highp float; varying vec2 vUv;
-    uniform sampler2D tPrev; uniform vec4 uA[48]; uniform vec4 uB[48]; uniform int uN; uniform float uDecayPush, uDecayPress, uS; uniform vec2 uOrigin, uCam;
-    void main(){ vec4 d = texture2D(tPrev, vUv); vec2 push = (d.rg - 0.5) * 2.0; float press = d.b;
+    uniform sampler2D tPrev; uniform vec4 uA[48]; uniform vec4 uB[48]; uniform int uN; uniform float uDecayPush, uDecayPress, uDecayFlat, uS; uniform vec2 uOrigin, uCam;
+    void main(){ vec4 d = texture2D(tPrev, vUv); vec2 push = (d.rg - 0.5) * 2.0; float press = d.b, lay = max(0.0, d.a - uDecayFlat);   // a: laid flat (tall plants stay down for minutes)
       float pl = length(push); if (pl > 0.0) push *= max(0.0, pl - uDecayPush) / pl; press = max(0.0, press - uDecayPress);
       vec2 w0 = uOrigin + vUv * uS, w = w0 + uS * floor((uCam - w0) / uS + 0.5);   // the field is a ring too: this texel's place nearest the camera
       for (int k = 0; k < 48; k++) { if (k >= uN) break; vec4 A = uA[k], B = uB[k]; vec2 dv = w - A.xy; float r = length(dv);
         if (r < B.x) { float f = 1.0 - r / B.x; vec2 o = r > 0.001 ? dv / r : vec2(0.0); float vl = length(A.zw); vec2 v = vl > 0.05 ? A.zw / vl : vec2(0.0);
-          vec2 p = (o * 0.85 + v * 0.55) * min(1.0, vl / 1.2);   // only what moves parts the grass (a standing figure just presses it: no cowlick) float q = length(p); if (q > 0.001) push = mix(push, p / q * min(1.0, q), clamp(f * 0.7, 0.0, 1.0));
-          press = max(press, B.y * smoothstep(0.0, 0.55, f)); } }
-      gl_FragColor = vec4(push * 0.5 + 0.5, press, 1.0); }`;
+          // (only what moves parts the grass: a standing figure just presses it, no cowlick)
+          vec2 p = (o * 0.85 + v * 0.55) * min(1.0, vl / 1.2); float q = length(p); if (q > 0.001) push = mix(push, p / q * min(1.0, q), clamp(f * 0.7, 0.0, 1.0));
+          press = max(press, B.y * smoothstep(0.0, 0.55, f)); lay = max(lay, B.z * smoothstep(0.3, 0.55, f)); } }
+      gl_FragColor = vec4(push * 0.5 + 0.5, press, lay); }`;
