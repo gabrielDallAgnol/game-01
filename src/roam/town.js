@@ -53,7 +53,7 @@ export function buildTown(seed = 7) {
   for (let k = 0; k < 3; k++) for (const st of W.streets) { const P = profileOf(st), band = P.bands[k]; if (!band) continue; const [inset, lvl] = band; for (let i = 0; i < st.pts.length - 1; i++) { const a = st.pts[i], b = st.pts[i + 1], w = sw(st) - 2 * inset; if (w <= 0.4) continue;
     item('street', 3000 + k * 1000, (a.x + b.x) / 2, (a.y + b.y) / 2, Math.hypot(b.x - a.x, b.y - a.y) / 2 + w / 2 + 1, X => { X.lineCap = 'round'; X.strokeStyle = `rgb(${ang(Math.atan2(b.y - a.y, b.x - a.x))},${P.kind},${lvl})`; X.lineWidth = w; X.beginPath(); X.moveTo(a.x, a.y); X.lineTo(b.x, b.y); X.stroke(); }); } }
   for (const st of W.streets) if (profileOf(st).marks && st.w >= 7) { const xs = st.pts.map(q => q.x), ys = st.pts.map(q => q.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    item('misc', 6000, cx, cy, Math.hypot(Math.max(...xs) - cx, Math.max(...ys) - cy) + 1, X => { X.globalCompositeOperation = 'lighter'; X.strokeStyle = 'rgb(0,255,0)'; X.lineWidth = 0.16; X.setLineDash([3, 4]); X.beginPath(); st.pts.forEach((q, i) => i ? X.lineTo(q.x, q.y) : X.moveTo(q.x, q.y)); X.stroke(); }); }
+    item('misc', 6000, cx, cy, Math.hypot(Math.max(...xs) - cx, Math.max(...ys) - cy) + 1, X => { X.globalCompositeOperation = 'lighter'; X.strokeStyle = 'rgb(0,255,0)'; X.lineWidth = 0.24; X.setLineDash([3, 4]); X.beginPath(); st.pts.forEach((q, i) => i ? X.lineTo(q.x, q.y) : X.moveTo(q.x, q.y)); X.stroke(); }); }
   // on a street or its pavement (from the streets' own lines, on a 16 m grid of segments): for the gardens, the dead's
   // spawning and the bike's parking
   const SG = 16, sgrid = new Map(), sk = (i, j) => i * 65536 + j;

@@ -182,8 +182,10 @@ export function createMedium(o) {
         { vec3 dk = texture2D(tDecal, t).rgb;
           // [atoms-marks] begin: the map is 4 texels a metre, so magnified paint and holes blur; cut each mark at half its
           // local peak (the brightest of its 4 neighbours, so worn, faint paint keeps its strength): crisp edges at any zoom
-          if (dk.r + dk.g > 0.004) { float e = 0.25 / uS; vec3 m = max(max(texture2D(tDecal, t + vec2(e, 0.0)).rgb, texture2D(tDecal, t - vec2(e, 0.0)).rgb), max(texture2D(tDecal, t + vec2(0.0, e)).rgb, texture2D(tDecal, t - vec2(0.0, e)).rgb));
-            m = max(m, dk); dk.r = m.r * smoothstep(0.3, 0.6, dk.r / max(m.r, 1e-3)); dk.g = m.g * smoothstep(0.1, 0.7, dk.g / max(m.g, 1e-3)); }
+          // (the map is 4 texels a metre: magnified, a mark's edge is a 25 cm ramp. Each mark is cut at half its plateau (its
+          // brightest within 45 cm, so worn faint paint keeps its strength) with an edge one screen pixel wide: crisp at any zoom)
+          if (dk.r + dk.g > 0.004) { vec3 m = dk; for (int k = 0; k < 8; k++) { float a = float(k) * 0.785; m = max(m, texture2D(tDecal, t + vec2(cos(a), sin(a)) * 0.45 / uS).rgb); }
+            float ew = 3.0 / uPpm; dk.r = m.r * smoothstep(0.5 - ew, 0.5 + ew, dk.r / max(m.r, 1e-3)); dk.g = m.g * smoothstep(0.5 - ew * 1.5, 0.5 + ew * 1.5, dk.g / max(m.g, 1e-3)); }
           // [atoms-marks] end
           dk *= (1.0 - roof) * (1.0 - tree);
           col = mix(col, vec3(0.8, 0.79, 0.74) * mix(tint(), vec3(0.42), uNight) * (0.8 + 0.2 * vnoise(w * 3.0)), clamp(dk.r * (0.65 + 0.45 * vnoise(w * 1.7 + 4.0)), 0.0, 1.0));

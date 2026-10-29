@@ -30,14 +30,22 @@ export function createRoam(town, seed = 1) {
   // ---------- the dead ----------
   function spawn(kind, x, y, o = {}) { const K = R.dead[kind]; const d = { id: nid++, kind, x, y, vx: 0, vy: 0, hp: K.hp, maxHp: K.hp, fa: rng.range(0, 6.28), ph: rng.range(0, 6), side: rng.chance(0.5) ? -1 : 1, state: 'wander', wx: x, wy: y, bite: 0, wind: 0, hit: -9, ...o }; S.dead.push(d); return d; }
   const kindRoll = () => { const r = rng.float(); return r < (S.night ? 0.12 : 0.06) ? 'brute' : r < (S.night ? 0.32 : 0.2) ? 'flicker' : 'cinder'; };
-  function streetNear(cx, cy, r0, r1) { for (let k = 0; k < 30; k++) { const i = rng.int(streetCells.length / 2) * 2, x = streetCells[i], y = streetCells[i + 1], d = Math.hypot(x - cx, y - cy); if (d > r0 && d < r1) return { x, y }; } return null; }
+  // the street cells on a 32 m grid: a spawn draws from the buckets round Kai, not the whole world (a big world would starve)
+  const SB = 32, sbuck = new Map(); for (let i = 0; i < streetCells.length; i += 2) { const k = Math.floor(streetCells[i] / SB) * 4096 + Math.floor(streetCells[i + 1] / SB); if (!sbuck.has(k)) sbuck.set(k, []); sbuck.get(k).push(i); }
+  function streetNear(cx, cy, r0, r1) { const near = []; const n = Math.ceil(r1 / SB);
+    for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) { const b = sbuck.get((Math.floor(cx / SB) + i) * 4096 + Math.floor(cy / SB) + j); if (b) near.push(b); }
+    if (!near.length) return null;
+    for (let k = 0; k < 30; k++) { const b = near[rng.int(near.length)], i = b[rng.int(b.length)], x = streetCells[i], y = streetCells[i + 1], d = Math.hypot(x - cx, y - cy); if (d > r0 && d < r1) return { x, y }; } return null; }
+  // the dead appear out of sight: past the edge of what the player sees (input.view, the screen's half-diagonal in metres,
+  // set by the UI from the zoom), never closer than 24 m; the ring and the forgetting distance grow with the view
+  let view = 0;
   function populate() {
-    const k = S.kai, cap = R.dead.cap[S.night ? 1 : 0];
-    let near = 0; for (const d of S.dead) if (dist(d, k) < R.dead.near) near++;
-    for (let tries = 0; near < cap && tries < 6; tries++) { const p = streetNear(k.x, k.y, 24, R.dead.near); if (!p) break;
+    const k = S.kai, cap = R.dead.cap[S.night ? 1 : 0], r0 = Math.max(24, view + 8), r1 = Math.max(R.dead.near, r0 + 40), far = Math.max(R.dead.far, r1 + 40);
+    let near = 0; for (const d of S.dead) if (dist(d, k) < r1) near++;
+    for (let tries = 0; near < cap && tries < 6; tries++) { const p = streetNear(k.x, k.y, r0, r1); if (!p) break;
       const group = !S.night && rng.chance(0.4) ? 2 + rng.int(4) : 1;   // by day some sleep in little groups
       for (let g = 0; g < group; g++) { const x = p.x + rng.range(-1.5, 1.5), y = p.y + rng.range(-1.5, 1.5); if (!blocked(x, y)) { spawn(kindRoll(), x, y, { state: group > 1 ? 'sleep' : 'wander' }); near++; } } }
-    for (let i = S.dead.length - 1; i >= 0; i--) { const d = S.dead[i]; if (d.nest === undefined && dist(d, k) > R.dead.far) S.dead.splice(i, 1); }
+    for (let i = S.dead.length - 1; i >= 0; i--) { const d = S.dead[i]; if (d.nest === undefined && dist(d, k) > far) S.dead.splice(i, 1); }
   }
   function kill(d, src) { const i = S.dead.indexOf(d); if (i < 0) return; S.dead.splice(i, 1); S.kills++; ev('die', { id: d.id, x: d.x, y: d.y, fa: d.fa, kind: d.kind, src }); }
   function hurtDead(d, n, src) { d.hp -= n; d.hit = S.t; if (d.state === 'sleep') d.state = 'chase'; if (d.hp <= 0) kill(d, src); }
@@ -114,6 +122,7 @@ export function createRoam(town, seed = 1) {
   // ---------- the loop ----------
   let popT = 0;
   function step(inp) {
+    view = Math.min(160, inp.view || 0);
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; ev(night ? 'dusk' : 'dawn', {}); }
     stepKai(dt, inp); stepDead(dt); stepNests(dt);

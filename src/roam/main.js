@@ -58,6 +58,7 @@ function start() {
     if (slowT > 1.2 && scale > 0.7) { scale = Math.max(0.7, scale - 0.15); fastNeed = Math.min(60, fastNeed * 2); slowT = 0; ema = 18; resize(); }
     else if (fastT > fastNeed && scale < 1) { scale = Math.min(1, scale + 0.15); fastT = 0; resize(); }
     if (fpsT > 0.5) { fpsEl.textContent = `${Math.round(fpsN / fpsT)} fps · ${Math.round(scale * 100)}%`; fpsT = 0; fpsN = 0; }
+    input.view = Math.hypot(cssW, cssH) / 2 / cam.ppm;   // what the player can see, for the dead to appear out of it
     if (running) { acc += dt; while (acc >= ROAM.step) { snap(); sim.step(input); acc -= ROAM.step; } }
     const R = between(running ? acc / ROAM.step : 1);
     const evs = sim.drain();

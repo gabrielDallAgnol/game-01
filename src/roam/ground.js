@@ -39,16 +39,21 @@ export const GROUND = `float lines(float v, float sp, float wd){ float f = abs(f
         // grounds
         float mott = vnoise(w * 0.35) * 0.06 + vnoise(w * 2.1) * 0.03;
         vec3 earth = vec3(0.17, 0.175, 0.155) + mott;
-        vec3 asph = vec3(0.155, 0.16, 0.168) + (h21(floor(w * 9.0)) - 0.5) * 0.025;
+        // asphalt: a crisp aggregate grain (faded when a grain is under ~2 px, so it never shimmers), and repair patches laid
+        // along the street (sharp-edged rectangles of newer, darker tarmac)
+        vec3 asph = vec3(0.155, 0.16, 0.168) + (h21(floor(w * 16.0)) - 0.5) * 0.06 * smoothstep(1.2, 3.0, uPpm / 16.0);
+        { float sa = sx.r * 3.14159; vec2 ud = vec2(dot(w, vec2(cos(sa), sin(sa))), dot(w, vec2(-sin(sa), cos(sa)))), pc = floor(ud / vec2(7.0, 2.6)), pf = fract(ud / vec2(7.0, 2.6));
+          float aa = 1.2 / uPpm, inR = smoothstep(0.0, aa / 7.0, pf.x - 0.12) * smoothstep(0.0, aa / 7.0, 0.82 - pf.x) * smoothstep(0.0, aa / 2.6, pf.y - 0.15) * smoothstep(0.0, aa / 2.6, 0.85 - pf.y);
+          asph = mix(asph, asph * 0.86, inR * step(h21(pc + 5.3), 0.1)); }
         vec2 v = voro(w / 1.9); float crack = (1.0 - smoothstep(0.012, 0.035, v.y - v.x)) * smoothstep(0.56, 0.7, vnoise(w * 0.18 + 9.0));
         asph = mix(asph, asph * 0.4, crack); asph = mix(asph, vec3(0.24, 0.29, 0.21), crack * 0.35 * (1.0 - inward));
-        float dust = smoothstep(0.45, 0.85, vnoise(w * 2.4) * 0.6 + vnoise(w * 0.5) * 0.4) * mix(1.0, 0.25, inward) * (1.0 - pressHere * 0.95);
+        float dn = vnoise(w * 1.1) * 0.6 + vnoise(w * 0.35) * 0.4, dust = smoothstep(0.62, 0.62 + 3.0 / uPpm, dn) * 0.45 * mix(1.0, 0.25, inward) * (1.0 - pressHere * 0.95);   // windblown dust in thin drifts with a crisp edge
         asph = mix(asph, vec3(0.56, 0.55, 0.52), dust * 0.55); asph = mix(asph, asph * 0.55, pressHere * 0.8 * (1.0 - dust * 0.3));
         float setts = 1.0 - smoothstep(0.06, 0.12, abs(sx.g - 0.784));
         vec2 vs = voro(w / 0.6); float grout = (1.0 - smoothstep(0.03, 0.08, vs.y - vs.x)) * smoothstep(5.0, 11.0, 0.6 * uPpm); vec3 stone = vec3(0.29, 0.285, 0.275) + (vnoise(w * 1.3) - 0.5) * 0.05;
         stone = mix(stone, vec3(0.20, 0.205, 0.195), grout * 0.4); stone = mix(stone, vec3(0.56, 0.55, 0.52), dust * 0.5); stone = mix(stone, stone * 0.55, pressHere * 0.8);
         asph = mix(asph, stone, setts);
-        asph = mix(asph, vec3(0.78, 0.76, 0.68), ms.g * 0.7 * (0.5 + 0.5 * vnoise(w * 1.7)) * (1.0 - setts));
+        asph = mix(asph, vec3(0.78, 0.76, 0.68), smoothstep(0.16, 0.36, ms.g) * 0.8 * (0.65 + 0.35 * vnoise(w * 1.7)) * (1.0 - setts));   // lane paint, cut crisp (the map blurs a thin line)
         // pavements: the street's outer metre and a half is slabs (fine joints along and across the street), a pale kerb
         // stone where the slabs meet the road, and a fine dark-and-light edge where the grass meets the pavement
         { float walk = street * (1.0 - smoothstep(0.44, 0.52, inward)) * step(sx.g, 0.6) + street * step(0.25, sx.g) * (1.0 - step(0.5, sx.g)) * 0.0;
