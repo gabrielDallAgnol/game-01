@@ -49,6 +49,8 @@ function start() {
   }
   let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; });
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
+  // the trees on a 16 m grid (a crown never spans more than one cell's neighbours: each tree is filed in every cell its crown touches)
+  const treeGrid = new Map(); for (const p of town.trees) { const r = (p.r || p.def.size[0] / 2); for (let j = Math.floor((p.y - r) / 16); j <= Math.floor((p.y + r) / 16); j++) for (let i = Math.floor((p.x - r) / 16); i <= Math.floor((p.x + r) / 16); i++) { const kk = i * 4096 + j; if (!treeGrid.has(kk)) treeGrid.set(kk, []); treeGrid.get(kk).push(p); } }
   const falls = []; let acc = 0, last = performance.now(), t = 0;
   function frame(now) {
     const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw); last = now; t += dt;
@@ -74,7 +76,7 @@ function start() {
     { const want = cam.base; cam.ppm += (want - cam.ppm) * Math.min(1, dt * 6); if (Math.abs(want - cam.ppm) < want * 0.004) cam.ppm = want; }
     look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun });
     fx.clearRect(0, 0, cssW, cssH);
-    const kaiUnder = town.trees.some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
+    const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules
     for (const i of town.dress.live) { if (Math.abs(i.x - cam.x) > 90 || Math.abs(i.y - cam.y) > 120) continue; if (!i.st) i.atom.live.init(i); i.atom.live.step(i, dt, { kai: R.kai, t, night, WIND: { x: 0.731, y: 0.682 }, town }); }
     try { look.draw(fx, { sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }

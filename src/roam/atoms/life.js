@@ -185,7 +185,8 @@ export const LITTER = [
   { id: 'paper', family: 'litter', slot: 'pavement', every: 13, chance: 0.14, fit: litterFit(0.02, 0.45, 0.85), variant: paperVariant, live: PAPER },
   { id: 'paperWall', family: 'litter', slot: 'wall', every: 17, chance: 0.08, fit: litterFit(0.01, 0.35, 0.7), variant: paperVariant, live: PAPER },
   // leaf piles at the trees' feet (a fallen tree's story drops them on the road, strewn)
-  { id: 'leaves', family: 'litter', slot: 'tree', every: 6, chance: 0.9, fit: c => c > 0.62 ? 0.3 : c > 0.32 ? 0.85 : 1, variant: leafVariant, paint: leafPaint, live: LEAF },
+  // (none in a wood: its floor is all leaves already, the land look)
+  { id: 'leaves', family: 'litter', slot: 'tree', every: 6, chance: 0.9, fit: (c, s) => typeof s.district === 'string' && s.district.startsWith('woods') ? 0 : c > 0.62 ? 0.3 : c > 0.32 ? 0.85 : 1, variant: leafVariant, paint: leafPaint, live: LEAF },
   // where nobody sweeps, the leaves bank up in the gutters, under the street trees first
   { id: 'leafDrift', family: 'litter', slot: 'kerb', every: 11, chance: 0.3, fit: (c, s) => s.path ? 0 : (c > 0.62 ? 0 : c > 0.32 ? 0.5 : 0.75) * (s.crown ? 1 : 0.3), variant: leafVariant, paint: leafPaint, live: LEAF },
 ];
