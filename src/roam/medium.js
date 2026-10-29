@@ -10,6 +10,7 @@
 /* global THREE */
 import { M, MATCOL } from './dress/mats.js';
 import { gardenLook } from './garden-look.js';
+import { landLook } from './world/land.js';
 
 export const MAXP = 1024;          // volumes a frame (the dead off screen are left out)
 const RAMP = ' .,:-=+*%#@';
@@ -165,6 +166,7 @@ export function createMedium(o) {
   // [garden] begin
   gardenLook(swap, NG);
   // [garden] end
+  landLook(swap, NG);   // the land outside the town (world/land.js): fields, pasture, woodland floor…
   swap('        col *= mix(vec3(1.0), vec3(0.33, 0.35, 0.40), uNight);', `        col *= mix(vec3(1.02, 1.04, 1.04) * tint(), vec3(0.24, 0.27, 0.36), uNight);   // [medium] by day bright, warm when the sun is low; by night dark and cool
         // [medium] roofs: the same cells and ramp as the solids, lit by slope (after the ground's darkening: they are solids)
         { vec2 cp = (gl_FragCoord.xy + uCellOff) / uCellPx, g = fract(cp); float rl = flatRoof > 0.5 ? 0.55 : mix(0.34, 0.95, lit); rl *= (1.0 - 0.85 * ridge) * (1.0 - 0.75 * eave) * (0.88 + 0.24 * h21(floor(cp)));
@@ -221,7 +223,7 @@ export function createMedium(o) {
           col = mix(col, under, tree * 0.8);   // under a tree: the crown covers the figure, a ghost of it shows through
         }
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`);
-  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir, tDecal; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
+  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir, tDecal, tLand; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
     // one layer of strands with a fixed size in the world: seeds on a turned, jittered lattice (f a metre, p of the cells),
     // each combed len metres along the flow, r wide at the root and tapering. A pixel asks the cells behind it along the
     // flow whether a strand passes within its width; edges are antialiased by the pixel's own size. Returns (coverage, how

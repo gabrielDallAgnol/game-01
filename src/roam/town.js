@@ -3,7 +3,10 @@
 // the lit houses at night, gardens, the atoms' marks), the walls feet cannot cross (2 cells a metre), and where the nests
 // are. Everything is in world metres: x east, y south, from (0, 0).
 /* global THREE */
-import { RECIPES, recipeRegistry, buildArea } from '../engine/recipes.js';
+import { buildRegion } from './world/region.js';
+import { profileOf } from './world/streets.js';
+import { roofLook } from './world/sites.js';
+import { landItems } from './world/land.js';
 import { pointInObb } from '../engine/geom.js';
 import { layoutGardens } from './gardens.js';
 import { createTiles } from './tiles.js';
@@ -14,7 +17,7 @@ import { STORIES } from './dress/stories.js';
 import { ATOMS } from './atoms/index.js';
 
 export function buildTown(seed = 7) {
-  const W = buildArea('hollowmere', seed, recipeRegistry('hollowmere'), RECIPES.hollowmere.game).W;
+  const W = buildRegion(seed);
   const rigAtom = W.placed.find(p => p.def.tags.includes('camp.rig'));
   const start = { x: W.camp.x, y: W.camp.y };
   const size = { w: W.w, h: W.h };
@@ -29,7 +32,8 @@ export function buildTown(seed = 7) {
   // height, g garden growth, b garden borders), light (r spill, g lit house, b garden paths), ldir (the way back to the
   // window), decal (the atoms' marks: r paint, g dark, b water)
   const tiles = createTiles({ world: size, layers: [{ name: 'roof', bg: 'rgba(0,0,0,0)' }, { name: 'street', bg: 'rgba(0,0,0,0)' }, { name: 'misc', bg: '#000' }, { name: 'trees', bg: '#000' },
-    { name: 'light', bg: '#000' }, { name: 'ldir', bg: '#808000' }, { name: 'decal', bg: '#000' }] });
+    { name: 'light', bg: '#000' }, { name: 'ldir', bg: '#808000' }, { name: 'decal', bg: '#000' }, { name: 'land', bg: '#000' }] });
+  landItems(W, (layer, order, x, y, r, draw) => tiles.add({ layer, order, x, y, r, draw }));   // the land's map (world/land.js)
   const item = (layer, order, x, y, r, draw) => tiles.add({ layer, order, x, y, r, draw });
   const rOf = p => Math.hypot(p.w, p.h) / 2 + 1;
   for (const p of trees) { const r = (p.r || p.def.size[0] / 2) * 0.86;
@@ -40,14 +44,15 @@ export function buildTown(seed = 7) {
   // roofs: r the slope's axis, g which way along it this side faces (the shader lights it from the moving sun), b gable
   for (const p of buildings) item('roof', 1000, p.x, p.y, rOf(p), X => { X.translate(p.x, p.y); X.rotate(p.rot);
     if (p.def.look === 'gable' || p.def.look === 'church') for (const side of [-1, 1]) { const nx = -Math.sin(p.rot) * side, ny = Math.cos(p.rot) * side, A = ang(p.rot + Math.PI / 2) / 255 * Math.PI, pos = nx * Math.cos(A) + ny * Math.sin(A) > 0; X.fillStyle = `rgb(${Math.round(A / Math.PI * 255)},${pos ? 255 : 0},255)`; X.fillRect(-p.w / 2, side < 0 ? -p.h / 2 : 0, p.w, p.h / 2); }
-    else { X.fillStyle = `rgb(${ang(p.rot)},150,0)`; X.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); } });
+    else if (!roofLook(p.def.look, X, p)) { X.fillStyle = `rgb(${ang(p.rot)},150,0)`; X.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); } });
   if (W.plaza) { const P = W.plaza; item('street', 2000, P.x, P.y, Math.hypot(P.w, P.h) / 2 + 1, X => { for (const [inset, lvl] of [[0, 80], [1.5, 255]]) { X.save(); X.translate(P.x, P.y); X.rotate(P.rot); X.fillStyle = `rgb(${ang(P.rot)},200,${lvl})`; X.fillRect(-P.w / 2 + inset, -P.h / 2 + inset, P.w - 2 * inset, P.h - 2 * inset); X.restore(); } }); }
   // streets drawn wider than the engine lays them (x1.6, paths x1.4) with 2.4 m pavements: the figures are drawn big, and a
   // life-size road looked like a lane beside them (roofs still win where a house stands close to the kerb)
-  const sw = st => st.w * (st.kind === 'path' ? 1.4 : 1.6);
-  for (const [k, [inset, lvl]] of [[0, 80], [2.4, 170], [3.9, 255]].entries()) for (const st of W.streets) for (let i = 0; i < st.pts.length - 1; i++) { const a = st.pts[i], b = st.pts[i + 1], w = sw(st) - 2 * inset; if (w <= 0.4) continue;
-    item('street', 3000 + k * 1000, (a.x + b.x) / 2, (a.y + b.y) / 2, Math.hypot(b.x - a.x, b.y - a.y) / 2 + w / 2 + 1, X => { X.lineCap = 'round'; X.strokeStyle = `rgb(${ang(Math.atan2(b.y - a.y, b.x - a.x))},${st.kind === 'path' ? 90 : 255},${lvl})`; X.lineWidth = w; X.beginPath(); X.moveTo(a.x, a.y); X.lineTo(b.x, b.y); X.stroke(); }); }
-  for (const st of W.streets) if (st.kind !== 'path' && st.w >= 7) { const xs = st.pts.map(q => q.x), ys = st.pts.map(q => q.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  // each street kind has its profile (world/streets.js): width, the bands from its edge in (pavement, kerb, road), marks
+  const sw = st => profileOf(st).width(st);
+  for (let k = 0; k < 3; k++) for (const st of W.streets) { const P = profileOf(st), band = P.bands[k]; if (!band) continue; const [inset, lvl] = band; for (let i = 0; i < st.pts.length - 1; i++) { const a = st.pts[i], b = st.pts[i + 1], w = sw(st) - 2 * inset; if (w <= 0.4) continue;
+    item('street', 3000 + k * 1000, (a.x + b.x) / 2, (a.y + b.y) / 2, Math.hypot(b.x - a.x, b.y - a.y) / 2 + w / 2 + 1, X => { X.lineCap = 'round'; X.strokeStyle = `rgb(${ang(Math.atan2(b.y - a.y, b.x - a.x))},${P.kind},${lvl})`; X.lineWidth = w; X.beginPath(); X.moveTo(a.x, a.y); X.lineTo(b.x, b.y); X.stroke(); }); } }
+  for (const st of W.streets) if (profileOf(st).marks && st.w >= 7) { const xs = st.pts.map(q => q.x), ys = st.pts.map(q => q.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
     item('misc', 6000, cx, cy, Math.hypot(Math.max(...xs) - cx, Math.max(...ys) - cy) + 1, X => { X.globalCompositeOperation = 'lighter'; X.strokeStyle = 'rgb(0,255,0)'; X.lineWidth = 0.16; X.setLineDash([3, 4]); X.beginPath(); st.pts.forEach((q, i) => i ? X.lineTo(q.x, q.y) : X.moveTo(q.x, q.y)); X.stroke(); }); }
   // on a street or its pavement (from the streets' own lines, on a 16 m grid of segments): for the gardens, the dead's
   // spawning and the bike's parking
@@ -60,7 +65,7 @@ export function buildTown(seed = 7) {
   const GR = 2, GW = Math.ceil(size.w * GR), GH = Math.ceil(size.h * GR), solid = new Uint8Array(GW * GH);
   const mark = (p, pad) => { const r = Math.hypot(p.w, p.h) / 2 + pad + 0.5, gx0 = Math.max(0, Math.floor((p.x - r) * GR)), gx1 = Math.min(GW - 1, Math.ceil((p.x + r) * GR)), gy0 = Math.max(0, Math.floor((p.y - r) * GR)), gy1 = Math.min(GH - 1, Math.ceil((p.y + r) * GR));
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, (gx + 0.5) / GR, (gy + 0.5) / GR, pad)) solid[gy * GW + gx] = 1; };
-  for (const p of buildings) mark(p, 0.15);
+  for (const p of buildings) if (p.def.collide !== 'none') mark(p, 0.15);   // a canopy (a gas station's) is ridden under
   const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); return gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid[gy * GW + gx] === 1; };
   // the nests: infested and nestable buildings first, then the biggest houses, spread across the town
   const cand = buildings.filter(p => p.def.tags.includes('infested') || p.def.tags.includes('nestable')).concat(buildings.slice().sort((a, b) => b.w * b.h - a.w * a.h));

@@ -16,7 +16,7 @@ export function createLook(canvas, town) {
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
   const stampA = Array.from({ length: NS }, () => new THREE.Vector4()), stampB = Array.from({ length: NS }, () => new THREE.Vector4());
   const U = {
-    tRoof: { value: T('roof') }, tStreet: { value: T('street') }, tMisc: { value: T('misc') }, tTreeH: { value: T('trees') }, tLight: { value: T('light') }, tLDir: { value: T('ldir') }, tDecal: { value: T('decal') }, uWorld: { value: new THREE.Vector2(size.w, size.h) },
+    tRoof: { value: T('roof') }, tStreet: { value: T('street') }, tMisc: { value: T('misc') }, tTreeH: { value: T('trees') }, tLight: { value: T('light') }, tLDir: { value: T('ldir') }, tDecal: { value: T('decal') }, tLand: { value: T('land') }, uWorld: { value: new THREE.Vector2(size.w, size.h) },
     uFire: { value: new THREE.Vector2(-1e4, -1e4) }, tDist: { value: rts[0].texture }, tPrev: { value: rts[0].texture },
     uCam: { value: new THREE.Vector2() }, uView: { value: new THREE.Vector2(40, 80) }, uOrigin: { value: new THREE.Vector2(0, 0) }, uS: { value: WIN },
     uTime: { value: 0 }, uPpm: { value: 20 }, uGrid: { value: 20 },  uSun: { value: new THREE.Vector4(-0.6, -0.8, 1.8, 0) }, uHead: { value: new THREE.Vector4() }, uNight: { value: 0 }, uKai: { value: new THREE.Vector2() },
