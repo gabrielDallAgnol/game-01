@@ -30,9 +30,10 @@ function link(list) { const P = list.filter(q => q.atom.id === 'pole');
 // shows in the shadow, which comes closer to the wire where it hangs low) and bowing with the wind. Tended: taut;
 // worn or by a leaning pole: slack; ruined: one wire snapped, hanging down from each pole and coiled on the ground;
 // to a fallen pole the wires run down to the ground.
+// (a pole the bike broke brings its wires down like a fallen one)
 function span(fx, A, B, v) {
   const { toS, cam } = v, ppm = cam.ppm, [ax, ay, az] = tip(A), [bx, by, bz] = tip(B), dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1, px = -dy / L, py = dx / L;
-  const lo = Math.min(A.care, B.care), down = A.variant === 'down' || B.variant === 'down', slack = down ? 1 : lo < 0.62 || A.variant === 'lean' || B.variant === 'lean' ? 0.6 : 0;
+  const lo = Math.min(A.care, B.care), down = A.variant === 'down' || B.variant === 'down' || (v.broken && (v.broken.has(A.id) || v.broken.has(B.id))), slack = down ? 1 : lo < 0.62 || A.variant === 'lean' || B.variant === 'lean' ? 0.6 : 0;
   const snap = !down && lo < 0.32 && hs(A.h, B.h) < 0.7, n = hs(B.h, A.h) < 0.4 ? 2 : 3, N = clamp(Math.round(L * ppm / 40), 3, 9);
   const wl = (v.WIND.x * px + v.WIND.y * py) * gust(v, ax, ay), sun = sunOf(v), day = sun && ppm > 8 ? 1 - v.night : 0;
   const sh = day > 0.05 ? [-sun.x / Math.max(0.85, sun.climb), -sun.y / Math.max(0.85, sun.climb)] : null;
@@ -47,11 +48,12 @@ function span(fx, A, B, v) {
       continue; }
     for (let j = 0; j <= N; j++) { const u = j / N; let z = lerp(az, bz, u) - sag * 4 * u * (1 - u); if (down) z = Math.max(0.04, Math.min(z, lerp(az, bz, u) * (1 - u * 0.4) - sag * u)); pts.push(at(u, Math.max(0.04, z))); }
     W.push(pts); }
-  const lw = clamp(ppm * 0.06, 0.7, 1.8), far = clamp((ppm - 4) / 6, 0.6, 1);
+  const lw = clamp(ppm * 0.06, 0.7, 1.8), far = clamp((ppm - 6) / 8, 0, 1);   // far out the wires fade away (they read as rails along the road)
+  if (far <= 0.02) return;
   if (sh) { fx.strokeStyle = `rgba(0,0,0,${0.22 * day})`; fx.lineWidth = lw * 1.3; fx.beginPath();
     for (const p of W) p.forEach(([x, y, z], j) => { const o = Math.min(1, 7 / (Math.hypot(sh[0], sh[1]) * z + 1e-3)), [X, Y] = toS(x + sh[0] * z * o, y + sh[1] * z * o); j ? fx.lineTo(X, Y) : fx.moveTo(X, Y); }); fx.stroke(); }
   // dark against the pavement up close; paler with the night (moonlit) and with distance (fine pale lines over the dark town)
-  const m = clamp((12 - ppm) / 6, 0, 0.85); fx.strokeStyle = `rgba(${Math.round(lerp(26, 150, m))},${Math.round(lerp(25, 150, m))},${Math.round(lerp(24, 152, m))},${0.9 * far * (1 - 0.6 * v.night)})`;   // at night only a faint line: the wires carry no light fx.lineWidth = lw; fx.beginPath();
+  const m = clamp((12 - ppm) / 6, 0, 0.85); fx.strokeStyle = `rgba(${Math.round(lerp(26, 150, m))},${Math.round(lerp(25, 150, m))},${Math.round(lerp(24, 152, m))},${0.9 * far * (1 - 0.6 * v.night)})`; fx.lineWidth = lw; fx.beginPath();   // at night only a faint line: the wires carry no light
   for (const p of W) p.forEach(([x, y], j) => { const [X, Y] = toS(x, y); j ? fx.lineTo(X, Y) : fx.moveTo(X, Y); });
   for (const [x, y] of Sh) { const [X, Y] = toS(x, y), r = 0.32 * S * ppm; fx.moveTo(X + r, Y); fx.ellipse(X, Y, r, r * 0.7, 0.4, 0, TAU); fx.moveTo(X + r * 0.6 + 2, Y + 1); fx.ellipse(X + 2, Y + 1, r * 0.6, r * 0.45, 1.1, 0, TAU); }
   fx.stroke(); }
@@ -59,8 +61,8 @@ function span(fx, A, B, v) {
 export const STRANDS = [
   // utility poles: every 30–40 m along one side of the streets in the suburbs, the barns and the fields (none in the old
   // town: its wires ran underground). Out of the crowns. Tended: upright; worn: some lean; ruined: lean or down.
-  { id: 'pole', family: 'strands', slot: 'kerb', every: 32, chance: 0.55, space: 1.5, collide: { w: 0.5, h: 0.5 },
-    fit: (c, s) => s.path || s.crown || s.side !== 1 || s.district === 'oldtown' || s.district === 'park' ? 0 : 1,
+  { id: 'pole', family: 'strands', breakable: true, slot: 'kerb', every: 32, chance: 0.55, space: 1.5, collide: { w: 0.5, h: 0.5 },
+    fit: (c, s) => s.path || s.crown || s.side !== 1 || s.district === 'oldtown' || s.district === 'park' || s.road === 'highway' || s.road === 'service' ? 0 : 1,   // no poles along the bypass or the estate's loop
     variant: (c, h) => c > 0.62 ? 'up' : c > 0.32 ? (h < 0.22 ? 'lean' : 'up') : h < 0.3 ? 'down' : h < 0.62 ? 'lean' : 'up',
     volumes(i, K) { const [tx, ty, tz, b] = tip(i);
       if (i.variant === 'down') { K.capsule(i.x, i.y, 0, i.x + Math.cos(b) * 0.1, i.y + Math.sin(b) * 0.1, 0.8 * S, 0.12 * S, M.wood);   // the snapped stump

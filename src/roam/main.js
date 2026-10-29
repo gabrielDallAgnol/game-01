@@ -5,7 +5,7 @@ import { buildTown } from './town.js';
 import { createRoam, ROAM } from './sim.js';
 import { createLook } from './look.js';
 import { createUi } from './ui.js';
-import { emit as plumeEmit, drawPlumes } from './atoms/plume.js';
+import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
 
 const $ = id => document.getElementById(id);
 try { start(); } catch (e) { console.error(e); const el = $('err'); el.hidden = false; el.textContent = 'The game could not start: ' + (e && e.message || e); }
@@ -97,7 +97,7 @@ function start() {
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules
     for (const i of town.dress.live) { if (Math.abs(i.x - cam.x) > 90 || Math.abs(i.y - cam.y) > 120) continue; if (!i.st) i.atom.live.init(i); i.atom.live.step(i, dt, { kai: R.kai, t, night, WIND: { x: 0.731, y: 0.682 }, town }); }
-    try { look.draw(fx, { sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
+    try { look.draw(fx, { broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
     for (const o of R.dead) if (o.fa !== undefined) faMap.set(o.id, o.fa); if (faMap.size > 4 * S.dead.length + 50) faMap.clear();   // the dead keep facing where they last walked
     dustOf(R.kai, dt); drawPlumes(fx, toS, view.ppm, dt, { x: 0.731, y: 0.682 }, night, cssW, cssH);
     throwChaff(R.kai, dt); drawChaff(dt);
@@ -105,5 +105,5 @@ function start() {
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  window.__roam = { sim, S, input, cam, skyAt, look, town, run: sec => { for (let i = 0; i < sec / ROAM.step; i++) sim.step(input); cam.x = S.kai.x; cam.y = S.kai.y; } };
+  window.__roam = { sim, S, input, cam, skyAt, look, town, plumeCount, plumeEmit, drawPlumes, run: sec => { for (let i = 0; i < sec / ROAM.step; i++) sim.step(input); cam.x = S.kai.x; cam.y = S.kai.y; } };
 }

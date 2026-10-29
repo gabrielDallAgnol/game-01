@@ -34,12 +34,13 @@ export function createLook(canvas, town) {
     const hw = cssW / cam.ppm / 2 + 8, hh = cssH / cam.ppm / 2 + 8, inV = (x, y) => Math.abs(x - cam.x) < hw && Math.abs(y - cam.y) < hh;
     const tx0 = Math.floor((cam.x - hw) / WIN * DR), tx1 = Math.ceil((cam.x + hw) / WIN * DR), ty0 = Math.floor((cam.y - hh) / WIN * DR), ty1 = Math.ceil((cam.y + hh) / WIN * DR);
     // f: how hard it lays tall plants down (only what moves: a wheel or a stride, not a standing figure)
-    let n = 0; const put = (x, y, vx, vy, r, p, f = 0) => { if (n >= NS) return; stampA[n].set(x, y, vx, vy); stampB[n].set(r, p, f, 0); n++; };
-    const k = S.kai, ks = Math.hypot(k.vx, k.vy); if (!k.dead) put(k.x, k.y, k.vx, k.vy, k.riding ? 2.2 : 1.6, k.riding ? 0.7 : 0.3, k.riding ? Math.min(1, ks / 3) : Math.min(0.55, ks / 6));
+    // lr: the laid track's half-width (a tyre's track, a foot's: much narrower than the parting)
+    let n = 0; const put = (x, y, vx, vy, r, p, f = 0, lr = 0) => { if (n >= NS) return; stampA[n].set(x, y, vx, vy); stampB[n].set(Math.max(r, lr), p, f, lr); n++; };
+    const k = S.kai, ks = Math.hypot(k.vx, k.vy); if (!k.dead) put(k.x, k.y, k.vx, k.vy, k.riding ? 2.2 : 1.6, k.riding ? 0.7 : 0.3, k.riding ? Math.min(1, ks / 3) : Math.min(0.55, ks / 6), k.riding ? 0.6 : 0.4);
     if (!k.riding) put(S.bike.x, S.bike.y, 0, 0, 1.4, 0.4);
     for (const f of falls) if (f.stamp) { put(f.x, f.y, 0, 0, 1.4, 1); f.stamp = false; }
     const byNear = S.dead.filter(d => inV(d.x, d.y)).sort((a, b) => Math.hypot(a.x - k.x, a.y - k.y) - Math.hypot(b.x - k.x, b.y - k.y));
-    for (const d of byNear) { const sp = Math.hypot(d.vx, d.vy); put(d.x, d.y, d.vx, d.vy, 0.8, sp > 0.2 ? 1 : 0.6, Math.min(0.4, sp / 4)); }
+    for (const d of byNear) { const sp = Math.hypot(d.vx, d.vy); put(d.x, d.y, d.vx, d.vy, 0.8, sp > 0.2 ? 1 : 0.6, Math.min(0.4, sp / 4), 0.35); }
     U.uN.value = n;
     decayAcc += dt; if (decayAcc >= 0.2) { U.uDecayPush.value = decayAcc * 0.35; U.uDecayPress.value = decayAcc / 22; U.uDecayFlat.value = Math.max(1, Math.round(decayAcc / 240 * 255)) / 255 * (decayAcc > 0.9 ? 1 : 0); flatAcc += decayAcc; decayAcc = 0; } else { U.uDecayPush.value = 0; U.uDecayPress.value = 0; U.uDecayFlat.value = 0; }
     if (flatAcc >= 0.94) { U.uDecayFlat.value = 1 / 255; flatAcc = 0; }   // a laid crop rises over ~4 minutes: one step every second (8-bit channel)

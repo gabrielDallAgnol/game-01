@@ -35,7 +35,7 @@ export function makeSlots({ W, buildings, trees, blocked, care, sw, step = 3 }) 
         if (path) { for (const s of [-1, 1]) { const x = cx + px * s * (half + 0.6), y = cy + py * s * (half + 0.6); if (!blocked(x, y)) push('wall', x, y, ang, { nx: -px * s, ny: -py * s, street: st.id, path: true }); } continue; }
         for (const s of [-1, 1]) { const o = (k, m) => [cx + px * s * k, cy + py * s * k], nx = -px * s, ny = -py * s;
           const [kx, ky] = o(pave ? half - pave + 0.35 : half + 0.7), [mx, my] = o(half - pave / 2), [wx, wy] = o(pave ? half - 0.35 : half + 1.6), [qx, qy] = o(half - pave - 1.15);
-          if (!blocked(kx, ky)) push('kerb', kx, ky, ang, { nx, ny, street: st.id, side: s, district: st.district, verge: !pave });
+          if (!blocked(kx, ky)) push('kerb', kx, ky, ang, { nx, ny, street: st.id, side: s, district: st.district, verge: !pave, road: st.kind });
           if (pave && !blocked(mx, my)) push('pavement', mx, my, ang, { nx, ny, street: st.id, side: s });
           if (!blocked(wx, wy)) push('wall', wx, wy, ang, { nx, ny, street: st.id, side: s, verge: !pave });
           if (P.parking && !blocked(qx, qy) && !nearJ(qx, qy, 7)) push('parking', qx, qy, ang + (s < 0 ? Math.PI : 0), { street: st.id, side: s }); }

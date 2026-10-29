@@ -141,5 +141,5 @@ export const DIST = `precision highp float; varying vec2 vUv;
         if (r < B.x) { float f = 1.0 - r / B.x; vec2 o = r > 0.001 ? dv / r : vec2(0.0); float vl = length(A.zw); vec2 v = vl > 0.05 ? A.zw / vl : vec2(0.0);
           // (only what moves parts the grass: a standing figure just presses it, no cowlick)
           vec2 p = (o * 0.85 + v * 0.55) * min(1.0, vl / 1.2); float q = length(p); if (q > 0.001) push = mix(push, p / q * min(1.0, q), clamp(f * 0.7, 0.0, 1.0));
-          press = max(press, B.y * smoothstep(0.0, 0.55, f)); lay = max(lay, B.z * smoothstep(0.3, 0.55, f)); } }
+          press = max(press, B.y * smoothstep(0.0, 0.55, f)); } if (r < B.w) lay = max(lay, B.z * smoothstep(0.0, 0.35, 1.0 - r / B.w)); }   // the laid track: its own (tyre-sized) width
       gl_FragColor = vec4(push * 0.5 + 0.5, press, lay); }`;
