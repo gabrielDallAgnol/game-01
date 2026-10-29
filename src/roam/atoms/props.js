@@ -54,7 +54,7 @@ export const PROPS = [
   // parked cars: where people lived and shopped (kept streets, the old town), fewer at the works and fields, none on
   // paths (no parking slots there). By the block: a stretch either has a few or none. Tended → parked square to the kerb;
   // worn → askew, dusty, a door left open, a flat; ruined → burnt shells, some up on the pavement or slewed across
-  { id: 'car', family: 'props', slot: 'parking', every: 7.5, chance: 0.42, space: 1.2, collide: { w: 6.1, h: 2.6 },
+  { id: 'car', family: 'props', slot: 'parking', every: 9, chance: 0.42, space: 1.2, collide: { w: 6.1, h: 2.6 },
     fit: (c, s) => block(s) < 0.42 ? 0 : 0.18 + 0.82 * Math.min(1, Math.max(0, (c - 0.15) / 0.55)),
     variant(c, h, s, i) { const b = band(c), r = hash(h, 1), r2 = hash(h, 2);
       if (b === 2) { if (i) i.ang += (r - 0.5) * 0.04; return 'parked'; }

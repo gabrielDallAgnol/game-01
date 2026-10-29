@@ -51,7 +51,7 @@ function span(fx, A, B, v) {
   if (sh) { fx.strokeStyle = `rgba(0,0,0,${0.22 * day})`; fx.lineWidth = lw * 1.3; fx.beginPath();
     for (const p of W) p.forEach(([x, y, z], j) => { const o = Math.min(1, 7 / (Math.hypot(sh[0], sh[1]) * z + 1e-3)), [X, Y] = toS(x + sh[0] * z * o, y + sh[1] * z * o); j ? fx.lineTo(X, Y) : fx.moveTo(X, Y); }); fx.stroke(); }
   // dark against the pavement up close; paler with the night (moonlit) and with distance (fine pale lines over the dark town)
-  const m = Math.max(0.75 * v.night, clamp((12 - ppm) / 6, 0, 0.85)); fx.strokeStyle = `rgba(${Math.round(lerp(26, 150, m))},${Math.round(lerp(25, 150, m))},${Math.round(lerp(24, 152, m))},${0.9 * far})`; fx.lineWidth = lw; fx.beginPath();
+  const m = clamp((12 - ppm) / 6, 0, 0.85); fx.strokeStyle = `rgba(${Math.round(lerp(26, 150, m))},${Math.round(lerp(25, 150, m))},${Math.round(lerp(24, 152, m))},${0.9 * far * (1 - 0.6 * v.night)})`;   // at night only a faint line: the wires carry no light fx.lineWidth = lw; fx.beginPath();
   for (const p of W) p.forEach(([x, y], j) => { const [X, Y] = toS(x, y); j ? fx.lineTo(X, Y) : fx.moveTo(X, Y); });
   for (const [x, y] of Sh) { const [X, Y] = toS(x, y), r = 0.32 * S * ppm; fx.moveTo(X + r, Y); fx.ellipse(X, Y, r, r * 0.7, 0.4, 0, TAU); fx.moveTo(X + r * 0.6 + 2, Y + 1); fx.ellipse(X + 2, Y + 1, r * 0.6, r * 0.45, 1.1, 0, TAU); }
   fx.stroke(); }

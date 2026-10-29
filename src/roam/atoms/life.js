@@ -145,7 +145,7 @@ const paperVariant = (c, h) => c < 0.32 ? (h < 0.4 ? 'leaflets' : h < 0.7 ? 'new
 // at a tree's foot: a dark, warm ground mark spilling downwind from under the crown, and a few leaf strokes that lift and
 // skitter in the gusts and fall back. swept (tended: a few), drift (worn: banked up), strewn (ruined, or a storm's tree: everywhere)
 const LEAFC = ['#7a5c36', '#8d6b3c', '#655634', '#94743f', '#5c4a30'];
-const leafN = { swept: 3, drift: 6, strewn: 9 };
+const leafN = { swept: 0, drift: 3, strewn: 5 };   // a swept street keeps only its stain; loose leaves are few, or they read as noise
 function leafSpot(i, k, out) { const s = i.slot, h = i.h, a = hh(h, k), b = hh(k + 0.5, h), r = s.kind === 'tree' ? (s.r || 2) : 0;
   if (i.atom.id === 'leafDrift') { const al = (a - 0.5) * 3.2, ac = 0.15 + b * 0.35, ca = Math.cos(i.ang), sa = Math.sin(i.ang); out[0] = i.x + ca * al + (s.nx || 0) * ac; out[1] = i.y + sa * al + (s.ny || 0) * ac; return; }
   if (r) { const th = Math.atan2(WY, WX) + (a - 0.5) * (i.variant === 'strewn' ? 6.2 : i.variant === 'drift' ? 2.6 : 1.6), rr = r * 1.02 + b * (i.variant === 'swept' ? 0.6 : 1.8); out[0] = i.x + Math.cos(th) * rr; out[1] = i.y + Math.sin(th) * rr; return; }
