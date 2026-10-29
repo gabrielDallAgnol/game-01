@@ -7,6 +7,8 @@ import { buildRegion } from './world/region.js';
 import { profileOf } from './world/streets.js';
 import { roofLook } from './world/sites.js';
 import { landItems } from './world/land.js';
+import { makeCharmap } from './world/charmap.js';
+import { sparseGrid } from './world/sparse.js';
 import { pointInObb } from '../engine/geom.js';
 import { layoutGardens } from './gardens.js';
 import { createTiles } from './tiles.js';
@@ -62,13 +64,13 @@ export function buildTown(seed = 7) {
   const onStreet = (x, y, pad = 0) => { for (const g of sgrid.get(sk(Math.floor(x / SG), Math.floor(y / SG))) || []) { const dx = g.bx - g.ax, dy = g.by - g.ay, L2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((x - g.ax) * dx + (y - g.ay) * dy) / L2)); if (Math.hypot(x - g.ax - dx * u, y - g.ay - dy * u) < g.hw + pad) return true; }
     if (W.plaza) { const P = W.plaza, c = Math.cos(P.rot), s = Math.sin(P.rot), lx = (x - P.x) * c + (y - P.y) * s, ly = -(x - P.x) * s + (y - P.y) * c; if (Math.abs(lx) < P.w / 2 + pad && Math.abs(ly) < P.h / 2 + pad) return true; } return false; };
   // walls: buildings and the edge of the town
-  const GR = 2, GW = Math.ceil(size.w * GR), GH = Math.ceil(size.h * GR), solid = new Uint8Array(GW * GH);
+  const GR = 2, GW = Math.ceil(size.w * GR), GH = Math.ceil(size.h * GR), solid = sparseGrid(GW, GH);   // [world] sparse: the world is km of open fields
   const mark = (p, pad) => { const r = Math.hypot(p.w, p.h) / 2 + pad + 0.5, gx0 = Math.max(0, Math.floor((p.x - r) * GR)), gx1 = Math.min(GW - 1, Math.ceil((p.x + r) * GR)), gy0 = Math.max(0, Math.floor((p.y - r) * GR)), gy1 = Math.min(GH - 1, Math.ceil((p.y + r) * GR));
-    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, (gx + 0.5) / GR, (gy + 0.5) / GR, pad)) solid[gy * GW + gx] = 1; };
+    for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, (gx + 0.5) / GR, (gy + 0.5) / GR, pad)) solid.set(gx, gy, 1); };
   for (const p of buildings) if (p.def.collide !== 'none') mark(p, 0.15);   // a canopy (a gas station's) is ridden under
-  const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); return gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid[gy * GW + gx] === 1; };
+  const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); return gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid.get(gx, gy) === 1; };
   // the nests: infested and nestable buildings first, then the biggest houses, spread across the town
-  const cand = buildings.filter(p => p.def.tags.includes('infested') || p.def.tags.includes('nestable')).concat(buildings.slice().sort((a, b) => b.w * b.h - a.w * a.h));
+  const cand = buildings.filter(p => p.def.tags.includes('infested') || p.def.tags.includes('nestable')).concat(buildings.filter(p => !p.def.tags.includes('site')).sort((a, b) => b.w * b.h - a.w * a.h));   // [world] the biggest houses of the towns, not every shed in the country (a site's nest is tagged nestable)
   const nests = [];
   for (const p of cand) { if (nests.length >= 9) break; if (Math.hypot(p.x - start.x, p.y - start.y) < 70 || nests.some(q => Math.hypot(q.b.x - p.x, q.b.y - p.y) < 80)) continue;
     let at = p.door || { x: p.x, y: p.y + p.h / 2 + 1.5 }; for (let k = 0; k < 12 && blocked(at.x, at.y); k++) at = { x: at.x + (at.x - p.x) * 0.15, y: at.y + (at.y - p.y) * 0.15 };
@@ -106,5 +108,6 @@ export function buildTown(seed = 7) {
   // [dress] end
   // where on a street: for spawning the dead and parking the bike (a street cell, 1 m grid)
   const streetCells = []; for (let y = 4; y < W.h - 4; y += 2) for (let x = 4; x < W.w - 4; x += 2) if (onStreet(x, y, -0.6) && !blocked(x, y)) streetCells.push(x, y);
-  return { W, start, size, tiles, onStreet, gardens, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress, breakables };
+  return { W, start, size, tiles, onStreet, gardens, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress, breakables,
+    chars: makeCharmap(W) };   // [world] the world as characters, 2 m a cell (world/charmap.js)
 }
