@@ -54,9 +54,9 @@ function start() {
   const treeGrid = new Map(); for (const p of town.trees) { const r = (p.r || p.def.size[0] / 2); for (let j = Math.floor((p.y - r) / 16); j <= Math.floor((p.y + r) / 16); j++) for (let i = Math.floor((p.x - r) / 16); i <= Math.floor((p.x + r) / 16); i++) { const kk = i * 4096 + j; if (!treeGrid.has(kk)) treeGrid.set(kk, []); treeGrid.get(kk).push(p); } }
   // chaff: what the bike (or Kai at a run) throws up from tall plants, by what it is riding through (the char map): straw
   // and ears from wheat and barley, grass seed from a meadow. Render-side only; a fixed pool
-  const CHAFF = { w: ['#e2c27a', '#c9a35a', 0.9], b: ['#d8d6a4', '#b8b582', 0.85], m: ['#b9c79a', '#8fa07a', 0.4], r: ['#5d7d45', '#3f5a30', 1.1, 'leaf'] };   // rape: leaves torn off the rosettes
+  const CHAFF = { w: ['#e2c27a', '#c9a35a', 0.9], b: ['#d8d6a4', '#b8b582', 0.85], m: ['#b9c79a', '#8fa07a', 0.4], r: ['#5d7d45', '#3f5a30', 1.1, 'leaf'], f: ['#a8642c', '#7d5a2c', 1.4, 'leaf'] };   // f: the woods floor's autumn leaves kicked up   // rape: leaves torn off the rosettes
   const chaff = Array.from({ length: 90 }, () => ({ life: 0 })); let chaffI = 0, chaffAcc = 0;
-  function throwChaff(k, dt) { const sp = Math.hypot(k.vx, k.vy), c = town.chars && CHAFF[town.chars.at(k.x, k.y)]; if (!c || sp < 2) return;
+  function throwChaff(k, dt) { const sp = Math.hypot(k.vx, k.vy), c = town.chars && CHAFF[groundAt(k.x, k.y)]; if (!c || sp < 2) return;
     chaffAcc += dt * sp * c[2] * (k.riding ? 3.2 : 1.2);
     while (chaffAcc >= 1) { chaffAcc -= 1; const p = chaff[chaffI++ % chaff.length], a = Math.atan2(k.vy, k.vx) + Math.PI + (Math.random() - 0.5) * 1.6, v = 1.5 + Math.random() * 2.5;
       Object.assign(p, { x: k.x - k.vx * 0.08, y: k.y - k.vy * 0.08, z: 0.6 + Math.random() * 0.6, vx: Math.cos(a) * v + k.vx * 0.25, vy: Math.sin(a) * v + k.vy * 0.25, vz: 1.8 + Math.random() * 2.2, life: 1.2 + Math.random() * 0.9, rot: Math.random() * 6.3, spin: (Math.random() - 0.5) * 14, col: Math.random() < 0.5 ? c[0] : c[1], leaf: c[3] === 'leaf' }); if (p.leaf) { p.vz += 1.5; p.life += 0.8; } } }
@@ -66,8 +66,11 @@ function start() {
       if (p.leaf) { const fl = Math.abs(Math.cos(p.rot * 1.7)); fx.fillStyle = p.col; fx.beginPath(); fx.ellipse(X, Y, L * 0.7, Math.max(0.6, L * 0.32 * fl), p.rot, 0, 6.29); fx.fill(); continue; }   // a leaf tumbles: it thins to its edge as it turns
       fx.beginPath(); fx.moveTo(X - Math.cos(p.rot) * L / 2, Y - Math.sin(p.rot) * L / 2); fx.lineTo(X + Math.cos(p.rot) * L / 2, Y + Math.sin(p.rot) * L / 2); fx.stroke(); } fx.globalAlpha = 1; }
   // the bike's dust on dirt (ploughed fields, stubble, gravel, yards, farm tracks): the plume atom's 'dust' preset
-  const DUSTY = new Set(['%', 's', ':']); let dustAcc = 0;
-  function dustOf(k, dt) { if (!k.riding || !town.chars) return; const sp = Math.hypot(k.vx, k.vy); if (sp < 3 || !DUSTY.has(town.chars.at(k.x, k.y))) return;
+  // what the ground is under (x, y), by the char map: under a tree in a wood it is still the woods floor ('f')
+  const groundAt = (x, y) => { const c = town.chars ? town.chars.at(x, y) : ' '; if (c !== 'T') return c; for (const [dx, dy] of [[4, 0], [-4, 0], [0, 4], [0, -4]]) if (town.chars.at(x + dx, y + dy) === 'f') return 'f'; return c; };
+  const DUSTY = new Set(['%', 's', ':', 't', 'f']); let dustAcc = 0;
+  function dustOf(k, dt) { if (!k.riding || !town.chars) return; const sp = Math.hypot(k.vx, k.vy), g = groundAt(k.x, k.y); if (sp < 3 || !DUSTY.has(g)) return;
+    if (g === 'f') { dustAcc += dt * sp * 0.6; while (dustAcc >= 1) { dustAcc -= 1; plumeEmit('dust', k.x - k.vx * 0.12, k.y - k.vy * 0.12, 0.2, -k.vx * 0.12, -k.vy * 0.12, 0.5 + sp / 30); } return; }   // the woods floor: damp, a thin haze
     dustAcc += dt * sp * 1.4; while (dustAcc >= 1) { dustAcc -= 1; plumeEmit('dust', k.x - k.vx * 0.12, k.y - k.vy * 0.12, 0.2, -k.vx * 0.15, -k.vy * 0.15, 0.7 + sp / 20); } }
   const falls = []; let acc = 0, last = performance.now(), t = 0;
   function frame(now) {

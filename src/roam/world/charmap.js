@@ -1,13 +1,13 @@
 // [roam] The world as characters: one char per 2 m cell over the whole world, rasterised from W in plain JS (no canvas):
 // the world's readable record (print a patch of it and you can see the plan) and the seed of a far map. Later layers win:
 // land, water, trees, streets, the square, buildings.
-//   '"' grass   'T' tree / woods   'w' wheat  'b' barley  'r' rape  '%' plough  's' stubble  ',' pasture  'm' meadow
+//   '"' grass   'T' tree   'f' woods floor   't' farm track (earth)   'w' wheat  'b' barley  'r' rape  '%' plough  's' stubble  ',' pasture  'm' meadow
 //   '~' water   'L' lot (asphalt)  ':' gravel / yard        '=' road  '.' pavement / path / the square  '+' rail
 //   '#' building  '^' a canopy (ridden under)
 // makeCharmap(W) → { w, h, cell, codes: Uint8Array (char codes), at(x, y) → char, toText(x0, y0, x1, y1) → string }.
 import { profileOf } from './streets.js';
 
-export const CHARS = { grass: '"', tree: 'T', woods: 'T', wheat: 'w', barley: 'b', rape: 'r', plough: '%', stubble: 's', pasture: ',', meadow: 'm', water: '~', lot: 'L', gravel: ':', yard: ':', road: '=', pave: '.', rail: '+', building: '#', canopy: '^' };
+export const CHARS = { grass: '"', tree: 'T', woods: 'f', track: 't', wheat: 'w', barley: 'b', rape: 'r', plough: '%', stubble: 's', pasture: ',', meadow: 'm', water: '~', lot: 'L', gravel: ':', yard: ':', road: '=', pave: '.', rail: '+', building: '#', canopy: '^' };
 
 export function makeCharmap(W, cell = 2) {
   const w = Math.ceil(W.w / cell), h = Math.ceil(W.h / cell), codes = new Uint8Array(w * h).fill(CHARS.grass.charCodeAt(0)), C = k => CHARS[k].charCodeAt(0);
@@ -31,6 +31,7 @@ export function makeCharmap(W, cell = 2) {
   // streets: the carriageway '=', a pavement '.' where the kind has one; a path is all '.'
   for (const st of W.streets) { const P = profileOf(st), half = P.width(st) / 2;
     if (st.kind === 'path') { line(st.pts, half, C('pave')); continue; }
+    if (st.kind === 'track') { line(st.pts, half, C('track')); continue; }
     if (P.pavement) line(st.pts, half, C('pave')); line(st.pts, P.pavement ? half - 2.4 : half, C('road')); }
   if (W.plaza) obb(W.plaza, C('pave'));
   for (const p of W.placed) if (p.def.kind === 'building') obb(p, p.def.collide === 'none' ? C('canopy') : C('building'));
