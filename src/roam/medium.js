@@ -130,16 +130,23 @@ export function createMedium(o) {
           float th = atan(WD.y, WD.x) + 2.4 * (vnoise(w * 0.05 + vec2(uTime * 0.01, 0.0)) - 0.5) + 1.1 * (vnoise(w * 0.21) - 0.5) + (g0 - 0.4) * 0.6;
           vec2 dir = vec2(cos(th), sin(th)); if (tree > 0.5) dir = normalize(tang + WD * (g0 - 0.3) * 0.5);   // a crown is combed round its middle
           float pl = length(pushH); if (pl > 0.02) dir = normalize(mix(dir, pushH / pl, clamp(pl * 1.6, 0.0, 1.0)));
-          // (the seeds sit on a turned, jittered lattice, so the strands never line up in columns)
-          // seeds a metre: fewer when a pixel covers more ground, so they never alias into lines. The density moves in steps
-          // with the zoom; across a step the two layouts cross-fade (uGridK) instead of the whole field swapping at once
-          vec2 hA = hairAt(w, dir, clamp(uGrid1 * 0.45, 4.0, 22.0), mix(1.0, 0.65, pressH));
-          if (uGridK > 0.002) hA = mix(hA, hairAt(w, dir, clamp(uGrid2 * 0.45, 4.0, 22.0), mix(1.0, 0.65, pressH)), uGridK);
-          float hair = hA.x, hl = hA.y;
-          float thick = smoothstep(0.2, 0.75, vnoise(w * 0.07 + 3.7)) * 0.55 + 0.45;
-          vec3 hc = mix(vec3(0.16, 0.2, 0.17), vec3(0.6, 0.67, 0.57), hl) * (0.75 + 0.5 * g0) * mix(1.0, 0.55, pressH) * mix(1.0, 0.6, shadow);
-          if (tree > 0.5) { hc = mix(vec3(0.07, 0.09, 0.07), vec3(0.62, 0.7, 0.55), tl * (0.5 + 0.5 * hl)) * (0.85 + 0.3 * g0); thick = 1.0; }
-          col = mix(col * mix(1.0, 0.7, hairK), hc, hairK * thick * smoothstep(0.1, 0.6, hair));
+          // the grass has a size in the world (three layers: clumps, tufts, blades); the zoom only reveals or hides detail. A
+          // layer too fine for the pixels fades into its own average, so nothing swaps as you zoom (see strands())
+          float pr = mix(1.0, 0.65, pressH), thick = smoothstep(0.2, 0.75, vnoise(w * 0.07 + 3.7)) * 0.55 + 0.45;
+          if (tree > 0.5) thick = 1.0;
+          col *= mix(1.0, 0.7, hairK);
+          // the combed partings: dark lanes where the strands part, running along the flow (world-fixed, so every zoom has them)
+          // (noise smeared along the flow: the lanes follow its curves)
+          float part = 0.0; for (int k = -2; k <= 2; k++) part += vnoise((w + dir * float(k) * 0.55) * 1.7 + 11.0); part = smoothstep(0.36, 0.6, part / 5.0);
+          if (tree > 0.5) part = 1.0;
+          for (int L = 0; L < 3; L++) {
+            float f = L == 0 ? 1.5 : L == 1 ? 4.2 : 12.0, len = (L == 0 ? 2.4 : L == 1 ? 0.85 : 0.34) * pr, r = L == 0 ? 0.12 : L == 1 ? 0.042 : 0.02, p = L == 0 ? 0.45 : L == 1 ? 0.85 : 0.85;
+            float vis = smoothstep(0.35, 1.0, 2.0 * r * uPpm), mean = 1.0 - exp(-p * f * f * 1.4 * r * len);
+            vec2 st = vis > 0.01 ? strands(w, dir, f, len, r, p, float(L) * 17.3) : vec2(0.0, 0.5);
+            float cov = mix(mean, st.x, vis), hl = mix(0.5, st.y, vis);
+            vec3 hc = mix(vec3(0.16, 0.2, 0.17), vec3(0.6, 0.67, 0.57), hl) * (0.75 + 0.5 * g0) * mix(1.0, 0.55, pressH) * mix(1.0, 0.6, shadow) * (L == 0 ? 0.8 : L == 1 ? 0.92 : 1.05);
+            if (tree > 0.5) hc = mix(vec3(0.07, 0.09, 0.07), vec3(0.62, 0.7, 0.55), tl * (0.5 + 0.5 * hl)) * (0.85 + 0.3 * g0) * (L == 0 ? 0.75 : 1.0);
+            col = mix(col, hc, hairK * thick * cov * (L == 0 ? 0.7 : mix(0.35, 1.0, part))); }
           // bigger plants: leafy clumps every few metres of open grass, swaying in the gusts; some in flower
           if (ground > 0.5) { vec2 cid = floor(w / 4.6), rr = h22(cid + 4.7);
             if (h21(cid + 9.1) < 0.45) { vec2 ctr = (cid + 0.33 + 0.34 * rr) * 4.6 + WD * (gust(cid * 4.6) - 0.35) * 0.3; float fl = h21(cid + 2.3);   // in flower: a ring of small blooms
@@ -193,14 +200,18 @@ export function createMedium(o) {
           col = mix(col, under, tree * 0.8);   // under a tree: the crown covers the figure, a ghost of it shows through
         }
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`);
-  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir; uniform vec2 uCells, uCellOff; uniform float uCellPx, uGrid1, uGrid2, uGridK; uniform vec4 uHead;
-    // a patch of combed strands: how many seeds a short line along the flow passes (coverage), and how far along (the tip's
-    // light). HAIR_LEN sets the strands' length
-    #define HAIR_LEN 0.018
-    vec2 hairAt(vec2 w, vec2 dir, float fq, float press){
-      float stepL = HAIR_LEN * (20.0 / fq) * press, acc = 0.0, tip = 0.0;
-      for (int k = -9; k <= 9; k++) { float fk = float(k); vec2 q = mat2(0.866, 0.5, -0.5, 0.866) * (w + dir * fk * stepL); float sd = step(0.8, h21(floor(q * fq + vec2(h21(vec2(floor(q.y * fq), 3.0)), 0.0)))); acc += sd; tip += sd * (fk + 9.0) / 18.0; }
-      return vec2(clamp(acc / (HAIR_LEN / 0.009), 0.0, 1.0), clamp(tip / max(acc, 1e-3), 0.0, 1.0)); }
+  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
+    // one layer of strands with a fixed size in the world: seeds on a turned, jittered lattice (f a metre, p of the cells),
+    // each combed len metres along the flow, r wide at the root and tapering. A pixel asks the cells behind it along the
+    // flow whether a strand passes within its width; edges are antialiased by the pixel's own size. Returns (coverage, how
+    // far along the strand: the tip's light)
+    vec2 strands(vec2 w, vec2 dir, float f, float len, float r, float p, float salt){
+      mat2 RT = mat2(0.866, 0.5, -0.5, 0.866); vec2 P = RT * w * f, D = RT * dir; float best = 0.0, tip = 0.5, aa = 0.7 / uPpm;
+      for (int k = 0; k < 9; k++) { vec2 id = floor(P - D * (len * f * float(k) / 8.0)), h = h22(id + salt);
+        if (h.x < p) { vec2 sp = id + 0.15 + 0.7 * vec2(h.y, h21(id + salt + 3.7)), rel = P - sp; float a = dot(rel, D), sd = a / f, pd = length(rel - D * a) / f;
+          float u = sd / len, rr = r * (1.0 - 0.6 * clamp(u, 0.0, 1.0)), c = (1.0 - smoothstep(rr - aa, rr + aa, pd)) * smoothstep(-0.02, 0.0, sd) * (1.0 - smoothstep(len * 0.9, len, sd));
+          if (c > best) { best = c; tip = clamp(u, 0.0, 1.0); } } }
+      return vec2(best, tip); }
     vec3 tint(){ return mix(vec3(1.0), vec3(1.1, 0.88, 0.68), uSun.w); }
     // how much stands between the point w (at height hp) and a light at L (height hl): solids taller than the ray, from the cell
     // pass; roofs too when bld. Taps within skip of w (the figure itself) and within tail of the light (its own bike) don't count
