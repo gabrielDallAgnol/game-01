@@ -7,6 +7,7 @@
 //   border: 64 strip, 128 hedged, 192 fenced, 255 wild); hC.g how much grows (115 lawn, 255 bed, 205 wild; 0 on paths
 //   and under borders); hC.b the border (hedge or fence by kind); lC.b the paths (255 gravel, 140 trodden earth).
 // Deterministic: everything hangs off the house's uid and the town's seed.
+import { sparseGrid } from './world/sparse.js';
 const hashG = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
 const KIND = { strip: 64, hedge: 128, fence: 192, wild: 255 };
 
@@ -15,7 +16,7 @@ const KIND = { strip: 64, hedge: 128, fence: 192, wild: 255 };
 // paint items for the tiles (src/roam/tiles.js) and `at(x, y)`: whether a point is in a garden plot (padded).
 export function layoutGardens({ buildings, blocked, street, size, seed, keep }) {
   let wildness = 0.2;
-  const GR = 2, GW = Math.ceil(size.w * GR) + 1, GH = Math.ceil(size.h * GR) + 1, taken = new Uint8Array(GW * GH);   // the gardens' padded plots, so no two touch
+  const GR = 2, GW = Math.ceil(size.w * GR) + 1, GH = Math.ceil(size.h * GR) + 1, taken = sparseGrid(GW, GH);   // [world] sparse; the gardens' padded plots, so no two touch
   const cellOf = (x, y) => { const gx = Math.floor(x * GR), gy = Math.floor(y * GR); return gx < 0 || gy < 0 || gx >= GW || gy >= GH ? -1 : gy * GW + gx; };
   // a side of a house as a frame: u along the wall, v out from it (0 at the wall)
   const SIDES = [[0, 1], [Math.PI, 1], [-Math.PI / 2, 0], [Math.PI / 2, 0]];
@@ -27,8 +28,8 @@ export function layoutGardens({ buildings, blocked, street, size, seed, keep }) 
   const OPP = [1, 0, 3, 2];
   // a plot is free when every point of it (and a margin) is open ground: no wall, no street, no other garden
   const free = (F, u0, u1, v0, v1, m) => { for (let v = v0 + 0.35; v <= v1 + m + 1e-6; v += 0.45) for (let u = u0 - m; u <= u1 + m + 1e-6; u += 0.45) { const [x, y] = at(F, u, v);
-    if (blocked(x, y) || street(x, y)) return false; const k = cellOf(x, y); if (k < 0 || taken[k]) return false; } return true; };
-  const take = (F, u0, u1, v0, v1) => { for (let v = v0 - 0.75; v <= v1 + 0.75; v += 0.25) for (let u = u0 - 0.75; u <= u1 + 0.75; u += 0.25) { const k = cellOf(...at(F, u, v)); if (k >= 0) taken[k] = 1; } };
+    if (blocked(x, y) || street(x, y)) return false; const k = cellOf(x, y); if (k < 0 || taken.getI(k)) return false; } return true; };
+  const take = (F, u0, u1, v0, v1) => { for (let v = v0 - 0.75; v <= v1 + 0.75; v += 0.25) for (let u = u0 - 0.75; u <= u1 + 0.75; u += 0.25) { const k = cellOf(...at(F, u, v)); if (k >= 0) taken.setI(k, 1); } };
   const shapes = [];   // { F, layer: gate|grow|cut|border|path, val, r: [u0, v0, u1, v1] } or { …, c: [u, v, rad] }
   const rect = (F, layer, val, u0, v0, u1, v1) => shapes.push({ F, layer, val, r: [u0, v0, u1, v1] });
   const blob = (F, layer, val, u, v, rad) => shapes.push({ F, layer, val, c: [u, v, rad] });
@@ -100,5 +101,5 @@ export function layoutGardens({ buildings, blocked, street, size, seed, keep }) 
     const ext = S.r ? Math.hypot(Math.max(Math.abs(S.r[0]), Math.abs(S.r[2])), Math.max(Math.abs(S.r[1]), Math.abs(S.r[3]))) : Math.hypot(S.c[0], S.c[1]) + S.c[2];
     items.push({ layer: canvas, order: 50000 + k * 10000, x: S.F.ox, y: S.F.oy, r: ext + 1, draw(X) { X.globalCompositeOperation = op; X.fillStyle = style(S.val); X.translate(S.F.ox, S.F.oy); X.rotate(S.F.A);
       if (S.r) X.fillRect(S.r[0], S.r[1], S.r[2] - S.r[0], S.r[3] - S.r[1]); else { X.beginPath(); X.arc(S.c[0], S.c[1], S.c[2], 0, 7); X.fill(); } } }); }
-  return { items, at: (x, y) => { const k = cellOf(x, y); return k >= 0 && taken[k] === 1; }, count: shapes.filter(S => S.layer === 'gate').length };
+  return { items, at: (x, y) => { const k = cellOf(x, y); return k >= 0 && taken.getI(k) === 1; }, count: shapes.filter(S => S.layer === 'gate').length };
 }
