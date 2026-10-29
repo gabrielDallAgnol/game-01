@@ -21,7 +21,7 @@ export function createLook(canvas, town) {
     tTown: { value: tex(C.gC) }, tOver: { value: tex(C.oC) }, tMach: { value: tex(C.mC) }, tRoof: { value: mtex(C.rC) }, tStreet: { value: mtex(C.sC) }, tMisc: { value: mtex(C.xC) }, tTreeH: { value: mtex(C.hC) }, tLight: { value: mtex(C.lC) }, tLDir: { value: mtex(C.dC) },
     uFire: { value: new THREE.Vector2(-1e4, -1e4) }, tDist: { value: rts[0].texture }, tPrev: { value: rts[0].texture },
     uCam: { value: new THREE.Vector2() }, uView: { value: new THREE.Vector2(40, 80) }, uOrigin: { value: new THREE.Vector2(O.x, O.y) }, uS: { value: SPAN },
-    uTime: { value: 0 }, uPpm: { value: 20 }, uGrid: { value: 20 }, uSun: { value: new THREE.Vector4(-0.6, -0.8, 1.8, 0) }, uHead: { value: new THREE.Vector4() }, uNight: { value: 0 }, uKai: { value: new THREE.Vector2() },
+    uTime: { value: 0 }, uPpm: { value: 20 }, uGrid: { value: 20 }, uGrid1: { value: 20 }, uGrid2: { value: 20 }, uGridK: { value: 0 }, uSun: { value: new THREE.Vector4(-0.6, -0.8, 1.8, 0) }, uHead: { value: new THREE.Vector4() }, uNight: { value: 0 }, uKai: { value: new THREE.Vector2() },
     uA: { value: stampA }, uB: { value: stampB }, uN: { value: 0 }, uDecayPush: { value: 0 }, uDecayPress: { value: 0 },
   };
   const mat = frag => new THREE.ShaderMaterial({ uniforms: U, vertexShader: VERT, fragmentShader: HEAD + frag, depthTest: false, depthWrite: false });
@@ -50,12 +50,16 @@ export function createLook(canvas, town) {
   }
   // the zoom the grass is laid for: it moves in steps, and only when the zoom has moved well away (a pinch), so the strands
   // never crawl while the camera breathes with the bike's speed
+  const fade = { a: 0, b: 0, k: 0 };
   let grid = 0; const gridFor = ppm => { if (!grid || Math.abs(Math.log2(ppm / grid)) > 0.4) grid = Math.pow(2, Math.round(Math.log2(ppm) * 2) / 2); return grid; };
   function resize(w, h, dpr) { renderer.setPixelRatio(dpr); renderer.setSize(w, h, false); }
   /** v: { cam, cssW, cssH, dpr, S, falls, t, night, dt } */
   function render(v) {
     const { cam, cssW, cssH, dpr, S, t, night, sun } = v;
-    U.uGrid.value = gridFor((cam.base || cam.ppm) * dpr); U.uSun.value.set(sun.x, sun.y, sun.climb, sun.warm);
+    { const want = gridFor((cam.base || cam.ppm) * dpr);   // a new density fades in over a third of a second
+      if (!fade.a) fade.a = want; if (want !== fade.b) { if (fade.k > 0.5) fade.a = fade.b; fade.b = want; fade.k = fade.a === want ? 0 : 0.001; }
+      if (fade.k > 0) { fade.k += (v.dt || 0.016) / 0.35; if (fade.k >= 1) { fade.a = fade.b; fade.k = 0; } }
+      const k = fade.k * fade.k * (3 - 2 * fade.k); U.uGrid.value = k < 0.5 ? fade.a : fade.b; U.uGrid1.value = fade.a; U.uGrid2.value = fade.b; U.uGridK.value = k; }   // uGrid: the rest (blades, hedges) swap at the fade's middle U.uSun.value.set(sun.x, sun.y, sun.climb, sun.warm);
     { const b = S.bike, a = b.ang, f = 0.72 * 0.9 * 2.6; U.uHead.value.set(b.x + Math.cos(a) * f, b.y + Math.sin(a) * f, a, S.kai.riding ? 0.25 + 0.75 * night : 0); }
     U.uCam.value.set(cam.x, cam.y); U.uView.value.set(cssW / cam.ppm, cssH / cam.ppm); U.uPpm.value = cam.ppm * dpr; U.uTime.value = t; U.uNight.value = night; U.uKai.value.set(S.kai.x, S.kai.y);
     stepDist(v.dt, S, v.falls, cam, cssW, cssH);

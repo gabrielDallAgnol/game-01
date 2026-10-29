@@ -131,10 +131,11 @@ export function createMedium(o) {
           vec2 dir = vec2(cos(th), sin(th)); if (tree > 0.5) dir = normalize(tang + WD * (g0 - 0.3) * 0.5);   // a crown is combed round its middle
           float pl = length(pushH); if (pl > 0.02) dir = normalize(mix(dir, pushH / pl, clamp(pl * 1.6, 0.0, 1.0)));
           // (the seeds sit on a turned, jittered lattice, so the strands never line up in columns)
-          float fq = clamp(uGrid * 0.45, 4.0, 22.0);   // seeds a metre: fewer when a pixel covers more ground, so they never alias into lines
-          float stepL = 0.036 * (20.0 / fq) * mix(1.0, 0.65, pressH), acc = 0.0, tip = 0.0;   // finer, shorter strands
-          for (int k = -9; k <= 9; k++) { float fk = float(k); vec2 q = w + dir * fk * stepL; q = mat2(0.866, 0.5, -0.5, 0.866) * q; float sd = step(0.8, h21(floor(q * fq + vec2(h21(vec2(floor(q.y * fq), 3.0)), 0.0)))); acc += sd; tip += sd * (fk + 9.0) / 18.0; }
-          float hair = clamp(acc / 4.0, 0.0, 1.0), hl = clamp(tip / max(acc, 1e-3), 0.0, 1.0);
+          // seeds a metre: fewer when a pixel covers more ground, so they never alias into lines. The density moves in steps
+          // with the zoom; across a step the two layouts cross-fade (uGridK) instead of the whole field swapping at once
+          vec2 hA = hairAt(w, dir, clamp(uGrid1 * 0.45, 4.0, 22.0), mix(1.0, 0.65, pressH));
+          if (uGridK > 0.002) hA = mix(hA, hairAt(w, dir, clamp(uGrid2 * 0.45, 4.0, 22.0), mix(1.0, 0.65, pressH)), uGridK);
+          float hair = hA.x, hl = hA.y;
           float thick = smoothstep(0.2, 0.75, vnoise(w * 0.07 + 3.7)) * 0.55 + 0.45;
           vec3 hc = mix(vec3(0.16, 0.2, 0.17), vec3(0.6, 0.67, 0.57), hl) * (0.75 + 0.5 * g0) * mix(1.0, 0.55, pressH) * mix(1.0, 0.6, shadow);
           if (tree > 0.5) { hc = mix(vec3(0.07, 0.09, 0.07), vec3(0.62, 0.7, 0.55), tl * (0.5 + 0.5 * hl)) * (0.85 + 0.3 * g0); thick = 1.0; }
@@ -192,7 +193,14 @@ export function createMedium(o) {
           col = mix(col, under, tree * 0.8);   // under a tree: the crown covers the figure, a ghost of it shows through
         }
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`);
-  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
+  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir; uniform vec2 uCells, uCellOff; uniform float uCellPx, uGrid1, uGrid2, uGridK; uniform vec4 uHead;
+    // a patch of combed strands: how many seeds a short line along the flow passes (coverage), and how far along (the tip's
+    // light). HAIR_LEN sets the strands' length
+    #define HAIR_LEN 0.018
+    vec2 hairAt(vec2 w, vec2 dir, float fq, float press){
+      float stepL = HAIR_LEN * (20.0 / fq) * press, acc = 0.0, tip = 0.0;
+      for (int k = -9; k <= 9; k++) { float fk = float(k); vec2 q = mat2(0.866, 0.5, -0.5, 0.866) * (w + dir * fk * stepL); float sd = step(0.8, h21(floor(q * fq + vec2(h21(vec2(floor(q.y * fq), 3.0)), 0.0)))); acc += sd; tip += sd * (fk + 9.0) / 18.0; }
+      return vec2(clamp(acc / (HAIR_LEN / 0.009), 0.0, 1.0), clamp(tip / max(acc, 1e-3), 0.0, 1.0)); }
     vec3 tint(){ return mix(vec3(1.0), vec3(1.1, 0.88, 0.68), uSun.w); }
     // how much stands between the point w (at height hp) and a light at L (height hl): solids taller than the ray, from the cell
     // pass; roofs too when bld. Taps within skip of w (the figure itself) and within tail of the light (its own bike) don't count
