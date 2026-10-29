@@ -28,7 +28,7 @@ export function makeSlots({ W, buildings, trees, blocked, care, sw, step = 2 }) 
         if (path) { for (const s of [-1, 1]) { const x = cx + px * s * (half + 0.6), y = cy + py * s * (half + 0.6); if (!blocked(x, y)) push('wall', x, y, ang, { nx: -px * s, ny: -py * s, street: st.id, path: true }); } continue; }
         for (const s of [-1, 1]) { const o = (k, m) => [cx + px * s * k, cy + py * s * k], nx = -px * s, ny = -py * s;
           const [kx, ky] = o(half - PAVE + 0.35), [mx, my] = o(half - PAVE / 2), [wx, wy] = o(half - 0.35), [qx, qy] = o(half - PAVE - 1.15);
-          if (!blocked(kx, ky)) push('kerb', kx, ky, ang, { nx, ny, street: st.id, side: s });
+          if (!blocked(kx, ky)) push('kerb', kx, ky, ang, { nx, ny, street: st.id, side: s, district: st.district });
           if (!blocked(mx, my)) push('pavement', mx, my, ang, { nx, ny, street: st.id, side: s });
           if (!blocked(wx, wy)) push('wall', wx, wy, ang, { nx, ny, street: st.id, side: s });
           if (!blocked(qx, qy) && !nearJ(qx, qy, 7)) push('parking', qx, qy, ang + (s < 0 ? Math.PI : 0), { street: st.id, side: s }); }

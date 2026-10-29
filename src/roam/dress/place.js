@@ -30,7 +30,7 @@ export function makePlacer({ ATOMS, STORIES, slots, care, seed, flags }) {
   function atoms(free) { for (const atom of ATOMS) { if (!atom.slot) continue; const list = slots.by[atom.slot] || [];
     for (const s of list) { const r = hash(seed, s.x, s.y, atom.id.charCodeAt(0), atom.id.length); if (r >= atom.chance) continue;
       const f = atom.fit(s.care, s, flags); if (f <= 0 || hash(seed, s.y, s.x, 3, atom.id.length) > f) continue;
-      if (!free(s.x, s.y) || claimed.some(q => Math.hypot(q.x - s.x, q.y - s.y) < q.r)) continue;
+      if (s.kind !== 'roof' && (!free(s.x, s.y) || claimed.some(q => Math.hypot(q.x - s.x, q.y - s.y) < q.r))) continue;   // a roof is not ground: it stands on the house, not on what the stories claimed
       if (near(s.x, s.y, atom.every, q => q.atom === atom)) continue;
       if (atom.space && near(s.x, s.y, atom.space, q => q.atom.space)) continue;
       add(atom, s); } } }
