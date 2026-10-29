@@ -11,13 +11,18 @@
 //   roof      on a building (crows, chimneys)                                              ang: the building's; w, h, uid, look
 //   yard      behind a house, open ground (sheds, laundry, bins)                           ang: away from the house; uid
 //   tree      at a tree's foot (leaf piles)                                                r: crown radius
-// Every slot also carries `crown`: true under a tree's crown (tall atoms keep out; leaf piles and benches like the shade).
+// Every slot also carries `crown`: true under a tree's crown (tall atoms keep out; leaf piles and benches like the shade),
+// `district` (the engine's district id: oldtown, station, works, masts, park, barns, south, west, east) and, on pavement
+// slots (kerb, pavement, wall), `door`: true within 4 m of a house's front door.
 // Slots are sampled every `step` metres along streets; placement (place.js) spaces atoms itself.
 export const PAVE = 2.4;   // the pavement's width (matches town.js's street painting)
-export function makeSlots({ W, buildings, trees, blocked, care, sw, step = 2 }) {
-  const TG = 12, tgrid = new Map(); for (const p of trees) { const k = Math.floor(p.x / TG) + ',' + Math.floor(p.y / TG); if (!tgrid.has(k)) tgrid.set(k, []); tgrid.get(k).push(p); }
-  const crown = (x, y) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) for (const p of tgrid.get((Math.floor(x / TG) + i) + ',' + (Math.floor(y / TG) + j)) || []) if (Math.hypot(p.x - x, p.y - y) < (p.r || p.def.size[0] / 2) * 0.9 + 0.4) return true; return false; };
-  const S = [], push = (kind, x, y, ang, extra) => S.push({ kind, x, y, ang, care: care.at(x, y), crown: crown(x, y), ...extra });
+export function makeSlots({ W, buildings, trees, blocked, care, sw, step = 3 }) {
+  const TG = 12, tgrid = new Map(); for (const p of trees) { const k = Math.floor(p.x / TG) * 4096 + Math.floor(p.y / TG); if (!tgrid.has(k)) tgrid.set(k, []); tgrid.get(k).push(p); }
+  const crown = (x, y) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) for (const p of tgrid.get((Math.floor(x / TG) + i) * 4096 + Math.floor(y / TG) + j) || []) if (Math.hypot(p.x - x, p.y - y) < (p.r || p.def.size[0] / 2) * 0.9 + 0.4) return true; return false; };
+  const DG = 8, dgrid = new Map(); for (const p of buildings) if (p.door) { const k = Math.floor(p.door.x / DG) * 4096 + Math.floor(p.door.y / DG); if (!dgrid.has(k)) dgrid.set(k, []); dgrid.get(k).push(p.door); }
+  const nearDoor = (x, y) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) for (const d of dgrid.get((Math.floor(x / DG) + i) * 4096 + Math.floor(y / DG) + j) || []) if (Math.hypot(d.x - x, d.y - y) < 4) return true; return false; };
+  const S = [], push = (kind, x, y, ang, extra) => S.push({ kind, x, y, ang, care: care.at(x, y), crown: crown(x, y), district: care.district(x, y),
+    door: kind === 'kerb' || kind === 'pavement' || kind === 'wall' ? nearDoor(x, y) : false, ...extra });
   const nodes = new Map(W.nodes.map(n => [n.id, n])), nodeW = new Map();
   for (const st of W.streets) for (const id of st.ends || []) nodeW.set(id, Math.max(nodeW.get(id) || 0, sw(st)));
   const juncs = W.nodes.filter(n => n.deg >= 3), nearJ = (x, y, m) => juncs.some(n => Math.hypot(n.x - x, n.y - y) < (nodeW.get(n.id) || 8) / 2 + m);

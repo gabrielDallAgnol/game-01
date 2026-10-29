@@ -9,11 +9,13 @@
 //   { id, family, slot, every, chance, space?, fit(care, slot), variant?(care, h, slot, inst), collide?: { w, h },
 //     volumes?(inst, K, t, v), paint?(g, inst), strands?(fx, inst, v), live?: { init(inst), step(inst, dt, v), draw(fx, inst, v) } }
 // An instance is { atom, id, x, y, ang, care, h (0..1, its own hash), variant, story?, slot }.
-export const hash = (...a) => { let n = 0x9e3779b9; for (const v of a) { n = Math.imul(n ^ (Math.round(v * 1000) | 0), 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); n ^= n >>> 16; } return (n >>> 0) / 4294967296; };
+const mixh = (n, v) => { n = Math.imul(n ^ (Math.round(v * 1000) | 0), 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return n ^ (n >>> 16); };
+// a hash of up to five numbers (no arrays made: placement calls it a hundred thousand times)
+export const hash = (a, b = 0, c = 0, d = 0, e = 0) => (mixh(mixh(mixh(mixh(mixh(0x9e3779b9, a), b), c), d), e) >>> 0) / 4294967296;
 
 export function makePlacer({ ATOMS, STORIES, slots, care, seed, flags }) {
   const byId = new Map(ATOMS.map(a => [a.id, a])), out = [], claimed = [], solid = [];
-  const G = 8, grid = new Map(), key = (x, y) => Math.floor(x / G) + ',' + Math.floor(y / G);
+  const G = 8, grid = new Map(), key = (x, y) => Math.floor(x / G) * 4096 + Math.floor(y / G);
   const near = (x, y, r, test) => { const k = Math.ceil(r / G); for (let j = -k; j <= k; j++) for (let i = -k; i <= k; i++) for (const q of grid.get(key(x + i * G, y + j * G)) || []) if (Math.hypot(q.x - x, q.y - y) < r && test(q)) return true; return false; };
   const add = (atom, s, extra = {}) => { const h = hash(seed, s.x, s.y, atom.id.length, out.length * 0.001);
     const inst = { atom, id: out.length, x: s.x, y: s.y, ang: s.ang ?? 0, care: s.care ?? care.at(s.x, s.y), h, slot: s, ...extra };

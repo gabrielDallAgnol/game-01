@@ -77,7 +77,7 @@ export const PROPS = [
   // wheelie bins against the fronts, mostly in the kept streets. Tended → upright, lid shut; worn → lid open; ruined →
   // tipped over, rubbish spilt. 'tidy' (a story): a survivor keeps a pair, square to the wall
   { id: 'bin', family: 'props', slot: 'wall', every: 16, chance: 0.08, space: 1, collide: { w: 0.9, h: 0.9 },
-    fit: (c, s) => s.path ? 0 : [0.25, 0.4, 0.75][band(c)],
+    fit: (c, s) => s.path ? 0 : (s.door ? 1 : 0.15) * [0.25, 0.4, 0.75][band(c)],   // by a front door, mostly
     variant: (c, h) => band(c) === 2 ? 'shut' : band(c) === 1 ? (hash(h, 6) < 0.6 ? 'open' : 'shut') : 'tipped',
     volumes(i, K) { const v = i.variant, fa = face(i) + (v === 'tidy' ? 0 : (i.h - 0.5) * 0.5);
       if (v === 'tipped') { const q = kit(i, K, fa + (i.h - 0.5) * 2.4);   // on its side: its mouth to the road, the lid flung off
@@ -92,7 +92,7 @@ export const PROPS = [
       g.fillStyle = 'rgb(110,0,0)'; for (let k = 0; k < 7; k++) { const u = (0.8 + hash(i.h, k) * 1.6) * S, w = (hash(k, i.h) - 0.5) * 1.6 * S; g.fillRect(i.x + c * u - s * w, i.y + s * u + c * w, 0.14, 0.1); } } },   // litter
   // the post box: the old town only (lived-in, not the new suburbs, not the works), rare, red. Ruined → knocked down
   { id: 'postbox', family: 'props', slot: 'kerb', every: 150, chance: 0.05, space: 2, collide: { w: 0.8, h: 0.8 },
-    fit: (c, s) => s.crown || s.path ? 0 : c > 0.4 && c < 0.7 ? 1 : c > 0.25 && c < 0.4 ? 0.3 : 0,
+    fit: (c, s) => s.crown || s.path || s.district !== 'oldtown' ? 0 : c > 0.25 ? 1 : 0.3,   // the old town's post: only there
     variant: c => band(c) === 0 ? 'down' : 'up',
     volumes(i, K) { const fa = face(i);
       if (i.variant === 'down') { const q = kit(i, K, fa + 2.2 + i.h); q.cap(0.1, 0, 0.27, 1.25, 0, 0.27, 0.27, M.carRed); q.ball(1.3, 0, 0.27, 0.3, M.carRed); q.box(-0.05, 0, 0.12, 0.12, 0.32, 0.12, 0.04, 0, M.dark); return; }

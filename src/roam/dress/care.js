@@ -12,16 +12,16 @@ const vn = (x, y, s) => { const i = Math.floor(x), j = Math.floor(y), fx = x - i
   return (h2(i, j, s) * (1 - u) + h2(i + 1, j, s) * u) * (1 - v) + (h2(i, j + 1, s) * (1 - u) + h2(i + 1, j + 1, s) * u) * v; };
 
 export function makeCare({ W, nests, buildings, seed }) {
-  const G = 4, nx = Math.ceil(W.w / G) + 1, ny = Math.ceil(W.h / G) + 1, grid = new Float32Array(nx * ny);
+  const G = 4, nx = Math.ceil(W.w / G) + 1, ny = Math.ceil(W.h / G) + 1, grid = new Float32Array(nx * ny), dgrid = new Array(nx * ny);
   const ruins = buildings.filter(p => p.def.tags.includes('ruin') || p.def.look === 'ruin');
-  const dkind = (x, y) => { const d = W.districtAt(x, y); return d ? (W.districts.find(q => q.id === d.id) || d).kind : 'field'; };
+  const kinds = new Map(W.districts.map(d => [d.id, d.kind])), dkind = (d) => d ? kinds.get(d.id) || d.kind : 'field';
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const x = i * G, y = j * G;
-    let c = BASE[dkind(x, y)] ?? 0.5;
+    const d = W.districtAt(x, y); dgrid[j * nx + i] = d ? d.id : null; let c = BASE[dkind(d)] ?? 0.5;
     for (const n of nests) c -= 0.62 * (1 - ss(22, 95, Math.hypot(n.x - x, n.y - y)));
     for (const r of ruins) c -= 0.45 * (1 - ss(6, 24, Math.hypot(r.x - x, r.y - y)));
     c += (vn(x / 70, y / 70, seed) - 0.5) * 0.34 + (vn(x / 18, y / 18, seed + 7) - 0.5) * 0.1;
     grid[j * nx + i] = Math.max(0, Math.min(1, c)); }
   const at = (x, y) => { const fx = Math.max(0, Math.min(nx - 1.001, x / G)), fy = Math.max(0, Math.min(ny - 1.001, y / G)), i = Math.floor(fx), j = Math.floor(fy), u = fx - i, v = fy - j, g = (a, b) => grid[b * nx + a];
     return (g(i, j) * (1 - u) + g(i + 1, j) * u) * (1 - v) + (g(i, j + 1) * (1 - u) + g(i + 1, j + 1) * u) * v; };
-  return { at, band: (x, y) => band(at(x, y)), district: (x, y) => { const d = W.districtAt(x, y); return d ? d.id : null; } };
+  return { at, band: (x, y) => band(at(x, y)), district: (x, y) => dgrid[Math.max(0, Math.min(ny - 1, Math.round(y / G))) * nx + Math.max(0, Math.min(nx - 1, Math.round(x / G)))] };
 }
