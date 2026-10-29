@@ -50,6 +50,11 @@ export function makeSlots({ W, buildings, trees, blocked, care, sw, step = 3 }) 
       if (!blocked(x, y)) push('door', x, y, Math.atan2(uy, ux), { uid: p.uid });
       const bx = p.x - ux * (r + 3.2), by = p.y - uy * (r + 3.2); if (!blocked(bx, by)) push('yard', bx, by, Math.atan2(-uy, -ux), { uid: p.uid }); } }
   for (const p of trees) push('tree', p.x, p.y, 0, { r: (p.r || p.def.size[0] / 2) * 0.86 });
+  // [sites] begin: the special places' own anchors (world/sites.js: pumps, bays, yards, rooftop plant); a site's
+  // works buildings have no back yard for a washing line (only its homes do)
+  for (const st of W.sites || []) for (const a of st.anchors || []) push(a.kind, a.x, a.y, a.ang, a);
+  { const works = new Set(buildings.filter(p => p.def.tags.includes('site') && !p.def.tags.includes('house')).map(p => p.uid)); for (let k = S.length - 1; k >= 0; k--) if (S[k].kind === 'yard' && works.has(S[k].uid)) S.splice(k, 1); }
+  // [sites] end
   const by = {}; for (const s of S) (by[s.kind] ||= []).push(s);
   return { all: S, by };
 }
