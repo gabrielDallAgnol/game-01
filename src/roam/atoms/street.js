@@ -5,7 +5,7 @@ import { M } from '../dress/mats.js';
 export const STREET = [
   // the lamps died with the grid. They stand on every kerb, every 26 m or so, wherever the town was a town; where the
   // blight is, some lean, some are down
-  { id: 'lamp', family: 'street', slot: 'kerb', every: 24, chance: 0.6, space: 1.5, collide: { w: 0.5, h: 0.5 },
+  { id: 'lamp', family: 'street', breakable: true, slot: 'kerb', every: 24, chance: 0.6, space: 1.5, collide: { w: 0.5, h: 0.5 },
     fit: (c, s) => s.path || s.crown ? 0 : 1, variant: (c, h) => c < 0.32 && h < 0.45 ? (h < 0.2 ? 'down' : 'bent') : 'up',
     volumes(i, K) { const S = K.S, nx = i.slot.nx, ny = i.slot.ny, lean = i.variant === 'bent' ? 0.5 : 0;
       if (i.variant === 'down') { const a = i.ang + (i.h - 0.5) * 1.2, c = Math.cos(a), s = Math.sin(a); K.capsule(i.x, i.y, 0.1, i.x + c * 4.6 * S, i.y + s * 4.6 * S, 0.12, 0.08 * S, M.steel); K.box(i.x + c * 4.8 * S, i.y + s * 4.8 * S, 0.15, 0.35 * S, 0.2 * S, 0.12, 0.08 * S, a, M.dark); return; }

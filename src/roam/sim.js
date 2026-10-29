@@ -19,11 +19,14 @@ export function createRoam(town, seed = 1) {
     t: 0, clock: 40, clockRate: 1, night: false, kills: 0, nestsLeft: town.nests.length, won: false, events: [],
     kai: { x: town.start.x + 3, y: town.start.y + 5, vx: 0, vy: 0, face: 0, hp: R.kai.hp, maxHp: R.kai.hp, cd: 0, swing: 0, hurtT: -9, dead: 0, dash: 0, dashCd: 0, riding: false },
     bike: { x: town.start.x + 0.8, y: town.start.y + 6.2, ang: 0, speed: 0 },
+    broken: new Set(),   // the small props the bike has smashed (their ids in town.breakables)
     dead: [], nests: town.nests.map((n, id) => ({ id, x: n.x, y: n.y, b: n.b, hp: R.nest.hp, maxHp: R.nest.hp, alive: true, spawnT: rng.range(0, 4), hit: -9 })),
   };
   let nid = 1;
   const ev = (type, o) => S.events.push({ type, ...o });
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  // the breakables on a 10 m grid, for the bike's smash test
+  const BG = 10, bgrid = new Map(); for (const p of town.breakables || []) { const k = Math.floor(p.x / BG) * 4096 + Math.floor(p.y / BG); if (!bgrid.has(k)) bgrid.set(k, []); bgrid.get(k).push(p); }
   // ---------- the dead ----------
   function spawn(kind, x, y, o = {}) { const K = R.dead[kind]; const d = { id: nid++, kind, x, y, vx: 0, vy: 0, hp: K.hp, maxHp: K.hp, fa: rng.range(0, 6.28), ph: rng.range(0, 6), side: rng.chance(0.5) ? -1 : 1, state: 'wander', wx: x, wy: y, bite: 0, wind: 0, hit: -9, ...o }; S.dead.push(d); return d; }
   const kindRoll = () => { const r = rng.float(); return r < (S.night ? 0.12 : 0.06) ? 'brute' : r < (S.night ? 0.32 : 0.2) ? 'flicker' : 'cinder'; };
@@ -52,6 +55,9 @@ export function createRoam(town, seed = 1) {
       else b.speed = Math.max(0, b.speed - R.bike.brake * 0.5 * dt);
       const nx = b.x + Math.cos(b.ang) * b.speed * dt, ny = b.y + Math.sin(b.ang) * b.speed * dt;
       if (blocked(nx, ny)) { if (b.speed > 6) ev('crash', { x: b.x, y: b.y }); b.speed *= -0.25; } else { b.x = nx; b.y = ny; }
+      // a small prop in the way breaks (the bike loses a little speed); it stays broken
+      if (Math.abs(b.speed) > 1.5) for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) for (const p of bgrid.get((Math.floor(b.x / BG) + i) * 4096 + Math.floor(b.y / BG) + j) || [])
+        if (!S.broken.has(p.id) && Math.hypot(p.x - b.x, p.y - b.y) < p.r + 1.1) { S.broken.add(p.id); b.speed *= 0.82; ev('smash', { id: p.id, x: p.x, y: p.y, ang: b.ang }); }
       if (b.speed > R.bike.ram) for (const d of [...S.dead]) if (dist(d, b) < 1.3) { hurtDead(d, R.bike.ramDmg * b.speed / R.bike.top, 'bike'); b.speed *= 0.8; const a = Math.atan2(d.y - b.y, d.x - b.x); d.vx += Math.cos(a) * 6; d.vy += Math.sin(a) * 6; ev('ram', { x: d.x, y: d.y }); }
       k.x = b.x; k.y = b.y; k.vx = Math.cos(b.ang) * b.speed; k.vy = Math.sin(b.ang) * b.speed; k.face = b.ang;
     } else {

@@ -14,7 +14,8 @@ import { gardenLook } from './garden-look.js';
 export const MAXP = 1024;          // volumes a frame (the dead off screen are left out)
 const RAMP = ' .,:-=+*%#@';
 const NG = RAMP.length;
-export const FIGM = 2.6;          // figures are drawn bigger than life, as in the game (Thronefall-style)
+export const FIGM = 2.6;
+export const CELLW = 0.15;        // a glyph cell's size in the world (m): 5 px at the default zoom on a phone          // figures are drawn bigger than life, as in the game (Thronefall-style)
 // materials (the composite's palette): ids are stored in the cell pass as id / 32
 // the materials (the composite's palette) are shared with the city's atoms: src/roam/dress/mats.js
 
@@ -31,6 +32,10 @@ export function createMedium(o) {
 
   // the kit a city atom draws its solids with (props are drawn 1.3x life: between the houses, 1x, and the figures, 2.6x)
   const K = { sphere, capsule, box, M, S: 1.3 };
+
+  // what's left of a small prop the bike smashed: a few dark chunks thrown the way the bike went
+  const hw = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
+  function wreck(i) { for (let k = 0; k < 4; k++) { const a = i.ang + (hw(i.id, k) - 0.5) * 2.4, d = 0.3 + 1.6 * hw(k, i.id); box(i.x + Math.cos(a) * d, i.y + Math.sin(a) * d, 0.06, 0.16 + 0.12 * hw(i.id, k + 9), 0.07, 0.06, 0.03, a * 3.1, k % 2 ? M.dark : M.steel); } }
 
   // ---------- the glyph ramp, one row of white letters ----------
   // drawn at the cell's own pixel size and sampled nearest: a big atlas shrunk without mips loses the letters' strokes
@@ -163,7 +168,7 @@ export function createMedium(o) {
   swap('        col *= mix(vec3(1.0), vec3(0.33, 0.35, 0.40), uNight);', `        col *= mix(vec3(1.02, 1.04, 1.04) * tint(), vec3(0.24, 0.27, 0.36), uNight);   // [medium] by day bright, warm when the sun is low; by night dark and cool
         // [medium] roofs: the same cells and ramp as the solids, lit by slope (after the ground's darkening: they are solids)
         { vec2 cp = (gl_FragCoord.xy + uCellOff) / uCellPx, g = fract(cp); float rl = flatRoof > 0.5 ? 0.55 : mix(0.34, 0.95, lit); rl *= (1.0 - 0.85 * ridge) * (1.0 - 0.75 * eave) * (0.88 + 0.24 * h21(floor(cp)));
-          float gm = texture2D(tGlyph, vec2((floor(pow(clamp(rl, 0.0, 0.999), 0.6) * ${NG}.0) + g.x) / ${NG}.0, g.y)).a;
+          float rlev = floor(pow(clamp(rl, 0.0, 0.999), 0.6) * ${NG}.0), gm = mix(0.14 + 0.62 * rlev / ${NG - 1}.0, texture2D(tGlyph, vec2((rlev + g.x) / ${NG}.0, g.y)).a, smoothstep(2.4, 4.6, uCellPx));
           vec3 rc = vec3(0.9, 0.88, 0.82) * (0.45 + 0.6 * rl) * mix(tint(), vec3(0.55), uNight);
           // a lit house at night: its windows show as warm letters along the eaves, the roof catches a little of its own glow
           vec4 LM = texture2D(tLight, t); float win = LM.g * uNight * step(0.55, h21(floor(cp * vec2(0.5, 1.0)) + 3.1)) * smoothstep(0.35, 0.95, 1.0 - rf.a + eave);
@@ -208,7 +213,7 @@ export function createMedium(o) {
         if (A.a > 0.5) {
           float mi = floor(A.g * 32.0 + 0.5), em = A.b; vec3 mc = matCol(mi, em), ec = emCol(mi);
           float lev = max(max(floor(pow(clamp(A.r, 0.0, 0.999), 0.5) * ${NG}.0), floor(em * ${NG - 1}.0)), floor(clamp(head * 1.4 + lm * uNight, 0.0, 0.95) * ${NG}.0));   // light on it fills its letters
-          vec2 g = fract((gl_FragCoord.xy + uCellOff) / uCellPx); float gm = texture2D(tGlyph, vec2((lev + g.x) / ${NG}.0, g.y)).a;
+          vec2 g = fract((gl_FragCoord.xy + uCellOff) / uCellPx); float gm = mix(0.14 + 0.62 * lev / ${NG - 1}.0, texture2D(tGlyph, vec2((lev + g.x) / ${NG}.0, g.y)).a, smoothstep(2.4, 4.6, uCellPx));   // far: a cell too small for a letter shows its average ink
           vec3 lc = mix(vec3(0.94, 0.92, 0.87), mc, 0.6) * (0.55 + 0.75 * A.r) * mix(tint(), vec3(0.62), uNight);   // pale letters, the colour as a tint
           lc += vec3(1.0, 0.66, 0.32) * lm * uNight * 0.9 + vec3(1.0, 0.92, 0.76) * head * 0.9;   // a figure in a window's light or the headlight is lit by it
           lc *= 1.0 - 0.45 * sMask;
@@ -295,35 +300,36 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     sphere(nst.x, nst.y, 0.1 * S, r, hit ? M.flash : M.stone);
     if (nst.alive) for (let i = 0; i < 5; i++) { const a = i * 1.26 + nst.id, c = Math.cos(a), s2 = Math.sin(a); capsule(nst.x + c * r * 0.3, nst.y + s2 * r * 0.3, 0.1 * S + r * 0.95, nst.x + c * r * 0.85, nst.y + s2 * r * 0.85, 0.1 * S + r * 0.5, 0.05 * S, M.crack, 0.6 + 0.4 * Math.sin(t * 3.2 + nst.id)); }
   }
-  const anchor = { x: 0, y: 0, ppm: 0, cp: 0, W: 0, H: 0 };
   // ---------- each frame: gather the volumes, size the cells, render the cell pass ----------
   function render(v) {
     n = 0;
     const { cam, cssW, cssH, dpr, kai, dead, bike, nests, t, night } = v, mW = cssW / cam.ppm / 2 + 4, mH = cssH / cam.ppm / 2 + 4, on = (x, y) => Math.abs(x - cam.x) < mW && Math.abs(y - cam.y) < mH;
     for (const nst of nests) if (on(nst.x, nst.y)) nestVolumes(nst, t);
-    if (on(bike.x, bike.y)) bikeVolumes(bike, t, night, kai.riding);
-    if (!kai.dead) { const k2 = kai.riding ? { ...kai, vx: 0, vy: 0, swing: 0 } : kai; kaiVolumes(k2, t); }
+    // what moves is drawn snapped to the cell grid: its letters ride with it instead of re-sampling as it slides
+    const sn = q => Math.round(q / CELLW) * CELLW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
+    if (on(bike.x, bike.y)) bikeVolumes(snap(bike), t, night, kai.riding);
+    if (!kai.dead) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
-    for (const D of v.deaths || []) { const k = (t - D.t0) / 0.8; if (k >= 1 || !on(D.x, D.y)) continue; const S = FIGM * (D.brute ? 1.6 : 1), a = D.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), e = 1 - (1 - k) * (1 - k);
+    for (const D of v.deaths || []) { const k = (t - D.t0) / 0.8; if (D.prop || k >= 1 || !on(D.x, D.y)) continue; const S = FIGM * (D.brute ? 1.6 : 1), a = D.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), e = 1 - (1 - k) * (1 - k);
       const r = 0.24 * S * (1 - 0.7 * k), fx0 = 0.25 * S * e;
       sphere(D.x + ca * fx0, D.y + sa * fx0, r * 0.4 - k * r * 1.2, r, M.stone);
       for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), M.stone); } }
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
-    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); deadVolumes(d, t, d.state !== 'sleep', d.kind); }
+    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
-    for (const i of v.props || []) if (on(i.x, i.y)) i.atom.volumes(i, K, t, v);
+    for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;
     // the glyph grid is pinned to the world, not the screen: the camera glides freely and a still roof keeps its letters.
     // uCellOff is where the screen sits inside the world's grid (one spare cell each way covers the slide)
-    const cp = Math.max(3, Math.round(3 * dpr)), W = Math.floor(cssW * dpr), H = Math.floor(cssH * dpr), cw = Math.ceil(W / cp) + 1, ch = Math.ceil(H / cp) + 1;
-    // the anchor is a world point near the camera, kept while the zoom (and the cell size) stay put: anchored at the map's
-    // corner, a zoom change of a hair shifted far cells by whole cells and every prop's letters re-sampled
-    { if (anchor.ppm !== cam.ppm || anchor.cp !== cp || anchor.W !== W || anchor.H !== H) Object.assign(anchor, { x: cam.x, y: cam.y, ppm: cam.ppm, cp, W, H });
-      const px = W / (cssW / cam.ppm), py = H / (cssH / cam.ppm), m = a => ((a % cp) + cp) % cp; U.uCellOff.value.set(m((cam.x - anchor.x) * px - W / 2), m(-(H / 2 + (cam.y - anchor.y) * py))); }
+    // the glyph cells have a size in the world (CELLW metres), like the grass: zooming in makes the letters bigger, zooming
+    // out smaller, and no cell ever re-samples: each stays on its own patch of world. Below a few pixels a cell's letter
+    // fades into its average ink (see the composite), so far away a solid reads as a shaded silhouette, not noise
+    const W = Math.floor(cssW * dpr), H = Math.floor(cssH * dpr), pxm = W / (cssW / cam.ppm), cp = Math.max(1.5, CELLW * pxm), cw = Math.ceil(W / cp) + 1, ch = Math.ceil(H / cp) + 1;
+    { const py = H / (cssH / cam.ppm), m = a => ((a % cp) + cp) % cp; U.uCellOff.value.set(m(cam.x * pxm - W / 2), m(-(H / 2 + cam.y * py))); }
     if (!rt || rt.width !== cw || rt.height !== ch) { if (rt) rt.dispose(); rt = new THREE.WebGLRenderTarget(cw, ch, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: fragDepth }); }
-    paintAtlas(cp); cells.set(cw, ch); res.set(W, H); U.uCellPx.value = cp; U.tCells.value = rt.texture;
+    paintAtlas(Math.max(4, Math.min(18, Math.round(cp)))); cells.set(cw, ch); res.set(W, H); U.uCellPx.value = cp; U.tCells.value = rt.texture;
     if (fragDepth) {   // the volumes as quads into a cleared cell target
       for (let i = 0; i < n; i++) for (let v = 0; v < 4; v++) { const o = (i * 4 + v) * 4, d = i * 12; qA.set(data.subarray(d, d + 4), o); qB.set(data.subarray(d + 4, d + 8), o); qC.set(data.subarray(d + 8, d + 12), o); }
       for (const k of ['aA', 'aB', 'aC']) { const a = qGeo.getAttribute(k); a.needsUpdate = true; a.updateRange.offset = 0; a.updateRange.count = n * 16; }

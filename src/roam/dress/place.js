@@ -6,7 +6,8 @@
 //      (0 never, 1 always welcome), at most `chance` of the slots, never closer than `every` metres to its own kind
 //      or `space` metres to anything else solid, and never on ground a story claimed.
 // An atom (see atoms/README in docs/design/atoms.md) is a plain object:
-//   { id, family, slot, every, chance, space?, fit(care, slot), variant?(care, h, slot, inst), collide?: { w, h },
+//   { id, family, slot, every, chance, space?, fit(care, slot), variant?(care, h, slot, inst), collide?: { w, h }, breakable?,
+//     (breakable: the bike smashes it instead of crashing into it; on foot Kai steps past it)
 //     volumes?(inst, K, t, v), paint?(g, inst), strands?(fx, inst, v), live?: { init(inst), step(inst, dt, v), draw(fx, inst, v) } }
 // An instance is { atom, id, x, y, ang, care, h (0..1, its own hash), variant, story?, slot }.
 const mixh = (n, v) => { n = Math.imul(n ^ (Math.round(v * 1000) | 0), 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return n ^ (n >>> 16); };

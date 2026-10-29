@@ -65,18 +65,21 @@ export const PROPS = [
     volumes: (i, K) => carVolumes(i, K), paint: carPaint },
   // benches face the road: in the parks and the old town, and wherever a tree gives shade. Tended → whole; worn → a slat
   // gone; ruined → rare, broken down on one end
-  { id: 'bench', family: 'props', slot: 'pavement', every: 34, chance: 0.08, space: 2, collide: { w: 0.9, h: 2.5 },
+  { id: 'bench', family: 'props', breakable: true, slot: 'pavement', every: 34, chance: 0.08, space: 2, collide: { w: 0.9, h: 2.5 },
     fit: (c, s) => { const b = band(c); return (s.crown ? 0.9 : c > 0.45 && c < 0.75 ? 0.55 : 0.2) * (b === 0 ? 0.15 : 1); },
     variant: (c, h) => band(c) === 2 ? 'whole' : band(c) === 1 ? (hash(h, 4) < 0.6 ? 'slat' : 'whole') : 'broken',
     volumes(i, K) { const q = kit(i, K, face(i)), v = i.variant, gone = hash(i.h, 5) < 0.5 ? 1 : 0;
       if (v === 'broken') { q.box(0, 0.85, 0.38, 0.24, 0.05, 0.38, 0.03, 0, M.steel);   // one end still stands; the slats are down
         q.box(0.06, 0.1, 0.18, 0.08, 0.86, 0.04, 0.03, 0.35, M.wood); q.box(-0.25, -0.1, 0.05, 0.07, 0.9, 0.04, 0.03, -0.12, M.wood); q.box(-0.12, -0.85, 0.12, 0.24, 0.05, 0.12, 0.03, 1.2, M.steel); return; }
-      for (const e of [-1, 1]) q.box(-0.02, e * 0.85, 0.38, 0.25, 0.045, 0.38, 0.03, 0, M.steel);     // the iron ends
-      for (const [k, u] of [[0, 0.13], [1, -0.07]]) if (!(v === 'slat' && k === gone)) q.box(u, 0, 0.46, 0.085, 0.95, 0.035, 0.03, 0, M.wood);   // seat slats
-      q.box(-0.24, 0, 0.78, 0.04, 0.95, 0.15, 0.03, 0, M.wood); } },                              // the back, away from the road
+      // read from above: a broad wooden seat (a dark gap where a slat is gone), a dark backrest along its back, iron ends;
+      // no part thinner than a glyph cell, so it stays a bench at every zoom
+      for (const e of [-1, 1]) q.box(-0.04, e * 0.98, 0.4, 0.3, 0.08, 0.4, 0.03, 0, M.dark);                // the iron ends
+      if (v === 'slat') { q.box(0.12, 0, 0.46, 0.1, 0.92, 0.05, 0.03, 0, M.wood); q.box(-0.13, 0, 0.46, 0.08, 0.92, 0.05, 0.03, 0, M.wood); }
+      else q.box(0.0, 0, 0.46, 0.24, 0.92, 0.05, 0.04, 0, M.wood);                                           // the seat
+      q.box(-0.3, 0, 0.8, 0.08, 0.95, 0.16, 0.04, 0, M.rust); } },                                           // the backrest, away from the road
   // wheelie bins against the fronts, mostly in the kept streets. Tended → upright, lid shut; worn → lid open; ruined →
   // tipped over, rubbish spilt. 'tidy' (a story): a survivor keeps a pair, square to the wall
-  { id: 'bin', family: 'props', slot: 'wall', every: 16, chance: 0.08, space: 1, collide: { w: 0.9, h: 0.9 },
+  { id: 'bin', family: 'props', breakable: true, slot: 'wall', every: 16, chance: 0.08, space: 1, collide: { w: 0.9, h: 0.9 },
     fit: (c, s) => s.path ? 0 : (s.door ? 1 : 0.15) * [0.25, 0.4, 0.75][band(c)],   // by a front door, mostly
     variant: (c, h) => band(c) === 2 ? 'shut' : band(c) === 1 ? (hash(h, 6) < 0.6 ? 'open' : 'shut') : 'tipped',
     volumes(i, K) { const v = i.variant, fa = face(i) + (v === 'tidy' ? 0 : (i.h - 0.5) * 0.5);
@@ -91,7 +94,7 @@ export const PROPS = [
       g.fillStyle = 'rgb(0,70,0)'; g.beginPath(); g.ellipse(i.x + c * 1.3 * S, i.y + s * 1.3 * S, 1.0 * S, 0.6 * S, a, 0, 7); g.fill();
       g.fillStyle = 'rgb(110,0,0)'; for (let k = 0; k < 7; k++) { const u = (0.8 + hash(i.h, k) * 1.6) * S, w = (hash(k, i.h) - 0.5) * 1.6 * S; g.fillRect(i.x + c * u - s * w, i.y + s * u + c * w, 0.14, 0.1); } } },   // litter
   // the post box: the old town only (lived-in, not the new suburbs, not the works), rare, red. Ruined → knocked down
-  { id: 'postbox', family: 'props', slot: 'kerb', every: 150, chance: 0.05, space: 2, collide: { w: 0.8, h: 0.8 },
+  { id: 'postbox', family: 'props', breakable: true, slot: 'kerb', every: 150, chance: 0.05, space: 2, collide: { w: 0.8, h: 0.8 },
     fit: (c, s) => s.crown || s.path || s.district !== 'oldtown' ? 0 : c > 0.25 ? 1 : 0.3,   // the old town's post: only there
     variant: c => band(c) === 0 ? 'down' : 'up',
     volumes(i, K) { const fa = face(i);
@@ -100,7 +103,7 @@ export const PROPS = [
       q.box(0, 0, 0.06, 0.4, 0.4, 0.06, 0.04, 0, M.dark); q.cap(0, 0, 0, 0, 0, 1.2, 0.32, M.carRed); q.ball(0, 0, 1.28, 0.37, M.carRed); q.box(0.33, 0, 1.05, 0.04, 0.15, 0.03, 0.01, 0, M.dark); q.box(0.32, 0, 0.75, 0.03, 0.11, 0.09, 0.01, 0, M.cloth); } },
   // ---- story-only props (fit 0: only a story puts them down) ----
   // a police sawhorse: a safety-orange bar with dark bands on splayed legs; a few still have a blinking battery lamp
-  { id: 'barrier', family: 'props', slot: 'roadway', every: 1, chance: 0, fit: () => 0, collide: { w: 2.6, h: 0.9 },
+  { id: 'barrier', family: 'props', breakable: true, slot: 'roadway', every: 1, chance: 0, fit: () => 0, collide: { w: 2.6, h: 0.9 },
     volumes(i, K, t) { const q = kit(i, K, i.ang);
       for (const e of [-1, 1]) for (const b of [-1, 1]) q.cap(e * 0.72, 0, 0.88, e * 0.82, b * 0.34, 0, 0.035, M.dark);
       q.box(0, 0, 0.92, 0.95, 0.07, 0.1, 0.03, 0, M.cone);
@@ -112,12 +115,12 @@ export const PROPS = [
       for (let k = 0; k < 5; k++) bag((k - 2) * 0.29 + (hash(i.h, k) - 0.5) * 0.04, 0);
       for (let k = 0; k < 3; k++) bag((k - 1) * 0.29 + 0.145 * (i.h < 0.5 ? 1 : -1), 1); } },
   // a traffic cone: dark foot, orange body, a pale band, the tip; one in three knocked over
-  { id: 'cone', family: 'props', slot: 'roadway', every: 1, chance: 0, fit: () => 0,
+  { id: 'cone', family: 'props', breakable: true, slot: 'roadway', every: 1, chance: 0, fit: () => 0,
     volumes(i, K) { const q = kit(i, K, i.ang + i.h * 6);
       if (i.h < 0.33) { q.box(-0.32, 0, 0.18, 0.02, 0.18, 0.18, 0.02, 0, M.rubber); q.cap(-0.28, 0, 0.13, 0.15, 0, 0.07, 0.12, M.cone); q.ball(-0.06, 0, 0.11, 0.11, M.cloth); return; }
       q.box(0, 0, 0.02, 0.19, 0.19, 0.02, 0.02, 0, M.rubber); q.ball(0, 0, 0.12, 0.16, M.cone); q.ball(0, 0, 0.3, 0.1, M.cloth); q.ball(0, 0, 0.44, 0.065, M.cone); } },
   // debris: what a crash or a fight leaves: glass, bent metal, a hubcap, scattered by its own hash
-  { id: 'debris', family: 'props', slot: 'roadway', every: 1, chance: 0, fit: () => 0,
+  { id: 'debris', family: 'props', breakable: true, slot: 'roadway', every: 1, chance: 0, fit: () => 0,
     volumes(i, K) { const q = kit(i, K, i.ang + i.h * 6.28), at = k => [(hash(i.h, k, 1) - 0.5) * 3.2, (hash(i.h, k, 2) - 0.5) * 2.4], spin = k => hash(i.h, k, 3) * 3;
       for (let k = 0; k < 3; k++) { const [u, w] = at(k); q.box(u, w, 0.03, 0.1, 0.07, 0.03, 0.01, spin(k), M.glass); }
       for (let k = 3; k < 5; k++) { const [u, w] = at(k); q.box(u, w, 0.06, 0.32, 0.12, 0.06, 0.03, spin(k), k === 3 ? M.steel : M.dark); }

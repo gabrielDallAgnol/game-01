@@ -50,7 +50,7 @@ ${MAIN}`);
             // a picket fence: near, a row of pale letters in the solids' cells; far, a plain pale line
             vec2 cp = (gl_FragCoord.xy + uCellOff) / uCellPx, gq = fract(cp), dc = (floor(cp) + 0.5) * uCellPx - (gl_FragCoord.xy + uCellOff); float fc0 = texture2D(tTreeH, toTex(w + vec2(dc.x, -dc.y) / uPpm)).b;
             float near = smoothstep(9.0, 14.0, uPpm), rl = 0.62 + 0.36 * h21(floor(cp) + 2.9);
-            float gm = texture2D(tGlyph, vec2((floor(pow(rl, 0.6) * ${NG}.0) + gq.x) / ${NG}.0, gq.y)).a;
+            float glev = floor(pow(rl, 0.6) * ${NG}.0), gm = mix(0.14 + 0.62 * glev / ${NG - 1}.0, texture2D(tGlyph, vec2((glev + gq.x) / ${NG}.0, gq.y)).a, smoothstep(2.4, 4.6, uCellPx));
             vec3 fcl = vec3(0.9, 0.87, 0.78) * gsh;
             col = mix(col, mix(fcl * 0.14, fcl, gm), step(mix(0.3, 0.5, smoothstep(14.0, 30.0, uPpm)), fc0) * near);
             col = mix(col, fcl * 0.62, smoothstep(0.1, 0.5, bord) * 0.75 * (1.0 - near));

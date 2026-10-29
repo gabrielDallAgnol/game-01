@@ -92,9 +92,11 @@ export function buildTown(seed = 7) {
     const gd = xX.getImageData(0, 0, xC.width, xC.height).data, XW = xC.width, garden = (x, y) => { const px = Math.floor((x - O.x) * MPX), py = Math.floor((y - O.y) * MPX); return px >= 0 && py >= 0 && px < XW && py < XW && gd[(py * XW + px) * 4 + 2] > 20; };
     placer.atoms((x, y) => !blocked(x, y) && !garden(x, y)); dress = placer.done();
     kX.globalCompositeOperation = 'lighter'; for (const i of dress.paint) { kX.save(); i.atom.paint(kX, i); kX.restore(); }
-    for (const i of dress.solid) mark({ x: i.x, y: i.y, rot: i.ang, w: i.atom.collide.w, h: i.atom.collide.h }, 0); }
+    for (const i of dress.solid) if (!i.atom.breakable) mark({ x: i.x, y: i.y, rot: i.ang, w: i.atom.collide.w, h: i.atom.collide.h }, 0); }
+  // what the bike smashes instead of crashing into (small props: benches, bins, lamps, cones, barriers)
+  const breakables = dress.list.filter(i => i.atom.breakable).map(i => ({ id: i.id, x: i.x, y: i.y, r: i.atom.collide ? Math.max(i.atom.collide.w, i.atom.collide.h) / 2 : 0.5 }));
   // [dress] end
   // where on a street: for spawning the dead and parking the bike (a street cell, 1 m grid)
   const streetCells = []; { const d = sX.getImageData(0, 0, sC.width, sC.height).data; for (let y = 4; y < W.h - 4; y += 2) for (let x = 4; x < W.w - 4; x += 2) { const i = (Math.floor((y - O.y) * MPX) * sC.width + Math.floor((x - O.x) * MPX)) * 4; if (d[i + 3] > 128 && !blocked(x, y)) streetCells.push(x, y); } }
-  return { W, start, SPAN, O, PX, MPX, canvases: { gC, oC, mC, rC, sC, xC, hC, lC, dC, kC }, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress };
+  return { W, start, SPAN, O, PX, MPX, canvases: { gC, oC, mC, rC, sC, xC, hC, lC, dC, kC }, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress, breakables };
 }
