@@ -41,9 +41,9 @@ export function createMedium(o) {
 
   // ---------- the cell pass: one texel per screen cell ----------
   let rt = null; const cells = new THREE.Vector2(1, 1), res = new THREE.Vector2(1, 1);
-  Object.assign(U, { tPrim: { value: tPrim }, uPN: { value: 0 }, tCells: { value: null }, tGlyph: { value: tGlyph }, uCells: { value: cells }, uCellPx: { value: 6 }, uRes: { value: res } });
+  Object.assign(U, { tPrim: { value: tPrim }, uPN: { value: 0 }, tCells: { value: null }, tGlyph: { value: tGlyph }, uCells: { value: cells }, uCellPx: { value: 6 }, uCellOff: { value: new THREE.Vector2() }, uRes: { value: res } });
   const CELL = new THREE.ShaderMaterial({ uniforms: U, vertexShader: VERT, depthTest: false, depthWrite: false, fragmentShader: `precision highp float; varying vec2 vUv;
-    uniform sampler2D tPrim; uniform float uPN, uCellPx; uniform vec2 uCam, uView, uCells, uRes; uniform vec4 uSun;
+    uniform sampler2D tPrim; uniform float uPN, uCellPx; uniform vec2 uCam, uView, uCells, uRes, uCellOff; uniform vec4 uSun;
     vec4 P(float i, float k){ return texture2D(tPrim, vec2((k + 0.5) / 3.0, (i + 0.5) / ${MAXP}.0)); }
     float sdRect(vec2 p, vec2 b){ vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
     float hOf(vec2 q, vec4 A, vec4 B, vec4 C){
@@ -53,7 +53,7 @@ export function createMedium(o) {
       float r = min(B.w, min(B.x, B.y)), d = sdRect(l, B.xy - r), top = A.w + B.z;
       if (d <= 0.0) return top; if (d < r) return top - r + sqrt(r * r - d * d); return -9.0; }
     void main(){
-      vec2 ci = floor(vUv * uCells), fc = (ci + 0.5) * uCellPx, w = uCam + vec2(fc.x / uRes.x - 0.5, 0.5 - fc.y / uRes.y) * uView;
+      vec2 ci = floor(vUv * uCells), fc = (ci + 0.5) * uCellPx - uCellOff, w = uCam + vec2(fc.x / uRes.x - 0.5, 0.5 - fc.y / uRes.y) * uView;
       float e = 0.05, h0 = -9.0, hx = -9.0, hy = -9.0, m = 0.0, em = 0.0;
       for (int i = 0; i < ${MAXP}; i++) { if (float(i) >= uPN) break;
         vec4 A = P(float(i), 0.0), C = P(float(i), 2.0); if (length(w - A.yz) > C.w) continue; vec4 B = P(float(i), 1.0);
@@ -75,11 +75,11 @@ export function createMedium(o) {
   const qGeo = new THREE.BufferGeometry(), at = (a, k) => { const b = new THREE.BufferAttribute(a, k); b.setUsage(THREE.DynamicDrawUsage); return b; };
   qGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXP * 12), 3)); qGeo.setAttribute('aA', at(qA, 4)); qGeo.setAttribute('aB', at(qB, 4)); qGeo.setAttribute('aC', at(qC, 4)); qGeo.setAttribute('aK', new THREE.BufferAttribute(qK, 2)); qGeo.setIndex(qI);
   const QUADS = new THREE.ShaderMaterial({ uniforms: U, depthTest: true, depthWrite: true, side: THREE.DoubleSide, extensions: { fragDepth: true },
-    vertexShader: `attribute vec4 aA, aB, aC; attribute vec2 aK; uniform vec2 uCam, uView, uCells, uRes; uniform float uCellPx; varying vec4 vA, vB, vC;
+    vertexShader: `attribute vec4 aA, aB, aC; attribute vec2 aK; uniform vec2 uCam, uView, uCells, uRes, uCellOff; uniform float uCellPx; varying vec4 vA, vB, vC;
       void main(){ vA = aA; vB = aB; vC = aC; vec2 w = aA.yz + aK * aC.w;
-        vec2 s = vec2((w.x - uCam.x) / uView.x + 0.5, 0.5 - (w.y - uCam.y) / uView.y) * uRes / (uCells * uCellPx);   // the cell grid's own mapping
+        vec2 s = (vec2((w.x - uCam.x) / uView.x + 0.5, 0.5 - (w.y - uCam.y) / uView.y) * uRes + uCellOff) / (uCells * uCellPx);   // the cell grid's own mapping
         gl_Position = vec4(s * 2.0 - 1.0, 0.0, 1.0); }`,
-    fragmentShader: `precision highp float; uniform vec2 uCam, uView, uCells, uRes; uniform float uCellPx; uniform vec4 uSun; varying vec4 vA, vB, vC;
+    fragmentShader: `precision highp float; uniform vec2 uCam, uView, uCells, uRes, uCellOff; uniform float uCellPx; uniform vec4 uSun; varying vec4 vA, vB, vC;
       float sdRect(vec2 p, vec2 b){ vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
       float hOf(vec2 q, vec4 A, vec4 B, vec4 C){
         if (A.x < 0.5) { float d = length(q - A.yz), r = B.w; return d < r ? A.w + sqrt(r * r - d * d) : -9.0; }
@@ -88,7 +88,7 @@ export function createMedium(o) {
         float r = min(B.w, min(B.x, B.y)), d = sdRect(l, B.xy - r), top = A.w + B.z;
         if (d <= 0.0) return top; if (d < r) return top - r + sqrt(r * r - d * d); return -9.0; }
       void main(){
-        vec2 fc = (floor(gl_FragCoord.xy) + 0.5) * uCellPx, w = uCam + vec2(fc.x / uRes.x - 0.5, 0.5 - fc.y / uRes.y) * uView;
+        vec2 fc = (floor(gl_FragCoord.xy) + 0.5) * uCellPx - uCellOff, w = uCam + vec2(fc.x / uRes.x - 0.5, 0.5 - fc.y / uRes.y) * uView;
         float e = 0.05, h0 = hOf(w, vA, vB, vC); if (h0 < -1.0) discard;
         float hx = hOf(w + vec2(e, 0.0), vA, vB, vC), hy = hOf(w + vec2(0.0, e), vA, vB, vC); if (hx < -1.0) hx = h0 - 0.15; if (hy < -1.0) hy = h0 - 0.15;
         vec3 nrm = normalize(vec3(-(hx - h0) / e, -(hy - h0) / e, 1.0));
@@ -150,7 +150,7 @@ export function createMedium(o) {
   // [garden] end
   swap('        col *= mix(vec3(1.0), vec3(0.33, 0.35, 0.40), uNight);', `        col *= mix(vec3(1.02, 1.04, 1.04) * tint(), vec3(0.24, 0.27, 0.36), uNight);   // [medium] by day bright, warm when the sun is low; by night dark and cool
         // [medium] roofs: the same cells and ramp as the solids, lit by slope (after the ground's darkening: they are solids)
-        { vec2 cp = gl_FragCoord.xy / uCellPx, g = fract(cp); float rl = flatRoof > 0.5 ? 0.55 : mix(0.34, 0.95, lit); rl *= (1.0 - 0.85 * ridge) * (1.0 - 0.75 * eave) * (0.88 + 0.24 * h21(floor(cp)));
+        { vec2 cp = (gl_FragCoord.xy + uCellOff) / uCellPx, g = fract(cp); float rl = flatRoof > 0.5 ? 0.55 : mix(0.34, 0.95, lit); rl *= (1.0 - 0.85 * ridge) * (1.0 - 0.75 * eave) * (0.88 + 0.24 * h21(floor(cp)));
           float gm = texture2D(tGlyph, vec2((floor(pow(clamp(rl, 0.0, 0.999), 0.6) * ${NG}.0) + g.x) / ${NG}.0, g.y)).a;
           vec3 rc = vec3(0.9, 0.88, 0.82) * (0.45 + 0.6 * rl) * mix(tint(), vec3(0.55), uNight);
           // a lit house at night: its windows show as warm letters along the eaves, the roof catches a little of its own glow
@@ -159,7 +159,7 @@ export function createMedium(o) {
           col = mix(col, mix(rc * 0.16, rc, gm), roof); }
 `);
   swap('        gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }', `        // [medium] the solids: each cell a glyph by its light, the material's colour in the letters, glow through them
-        vec2 ci = floor(gl_FragCoord.xy / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);
+        vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);
         float hp = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, skip = A.a > 0.5 ? 0.8 : 0.25;
         // lit windows and open doors: the light falls out of the house; whoever stands in it throws a shadow away from the window
         float lm = 0.0; { float l0 = texture2D(tLight, t).r; if (l0 * uNight > 0.01) { vec3 LD = texture2D(tLDir, t).rgb; vec2 back = (LD.rg * 255.0 - 128.0) / 127.0; float dist = LD.b * 8.0;
@@ -176,7 +176,7 @@ export function createMedium(o) {
         // a solid stands taller than the light's ray there. The ray climbs 1.8 m a metre (shadows ~0.55× their height).
         float h0s = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, shade = 0.0;
         float clim = max(0.85, uSun.z), stp = 0.26 * clamp(1.8 / clim, 1.0, 2.0), j2 = h21(gl_FragCoord.xy * 0.53);   // figures are drawn big: a low sun would throw a 10 m shadow
-        for (int k = 0; k < 14; k++) { float d = (float(k) + 0.6 + j2) * stp; vec2 sc = (gl_FragCoord.xy + vec2(SUNV.x, -SUNV.y) * d * uPpm) / uCellPx;
+        for (int k = 0; k < 14; k++) { float d = (float(k) + 0.6 + j2) * stp; vec2 sc = ((gl_FragCoord.xy + uCellOff) + vec2(SUNV.x, -SUNV.y) * d * uPpm) / uCellPx;
           vec4 S2 = texture2D(tCells, (floor(sc) + 0.5) / uCells); float hs = S2.a > 0.5 ? (S2.a - 0.52) / 0.48 * 8.0 : -1.0;
           shade = max(shade, smoothstep(-0.15, 0.25, hs - (h0s + d * clim))); }
         float sMask = shade * (A.a > 0.5 ? 0.55 : 1.0) * (1.0 - tree) * mix(1.0, 0.3, uNight);   // a crown is above any figure's shadow
@@ -184,7 +184,7 @@ export function createMedium(o) {
         if (A.a > 0.5) {
           float mi = floor(A.g * 32.0 + 0.5), em = A.b; vec3 mc = matCol(mi, em), ec = emCol(mi);
           float lev = max(max(floor(pow(clamp(A.r, 0.0, 0.999), 0.5) * ${NG}.0), floor(em * ${NG - 1}.0)), floor(clamp(head * 1.4 + lm * uNight, 0.0, 0.95) * ${NG}.0));   // light on it fills its letters
-          vec2 g = fract(gl_FragCoord.xy / uCellPx); float gm = texture2D(tGlyph, vec2((lev + g.x) / ${NG}.0, g.y)).a;
+          vec2 g = fract((gl_FragCoord.xy + uCellOff) / uCellPx); float gm = texture2D(tGlyph, vec2((lev + g.x) / ${NG}.0, g.y)).a;
           vec3 lc = mix(vec3(0.94, 0.92, 0.87), mc, 0.6) * (0.55 + 0.75 * A.r) * mix(tint(), vec3(0.62), uNight);   // pale letters, the colour as a tint
           lc += vec3(1.0, 0.66, 0.32) * lm * uNight * 0.9 + vec3(1.0, 0.92, 0.76) * head * 0.9;   // a figure in a window's light or the headlight is lit by it
           lc *= 1.0 - 0.45 * sMask;
@@ -192,7 +192,7 @@ export function createMedium(o) {
           col = mix(col, under, tree * 0.8);   // under a tree: the crown covers the figure, a ghost of it shows through
         }
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`);
-  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir; uniform vec2 uCells; uniform float uCellPx; uniform vec4 uHead;
+  const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
     vec3 tint(){ return mix(vec3(1.0), vec3(1.1, 0.88, 0.68), uSun.w); }
     // how much stands between the point w (at height hp) and a light at L (height hl): solids taller than the ray, from the cell
     // pass; roofs too when bld. Taps within skip of w (the figure itself) and within tail of the light (its own bike) don't count
@@ -201,7 +201,7 @@ export function createMedium(o) {
       float j = h21(gl_FragCoord.xy * 0.71);
       for (int k = 0; k < 7; k++) { float u = (float(k) + j) / 7.5, s = r * u; if (s < skip || s > r - tail) continue; vec2 q = w + dv * u;
         if (bld > 0.5) o = max(o, max(smoothstep(0.45, 0.7, texture2D(tRoof, toTex(q)).a), smoothstep(0.93, 0.97, texture2D(tTreeH, toTex(q)).r)));   // walls, and tree trunks
-        vec4 S3 = texture2D(tCells, (floor((gl_FragCoord.xy + vec2(dv.x, -dv.y) * u * uPpm) / uCellPx) + 0.5) / uCells);
+        vec4 S3 = texture2D(tCells, (floor(((gl_FragCoord.xy + uCellOff) + vec2(dv.x, -dv.y) * u * uPpm) / uCellPx) + 0.5) / uCells);
         float hs = S3.a > 0.5 ? (S3.a - 0.52) / 0.48 * 8.0 : -1.0; o = max(o, smoothstep(0.0, 0.4, hs - mix(hp, hl, u))); }
       return o; }
     vec3 matCol(float m, float em){
@@ -280,7 +280,10 @@ export function createMedium(o) {
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
     for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); deadVolumes(d, t, d.state !== 'sleep', d.kind); }
     tPrim.needsUpdate = true; U.uPN.value = n;
-    const cp = Math.max(3, Math.round(3 * dpr)), W = Math.round(cssW * dpr), H = Math.round(cssH * dpr), cw = Math.ceil(W / cp), ch = Math.ceil(H / cp);
+    // the glyph grid is pinned to the world, not the screen: the camera glides freely and a still roof keeps its letters.
+    // uCellOff is where the screen sits inside the world's grid (one spare cell each way covers the slide)
+    const cp = Math.max(3, Math.round(3 * dpr)), W = Math.floor(cssW * dpr), H = Math.floor(cssH * dpr), cw = Math.ceil(W / cp) + 1, ch = Math.ceil(H / cp) + 1;
+    { const px = W / (cssW / cam.ppm), py = H / (cssH / cam.ppm), m = a => ((a % cp) + cp) % cp; U.uCellOff.value.set(m(cam.x * px - W / 2), m(-(H / 2 + cam.y * py))); }
     if (!rt || rt.width !== cw || rt.height !== ch) { if (rt) rt.dispose(); rt = new THREE.WebGLRenderTarget(cw, ch, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: fragDepth }); }
     paintAtlas(cp); cells.set(cw, ch); res.set(W, H); U.uCellPx.value = cp; U.tCells.value = rt.texture;
     if (fragDepth) {   // the volumes as quads into a cleared cell target

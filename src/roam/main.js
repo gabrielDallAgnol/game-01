@@ -33,10 +33,20 @@ function start() {
   const fpsEl = $('fps'), fixedRes = !!qs.get('fixedres');
   function resize() { cssW = innerWidth; cssH = innerHeight; dpr = Math.min(devicePixelRatio || 1, 1.5) * scale; look.resize(cssW, cssH, dpr); const f = Math.min(devicePixelRatio || 1, 2); fxc.width = Math.round(cssW * f); fxc.height = Math.round(cssH * f); fx.setTransform(f, 0, 0, f, 0, 0); }
   addEventListener('resize', resize); resize();
-  // what is drawn uses `view`: the camera snapped to the glyph grid (and the zoom to small steps), so a still roof keeps its
-  // letters while the camera glides; without it every cell re-samples a little each frame and the letters flicker
-  const view = { x: 0, y: 0, ppm: 22, base: 22 };
+  // the camera glides freely (the glyph grid is pinned to the world in the renderer, so still things keep their letters)
+  const view = cam;
   const toS = (x, y) => [(x - view.x) * view.ppm + cssW / 2, (y - view.y) * view.ppm + cssH / 2];
+  // the rules step 30 times a second, the screen 60–120: what is drawn sits between the last two steps, so Kai, the bike
+  // and the dead move smoothly every frame. Render copies only: the state is never written.
+  const prev = { kx: S.kai.x, ky: S.kai.y, kf: S.kai.face, bx: S.bike.x, by: S.bike.y, ba: S.bike.ang, dead: new Map() }, faMap = new Map();
+  const snap = () => { const k = S.kai, b = S.bike; prev.kx = k.x; prev.ky = k.y; prev.kf = k.face; prev.bx = b.x; prev.by = b.y; prev.ba = b.ang; prev.dead.clear(); for (const d of S.dead) prev.dead.set(d.id, [d.x, d.y]); };
+  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+  function between(al) {
+    const L = (a, b) => Math.abs(b - a) > 6 ? b : a + (b - a) * al, LA = (a, b) => a + wrap(b - a) * al;   // a jump (respawn) is not slid
+    const kai = { ...S.kai, x: L(prev.kx, S.kai.x), y: L(prev.ky, S.kai.y), face: LA(prev.kf, S.kai.face) }, bike = { ...S.bike, x: L(prev.bx, S.bike.x), y: L(prev.by, S.bike.y), ang: LA(prev.ba, S.bike.ang) };
+    const dead = S.dead.map(d => { const p = prev.dead.get(d.id), o = { ...d, fa: faMap.has(d.id) ? faMap.get(d.id) : d.fa }; if (p) { o.x = L(p[0], d.x); o.y = L(p[1], d.y); } return o; });
+    return { ...S, kai, bike, dead };
+  }
   let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; });
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
   const falls = []; let acc = 0, last = performance.now(), t = 0;
@@ -48,21 +58,21 @@ function start() {
     if (slowT > 1.2 && scale > 0.7) { scale = Math.max(0.7, scale - 0.15); fastNeed = Math.min(60, fastNeed * 2); slowT = 0; ema = 18; resize(); }
     else if (fastT > fastNeed && scale < 1) { scale = Math.min(1, scale + 0.15); fastT = 0; resize(); }
     if (fpsT > 0.5) { fpsEl.textContent = `${Math.round(fpsN / fpsT)} fps · ${Math.round(scale * 100)}%`; fpsT = 0; fpsN = 0; }
-    if (running) { acc += dt; while (acc >= ROAM.step) { sim.step(input); acc -= ROAM.step; } }
+    if (running) { acc += dt; while (acc >= ROAM.step) { snap(); sim.step(input); acc -= ROAM.step; } }
+    const R = between(running ? acc / ROAM.step : 1);
     const evs = sim.drain();
     for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, brute: e.kind === 'brute', stamp: true });
     while (falls.length && t - falls[0].t0 > 2.2) falls.shift();
     const { night, sun } = skyAt(S.clock);
     // the camera: follows Kai, leads her a little; on the bike it pulls back with the speed so you see what's coming
-    const k = S.kai, lead = k.riding ? 0.55 : 0.3, sp = k.riding ? S.bike.speed / ROAM.bike.top : 0;
+    const k = R.kai, lead = k.riding ? 0.55 : 0.3, sp = k.riding ? S.bike.speed / ROAM.bike.top : 0;
     cam.x += (k.x + k.vx * lead - cam.x) * Math.min(1, dt * 5); cam.y += (k.y + k.vy * lead - cam.y) * Math.min(1, dt * 5);
     const wantPpm = cam.base * (1 - 0.3 * sp); cam.ppm += (wantPpm - cam.ppm) * Math.min(1, dt * 2.5);
-    view.ppm = Math.pow(2, Math.round(Math.log2(cam.ppm) * 32) / 32); view.base = cam.base;
-    { const cs = Math.max(3, Math.round(3 * dpr)) / (dpr * view.ppm); view.x = Math.round(cam.x / cs) * cs; view.y = Math.round(cam.y / cs) * cs; }
-    look.render({ cam: view, cssW, cssH, dpr, S, falls, t, night, dt, sun });
+    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun });
     fx.clearRect(0, 0, cssW, cssH);
     const kaiUnder = town.trees.some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
-    try { look.draw(fx, { kaiUnder, toS, cam: view, cssW, cssH, kai: S.kai, dead: S.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: S.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
+    try { look.draw(fx, { kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
+    for (const o of R.dead) if (o.fa !== undefined) faMap.set(o.id, o.fa); if (faMap.size > 4 * S.dead.length + 50) faMap.clear();   // the dead keep facing where they last walked
     ui.arrows(toS, cssW, cssH); ui.update(evs);
     requestAnimationFrame(frame);
   }
