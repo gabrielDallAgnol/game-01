@@ -150,7 +150,7 @@ export function createMedium(o) {
             float cov = mix(mean, st.x, vis), hl = mix(0.5, st.y, vis);
             vec3 hc = mix(vec3(0.16, 0.2, 0.17), vec3(0.6, 0.67, 0.57), hl) * (0.75 + 0.5 * g0) * mix(1.0, 0.55, pressH) * mix(1.0, 0.6, shadow) * (L == 0 ? 0.8 : L == 1 ? 0.92 : 1.05);
             if (tree > 0.5) hc = mix(vec3(0.07, 0.09, 0.07), vec3(0.62, 0.7, 0.55), tl * (0.5 + 0.5 * hl)) * (0.85 + 0.3 * g0) * (L == 0 ? 0.75 : 1.0);
-            col = mix(col, hc, hairK * thick * cov * (L == 0 ? 0.7 : mix(0.35, 1.0, part))); }
+            col = mix(col, hc * (L == 0 ? 1.0 : mix(0.8, 1.0, part)), hairK * thick * cov * (L == 0 ? 0.7 : mix(0.82, 1.0, part))); }   // the lanes only shade the grass, they never thin it
           // bigger plants: leafy clumps every few metres of open grass, swaying in the gusts; some in flower
           if (ground > 0.5) { vec2 cid = floor(w / 4.6), rr = h22(cid + 4.7);
             if (h21(cid + 9.1) < 0.45) { vec2 ctr = (cid + 0.33 + 0.34 * rr) * 4.6 + WD * (gust(cid * 4.6) - 0.35) * 0.3; float fl = h21(cid + 2.3);   // in flower: a ring of small blooms
