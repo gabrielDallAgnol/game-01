@@ -49,6 +49,8 @@ function crowStart(i, st, ctx) { const kx = ctx.kai.x, ky = ctx.kai.y, W = ctx.W
   st.a0 = Math.atan2(st.y - ty, st.x - tx) + side * 0.9; st.p0x = st.x; st.p0y = st.y; st.p1x = tx + Math.cos(st.a0) * R2; st.p1y = ty + Math.sin(st.a0) * R2;
   st.cx = (st.x + st.p1x) / 2 - dy / d * side * d * 0.35; st.cy = (st.y + st.p1y) / 2 + dx / d * side * d * 0.35; st.T1 = d / 8.5 + 0.5; st.T2 = 2.2; st.ft = 0; st.fly = 1;
   for (let k = 0; k < st.n; k++) st.b[k * 10 + 9] = Math.random() * 0.35; }   // each bird goes a beat apart
+// paper and leaves are pale: unlit at night they sink into the dark, in a light (the headlight, a window) they show
+const litOf = (v, i) => v.lightAt ? Math.min(1, 0.25 + 0.75 * v.lightAt(i.st && i.st.x !== undefined ? i.st.x : i.x, i.st && i.st.y !== undefined ? i.st.y : i.y)) : 1;
 function crowStep(i, dt, ctx) { const st = i.st, b = st.b, n = st.n, kai = ctx.kai, roost = ctx.night > 0.6;
   if (i.slot.kind === 'door' && !st.up) { st.up = 1; const r = (ctx.town.slots && ctx.town.slots.by.roof || []).find(q => q.uid === i.slot.uid);   // the house's roof
     if (r) { st.x = st.tx = r.x; st.y = st.ty = r.y; st.rr = Math.min(1.8, Math.min(r.w || 4, r.h || 4) * 0.3); } }
@@ -70,7 +72,7 @@ function crowStep(i, dt, ctx) { const st = i.st, b = st.b, n = st.n, kai = ctx.k
     for (let k = 0; k < n; k++) { const o = k * 10, r = Math.hypot(b[o], b[o + 1]), f = r > st.rr ? st.rr / r : 1; b[o] *= f; b[o + 1] *= f; b[o + 3] = 0.5 + Math.random() * 2; b[o + 4] = 0; b[o + 5] = 0; b[o + 8] = 0; } } }
 let pX = 0, pY = 0, pc = 1, ps = 0, pl = 1, pfx = null;   // the pen: a bird's frame on screen (no closures per frame)
 const P = (al, ac) => pfx.lineTo(pX + (pc * al - ps * ac) * pl, pY + (ps * al + pc * ac) * pl), Mv = (al, ac) => pfx.moveTo(pX + (pc * al - ps * ac) * pl, pY + (ps * al + pc * ac) * pl);
-function crowDraw(fx, i, v) { const a0 = vis(v); if (a0 < 0.02) return; const st = i.st, b = st.b, ppm = v.cam.ppm, L = 0.62 * S * ppm, t = v.t, roost = v.night > 0.6 && !st.fly;
+function crowDraw(fx, i, v) { const a0 = vis(v) * litOf(v, i); if (a0 < 0.02) return; const st = i.st, b = st.b, ppm = v.cam.ppm, L = 0.62 * S * ppm, t = v.t, roost = v.night > 0.6 && !st.fly;
   fx.lineCap = 'round'; fx.lineJoin = 'round';
   for (let pass = 0; pass < 2; pass++) for (let k = 0; k < st.n; k++) { const o = k * 10, air = st.fly ? b[o + 8] : 0;
     if (pass === 0 && air < 0.05) continue;   // the shadow on the ground, under a bird in the air
@@ -123,7 +125,7 @@ function paperStep(i, dt, ctx) { const st = i.st, b = st.b, W = ctx.WIND, t = ct
     if (k === 0) { mx = b[o]; my = b[o + 1]; } }
   st.x = mx; st.y = my; }
 const quad = (fx, ox, oy, cy, sy, w, hl) => { fx.beginPath(); fx.moveTo(ox + cy * w - sy * hl, oy + sy * w + cy * hl); fx.lineTo(ox + cy * w + sy * hl, oy + sy * w - cy * hl); fx.lineTo(ox - cy * w + sy * hl, oy - sy * w - cy * hl); fx.lineTo(ox - cy * w - sy * hl, oy - sy * w + cy * hl); fx.closePath(); };
-function paperDraw(fx, i, v) { const a0 = vis(v); if (a0 < 0.02) return; const st = i.st, b = st.b, ppm = v.cam.ppm, dim = 1 - 0.78 * v.night, kind = i.variant, old = i.care < 0.32;
+function paperDraw(fx, i, v) { const a0 = vis(v) * litOf(v, i); if (a0 < 0.02) return; const st = i.st, b = st.b, ppm = v.cam.ppm, dim = 1 - 0.78 * v.night, kind = i.variant, old = i.care < 0.32;
   const hw = (kind === 'news' ? 0.21 : 0.15) * S * ppm, hl = (kind === 'news' ? 0.3 : 0.21) * S * ppm;
   fx.lineJoin = 'round';
   for (let k = 0; k < st.n; k++) { const o = k * PB, X = sx(v, b[o]), Y = sy(v, b[o + 1]), z = b[o + 2];
@@ -155,7 +157,7 @@ function leafInit(i) { const n = leafN[i.variant] || 5, b = new Float32Array(n *
   for (let k = 0; k < n; k++) { leafSpot(i, k, spot); if (i._town && underCrown(i._town, spot[0], spot[1])) continue; const o = m * 4; b[o] = spot[0]; b[o + 1] = spot[1]; b[o + 2] = hh(k, i.h * 7) * 6.283; b[o + 3] = hh(k * 5, i.h); m++; }
   i.st = { x: i.x, y: i.y, n: m, b }; }
 const LEAF = { init: i => { i.st = { x: i.x, y: i.y, n: 0, b: null }; }, step(i, dt, ctx) { if (!i.st.b) { i._town = ctx.town; leafInit(i); } },   // the crowns are known at the first step
-  draw(fx, i, v) { const a0 = vis(v), st = i.st; if (a0 < 0.02 || !st.b) return; const b = st.b, ppm = v.cam.ppm, t = v.t, l = 0.1 * S * ppm, W = v.WIND, dim = 1 - 0.7 * v.night;
+  draw(fx, i, v) { const a0 = vis(v) * litOf(v, i), st = i.st; if (a0 < 0.02 || !st.b) return; const b = st.b, ppm = v.cam.ppm, t = v.t, l = 0.1 * S * ppm, W = v.WIND, dim = 1 - 0.7 * v.night;
     fx.lineCap = 'round';
     for (let k = 0; k < st.n; k++) { const o = k * 4, ph = b[o + 3], g = ss(0.5, 0.95, gust(b[o], b[o + 1], t)) * (0.5 + ph), sk = Math.sin(t * 6 + ph * 20);
       const dx = W.x * g * 0.9 - W.y * sk * 0.18 * g, dy = W.y * g * 0.9 + W.x * sk * 0.18 * g, z = g * 0.35 * (0.6 + 0.4 * Math.sin(t * 9 + ph * 13));

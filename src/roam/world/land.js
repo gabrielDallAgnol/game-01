@@ -295,6 +295,7 @@ ${HAIRK}
               float R = mix(1.0, 1.5, r2.y) * mix(1.0, 0.7, (1.0 - lCare) * step(0.55, r2.x)) * (1.0 - smoothstep(0.6, 0.72, vnoise(vec2(id * 0.37, lFv * 9.0))) * (1.0 - lCare));   // let go: thin and gapped
               vec2 rel = vec2(hu - uc, dv + (r2.y - 0.5) * 0.3); float d = length(rel);
               if (d < R) { float h = sqrt(R * R - d * d); if (h > best) { best = h; bn = vec3(ha * rel.x - lN * rel.y, h); } } }
+            vec4 hT = trample(w, 1.6); best *= 1.0 - 0.75 * hT.z;   // where something broke through: a ragged, flattened gap
             float hh = smoothstep(0.0, 0.3, best);
             vec3 hn = normalize(bn); float hl = clamp(dot(hn, SUN3), 0.0, 1.0);
             vec2 hd = normalize(normalize(vec2(-bn.y, bn.x) + 1e-4) + (vec2(vnoise(w * 0.9), vnoise(w * 0.9 + 7.0)) - 0.5) * 0.9 + WD * (g0 - 0.3) * 0.4);

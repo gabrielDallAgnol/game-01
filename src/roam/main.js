@@ -56,14 +56,22 @@ function start() {
   // and ears from wheat and barley, grass seed from a meadow. Render-side only; a fixed pool
   const CHAFF = { w: ['#e2c27a', '#c9a35a', 0.9], b: ['#d8d6a4', '#b8b582', 0.85], m: ['#b9c79a', '#8fa07a', 0.4], r: ['#5d7d45', '#3f5a30', 1.1, 'leaf'], f: ['#a8642c', '#7d5a2c', 1.4, 'leaf'] };   // f: the woods floor's autumn leaves kicked up   // rape: leaves torn off the rosettes
   const chaff = Array.from({ length: 90 }, () => ({ life: 0 })); let chaffI = 0, chaffAcc = 0;
-  function throwChaff(k, dt) { const sp = Math.hypot(k.vx, k.vy), c = town.chars && CHAFF[groundAt(k.x, k.y)]; if (!c || sp < 2) return;
+  const HG = 16, hgrid = new Map(); for (const h of (town.W._landPlan && town.W._landPlan.hedgeSegs) || []) { const xs = [h.a.x, h.b.x], ys = [h.a.y, h.b.y];
+    for (let j = Math.floor((Math.min(...ys) - 2) / HG); j <= Math.floor((Math.max(...ys) + 2) / HG); j++) for (let i = Math.floor((Math.min(...xs) - 2) / HG); i <= Math.floor((Math.max(...xs) + 2) / HG); i++) { const kk = i * 4096 + j; if (!hgrid.has(kk)) hgrid.set(kk, []); hgrid.get(kk).push(h); } }
+  const inHedge = (x, y) => { for (const h of hgrid.get(Math.floor(x / HG) * 4096 + Math.floor(y / HG)) || []) { const dx = h.b.x - h.a.x, dy = h.b.y - h.a.y, L2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((x - h.a.x) * dx + (y - h.a.y) * dy) / L2)); if (Math.hypot(x - h.a.x - dx * u, y - h.a.y - dy * u) < 1.4) return true; } return false; };
+  let wasHedge = false;
+  function hedgeBurst(k) { const sp = Math.hypot(k.vx, k.vy), now = sp > 1.5 && inHedge(k.x, k.y); if (now && !wasHedge) { const n = k.riding ? 26 : 10;   // a burst on the way in: leaves, twigs
+      for (let q = 0; q < n; q++) { const p = chaff[chaffI++ % chaff.length], a = Math.random() * 6.283, v = 1 + Math.random() * (k.riding ? 5 : 2.5);
+        Object.assign(p, { x: k.x, y: k.y, z: 0.8 + Math.random() * 0.8, vx: Math.cos(a) * v + k.vx * 0.3, vy: Math.sin(a) * v + k.vy * 0.3, vz: 2 + Math.random() * 3, life: 1.4 + Math.random(), rot: Math.random() * 6.3, spin: (Math.random() - 0.5) * 16, col: q % 5 === 0 ? '#5a3c22' : q % 2 ? '#4f6a38' : '#8a5a2c', leaf: q % 5 !== 0 }); } }
+    wasHedge = now; }
+  function throwChaff(k, dt) { hedgeBurst(k); const sp = Math.hypot(k.vx, k.vy), c = town.chars && CHAFF[groundAt(k.x, k.y)]; if (!c || sp < 2) return;
     chaffAcc += dt * sp * c[2] * (k.riding ? 3.2 : 1.2);
     while (chaffAcc >= 1) { chaffAcc -= 1; const p = chaff[chaffI++ % chaff.length], a = Math.atan2(k.vy, k.vx) + Math.PI + (Math.random() - 0.5) * 1.6, v = 1.5 + Math.random() * 2.5;
       Object.assign(p, { x: k.x - k.vx * 0.08, y: k.y - k.vy * 0.08, z: 0.6 + Math.random() * 0.6, vx: Math.cos(a) * v + k.vx * 0.25, vy: Math.sin(a) * v + k.vy * 0.25, vz: 1.8 + Math.random() * 2.2, life: 1.2 + Math.random() * 0.9, rot: Math.random() * 6.3, spin: (Math.random() - 0.5) * 14, col: Math.random() < 0.5 ? c[0] : c[1], leaf: c[3] === 'leaf' }); if (p.leaf) { p.vz += 1.5; p.life += 0.8; } } }
   function drawChaff(dt) { fx.lineCap = 'round'; for (const p of chaff) { if (p.life <= 0) continue; p.life -= dt; p.vz -= 6 * dt; p.z += p.vz * dt; if (p.z < 0) { p.z = 0; p.vx *= 0.5; p.vy *= 0.5; p.vz = 0; }
       const drag = Math.exp(-dt * 1.8); p.vx = p.vx * drag + 0.731 * 1.2 * dt; p.vy = p.vy * drag + 0.682 * 1.2 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.spin * dt;
-      const [X, Y] = toS(p.x, p.y - p.z * 0.5), L = Math.max(1.5, 0.22 * view.ppm); fx.globalAlpha = Math.min(1, p.life * 2); fx.strokeStyle = p.col; fx.lineWidth = Math.max(1, view.ppm * 0.035);
-      if (p.leaf) { const fl = Math.abs(Math.cos(p.rot * 1.7)); fx.fillStyle = p.col; fx.beginPath(); fx.ellipse(X, Y, L * 0.7, Math.max(0.6, L * 0.32 * fl), p.rot, 0, 6.29); fx.fill(); continue; }   // a leaf tumbles: it thins to its edge as it turns
+      const [X, Y] = toS(p.x, p.y - p.z * 0.5), L = Math.max(1.5, 0.22 * view.ppm); const lt = lightAt(p.x, p.y); fx.globalAlpha = Math.min(1, p.life * 2); fx.strokeStyle = shade(p.col, lt); fx.lineWidth = Math.max(1, view.ppm * 0.035);
+      if (p.leaf) { const fl = Math.abs(Math.cos(p.rot * 1.7)); fx.fillStyle = shade(p.col, lt); fx.beginPath(); fx.ellipse(X, Y, L * 0.7, Math.max(0.6, L * 0.32 * fl), p.rot, 0, 6.29); fx.fill(); continue; }   // a leaf tumbles: it thins to its edge as it turns
       fx.beginPath(); fx.moveTo(X - Math.cos(p.rot) * L / 2, Y - Math.sin(p.rot) * L / 2); fx.lineTo(X + Math.cos(p.rot) * L / 2, Y + Math.sin(p.rot) * L / 2); fx.stroke(); } fx.globalAlpha = 1; }
   // the bike's dust on dirt (ploughed fields, stubble, gravel, yards, farm tracks): the plume atom's 'dust' preset
   // what the ground is under (x, y), by the char map: under a tree in a wood it is still the woods floor ('f')
@@ -72,6 +80,15 @@ function start() {
   function dustOf(k, dt) { if (!k.riding || !town.chars) return; const sp = Math.hypot(k.vx, k.vy), g = groundAt(k.x, k.y); if (sp < 3 || !DUSTY.has(g)) return;
     if (g === 'f') { dustAcc += dt * sp * 0.6; while (dustAcc >= 1) { dustAcc -= 1; plumeEmit('dust', k.x - k.vx * 0.12, k.y - k.vy * 0.12, 0.2, -k.vx * 0.12, -k.vy * 0.12, 0.5 + sp / 30); } return; }   // the woods floor: damp, a thin haze
     dustAcc += dt * sp * 1.4; while (dustAcc >= 1) { dustAcc -= 1; plumeEmit('dust', k.x - k.vx * 0.12, k.y - k.vy * 0.12, 0.2, -k.vx * 0.15, -k.vy * 0.15, 0.7 + sp / 20); } }
+  // the light on a particle at (x, y): the sky (bright by day, dim and blue by night), the bike's headlight cone, a lit
+  // window's spill (the light map, sampled on the CPU from the painted tiles). Particles drawn on the overlay multiply by it
+  function lightAt(x, y) { let l = 1 - 0.78 * curNight; const b = S.bike;
+    if (S.kai.riding) { const hx = b.x + Math.cos(b.ang) * 1.68, hy = b.y + Math.sin(b.ang) * 1.68, dx = x - hx, dy = y - hy, r = Math.hypot(dx, dy), cs = (dx * Math.cos(b.ang) + dy * Math.sin(b.ang)) / (r || 1);
+      const head = Math.max(0, Math.min(1, (cs - 0.84) / 0.11)) * Math.max(0, 1 - Math.max(0, r - 6) / 18) * (0.25 + 0.75 * curNight); l += head * 1.1;
+      l += Math.max(0, 1 - Math.hypot(x - b.x, y - b.y) / 2.5) * 0.3 * curNight; }   // the lamp's own glow round the bike
+    return Math.min(1.2, l); }
+  const shade = (hex, l) => { const n = parseInt(hex.slice(1), 16), f = v => Math.round(Math.min(255, v * l)); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; };
+  let curNight = 0;
   const falls = []; let acc = 0, last = performance.now(), t = 0;
   function frame(now) {
     const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw); last = now; t += dt;
@@ -88,7 +105,7 @@ function start() {
     for (const e of evs) if (e.type === 'smash') falls.push({ x: e.x, y: e.y, fa: e.ang, id: 100000 + e.id, t0: t, prop: true, stamp: true });   // a smashed prop bursts into letters like a fall
     for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, brute: e.kind === 'brute', stamp: true });
     while (falls.length && t - falls[0].t0 > 2.2) falls.shift();
-    const { night, sun } = skyAt(S.clock);
+    const { night, sun } = skyAt(S.clock); curNight = night;
     // the camera: follows Kai, leads her a little; on the bike it pulls back with the speed so you see what's coming
     const k = R.kai, lead = k.riding ? 0.55 : 0.3;
     cam.x += (k.x + k.vx * lead - cam.x) * Math.min(1, dt * 5); cam.y += (k.y + k.vy * lead - cam.y) * Math.min(1, dt * 5);
@@ -100,9 +117,9 @@ function start() {
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules
     for (const i of town.dress.live) { if (Math.abs(i.x - cam.x) > 90 || Math.abs(i.y - cam.y) > 120) continue; if (!i.st) i.atom.live.init(i); i.atom.live.step(i, dt, { kai: R.kai, t, night, WIND: { x: 0.731, y: 0.682 }, town }); }
-    try { look.draw(fx, { broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
+    try { look.draw(fx, { lightAt, broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
     for (const o of R.dead) if (o.fa !== undefined) faMap.set(o.id, o.fa); if (faMap.size > 4 * S.dead.length + 50) faMap.clear();   // the dead keep facing where they last walked
-    dustOf(R.kai, dt); drawPlumes(fx, toS, view.ppm, dt, { x: 0.731, y: 0.682 }, night, cssW, cssH);
+    dustOf(R.kai, dt); drawPlumes(fx, toS, view.ppm, dt, { x: 0.731, y: 0.682 }, night, cssW, cssH, lightAt);
     throwChaff(R.kai, dt); drawChaff(dt);
     ui.arrows(toS, cssW, cssH); ui.update(evs);
     requestAnimationFrame(frame);

@@ -22,13 +22,13 @@ function sprite(c) { const k = c.join(','); if (sprites[k]) return sprites[k]; c
 export function emit(preset, x, y, z = 0, vx = 0, vy = 0, k = 1) { const pr = PRESETS[preset], p = P[next++ % N], j = Math.sin(next * 12.9898) * 43758.5453 % 1;
   Object.assign(p, { pr, x, y, z, vx: vx + j * 0.3, vy: vy - j * 0.2, t: 0, life: pr.life * (0.7 + 0.6 * Math.abs(j)), k, spin: j * 6.28 }); }
 /** step and draw every live puff (once a frame, after the solids, before the HUD) */
-export function drawPlumes(fx, toS, ppm, dt, WIND, night, W, H) {
+export function drawPlumes(fx, toS, ppm, dt, WIND, night, W, H, lightAt = null) {
   for (const p of P) { if (p.life <= 0) continue; p.t += dt; if (p.t >= p.life) { p.life = 0; continue; }
     const pr = p.pr, u = p.t / p.life, drag = Math.exp(-dt * 1.4);
     p.vx = p.vx * drag + WIND.x * pr.drift * dt; p.vy = p.vy * drag + WIND.y * pr.drift * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += pr.rise * dt;
     const [X, Y] = toS(p.x, p.y - p.z * 0.6), r = (pr.s0 + (pr.s1 - pr.s0) * Math.sqrt(u)) * p.k * ppm; if (X < -r || Y < -r || X > W + r || Y > H + r) continue;
-    const a = pr.a * Math.min(1, u * 14) * (1 - u) * (1 - u * 0.6) * (night > 0.5 && !pr.warm ? 0.55 : 1);
-    if (a < 0.01) continue; fx.globalAlpha = a * 0.7; const spr = sprite(pr.c);
+    const a = pr.a * Math.min(1, u * 14) * (1 - u) * (1 - u * 0.6);
+    if (a < 0.01) continue; fx.globalAlpha = a * 0.7; const lt = lightAt ? Math.round(Math.min(1.2, lightAt(p.x, p.y)) * 8) / 8 : 1, spr = sprite(pr.c.map(v => Math.min(255, Math.round(v * lt))));   // lit like everything else (eight levels: a sprite each)
     for (let q = 0; q < 3; q++) { const ang = p.spin + q * 2.09 + p.t * 0.4, d = r * (0.25 + 0.3 * u), rq = r * (0.62 - 0.08 * q);   // a puff billows: three lumps spreading as it rises
       fx.drawImage(spr, X + Math.cos(ang) * d - rq, Y + Math.sin(ang) * d - rq, 2 * rq, 2 * rq); }
     if (pr.warm && night > 0.2 && u < 0.18) { fx.globalAlpha = (0.18 - u) * 3 * night * pr.warm; fx.globalCompositeOperation = 'lighter'; fx.drawImage(sprite([255, 120, 40]), X - r * 0.6, Y - r * 0.6, r * 1.2, r * 1.2); fx.globalCompositeOperation = 'source-over'; } }

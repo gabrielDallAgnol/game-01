@@ -382,7 +382,8 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     // sparkles: a few glyphs adrift in the air, pale, one in eight warm
     fx.font = '600 9px "IBM Plex Mono", ui-monospace, monospace';
     for (let i = 0; i < 60; i++) { const sp = 0.3 + hashN(i, 7) * 0.6, x = (hashN(i, 1) * cssW + t * 9 * sp * WIND.x) % (cssW + 20) - 10, y = (hashN(i, 2) * cssH + t * 9 * sp * WIND.y) % (cssH + 20) - 10, tw = 0.5 + 0.5 * Math.sin(t * (1.5 + hashN(i, 3) * 2) + i);
-      fx.globalAlpha = (0.25 + 0.55 * tw) * (0.6 + 0.4 * night); fx.fillStyle = i % 8 === 0 ? '#e8c060' : '#e9e6dc'; fx.fillText('*o·*·8·°'[i % 8], x, y); }
+      const lt = v.lightAt ? Math.min(1, v.lightAt(cam.x + (x - cssW / 2) / cam.ppm, cam.y + (y - cssH / 2) / cam.ppm)) : 1;   // ash in the air: seen where light falls on it
+      fx.globalAlpha = (0.25 + 0.55 * tw) * lt; fx.fillStyle = i % 8 === 0 ? '#e8c060' : '#e9e6dc'; fx.fillText('*o·*·8·°'[i % 8], x, y); }
 
     // ---------- zoomed out: each thing becomes one letter on a dark plate, a fixed size on screen (the roguelike map) ----------
     // far 0 at the close camera, 1 when a figure would be a couple of cells. Amber rings are yours, ember red is the dead.
