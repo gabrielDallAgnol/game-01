@@ -65,9 +65,11 @@ function start() {
     while (falls.length && t - falls[0].t0 > 2.2) falls.shift();
     const { night, sun } = skyAt(S.clock);
     // the camera: follows Kai, leads her a little; on the bike it pulls back with the speed so you see what's coming
-    const k = R.kai, lead = k.riding ? 0.55 : 0.3, sp = k.riding ? S.bike.speed / ROAM.bike.top : 0;
+    const k = R.kai, lead = k.riding ? 0.55 : 0.3;
     cam.x += (k.x + k.vx * lead - cam.x) * Math.min(1, dt * 5); cam.y += (k.y + k.vy * lead - cam.y) * Math.min(1, dt * 5);
-    const wantPpm = cam.base * (1 - 0.3 * sp); cam.ppm += (wantPpm - cam.ppm) * Math.min(1, dt * 2.5);
+    // the zoom eases to the pinch's and then holds still exactly (a zoom that never quite settles re-samples every glyph);
+    // no pull-back with the bike's speed for the same reason
+    { const want = cam.base; cam.ppm += (want - cam.ppm) * Math.min(1, dt * 6); if (Math.abs(want - cam.ppm) < want * 0.004) cam.ppm = want; }
     look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun });
     fx.clearRect(0, 0, cssW, cssH);
     const kaiUnder = town.trees.some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her

@@ -295,6 +295,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     sphere(nst.x, nst.y, 0.1 * S, r, hit ? M.flash : M.stone);
     if (nst.alive) for (let i = 0; i < 5; i++) { const a = i * 1.26 + nst.id, c = Math.cos(a), s2 = Math.sin(a); capsule(nst.x + c * r * 0.3, nst.y + s2 * r * 0.3, 0.1 * S + r * 0.95, nst.x + c * r * 0.85, nst.y + s2 * r * 0.85, 0.1 * S + r * 0.5, 0.05 * S, M.crack, 0.6 + 0.4 * Math.sin(t * 3.2 + nst.id)); }
   }
+  const anchor = { x: 0, y: 0, ppm: 0, cp: 0, W: 0, H: 0 };
   // ---------- each frame: gather the volumes, size the cells, render the cell pass ----------
   function render(v) {
     n = 0;
@@ -317,7 +318,10 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     // the glyph grid is pinned to the world, not the screen: the camera glides freely and a still roof keeps its letters.
     // uCellOff is where the screen sits inside the world's grid (one spare cell each way covers the slide)
     const cp = Math.max(3, Math.round(3 * dpr)), W = Math.floor(cssW * dpr), H = Math.floor(cssH * dpr), cw = Math.ceil(W / cp) + 1, ch = Math.ceil(H / cp) + 1;
-    { const px = W / (cssW / cam.ppm), py = H / (cssH / cam.ppm), m = a => ((a % cp) + cp) % cp; U.uCellOff.value.set(m(cam.x * px - W / 2), m(-(H / 2 + cam.y * py))); }
+    // the anchor is a world point near the camera, kept while the zoom (and the cell size) stay put: anchored at the map's
+    // corner, a zoom change of a hair shifted far cells by whole cells and every prop's letters re-sampled
+    { if (anchor.ppm !== cam.ppm || anchor.cp !== cp || anchor.W !== W || anchor.H !== H) Object.assign(anchor, { x: cam.x, y: cam.y, ppm: cam.ppm, cp, W, H });
+      const px = W / (cssW / cam.ppm), py = H / (cssH / cam.ppm), m = a => ((a % cp) + cp) % cp; U.uCellOff.value.set(m((cam.x - anchor.x) * px - W / 2), m(-(H / 2 + (cam.y - anchor.y) * py))); }
     if (!rt || rt.width !== cw || rt.height !== ch) { if (rt) rt.dispose(); rt = new THREE.WebGLRenderTarget(cw, ch, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: fragDepth }); }
     paintAtlas(cp); cells.set(cw, ch); res.set(W, H); U.uCellPx.value = cp; U.tCells.value = rt.texture;
     if (fragDepth) {   // the volumes as quads into a cleared cell target
