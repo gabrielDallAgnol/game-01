@@ -6,7 +6,7 @@
 import { buildRegion } from './world/region.js';
 import { profileOf } from './world/streets.js';
 import { roofLook } from './world/sites.js';
-import { landItems } from './world/land.js';
+import { landItems, pip } from './world/land.js';
 import { makeCharmap } from './world/charmap.js';
 import { sparseGrid } from './world/sparse.js';
 import { pointInObb } from '../engine/geom.js';
@@ -67,7 +67,11 @@ export function buildTown(seed = 7) {
   const GR = 2, GW = Math.ceil(size.w * GR), GH = Math.ceil(size.h * GR), solid = sparseGrid(GW, GH);   // [world] sparse: the world is km of open fields
   const mark = (p, pad) => { const r = Math.hypot(p.w, p.h) / 2 + pad + 0.5, gx0 = Math.max(0, Math.floor((p.x - r) * GR)), gx1 = Math.min(GW - 1, Math.ceil((p.x + r) * GR)), gy0 = Math.max(0, Math.floor((p.y - r) * GR)), gy1 = Math.min(GH - 1, Math.ceil((p.y + r) * GR));
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, (gx + 0.5) / GR, (gy + 0.5) / GR, pad)) solid.set(gx, gy, 1); };
-  for (const p of buildings) if (p.def.collide !== 'none') mark(p, 0.15);   // a canopy (a gas station's) is ridden under
+  for (const p of buildings) if (p.def.collide !== 'none') mark(p, 0.15);
+  // the lake and the ponds are walls too, a metre in from the shore (the reeds and the mud stay walkable); the brook is crossed by the roads' bridges
+  for (const l of W.land || []) { if (l.kind !== 'water') continue; const xs = l.poly.map(q => q.x), ys = l.poly.map(q => q.y);
+    for (let gy = Math.max(0, Math.floor(Math.min(...ys) * GR)); gy <= Math.min(GH - 1, Math.ceil(Math.max(...ys) * GR)); gy++) for (let gx = Math.max(0, Math.floor(Math.min(...xs) * GR)); gx <= Math.min(GW - 1, Math.ceil(Math.max(...xs) * GR)); gx++) {
+      const x = (gx + 0.5) / GR, y = (gy + 0.5) / GR; if (pip(l.poly, x, y) && pip(l.poly, x + 1, y) && pip(l.poly, x - 1, y) && pip(l.poly, x, y + 1) && pip(l.poly, x, y - 1)) solid.set(gx, gy, 1); } }   // a canopy (a gas station's) is ridden under
   const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); return gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid.get(gx, gy) === 1; };
   // the nests: infested and nestable buildings first, then the biggest houses, spread across the town
   const cand = buildings.filter(p => p.def.collide !== 'none').filter(p => p.def.tags.includes('infested') || p.def.tags.includes('nestable')).concat(buildings.filter(p => !p.def.tags.includes('site')).sort((a, b) => b.w * b.h - a.w * a.h));   // [world] the biggest houses of the towns, not every shed in the country (a site's nest is tagged nestable)
