@@ -128,7 +128,7 @@ export function buildRegion(seed = 7) {
   for (const site of sites) { const ids0 = W.placed.length, c = Math.cos(site.rot), sn = Math.sin(site.rot), at = (lx, ly) => P(site.x + lx * c - ly * sn, site.y + lx * sn + ly * c);
     const ctx = { seed, at, hash: (...a) => hash(H, site.x, site.y, ...a),
       place(b) { const def = { kind: 'building', look: 'flat', light: 0.5, height: 6, collide: 'box', ...b.def, size: (b.def && b.def.size) || [b.w, b.h] }; def.tags = [...((b.def && b.def.tags) || []), 'site', 'site.' + site.id]; def.id = def.id || 'site.' + site.id;
-        const p = { ...Object.fromEntries(Object.entries(b).filter(([k]) => !reserved.has(k))), uid: ++W.uid, id: def.id, def, rot: b.rot || 0, district: 'site:' + site.id, site: site.id }; W.placed.push(p); return p; },
+        const p = { ...Object.fromEntries(Object.entries(b).filter(([k]) => !reserved.has(k))), uid: ++W.uid, id: def.id, def, rot: b.rot || 0, district: 'site:' + site.id, site: site.id }; b.uid = p.uid; W.placed.push(p); return p; },   // the template's own object learns its uid (its rooftop anchors read it)
       land(poly, kind, extra = {}) { const l = { kind, poly, ...extra, site: site.id }; W.land.push(l); return l; },
       street(pts, kind = 'service', w = 5) { const st = { id: 'ws' + W.streets.length, kind, w, walk: 0, marks: 'none', role: kind, pts, ends: [], district: 'site:' + site.id, site: site.id }; W.streets.push(st); return st; } };
     if (SITES[site.id] && SITES[site.id].build) SITES[site.id].build(site, ctx);

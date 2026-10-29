@@ -70,9 +70,11 @@ export function buildTown(seed = 7) {
   for (const p of buildings) if (p.def.collide !== 'none') mark(p, 0.15);   // a canopy (a gas station's) is ridden under
   const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); return gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid.get(gx, gy) === 1; };
   // the nests: infested and nestable buildings first, then the biggest houses, spread across the town
-  const cand = buildings.filter(p => p.def.tags.includes('infested') || p.def.tags.includes('nestable')).concat(buildings.filter(p => !p.def.tags.includes('site')).sort((a, b) => b.w * b.h - a.w * a.h));   // [world] the biggest houses of the towns, not every shed in the country (a site's nest is tagged nestable)
+  const cand = buildings.filter(p => p.def.collide !== 'none').filter(p => p.def.tags.includes('infested') || p.def.tags.includes('nestable')).concat(buildings.filter(p => !p.def.tags.includes('site')).sort((a, b) => b.w * b.h - a.w * a.h));   // [world] the biggest houses of the towns, not every shed in the country (a site's nest is tagged nestable)
   const nests = [];
-  for (const p of cand) { if (nests.length >= 9) break; if (Math.hypot(p.x - start.x, p.y - start.y) < 70 || nests.some(q => Math.hypot(q.b.x - p.x, q.b.y - p.y) < 80)) continue;
+  // most nests are in the towns; at most three out at the sites (the world picks which: a farm, a warehouse…)
+  const siteNest = p => p.def.tags.includes('site');
+  for (const p of cand) { if (nests.length >= 9) break; if (siteNest(p) && nests.filter(q => siteNest(q.b)).length >= 3) continue; if (Math.hypot(p.x - start.x, p.y - start.y) < 70 || nests.some(q => Math.hypot(q.b.x - p.x, q.b.y - p.y) < 80)) continue;
     let at = p.door || { x: p.x, y: p.y + p.h / 2 + 1.5 }; for (let k = 0; k < 12 && blocked(at.x, at.y); k++) at = { x: at.x + (at.x - p.x) * 0.15, y: at.y + (at.y - p.y) * 0.15 };
     if (!blocked(at.x, at.y)) nests.push({ b: p, x: at.x, y: at.y }); }
   // [dress] begin: how kept each place is, where things may stand, and the stories (they mark houses the lights and gardens read)

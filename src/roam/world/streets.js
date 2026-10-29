@@ -16,4 +16,6 @@ export const STREET_KINDS = {
   lane: { width: st => st.w * 1.5, bands: [[0, 132], [0.9, 190], [2.0, 245]], kind: 255, pavement: false, parking: false, marks: false },
   service: { width: st => st.w * 1.6, bands: [[0, 140], [1.4, 220], [3.0, 255]], kind: 255, pavement: false, parking: false, marks: false },
 };
+// a site's drive or lot lane: plain tarmac its own width, no pavement, no marks
+STREET_KINDS.drive = { width: st => st.w, bands: [[0, 150], [0.8, 255]], kind: 255, pavement: false, parking: false, marks: false };
 export const profileOf = st => STREET_KINDS[st.kind] || STREET_KINDS.local;
