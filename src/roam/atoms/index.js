@@ -4,6 +4,7 @@ import { STREET, MARKS } from './street.js';
 import { PROPS } from './props.js';
 import { LIFE, LITTER } from './life.js';
 import { STRANDS } from './strands.js';
+import { GROUND_MARKS } from './marks.js';
 export const ATOMS = [
   ...STREET,
   ...MARKS,
@@ -11,4 +12,5 @@ export const ATOMS = [
   ...LIFE,
   ...LITTER,
   ...STRANDS,
+  ...GROUND_MARKS,
 ];

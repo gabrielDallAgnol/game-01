@@ -172,7 +172,13 @@ export function createMedium(o) {
 `);
   swap('        gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }', `        // [medium] the solids: each cell a glyph by its light, the material's colour in the letters, glow through them
         // the city's ground marks (atoms paint them once): r pale paint, worn; g dark (stains, oil, char, holes); b water
-        { vec3 dk = texture2D(tDecal, t).rgb * (1.0 - roof) * (1.0 - tree);
+        { vec3 dk = texture2D(tDecal, t).rgb;
+          // [atoms-marks] begin: the map is 4 texels a metre, so magnified paint and holes blur; cut each mark at half its
+          // local peak (the brightest of its 4 neighbours, so worn, faint paint keeps its strength): crisp edges at any zoom
+          if (dk.r + dk.g > 0.004) { float e = 0.25 / uS; vec3 m = max(max(texture2D(tDecal, t + vec2(e, 0.0)).rgb, texture2D(tDecal, t - vec2(e, 0.0)).rgb), max(texture2D(tDecal, t + vec2(0.0, e)).rgb, texture2D(tDecal, t - vec2(0.0, e)).rgb));
+            m = max(m, dk); dk.r = m.r * smoothstep(0.3, 0.6, dk.r / max(m.r, 1e-3)); dk.g = m.g * smoothstep(0.1, 0.7, dk.g / max(m.g, 1e-3)); }
+          // [atoms-marks] end
+          dk *= (1.0 - roof) * (1.0 - tree);
           col = mix(col, vec3(0.8, 0.79, 0.74) * mix(tint(), vec3(0.42), uNight) * (0.8 + 0.2 * vnoise(w * 3.0)), clamp(dk.r * (0.65 + 0.45 * vnoise(w * 1.7 + 4.0)), 0.0, 1.0));
           col *= 1.0 - 0.7 * dk.g;
           vec3 sky = mix(vec3(0.5, 0.57, 0.64) * tint(), vec3(0.05, 0.06, 0.09), uNight);   // a puddle holds the sky, a little moving
