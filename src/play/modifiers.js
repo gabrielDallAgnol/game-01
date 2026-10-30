@@ -9,3 +9,8 @@ export const MODIFIERS = {
     edit: s => ({ ...s, rate: s.rate * 1.25 }),
     desc: '+25% fire rate.', why: 'Simple, always useful; stacks multiply but cap at 8 shots a second.' },
 };
+// [m2] element modifiers: the last stage; one element per weapon (a second replaces the first)
+MODIFIERS.fire = { id: 'fire', stage: 'element', fits: ['weapon', 'offhand'], stack: 'replace', edit: s => ({ ...s, element: 'fire' }),
+  desc: 'Hits set machines burning.', why: 'Element modifiers are how the two weapons combo.' };
+MODIFIERS.water = { id: 'water', stage: 'element', fits: ['weapon', 'offhand'], stack: 'replace', edit: s => ({ ...s, element: 'water' }),
+  desc: 'Hits soak machines.', why: 'The setup element: steam with fire.' };

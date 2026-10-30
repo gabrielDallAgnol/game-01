@@ -10,4 +10,13 @@ export const WEAPONS = {
     desc: 'A sawn-off scatter gun bolted to the handlebars. Three pellets a shot.',
     why: 'The first weapon: forgiving aim from a moving bike, strong when you dare to ride close (risk vs reward).',
   },
+  // [m2] the first off-hand: a pressure hose off the bike's coolant tank
+  hose: {
+    base: 'hose', slot: 'offhand', theme: 'spray',
+    signature: { id: 'pressure', desc: 'The spray pushes small machines back.' },
+    shot: { count: 1, spread: 0.06, speed: 18, dmg: 0.35, range: 10, rate: 7, size: 1, pierce: 1, element: 'water', closeBonus: 0, push: 1.2 },
+    module: 'mount_hose', tags: ['metal'],
+    desc: 'A coolant hose rigged to spray. Weak, but it soaks what it touches.',
+    why: 'The setup weapon for combos: soak them, then fire for steam; three soaks slow them right down.',
+  },
 };

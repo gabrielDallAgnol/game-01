@@ -11,12 +11,14 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   press(rideBtn, () => { input.ride = true; }); press(dashBtn, () => { input.dash = true; });
   // [m1] FIRE is held: down starts, up / cancel / leaving the button stops
   const fireBtn = $('fire'), setFire = on => { input.fire = on; fireBtn.classList.toggle('on', on); };
-  // hold FIRE: the gun aims itself; drag off the button while holding: it fires where you drag (the screen is the map,
-  // north up, so a screen direction is a world direction)
-  let fx0 = 0, fy0 = 0;
-  fireBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fireBtn.setPointerCapture(e.pointerId); fx0 = e.clientX; fy0 = e.clientY; input.aim = null; setFire(true); });
-  fireBtn.addEventListener('pointermove', e => { if (!input.fire) return; const dx = e.clientX - fx0, dy = e.clientY - fy0; input.aim = Math.hypot(dx, dy) > 18 ? Math.atan2(dy, dx) : null; });
-  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) fireBtn.addEventListener(ev, () => { setFire(false); input.aim = null; });
+  // hold a weapon button: it aims itself; drag off the button while holding: it fires where you drag (the screen is the
+  // map, north up, so a screen direction is a world direction). FIRE: the main weapon; HOSE: the off-hand [m2]
+  const offBtn = $('offhand'), setOff = on => { input.off = on; offBtn.classList.toggle('on', on); };
+  function holdAim(btn, set, aimKey) { let x0 = 0, y0 = 0;
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); btn.setPointerCapture(e.pointerId); x0 = e.clientX; y0 = e.clientY; input[aimKey] = null; set(true); });
+    btn.addEventListener('pointermove', e => { const dx = e.clientX - x0, dy = e.clientY - y0; if (btn.classList.contains('on')) input[aimKey] = Math.hypot(dx, dy) > 18 ? Math.atan2(dy, dx) : null; });
+    for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) btn.addEventListener(ev, () => { set(false); input[aimKey] = null; }); }
+  holdAim(fireBtn, setFire, 'aim'); holdAim(offBtn, setOff, 'offAim');
   // the clock speed (a test control): 1x, 10x, 30x; only the day passes faster
   const speedEl = $('speed'), RATES = [1, 10, 30];
   press(speedEl, () => { const r = RATES[(RATES.indexOf(S.clockRate) + 1) % RATES.length]; sim.setClockRate(r); speedEl.textContent = r + '×'; speedEl.classList.toggle('fast', r > 1); speedEl.setAttribute('aria-label', `Clock speed: ${r}x. Tap to change`); });
@@ -33,8 +35,8 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
   canvas.addEventListener('wheel', e => { e.preventDefault(); zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
   const keys = {};
-  addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'e') input.ride = true; if (k === ' ' || k === 'j') { if (S.kai.riding) setFire(true); else input.dash = true; e.preventDefault(); } if (k === '+' || k === '=') zoom(1.2); if (k === '-') zoom(0.83); if (k === 't') speedEl.dispatchEvent(new PointerEvent('pointerdown')); });
-  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'j') setFire(false); });
+  addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'e') input.ride = true; if (k === ' ' || k === 'j') { if (S.kai.riding) setFire(true); else input.dash = true; e.preventDefault(); } if (k === 'k' || k === 'shift') setOff(true); if (k === '+' || k === '=') zoom(1.2); if (k === '-') zoom(0.83); if (k === 't') speedEl.dispatchEvent(new PointerEvent('pointerdown')); });
+  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'j') setFire(false); if (k === 'k' || k === 'shift') setOff(false); });
   function keyInput() { if (mover !== null) return; const x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), y = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0); if (x || y) { const r = Math.hypot(x, y); input.x = x / r; input.y = y / r; input.key = true; } else if (input.key) { input.x = input.y = 0; input.key = false; } }
   // ---------- events → words ----------
   const WORDS = { dusk: ['Dusk. The machines wake hungry.', true], dawn: ['Dawn. The machines slow and power down.', true], down: ['Wrecked. Back at the square in a moment.'], back: ['Back on the bike.'], crash: ['Crash!'], won: ['Every nest is ash. Hollowmere breathes.', true] };

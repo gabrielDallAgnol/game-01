@@ -37,8 +37,9 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 .pb{position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid rgba(255,255,255,.18);background:var(--panel);color:var(--fg);font:700 12px var(--mono);letter-spacing:.04em;cursor:pointer;touch-action:none;pointer-events:auto}
 .pb:disabled{opacity:.35}
 .pb.fire{right:0;bottom:0;width:96px;height:96px;background:var(--ember);color:#1a0806;border-color:transparent;font-size:15px}
-.pb.fire.on{filter:brightness(1.25);transform:scale(.96)}
-#offhand{right:104px;bottom:6px} #ab1{right:92px;bottom:76px} #ab2{right:22px;bottom:106px} .pb.sm{width:44px;height:44px;font-size:10px;right:150px;bottom:126px}
+.pb.fire.on,.pb.hose.on{filter:brightness(1.25);transform:scale(.96)}
+.pb.hose{background:#2f6f96;color:#e8f4ff;border-color:transparent;width:66px;height:66px}
+#offhand{right:102px;bottom:2px} #ab1{right:92px;bottom:76px} #ab2{right:22px;bottom:106px} .pb.sm{width:44px;height:44px;font-size:10px;right:150px;bottom:126px}
 #stick{position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:2px solid rgba(240,180,76,.4);pointer-events:none}
 #stick i{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(240,180,76,.5)}
 #start{position:fixed;inset:0;display:grid;place-items:center;background:rgba(7,9,12,.72);padding:24px}
@@ -70,7 +71,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 <!-- [m1] the combat pad: the main weapon (hold), the off-hand, two talent abilities, switch form; greyed until they exist -->
 <div id="pad">
   <button class="pb fire" id="fire" aria-label="Fire the main weapon (hold)">FIRE</button>
-  <button class="pb" id="offhand" aria-label="Off-hand weapon (coming soon)" disabled>OFF</button>
+  <button class="pb hose" id="offhand" aria-label="Spray the hose (hold; drag to aim)">HOSE</button>
   <button class="pb" id="ab1" aria-label="Ability 1 (coming soon)" disabled>A1</button>
   <button class="pb" id="ab2" aria-label="Ability 2 (coming soon)" disabled>A2</button>
   <button class="pb sm" id="form" aria-label="Switch form (coming soon)" disabled>FORM</button>
@@ -80,7 +81,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <div class="card">
     <h1>HOLLOW<span>MERE</span></h1>
     <p>Every machine with a chip turned in one night. Yours has none. Ride the town, gun the crawlers down, and break the nests that breed them.</p>
-    <ul><li>Drag anywhere to steer · pinch to zoom</li><li>Hold FIRE (or Space): the gun aims itself · drag off FIRE to aim by hand</li><li>Keep moving: machines latch on when you slow down</li><li>Gunfire is loud: hold it too long and packs come hunting</li></ul>
+    <ul><li>Drag anywhere to steer · pinch to zoom</li><li>Hold FIRE (or Space): the gun aims itself · drag off FIRE to aim by hand</li><li>Keep moving: machines latch on when you slow down</li><li>Gunfire is loud: hold it too long and packs come hunting</li><li>Hold HOSE (or K) to soak them. Wet + fire = steam; three fire hits = blaze; fire lights oil</li></ul>
     <button id="go">Start</button>
   </div>
 </section>

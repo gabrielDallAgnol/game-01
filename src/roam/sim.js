@@ -10,9 +10,10 @@ import { createKai } from './sim/kai.js';
 import { createGuns } from './sim/guns.js';
 import { createBolts } from './sim/bolts.js';
 import { createHunts } from './sim/hunts.js';
+import { createChem } from './sim/chem.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createNests, createVehicle, createKai, createGuns, createBolts, createHunts];
+const MODULES = [createFoes, createNests, createVehicle, createKai, createGuns, createBolts, createHunts, createChem];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
@@ -24,6 +25,7 @@ export const ROAM = {
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)
     bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [24, 46], alarm: 14, catchUp: 1.2, near: 70, far: 110 },
   hunt: { boil: 14, cool: 1.3, perShot: 1, size: [3, 5], nightExtra: 2, twoSides: 0.25 },   // [m1] gunfire heat → hunting packs
+  chem: { stainR: 1.3, slick: 0.45, slickR: [1.1, 1.7], slickLife: 40, fireGrow: 0.8, fireTime: 6 },   // [m2] oil and fire on the ground
   nest: { hp: 120, guards: 7, every: 7, nightEvery: 3.5 },
 };
 
@@ -45,7 +47,7 @@ export function createRoam(town, seed = 1) {
     G.view = Math.min(160, inp.view || 0);
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepNests(dt); G.stepHunts(dt);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepNests(dt); G.stepHunts(dt); G.stepChem(dt);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();
