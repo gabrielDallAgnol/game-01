@@ -37,8 +37,9 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 .pb{position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid rgba(255,255,255,.18);background:var(--panel);color:var(--fg);font:700 12px var(--mono);letter-spacing:.04em;cursor:pointer;touch-action:none;pointer-events:auto}
 .pb:disabled{opacity:.35}
 .pb.fire{right:0;bottom:0;width:96px;height:96px;background:var(--ember);color:#1a0806;border-color:transparent;font-size:15px}
-.pb.fire.on{filter:brightness(1.25);transform:scale(.96)}
-#offhand{right:104px;bottom:6px} #ab1{right:92px;bottom:76px} #ab2{right:22px;bottom:106px} .pb.sm{width:44px;height:44px;font-size:10px;right:150px;bottom:126px}
+.pb.fire.on,.pb.hose.on{filter:brightness(1.25);transform:scale(.96)}
+.pb.hose{background:#2f6f96;color:#e8f4ff;border-color:transparent;width:66px;height:66px}
+#offhand{right:102px;bottom:2px} #ab1{right:92px;bottom:76px} #ab2{right:22px;bottom:106px} .pb.sm{width:44px;height:44px;font-size:10px;right:150px;bottom:126px}
 #stick{position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:2px solid rgba(240,180,76,.4);pointer-events:none}
 #stick i{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(240,180,76,.5)}
 #start{position:fixed;inset:0;display:grid;place-items:center;background:rgba(7,9,12,.72);padding:24px}
@@ -48,6 +49,16 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #start p{margin:0;color:#d8d2c4;font-weight:500;font-size:13px;line-height:1.55}
 #start ul{margin:0;padding:0;list-style:none;display:grid;gap:4px;color:var(--dim);font-weight:500}
 #start button{justify-self:center;font:700 15px var(--mono);background:var(--amber);color:#1a1206;border:0;border-radius:12px;padding:14px 28px;cursor:pointer}
+#kit{pointer-events:auto;border:0;color:var(--fg);font:700 12px var(--mono);cursor:pointer}
+#loadout{position:fixed;inset:0;display:grid;place-items:center;background:rgba(7,9,12,.72);padding:18px}
+#loadout .card{background:var(--panel);border-radius:14px;padding:16px;max-width:380px;display:grid;gap:10px}
+#loadout h2{margin:0;font:400 22px var(--display);letter-spacing:.06em;color:var(--amber)}
+#loadout .row{display:grid;gap:5px}#loadout .row>span{color:var(--dim)}
+#loadout .opts{display:flex;gap:6px;flex-wrap:wrap}#loadout .opts button{border:1px solid rgba(255,255,255,.18);background:transparent;color:var(--fg);font:600 12px var(--mono);border-radius:9px;padding:8px 10px;cursor:pointer}
+#loadout .opts button.on{background:var(--amber);color:#1a1206;border-color:transparent}
+#loadout .hint{margin:0;color:#cfc8b8;font-weight:500;line-height:1.5}
+#kitDone{justify-self:end;font:700 14px var(--mono);background:var(--amber);color:#1a1206;border:0;border-radius:10px;padding:10px 20px;cursor:pointer}
+.pb.fire.el-water{background:#3f86b8;color:#eef7ff}.pb.fire.el-{background:#c9c2b2}
 #fps{position:fixed;left:max(10px,env(safe-area-inset-left,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font:600 10px var(--mono);color:rgba(242,238,226,.55);pointer-events:none}
 #err{position:fixed;inset:auto 12px 50% 12px;background:#3a0d12;color:#ffd9dd;padding:12px;border-radius:10px}
 </style>
@@ -59,6 +70,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <div class="chip" id="hp"><span>HP</span><div class="bars"><div class="bar"><i></i></div><div class="bar noise" id="heat" title="Noise: gunfire builds it; when it boils over a pack comes hunting"><i></i></div></div></div>
   <div class="chip" id="nests">Nests <b>9</b></div>
   <div class="chip" id="clock">☀ 4:00</div>
+  <button class="chip" id="kit" aria-label="Loadout: the gun's element, the off-hand enchant, modifiers">KIT</button>
   <button class="chip" id="speed" aria-label="Clock speed: 1x. Tap to make the day pass faster">1×</button>
 </div>
 <div id="toasts"></div>
@@ -67,10 +79,10 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <button class="rb" id="ride" aria-label="Get on the motorcycle" hidden>RIDE</button>
   <button class="rb go" id="dash" aria-label="Dash" hidden>DASH</button>
 </div>
-<!-- [m1] the combat pad: the main weapon (hold), the off-hand, two talent abilities, switch form; greyed until they exist -->
+<!-- [m1] the combat pad: the main weapon (hold), two talent abilities, switch form; greyed until they exist. The off-hand is
+     an enchant on the gun, set in the loadout (no button) [m2] -->
 <div id="pad">
   <button class="pb fire" id="fire" aria-label="Fire the main weapon (hold)">FIRE</button>
-  <button class="pb" id="offhand" aria-label="Off-hand weapon (coming soon)" disabled>OFF</button>
   <button class="pb" id="ab1" aria-label="Ability 1 (coming soon)" disabled>A1</button>
   <button class="pb" id="ab2" aria-label="Ability 2 (coming soon)" disabled>A2</button>
   <button class="pb sm" id="form" aria-label="Switch form (coming soon)" disabled>FORM</button>
@@ -80,8 +92,21 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <div class="card">
     <h1>HOLLOW<span>MERE</span></h1>
     <p>Every machine with a chip turned in one night. Yours has none. Ride the town, gun the crawlers down, and break the nests that breed them.</p>
-    <ul><li>Drag anywhere to steer · pinch to zoom</li><li>Hold FIRE (or Space): the gun aims itself · drag off FIRE to aim by hand</li><li>Keep moving: machines latch on when you slow down</li><li>Gunfire is loud: hold it too long and packs come hunting</li></ul>
+    <ul><li>Drag anywhere to steer · pinch to zoom</li><li>Hold FIRE (or Space): the gun aims itself · drag off FIRE to aim by hand</li><li>Keep moving: machines latch on when you slow down</li><li>Gunfire is loud: hold it too long and packs come hunting</li><li>Every hit leaves a pip; three pips set off their mix. Your off-hand enchants every 2nd shot. KIT to change them</li></ul>
     <button id="go">Start</button>
+  </div>
+</section>
+<!-- [m2] the loadout (a test control until the garage exists): pick the gun's element, the off-hand's enchant, mods -->
+<section id="loadout" hidden>
+  <div class="card">
+    <h2>Loadout</h2>
+    <div class="row"><span>Weapon</span><div class="opts" data-k="base"><button data-v="scatter">scatter</button><button data-v="launcher">launcher</button><button data-v="thrower">thrower</button></div></div>
+    <div class="row"><span>Element</span><div class="opts" data-k="el"><button data-v="">plain</button><button data-v="fire">fire</button><button data-v="water">water</button></div></div>
+    <div class="row"><span>Off-hand enchant</span><div class="opts" data-k="enchant"><button data-v="">none</button><button data-v="fire">fire</button><button data-v="water">water</button></div></div>
+    <div class="row"><span>Enchant every</span><div class="opts" data-k="every"><button data-v="2">2nd shot</button><button data-v="3">3rd shot</button></div></div>
+    <div class="row"><span>Mods</span><div class="opts multi" data-k="mods"><button data-v="double_shot">double shot</button><button data-v="faster">faster</button></div></div>
+    <p class="hint">Three pips on a machine set off their mix: fire×3 blaze · water×3 soak · 2 fire + 1 water scald · 2 water + 1 fire fog. Scatter pellets only hit machines. A launcher's rocket bursts on everything near it; a thrower paints its element on whatever it reaches. Fire lights grass, hedges, trees, houses, and cars blow. It burns you too; water puts it out.</p>
+    <button id="kitDone">Ride</button>
   </div>
 </section>
 <div id="err" hidden></div>

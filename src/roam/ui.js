@@ -13,10 +13,21 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   const fireBtn = $('fire'), setFire = on => { input.fire = on; fireBtn.classList.toggle('on', on); };
   // hold FIRE: the gun aims itself; drag off the button while holding: it fires where you drag (the screen is the map,
   // north up, so a screen direction is a world direction)
-  let fx0 = 0, fy0 = 0;
-  fireBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fireBtn.setPointerCapture(e.pointerId); fx0 = e.clientX; fy0 = e.clientY; input.aim = null; setFire(true); });
-  fireBtn.addEventListener('pointermove', e => { if (!input.fire) return; const dx = e.clientX - fx0, dy = e.clientY - fy0; input.aim = Math.hypot(dx, dy) > 18 ? Math.atan2(dy, dx) : null; });
-  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) fireBtn.addEventListener(ev, () => { setFire(false); input.aim = null; });
+  function holdAim(btn, set, aimKey) { let x0 = 0, y0 = 0;
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); btn.setPointerCapture(e.pointerId); x0 = e.clientX; y0 = e.clientY; input[aimKey] = null; set(true); });
+    btn.addEventListener('pointermove', e => { const dx = e.clientX - x0, dy = e.clientY - y0; if (btn.classList.contains('on')) input[aimKey] = Math.hypot(dx, dy) > 18 ? Math.atan2(dy, dx) : null; });
+    for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) btn.addEventListener(ev, () => { set(false); input[aimKey] = null; }); }
+  holdAim(fireBtn, setFire, 'aim');
+  // [m2] the loadout (a test control until the garage): the gun's element, the off-hand's enchant and how often, mods.
+  // The game pauses while it is open; changes go through the sim's API (setLoadout)
+  const kitEl = $('loadout'), LO = { base: 'scatter', el: 'fire', enchant: 'water', every: 2, mods: [] };
+  const paintKit = () => { for (const g of kitEl.querySelectorAll('.opts')) { const k = g.dataset.k; for (const b of g.children) b.classList.toggle('on', k === 'mods' ? LO.mods.includes(b.dataset.v) : String(LO[k] ?? '') === b.dataset.v); }
+    fireBtn.className = 'pb fire el-' + (LO.el || '') + (input.fire ? ' on' : ''); };
+  for (const g of kitEl.querySelectorAll('.opts')) for (const b of g.children) b.addEventListener('click', () => { const k = g.dataset.k, v = b.dataset.v;
+    if (k === 'mods') LO.mods = LO.mods.includes(v) ? LO.mods.filter(m => m !== v) : [...LO.mods, v]; else LO[k] = k === 'every' ? +v : (v || null);
+    sim.setLoadout(LO); paintKit(); });
+  press($('kit'), () => { kitEl.hidden = false; ui.paused = true; paintKit(); }); $('kitDone').addEventListener('click', () => { kitEl.hidden = true; ui.paused = false; });
+  const ui = { paused: false }; sim.setLoadout(LO); paintKit();
   // the clock speed (a test control): 1x, 10x, 30x; only the day passes faster
   const speedEl = $('speed'), RATES = [1, 10, 30];
   press(speedEl, () => { const r = RATES[(RATES.indexOf(S.clockRate) + 1) % RATES.length]; sim.setClockRate(r); speedEl.textContent = r + '×'; speedEl.classList.toggle('fast', r > 1); speedEl.setAttribute('aria-label', `Clock speed: ${r}x. Tap to change`); });
@@ -42,7 +53,8 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   const met = new Set(['crawler']);
   function meet() { const k = S.kai; for (const d of S.dead) if (!met.has(d.kind) && d.state === 'chase' && Math.hypot(d.x - k.x, d.y - k.y) < 20 && MACHINES[d.kind]) { met.add(d.kind); toast(`${MACHINES[d.kind].name}: ${MACHINES[d.kind].desc}`); } }
   let huntN = 0;
-  function onEvents(evs) { for (const e of evs) { if (e.type === 'hunt') { huntN++; if (huntN === 1) toast('The shots carry. A pack is coming.', true); else if (huntN % 4 === 0) toast('Another pack heard you.'); } else if (e.type === 'nestDown') toast(S.nestsLeft ? `A nest burns out. ${S.nestsLeft} left.` : 'The last nest burns out.', true); else if (WORDS[e.type]) toast(...WORDS[e.type]); } }
+  let burnTold = false, blastTold = false;
+  function onEvents(evs) { for (const e of evs) { if (e.type === 'scorch' && !burnTold) { burnTold = true; toast('Fire burns you too. Get out of it.', true); } else if (e.type === 'blast' && e.r > 4 && !blastTold) { blastTold = true; toast('Cars blow when they burn.'); } if (e.type === 'hunt') { huntN++; if (huntN === 1) toast('The shots carry. A pack is coming.', true); else if (huntN % 4 === 0) toast('Another pack heard you.'); } else if (e.type === 'nestDown') toast(S.nestsLeft ? `A nest burns out. ${S.nestsLeft} left.` : 'The last nest burns out.', true); else if (WORDS[e.type]) toast(...WORDS[e.type]); } }
   // ---------- each frame ----------
   let last = '';
   function update(evs) {
@@ -67,5 +79,5 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     if (nest) one(nest.x, nest.y, '#ff5a3a', `${Math.round(nd)}m`);
     if (!k.riding && !k.dead) one(S.bike.x, S.bike.y, '#f0b44c', 'BIKE');
   }
-  return { update, arrows, toast };
+  return { update, arrows, toast, get paused() { return ui.paused; } };
 }

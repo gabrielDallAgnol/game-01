@@ -2,6 +2,7 @@
 // and fight, by their `ai` (src/play/machines.js): melee (close in, wind up, bite), hound (follows from far, never lets
 // go, lunges), ranged (keeps its distance, flares its eye, spits a bolt). Reads G.S, G.view; offers G.spawn, G.kindRoll,
 // G.hurtFoe, G.populate, G.stepFoes. (The state keeps the prototype's id `S.dead` for the machines.)
+import { PIPS, STATUSES } from '../../play/statuses.js';
 export function createFoes(G) {
   const { R, S, rng, ev, dist, town } = G, { blocked, streetCells } = town;
   let nid = 1;
@@ -27,19 +28,22 @@ export function createFoes(G) {
       for (let g = 0; g < group; g++) { const x = p.x + rng.range(-1.5, 1.5), y = p.y + rng.range(-1.5, 1.5); if (!blocked(x, y)) { spawn(g === 0 || pack ? kind : kindRoll(), x, y, { state: group > 1 && !pack ? 'sleep' : 'wander' }); near++; } } }
     for (let i = S.dead.length - 1; i >= 0; i--) { const d = S.dead[i]; if (d.nest === undefined && d.state !== 'chase' && dist(d, k) > far) S.dead.splice(i, 1); }
   }
-  function kill(d, src) { const i = S.dead.indexOf(d); if (i < 0) return; S.dead.splice(i, 1); S.kills++; ev('die', { id: d.id, x: d.x, y: d.y, fa: d.fa, kind: d.kind, src }); }
+  function kill(d, src) { const i = S.dead.indexOf(d); if (i < 0) return; S.dead.splice(i, 1); S.kills++; for (const f of G.onDie || []) f(d, src); ev('die', { id: d.id, x: d.x, y: d.y, fa: d.fa, kind: d.kind, src }); }
   // being shot wakes a machine and sets it on you (nothing sits still while you snipe it)
   // and the noise sets the others near it on you too: shooting into a group brings the group
   function hurtFoe(d, n, src) { d.hp -= n; d.hit = S.t; if (d.state !== 'chase') { d.state = 'chase'; for (const o of S.dead) if (o.state !== 'chase' && dist(o, d) < R.dead.alarm) o.state = 'chase'; } if (d.hp <= 0) kill(d, src); }
   // steer round walls: try the straight line, then fan out to its side
-  function steer(d, dx, dy) { for (const a of [0, 0.5, 1, 1.5, 2.1]) { const t = Math.atan2(dy, dx) + a * d.side, ax = Math.cos(t), ay = Math.sin(t); if (!blocked(d.x + ax * 1.1, d.y + ay * 1.1)) return [ax, ay]; } return [dx, dy]; }
+  // [atoms] they walk round walls and round fire (unless already standing in it: then any way out will do)
+  const fireAhead = (d, x, y) => G.hot && !G.hot(d.x, d.y) && G.hot(x, y);
+  function steer(d, dx, dy) { for (const a of [0, 0.5, 1, 1.5, 2.1, -0.5, -1, -1.5, -2.1]) { const t = Math.atan2(dy, dx) + a * d.side, ax = Math.cos(t), ay = Math.sin(t); if (!blocked(d.x + ax * 1.1, d.y + ay * 1.1) && !fireAhead(d, d.x + ax * 1.8, d.y + ay * 1.8)) return [ax, ay]; } return [dx, dy]; }
   function stepFoes(dt) {
     const k = S.kai, sense0 = R.dead.sense[S.night ? 1 : 0] * (k.riding ? 1.3 : 1);   // the engine is loud
     for (const d of S.dead) {
-      const K = R.dead[d.kind], ai = K.ai || 'melee', r = dist(d, k), sense = sense0 * (K.sense || 1), forget = K.forget || sense * 1.6, seesKai = !k.dead && r < sense;
+      const K = R.dead[d.kind], ai = K.ai || 'melee', r = dist(d, k), sense = sense0 * (K.sense || 1), forget = K.forget || sense * 1.6, st = d.st || {}, blind = !!st.blind, seesKai = !k.dead && !blind && r < sense;
+      if (blind && d.state === 'chase') { d.state = 'wander'; d.wx = d.x; d.wy = d.y; d.aim = 0; d.wind = 0; }   // [m2] lost in the steam
       if (d.state === 'sleep') { if (!k.dead && r < (k.riding ? 9 : 5)) d.state = 'chase'; else { d.vx *= 0.8; d.vy *= 0.8; continue; } }
       if (seesKai) d.state = 'chase'; else if (d.state === 'chase' && (r > forget || k.dead)) { d.state = 'wander'; d.wx = d.x; d.wy = d.y; }
-      let gx, gy, sp = K.speed * (S.night ? R.dead.nightSpeed : 1);
+      let gx, gy, sp = K.speed * (S.night ? R.dead.nightSpeed : 1) * (1 - Math.max((d.pips || []).filter(p => p.el === 'water').length * PIPS.water.slow, st.soaked ? STATUSES.soaked.slow : 0, G.onWet && G.onWet(d) ? PIPS.water.slow * 2 : 0));   // [m2] water pips and soaked slow it
       if (d.state === 'chase' && !k.dead) { gx = k.x; gy = k.y; }
       else { if (Math.hypot(d.wx - d.x, d.wy - d.y) < 1 || rng.chance(dt * 0.1)) {   // they drift: toward where they last heard Kai, more at night
           const toKai = !k.dead && r < 55 && rng.chance(S.night ? 0.75 : 0.45), a = toKai ? Math.atan2(k.y - d.y, k.x - d.x) + rng.range(-0.6, 0.6) : rng.range(0, 6.28), rr = rng.range(4, 12); d.wx = d.x + Math.cos(a) * rr; d.wy = d.y + Math.sin(a) * rr; }
