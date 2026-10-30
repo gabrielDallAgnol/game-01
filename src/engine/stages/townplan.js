@@ -15,6 +15,7 @@ const angIn = (a, a0, a1) => { const d = (x) => ((x % TAU) + TAU) % TAU; return 
 export const townPlanStage = {
   name: 'townplan',
   run(W, seed) {
+    const WD = !!(W.params && W.params.wideStreets);   // [roads] Roam: wide streets; the old town's inner lanes stay narrow
     const rng = seed.rng(), P = { rx: 148, ry: 132, inner: 0.66, plaza: [46, 31], belt: 16, rail: 30, ...(W.params.town || {}) };
     const F = { x: W.w / 2 + rng.range(-6, 6), y: W.h * 0.53 + rng.range(-4, 4), rot: rng.range(-0.035, 0.035), w: 0, h: 0 };
     const at = (u, v) => toWorld(F, u, v), loc = (x, y) => toLocal(F, x, y);
@@ -45,7 +46,7 @@ export const townPlanStage = {
     };
     // ---- raw street pieces ----
     const raw = [], add = (a, b, p) => raw.push({ a, b, ...p }), lanes = rng.shuffle(N.lanes.slice()), roads = rng.shuffle(N.roads.slice());
-    const OLD = { kind: 'local', marks: 'none' }, ROAD = { kind: 'local', w: 7, walk: 1.8, marks: 'dash', role: 'road', sides: [], lots: true };
+    const OLD = { kind: 'local', marks: 'none' }, ROAD = { kind: 'local', w: WD ? 11 : 7, walk: WD ? 2.2 : 1.8, marks: 'dash', role: 'road', sides: [], lots: true };
     const PATH = { kind: 'path', w: 3, walk: 0, marks: 'none', role: 'path', sides: [] };
     const edgeFrom = (p, d) => { let t = 1e9; if (d.x > 1e-6) t = Math.min(t, (W.w - p.x) / d.x); if (d.x < -1e-6) t = Math.min(t, -p.x / d.x); if (d.y > 1e-6) t = Math.min(t, (W.h - p.y) / d.y); if (d.y < -1e-6) t = Math.min(t, -p.y / d.y); return { x: p.x + d.x * (t + 12), y: p.y + d.y * (t + 12) }; };
     const out = p => { const L = Math.hypot(p.x - F.x, p.y - F.y); return { x: (p.x - F.x) / L, y: (p.y - F.y) / L }; };
@@ -53,27 +54,27 @@ export const townPlanStage = {
     const c = [at(-px, -py), at(px, -py), at(px, py), at(-px, py)], PLAZA = { ...OLD, w: 8, walk: 2.5, role: 'plaza', rowTag: 'row-shop', name: N.plaza };
     for (let i = 0; i < 4; i++) add(c[i], c[(i + 1) % 4], PLAZA);
     // the main axis: south gate → square → north gate → station
-    const MAIN = { ...OLD, w: 10, walk: 3, marks: 'dash', role: 'main', rowTag: 'row-shop', name: N.main };
+    const MAIN = { ...OLD, w: WD ? 12 : 10, walk: 3, marks: 'dash', role: 'main', rowTag: 'row-shop', name: N.main };
     add(at(0, py), ell(A.S, P.inner), MAIN); add(ell(A.S, P.inner), ell(A.S, 1), MAIN);
     add(at(0, -py), ell(A.N, P.inner), MAIN); add(ell(A.N, P.inner), ell(A.N, 1), MAIN);
     // the inner ring and the ring street (Mauerstraße); the promenade on the old wall line just outside
     const ia = ringAngles(6), ra = ringAngles(14);
     ia.forEach((a, i) => add(ell(a, P.inner), ell(ia[(i + 1) % ia.length], P.inner), { ...OLD, w: 6, walk: 1.5, role: 'inner', rowTag: 'row-home', name: N.inner }));
-    ra.forEach((a, i) => add(ell(a, 1), ell(ra[(i + 1) % ra.length], 1), { ...OLD, w: 7, walk: 2, role: 'ring', ring: true, rowTag: 'row-home', name: N.ring }));
+    ra.forEach((a, i) => add(ell(a, 1), ell(ra[(i + 1) % ra.length], 1), { ...OLD, w: WD ? 11 : 7, walk: WD ? 2.2 : 2, role: 'ring', ring: true, rowTag: 'row-home', name: N.ring }));
     ra.forEach((a, i) => add(ell(a, kProm), ell(ra[(i + 1) % ra.length], kProm), { ...PATH, name: N.path, promenade: true }));
     // lanes: E and W from the square's sides out to the ring gates; the diagonals only from the inner ring outward,
     // so the four blocks round the square stay whole (the town grew outward from the inner ring)
     const LANE = { ...OLD, w: 6, walk: 1.5, role: 'lane', rowTag: 'row-home' };
     [['E', at(px, 0), 'row-shop'], ['W', at(-px, 0)], ['SE', c[2]], ['SW', c[3]], ['NW', c[0]], ['NE', c[1]]].forEach(([g, s, tag], i) => { const L = { ...LANE, rowTag: tag || 'row-home', name: lanes[i % lanes.length], gate: g }; if (g === 'E' || g === 'W') add(s, ell(A[g], P.inner), L); add(ell(A[g], P.inner), ell(A[g], 1), L); });
     // country roads out of the gates
-    add(ell(A.S, 1), edgeFrom(ell(A.S, 1), out(at(0, 1e3))), { ...ROAD, w: 9, walk: 2.2, marks: 'double', name: N.south, role: 'south' });
-    add(ell(A.N, 1), at(0, vs), { ...ROAD, w: 9, walk: 2.2, name: N.north, role: 'north' });
+    add(ell(A.S, 1), edgeFrom(ell(A.S, 1), out(at(0, 1e3))), { ...ROAD, w: WD ? 12 : 9, walk: 2.2, marks: 'double', name: N.south, role: 'south' });
+    add(ell(A.N, 1), at(0, vs), { ...ROAD, w: WD ? 12 : 9, walk: 2.2, name: N.north, role: 'north' });
     add(ell(A.W, 1), edgeFrom(ell(A.W, 1), out(ell(A.W, 1))), { ...ROAD, name: roads[2], role: 'barnroad' });
     { const b0 = Z.barns[0] + 0.06, b1 = Z.barns[1] - 0.06, q = [0, 1, 2, 3, 4].map(i => ell(b0 + (b1 - b0) * i / 4, 1.42)); q.slice(1).forEach((p, i) => add(q[i], p, { ...ROAD, w: 6, walk: 1, marks: 'none', lots: false, name: N.barn, role: 'barnroad' })); }   // the barn lane, an arc outside the wall
     add(ell(A.SE, 1), edgeFrom(ell(A.SE, 1), out(ell(A.SE, 1))), { ...ROAD, name: roads[0] });
     { const g = ell(A.NE, 1), d = out(g), lg = loc(g.x, g.y), dl = loc(g.x + d.x, g.y + d.y), t = (vs - lg.y) / (dl.y - lg.y); add(g, { x: g.x + d.x * t, y: g.y + d.y * t }, { ...ROAD, name: roads[1] }); }
     { const g = ell(A.SW, 1), dx = M.x - g.x, dy = M.y - g.y, L = Math.hypot(dx, dy); add(g, { x: M.x - dx / L * 40, y: M.y - dy / L * 40 }, { ...ROAD, w: 5, walk: 0, marks: 'none', lots: false, name: N.mast, role: 'mastlane' }); }
-    add(at(uL, vs), at(uR, vs), { ...ROAD, w: 8, walk: 2, name: N.rail, role: 'railroad' });
+    add(at(uL, vs), at(uR, vs), { ...ROAD, w: WD ? 11 : 8, walk: WD ? 2.2 : 2, name: N.rail, role: 'railroad' });
     // the park path: from the promenade into the park and once round it
     { const p0 = ell((Z.park[0] + Z.park[1]) / 2, kProm), pc = ell((Z.park[0] + Z.park[1]) / 2, 1.36), r = 20; add(p0, { x: pc.x - r, y: pc.y }, { ...PATH, name: N.park, role: 'parkpath' });
       const q = [0, 1, 2, 3, 4, 5].map(i => ({ x: pc.x + Math.cos(i / 6 * TAU + Math.PI) * r, y: pc.y + Math.sin(i / 6 * TAU + Math.PI) * r * 0.8 })); q.forEach((a, i) => add(a, q[(i + 1) % 6], { ...PATH, name: N.park, role: 'parkpath' })); }

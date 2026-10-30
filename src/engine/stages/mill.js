@@ -1,11 +1,12 @@
 // Stage: mill. The industrial lot faces the mill road beside the siding: the mill on it, a
 // water tower beside it, and box cars standing on the siding, coupled end to end.
-import { STREET } from '../units.js';
+import { STREET as STREET0, streetOf } from '../units.js';
 import { toWorld } from '../geom.js';
 
 export const millStage = {
   name: 'mill',
   run(W, seed, reg) {
+    const STREET = streetOf(W);   // [roads]
     const rng = seed.rng(), F = W.frame, sid = W.rails.find(r => r.id === 'siding'), mv = W.millRoad.v;
     const mill = reg.needing('lot.industrial').find(a => a.tags.includes('must'));
     const u = sid.from + rng.range(50, 70), depth = mill.size[1] + 16, front = STREET.local / 2 + STREET.kerb + 1;

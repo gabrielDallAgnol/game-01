@@ -9,7 +9,9 @@
 //   lane     a country lane: one track wide, no line, grass to the edge
 //   service  the industrial estate's loop: wide, plain, no line
 export const STREET_KINDS = {
-  local: { width: st => st.w * 1.6, bands: [[0, 80], [2.4, 170], [3.9, 255]], kind: 255, pavement: true, parking: true, marks: true },
+  // [roads] a town street is its carriageway plus a pavement each side; a wide one (≥ 10 m) has a parking strip each side,
+  // a narrow one (the old town's lanes) goes straight from the kerb to the road
+  local: { width: st => st.w + 2 * (st.walk ?? 1.8), bands: st => { const p = st.walk ?? 1.8; return st.w >= 10 ? [[0, 80], [p, 170], [p + 2.3, 255]] : [[0, 80], [p, 255]]; }, kind: 255, pavement: true, parking: st => st.w >= 10, marks: true },
   path: { width: st => st.w * 1.4, bands: [[0, 80], [2.4, 170], [3.9, 255]], kind: 90, pavement: false, parking: false, marks: false },
   highway: { width: st => st.w * 1.6, bands: [[0, 140], [1.2, 215], [2.6, 255]], kind: 255, pavement: false, parking: false, marks: true },
   road: { width: st => st.w * 1.5, bands: [[0, 136], [1.1, 205], [2.4, 255]], kind: 255, pavement: false, parking: false, marks: true },

@@ -20,6 +20,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:
 #hp .bar i{display:block;height:100%;width:100%;background:var(--ok);border-radius:5px;transition:width .15s}
 #hp.low .bar i{background:var(--ember)}
 #nests b{color:var(--ember)}
+#hp .bars{flex:1;display:grid;gap:3px}#hp .bar.noise{height:4px}#hp .bar.noise i{width:0;background:var(--amber)}
 #clock{margin-left:auto}
 #speed{pointer-events:auto;border:0;color:var(--fg);font:700 12px var(--mono);cursor:pointer;min-width:44px;justify-content:center}
 #speed.fast{color:#1a1206;background:var(--amber)}
@@ -32,6 +33,12 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:
 .rb.go{background:var(--amber);color:#1a1206;border-color:transparent;width:86px;height:86px;font-size:14px}
 .rb:disabled{opacity:.45}
 button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+#pad{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:206px;height:206px;pointer-events:none}
+.pb{position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid rgba(255,255,255,.18);background:var(--panel);color:var(--fg);font:700 12px var(--mono);letter-spacing:.04em;cursor:pointer;touch-action:none;pointer-events:auto}
+.pb:disabled{opacity:.35}
+.pb.fire{right:0;bottom:0;width:96px;height:96px;background:var(--ember);color:#1a0806;border-color:transparent;font-size:15px}
+.pb.fire.on{filter:brightness(1.25);transform:scale(.96)}
+#offhand{right:104px;bottom:6px} #ab1{right:92px;bottom:76px} #ab2{right:22px;bottom:106px} .pb.sm{width:44px;height:44px;font-size:10px;right:150px;bottom:126px}
 #stick{position:fixed;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;border:2px solid rgba(240,180,76,.4);pointer-events:none}
 #stick i{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(240,180,76,.5)}
 #start{position:fixed;inset:0;display:grid;place-items:center;background:rgba(7,9,12,.72);padding:24px}
@@ -49,7 +56,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 <canvas id="gl" aria-label="Hollowmere, seen from above"></canvas>
 <canvas id="fx" aria-hidden="true"></canvas>
 <div id="hud" aria-live="polite">
-  <div class="chip" id="hp"><span>HP</span><div class="bar"><i></i></div></div>
+  <div class="chip" id="hp"><span>HP</span><div class="bars"><div class="bar"><i></i></div><div class="bar noise" id="heat" title="Noise: gunfire builds it; when it boils over a pack comes hunting"><i></i></div></div></div>
   <div class="chip" id="nests">Nests <b>9</b></div>
   <div class="chip" id="clock">☀ 4:00</div>
   <button class="chip" id="speed" aria-label="Clock speed: 1x. Tap to make the day pass faster">1×</button>
@@ -58,14 +65,22 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 <div id="fps" aria-hidden="true"></div>
 <div id="btns">
   <button class="rb" id="ride" aria-label="Get on the motorcycle" hidden>RIDE</button>
-  <button class="rb go" id="dash" aria-label="Dash">DASH</button>
+  <button class="rb go" id="dash" aria-label="Dash" hidden>DASH</button>
+</div>
+<!-- [m1] the combat pad: the main weapon (hold), the off-hand, two talent abilities, switch form; greyed until they exist -->
+<div id="pad">
+  <button class="pb fire" id="fire" aria-label="Fire the main weapon (hold)">FIRE</button>
+  <button class="pb" id="offhand" aria-label="Off-hand weapon (coming soon)" disabled>OFF</button>
+  <button class="pb" id="ab1" aria-label="Ability 1 (coming soon)" disabled>A1</button>
+  <button class="pb" id="ab2" aria-label="Ability 2 (coming soon)" disabled>A2</button>
+  <button class="pb sm" id="form" aria-label="Switch form (coming soon)" disabled>FORM</button>
 </div>
 <div id="stick" hidden><i></i></div>
 <section id="start">
   <div class="card">
     <h1>HOLLOW<span>MERE</span></h1>
-    <p>The ash fell and the town went still. The dead sleep in the streets by day and hunt by night. Nests at the edge of town breed more. Break every nest.</p>
-    <ul><li>Drag anywhere to move · pinch to zoom</li><li>Your wrench swings on its own when they come close</li><li>Find the motorcycle by the square: RIDE to get on</li></ul>
+    <p>Every machine with a chip turned in one night. Yours has none. Ride the town, gun the crawlers down, and break the nests that breed them.</p>
+    <ul><li>Drag anywhere to steer · pinch to zoom</li><li>Hold FIRE (or Space): the gun aims itself · drag off FIRE to aim by hand</li><li>Keep moving: machines latch on when you slow down</li><li>Gunfire is loud: hold it too long and packs come hunting</li></ul>
     <button id="go">Start</button>
   </div>
 </section>

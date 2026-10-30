@@ -9,6 +9,10 @@ export const SPEED = { walk: 4.2, run: 6.6, dash: 22, deadWalk: 1.5, deadRun: 3.
 
 // Streets and lots (m)
 export const STREET = { lane: 3.2, kerb: 1.8, local: 7, highway: 9, connector: 7 };
+// [roads] Roam's towns (W.params.wideStreets): streets wide enough to fight in, pavement | parking | lane | lane |
+// parking | pavement (Gabriel, Oct 30). The V2 game builds without the flag, so its towns (and golden runs) are unchanged.
+export const WIDE = { kerb: 2.2, local: 11, connector: 11 };
+export const streetOf = W => W.params && W.params.wideStreets ? { ...STREET, ...WIDE } : STREET;
 export const LOT = { width: 18, depth: 24, setback: [4, 6], sideGap: 1.5 };
 export const GAP = { detached: 3, partyWall: 0, treeFromKerb: 0.6, lampEvery: 30, streetTreeEvery: [12, 18] };
 

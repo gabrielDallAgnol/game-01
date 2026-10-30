@@ -1,5 +1,15 @@
 # CLAUDE.md: agent guide for Hold Hollowmere
 
+> **New direction (Oct 30, 2026): read `docs/design/README.md` first.** The game now grows from **Roam**
+> (`roam.html`, `src/roam/`) with its play atoms in `src/play/`, milestone by milestone (`docs/design/implementation-plan.md`).
+> The V2 town-defence game below (`index.html`, `src/sim/`, `src/render/`, `src/ui/`) is **frozen**: keep its golden test
+> green, don't add features to it.
+>
+> Roam: `node tools/lab/build-lab.mjs dist/roam.html src/roam/main.js roam.html` (one self-contained page) ·
+> `node tools/roam/golden.mjs --check` (seconds; same rules as the V2 golden: a refactor leaves it identical, an intended
+> rule change re-records it with `--write` in its own commit) · the rules are `createX(G)` modules in `src/roam/sim/`,
+> wired in `MODULES` in `src/roam/sim.js` (append only) · `tools/roam/headless.mjs` runs the town and rules in node.
+
 A browser town-defence game against the dead. It is built from zero-dependency ES modules on three.js r128,
 which loads from a CDN as the global `THREE`. Read `docs/ARCHITECTURE.md` for the full module map and the data flow.
 

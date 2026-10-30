@@ -1,13 +1,14 @@
 // Stage: roads. Route 9 crosses the chapter; a suburb grid sits north of it with junctions
 // at every crossing; connectors join the grid to the highway. Streets meet only at ends or
 // junctions (the street.end socket), so nothing overlaps by accident.
-import { STREET } from '../units.js';
+import { STREET, streetOf } from '../units.js';
 import { catmull, lerp, distToPoly } from '../geom.js';
 import { nameStreets } from '../names.js';
 
 export const roadsStage = {
   name: 'roads',
   run(W, seed) {
+    const STREET = streetOf(W);   // [roads]
     const rng = seed.rng();
     // Route 9
     const y0 = W.h * 0.8 + rng.range(-6, 6), y1 = W.h * 0.68 + rng.range(-6, 6);

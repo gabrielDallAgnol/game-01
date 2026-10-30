@@ -8,6 +8,7 @@
 //   · Soft things are strokes on the 2D layer: Kai's bandana tails and tied sleeves, shed ash, embers, sparkles.
 // Lab code: it reads the lab's little scene and draws it; nothing here reaches the game yet.
 /* global THREE */
+import { MACHINES } from '../play/machines.js';
 import { M, MATCOL } from './dress/mats.js';
 import { gardenLook } from './garden-look.js';
 import { landLook } from './world/land.js';
@@ -274,6 +275,31 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     { const [x, y] = P(0.08, 0); sphere(x, y, 1.46 * S, 0.135 * S, M.bandana); }
     { const [x, y] = P(-0.13, 0); sphere(x, y, 1.48 * S, 0.06 * S, M.bandana); }   // the knot at the back
   }
+  // [m1] the machines: one family (a steel shell on six scuttling legs, a chip eye that burns red when it hunts), each kind
+  // its own build. Crawler: low and plain. Skitter: small, rust, quick legs. Hound: long and lean, legs long, a dorsal
+  // fin. Spitter: a dome with a barrel; its eye flares white-hot while it aims. Brute: big, dark armour plates, thick legs.
+  const MLOOK = {
+    crawler: { S: 0.95, hz: 0.2, shell: [0.2, 0.14, 0.07], legL: 0.27, legR: 0.022, spine: 'rust' },
+    skitter: { S: 0.78, hz: 0.18, shell: [0.17, 0.11, 0.06], legL: 0.3, legR: 0.026, spine: 'rust', shellM: 'rust', quick: 2.4 },
+    hound: { S: 1.05, hz: 0.26, shell: [0.3, 0.1, 0.07], legL: 0.34, legR: 0.024, spine: 'dark', fin: true },
+    spitter: { S: 1.0, hz: 0.24, shell: [0.17, 0.17, 0.1], legL: 0.25, legR: 0.024, spine: 'paint', barrel: true },
+    brute: { S: 1.7, hz: 0.24, shell: [0.24, 0.17, 0.1], legL: 0.3, legR: 0.04, spine: 'dark', shellM: 'dark', plates: true, slow: 0.6 },
+  };
+  function machineVolumes(d, t, awake, kind) {
+    const L = MLOOK[kind] || MLOOK.crawler, S = FIGM * L.S, a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
+    const hit = t - d.hit < 0.08, base = M[L.shellM || 'steel'], shell = hit ? M.flash : base, hem = hit ? 1 : 0, ph = (d.ph || 0) * (L.quick || 1) * (L.slow || 1), hz = awake ? L.hz : L.hz * 0.55, [sx, sy, sz] = L.shell;
+    { const [x, y] = P(-0.02, 0); box(x, y, (hz + sz) * S, sx * S, sy * S, sz * S, 0.05 * S, a, shell, hem); }   // the shell
+    { const [x, y] = P(-0.04, 0); box(x, y, (hz + sz * 2 + 0.01) * S, sx * 0.6 * S, sy * 0.55 * S, 0.03 * S, 0.03 * S, a, hit ? M.flash : M[L.spine], hem); }   // the spine plate
+    if (L.plates) for (const s2 of [-1, 1]) { const [x, y] = P(-0.02, s2 * sy * 0.95); box(x, y, (hz + sz) * S, sx * 0.9 * S, 0.035 * S, sz * 0.9 * S, 0.02 * S, a, hit ? M.flash : M.steel, hem); }   // the brute's side armour
+    if (L.fin) { const [x0, y0] = P(-0.2, 0), [x1, y1] = P(0.08, 0); capsule(x0, y0, (hz + sz * 2 + 0.05) * S, x1, y1, (hz + sz * 2 + 0.02) * S, 0.02 * S, hit ? M.flash : M.dark, hem); }
+    const hx = sx + 0.02; { const [x, y] = P(hx, 0); sphere(x, y, (hz + sz) * S, 0.06 * S, hit ? M.flash : M.dark, hem); }   // the head
+    if (L.barrel) { const [x0, y0] = P(hx, 0), [x1, y1] = P(hx + 0.2, 0); capsule(x0, y0, (hz + sz * 1.4) * S, x1, y1, (hz + sz * 1.4) * S, 0.03 * S, M.dark, 0); }
+    const aiming = d.aim > 0, eye = aiming ? 1 : awake ? 0.75 + 0.25 * Math.sin(t * 9 + d.id) : 0.15;
+    { const [x, y] = P(hx + 0.05, 0); sphere(x, y, (hz + sz + 0.02) * S, (aiming ? 0.05 : 0.032) * S, aiming ? M.lamp : M.crackHot, eye); }   // the chip eye (white-hot while a spitter aims)
+    for (let i = 0; i < 3; i++) for (const s2 of [-1, 1]) {   // six legs: alternate pairs lift as it scuttles
+      const lx = sx * 0.55 - i * sx * 0.6, step = awake ? Math.sin(ph * 1.6 + i * 2.1 + (s2 > 0 ? Math.PI : 0)) : 0, [x0, y0] = P(lx, s2 * sy * 0.7), [x1, y1] = P(lx + 0.05 * step, s2 * (awake ? L.legL : L.legL * 0.63));
+      capsule(x0, y0, (hz + 0.04) * S, x1, y1, Math.max(0.01, 0.02 + 0.05 * Math.max(0, step)) * S, L.legR * S, M.dark, 0); }
+  }
   function deadVolumes(d, t, awake, kind = 'cinder') {
     const big = kind === 'brute', S = FIGM * (big ? 1.6 : kind === 'flicker' ? 0.88 : 1), a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
     const hit = t - d.hit < 0.08, skin = hit ? M.flash : M.stone, crackM = kind === 'flicker' ? M.crackHot : M.crack, pulse = awake ? 0.7 + 0.3 * Math.sin(t * 3 + d.id) : 0, hem = hit ? 1 : 0;
@@ -324,10 +350,10 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
     for (const D of v.deaths || []) { const k = (t - D.t0) / 0.8; if (D.prop || k >= 1 || !on(D.x, D.y)) continue; const S = FIGM * (D.brute ? 1.6 : 1), a = D.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), e = 1 - (1 - k) * (1 - k);
       const r = 0.24 * S * (1 - 0.7 * k), fx0 = 0.25 * S * e;
-      sphere(D.x + ca * fx0, D.y + sa * fx0, r * 0.4 - k * r * 1.2, r, M.stone);
-      for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), M.stone); } }
+      sphere(D.x + ca * fx0, D.y + sa * fx0, r * 0.4 - k * r * 1.2, r, D.metal ? M.steel : M.stone);
+      for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), D.metal ? (i % 2 ? M.dark : M.rust) : M.stone); } }   // [m1] a machine falls apart into steel and rust
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
-    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
+    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); if (MLOOK[d.kind]) machineVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); else deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
     for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;
@@ -388,6 +414,17 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     // ---------- zoomed out: each thing becomes one letter on a dark plate, a fixed size on screen (the roguelike map) ----------
     // far 0 at the close camera, 1 when a figure would be a couple of cells. Amber rings are yours, ember red is the dead.
     const far = Math.max(0, Math.min(1, (11 - cam.ppm) / 4));
+    // [read] the machines' eyes, at every zoom (the one marker they have: close up it sits on the model's chip eye, far away
+    // it is all you see of them, so pulling the camera back and forth is seamless). A tiny point of light with a soft neon
+    // glow in the kind's hue; a brute shows two, a spitter's flares while it aims; asleep, barely a glimmer
+    { fx.save(); fx.globalCompositeOperation = 'lighter'; const grow = Math.max(1, Math.min(1.8, cam.ppm / 14));
+      for (const d of dead) { const L = MLOOK[d.kind]; if (!L) continue; const fwd = (L.shell[0] + 0.07) * L.S * FIGM, a = d.fa || 0, [x, y] = toS(d.x + Math.cos(a) * fwd, d.y + Math.sin(a) * fwd);
+        if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; const K = MACHINES[d.kind], asleep = d.state === 'sleep', hit = t - d.hit < 0.1;
+        const glow = (asleep ? 0.25 : 0.85 + 0.15 * Math.sin(t * 6 + d.id)) * (d.aim > 0 ? 1.6 : 1) * (0.75 + 0.35 * night), col = hit ? '#ffffff' : K.color, sep = d.kind === 'brute' ? 2.2 * grow : 0;
+        for (const o of sep ? [-sep, sep] : [0]) { const ex = x - Math.sin(a) * o, ey = y + Math.cos(a) * o;
+          fx.globalAlpha = 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5 * grow, 0, 6.283); fx.fill();   // the halo
+          fx.globalAlpha = Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6 * grow, 0, 6.283); fx.fill(); } }   // the point
+      fx.restore(); fx.globalAlpha = 1; }
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
       const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();
@@ -395,10 +432,6 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       // nests: a red ring with a heart in it while alive, grey once broken; the bike: an amber M when Kai is off it
       for (const nst of nests) { const [x, y] = toS(nst.x, nst.y); if (!onS(x, y)) continue; plate(x, y, 11, nst.alive ? '#ff4a3a' : '#5d5952', nst.alive ? '♥' : '×', nst.alive ? '#ff8a6a' : '#8a857c', 13, far); }
       if (bike && !kai.riding) { const [x, y] = toS(bike.x, bike.y); if (onS(x, y)) plate(x, y, 9, '#f0b44c', 'M', '#f6e7c8', 11, far); }
-      // the dead: an ember & with a dark edge, no plate (a horde stays a horde, not a pile of discs); a Brute bigger
-      fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.lineJoin = 'round';
-      for (const d of dead) { const [x, y] = toS(d.x, d.y); if (!onS(x, y)) continue; const big = d.kind === 'brute', px = big ? 19 : 14, hit = t - d.hit < 0.1;
-        fx.globalAlpha = far; fx.font = `800 ${px}px "IBM Plex Mono", ui-monospace, monospace`; fx.strokeStyle = 'rgba(8,8,10,.9)'; fx.lineWidth = 4; fx.strokeText('&', x, y); fx.fillStyle = hit ? '#ffffff' : night > 0.5 ? '#ff7a2a' : '#e8553a'; fx.fillText('&', x, y); }
       // Kai: an @ on an amber ring, with a tick for where she faces
       // Kai: a hollow ring as wide as her wrench's reach (a dead inside it is in the fight), the @ on a small tag above, a facing tick
       { const [x, y] = toS(kai.x, kai.y), R = Math.max(11, 1.8 * cam.ppm); fx.globalAlpha = far; fx.strokeStyle = 'rgba(10,11,13,.7)'; fx.lineWidth = 4; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke(); fx.strokeStyle = '#f0b44c'; fx.lineWidth = 2; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke();
