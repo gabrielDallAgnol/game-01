@@ -1,13 +1,14 @@
 // Stage: mill streets. A high street runs beside the tracks from the camp at the west end;
 // side streets climb north from it; one street crosses the line (a level crossing) to the
 // mill road on the far side. Streets meet only at junctions, as in every layout.
-import { STREET } from '../units.js';
+import { STREET, streetOf } from '../units.js';
 import { segIntersect } from '../geom.js';
 import { nameStreets } from '../names.js';
 
 export const millStreetsStage = {
   name: 'streets',
   run(W, seed) {
+    const STREET = streetOf(W);   // [roads]
     const rng = seed.rng(), F = W.frame, at = F.at, hv = -38, mv = 40, west = -W.w / 2;
     const street = (id, a, b, ends, extra) => { const s = { id, pts: [a, b], w: STREET.local, walk: STREET.kerb, kind: 'local', marks: 'dash', ends, ...extra }; W.streets.push(s); return s; };
     const node = (id, p, deg) => W.nodes.push({ id, ...p, deg });

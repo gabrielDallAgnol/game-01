@@ -37,15 +37,16 @@ function exitsOf(W, x0, y0, w, h) { const out = [], ids = new Map(W.nodes.map(n 
 const nearestExit = (ex, a) => ex.reduce((b, e) => { const d = Math.abs(Math.atan2(Math.sin(e.dir - a), Math.cos(e.dir - a))); return !b || d < b.d ? { e, d } : b; }, null).e;
 const P = (x, y) => ({ x, y });
 
+// [roads] Roam's towns ask the engine for wide streets (W.params.wideStreets): room to fight from a vehicle
 export function buildRegion(seed = 7) {
   const reg = recipeRegistry('hollowmere');
-  const W = buildArea('hollowmere', seed, reg, RECIPES.hollowmere.game).W, TW = W.w, TH = W.h, OX = WORLD.town.x, OY = WORLD.town.y;
+  const W = buildArea('hollowmere', seed, reg, { ...RECIPES.hollowmere.game, wideStreets: true }).W, TW = W.w, TH = W.h, OX = WORLD.town.x, OY = WORLD.town.y;
   shift(W, OX, OY); W.w = WORLD.w; W.h = WORLD.h; W.land = W.land || []; W.sites = [];
   const townD = W.districts.slice(), townBox = { x0: OX, y0: OY, x1: OX + TW, y1: OY + TH };
   for (const d of townD) d.area = 'hollowmere';
   const exits = exitsOf(W, OX, OY, TW, TH);
   // ---------- the village: the engine's suburb, moved into place, its camp left out (the green stays open) ----------
-  const VR = RECIPES.suburb, V = buildArea('suburb', seed + 101, recipeRegistry('suburb'), VR.game).W, VX = WORLD.village.x, VY = WORLD.village.y;
+  const VR = RECIPES.suburb, V = buildArea('suburb', seed + 101, recipeRegistry('suburb'), { ...VR.game, wideStreets: true }).W, VX = WORLD.village.x, VY = WORLD.village.y;
   shift(V, VX, VY);
   const vex = exitsOf(V, VX, VY, V.w, V.h);
   { const base = W.uid; for (const p of V.placed) { p.uid += base; p.district = 'village'; } W.uid = base + V.uid;

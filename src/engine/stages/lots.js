@@ -1,7 +1,7 @@
 // Stage: lots. Splits blocks into lots that face a street (residential), lays commercial
 // frontage along Route 9 and one industrial lot for Depot 9. Every lot uses the same frame:
 // x along the street, +y away from it, so the front edge is always local y = -h/2.
-import { STREET, LOT } from '../units.js';
+import { STREET, LOT, streetOf } from '../units.js';
 import { toWorld, segIntersect, obbCorners } from '../geom.js';
 
 const tangentAt = (pts, x) => { let k = 0; while (k < pts.length - 2 && pts[k + 1].x < x) k++; const a = pts[k], b = pts[k + 1], t = (x - a.x) / ((b.x - a.x) || 1); return { p: { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, ang: Math.atan2(b.y - a.y, b.x - a.x) }; };
@@ -9,6 +9,7 @@ const tangentAt = (pts, x) => { let k = 0; while (k < pts.length - 2 && pts[k + 
 export const lotsStage = {
   name: 'lots',
   run(W, seed) {
+    const STREET = streetOf(W);   // [roads]
     const rng = seed.rng(), g = W.grid, hs = STREET.local / 2 + STREET.kerb;
     // residential: two rows per block, each row faces its own street
     for (let i = 0; i < g.ncol - 1; i++) for (let j = 0; j < g.nrow - 1; j++) {

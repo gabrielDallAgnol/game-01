@@ -8,6 +8,7 @@
 //   · Soft things are strokes on the 2D layer: Kai's bandana tails and tied sleeves, shed ash, embers, sparkles.
 // Lab code: it reads the lab's little scene and draws it; nothing here reaches the game yet.
 /* global THREE */
+import { MACHINES } from '../play/machines.js';
 import { M, MATCOL } from './dress/mats.js';
 import { gardenLook } from './garden-look.js';
 import { landLook } from './world/land.js';
@@ -279,7 +280,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
   // fin. Spitter: a dome with a barrel; its eye flares white-hot while it aims. Brute: big, dark armour plates, thick legs.
   const MLOOK = {
     crawler: { S: 0.95, hz: 0.2, shell: [0.2, 0.14, 0.07], legL: 0.27, legR: 0.022, spine: 'rust' },
-    skitter: { S: 0.62, hz: 0.18, shell: [0.17, 0.11, 0.06], legL: 0.3, legR: 0.026, spine: 'rust', shellM: 'rust', quick: 2.4 },
+    skitter: { S: 0.78, hz: 0.18, shell: [0.17, 0.11, 0.06], legL: 0.3, legR: 0.026, spine: 'rust', shellM: 'rust', quick: 2.4 },
     hound: { S: 1.05, hz: 0.26, shell: [0.3, 0.1, 0.07], legL: 0.34, legR: 0.024, spine: 'dark', fin: true },
     spitter: { S: 1.0, hz: 0.24, shell: [0.17, 0.17, 0.1], legL: 0.25, legR: 0.024, spine: 'paint', barrel: true },
     brute: { S: 1.7, hz: 0.24, shell: [0.24, 0.17, 0.1], legL: 0.3, legR: 0.04, spine: 'dark', shellM: 'dark', plates: true, slow: 0.6 },
@@ -420,10 +421,12 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       // nests: a red ring with a heart in it while alive, grey once broken; the bike: an amber M when Kai is off it
       for (const nst of nests) { const [x, y] = toS(nst.x, nst.y); if (!onS(x, y)) continue; plate(x, y, 11, nst.alive ? '#ff4a3a' : '#5d5952', nst.alive ? '♥' : '×', nst.alive ? '#ff8a6a' : '#8a857c', 13, far); }
       if (bike && !kai.riding) { const [x, y] = toS(bike.x, bike.y); if (onS(x, y)) plate(x, y, 9, '#f0b44c', 'M', '#f6e7c8', 11, far); }
-      // the dead: an ember & with a dark edge, no plate (a horde stays a horde, not a pile of discs); a Brute bigger
+      // [read] the machines: one symbol and one hue per kind, dark-edged, no plate (a horde stays a horde): crawler a dot,
+      // skitter a small triangle, hound a chevron pointing where it runs, spitter a target, brute a big square
       fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.lineJoin = 'round';
-      for (const d of dead) { const [x, y] = toS(d.x, d.y); if (!onS(x, y)) continue; const big = d.kind === 'brute', px = big ? 19 : 14, hit = t - d.hit < 0.1;
-        fx.globalAlpha = far; fx.font = `800 ${px}px "IBM Plex Mono", ui-monospace, monospace`; fx.strokeStyle = 'rgba(8,8,10,.9)'; fx.lineWidth = 4; fx.strokeText('&', x, y); fx.fillStyle = hit ? '#ffffff' : night > 0.5 ? '#ff7a2a' : '#e8553a'; fx.fillText('&', x, y); }
+      for (const d of dead) { const [x, y] = toS(d.x, d.y); if (!onS(x, y)) continue; const K = MACHINES[d.kind]; fx.globalAlpha = far * (d.state === 'sleep' ? 0.55 : 1);
+        if (!K) { fx.font = '800 14px "IBM Plex Mono", ui-monospace, monospace'; fx.strokeStyle = 'rgba(8,8,10,.9)'; fx.lineWidth = 4; fx.strokeText('&', x, y); fx.fillStyle = '#e8553a'; fx.fillText('&', x, y); continue; }
+        machineIcon(fx, x, y, K.icon, t - d.hit < 0.1 ? '#ffffff' : K.color, d.fa || 0); }
       // Kai: an @ on an amber ring, with a tick for where she faces
       // Kai: a hollow ring as wide as her wrench's reach (a dead inside it is in the fight), the @ on a small tag above, a facing tick
       { const [x, y] = toS(kai.x, kai.y), R = Math.max(11, 1.8 * cam.ppm); fx.globalAlpha = far; fx.strokeStyle = 'rgba(10,11,13,.7)'; fx.lineWidth = 4; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke(); fx.strokeStyle = '#f0b44c'; fx.lineWidth = 2; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke();
@@ -433,4 +436,17 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     }
   }
   return { material, render, draw };
+}
+// [read] a machine's symbol at (x, y) on the overlay: a dark edge first, then the kind's hue (also used by the close-up rings)
+export function machineIcon(fx, x, y, icon, col, ang = 0) {
+  fx.save(); fx.translate(x, y); fx.scale(1.35, 1.35); fx.translate(-x, -y);   // a touch bigger than a letter: it must read on a phone
+  fx.beginPath();
+  if (icon === 'dot') fx.arc(x, y, 5, 0, 6.283);
+  else if (icon === 'tri') { fx.moveTo(x, y - 5); fx.lineTo(x + 4.5, y + 3.5); fx.lineTo(x - 4.5, y + 3.5); fx.closePath(); }
+  else if (icon === 'chevron') { const c = Math.cos(ang), s = Math.sin(ang), P = (u, v) => [x + u * c - v * s, y + u * s + v * c]; fx.moveTo(...P(7, 0)); fx.lineTo(...P(-5, 5.5)); fx.lineTo(...P(-2, 0)); fx.lineTo(...P(-5, -5.5)); fx.closePath(); }
+  else if (icon === 'target') { fx.arc(x, y, 6, 0, 6.283); fx.moveTo(x + 2.2, y); fx.arc(x, y, 2.2, 0, 6.283); }
+  else if (icon === 'square') fx.rect(x - 7.5, y - 7.5, 15, 15);
+  fx.strokeStyle = 'rgba(8,8,10,.9)'; fx.lineWidth = 4; fx.stroke();
+  if (icon === 'target') { fx.strokeStyle = col; fx.lineWidth = 2.2; fx.stroke(); } else { fx.fillStyle = col; fx.fill(); }
+  fx.restore();
 }

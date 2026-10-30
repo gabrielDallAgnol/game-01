@@ -28,7 +28,7 @@ export function makeSlots({ W, buildings, trees, blocked, care, sw, step = 3 }) 
   const nodes = new Map(W.nodes.map(n => [n.id, n])), nodeW = new Map();
   for (const st of W.streets) for (const id of st.ends || []) nodeW.set(id, Math.max(nodeW.get(id) || 0, sw(st)));
   const juncs = W.nodes.filter(n => n.deg >= 3), nearJ = (x, y, m) => juncs.some(n => Math.hypot(n.x - x, n.y - y) < (nodeW.get(n.id) || 8) / 2 + m);
-  for (const st of W.streets) { const half = sw(st) / 2, P = profileOf(st), path = st.kind === 'path', pave = P.pavement ? PAVE : 0, pts = st.pts;   // a kind with no pavement: its kerb and verge slots sit at the road's edge
+  for (const st of W.streets) { const half = sw(st) / 2, P = profileOf(st), path = st.kind === 'path', pave = P.pavement ? (st.walk ?? PAVE) : 0, park = typeof P.parking === 'function' ? P.parking(st) : P.parking, pts = st.pts;   // [roads] each street's own pavement; parking only where the street is wide   // a kind with no pavement: its kerb and verge slots sit at the road's edge
     for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], L = Math.hypot(b.x - a.x, b.y - a.y); if (L < 0.5) continue;
       const dx = (b.x - a.x) / L, dy = (b.y - a.y) / L, ang = Math.atan2(dy, dx), px = -dy, py = dx;
       for (let d = step / 2; d < L; d += step) { const cx = a.x + dx * d, cy = a.y + dy * d;
@@ -38,7 +38,7 @@ export function makeSlots({ W, buildings, trees, blocked, care, sw, step = 3 }) 
           if (!blocked(kx, ky)) push('kerb', kx, ky, ang, { nx, ny, street: st.id, side: s, district: st.district, verge: !pave, road: st.kind });
           if (pave && !blocked(mx, my)) push('pavement', mx, my, ang, { nx, ny, street: st.id, side: s });
           if (!blocked(wx, wy)) push('wall', wx, wy, ang, { nx, ny, street: st.id, side: s, verge: !pave });
-          if (P.parking && !blocked(qx, qy) && !nearJ(qx, qy, 7)) push('parking', qx, qy, ang + (s < 0 ? Math.PI : 0), { street: st.id, side: s }); }
+          if (park && !blocked(qx, qy) && !nearJ(qx, qy, 7)) push('parking', qx, qy, ang + (s < 0 ? Math.PI : 0), { street: st.id, side: s }); }
         if (half - pave > 2.2 && !nearJ(cx, cy, 3)) push('roadway', cx, cy, ang, { street: st.id, w: 2 * (half - pave), road: st.kind }); } }
     // crossings: across the street just before each junction it meets
     if (!path) for (const [k, id] of (st.ends || []).entries()) { const n = nodes.get(id); if (!n || n.deg < 3) continue;
