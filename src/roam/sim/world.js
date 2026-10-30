@@ -57,12 +57,13 @@ export function createWorld(G) {
     emit(a.x, a.y, B.heat, B.r, a); }
   // an element delivered to the world (a splash, a stream, a reaction): fire is heat, water soaks and puts fire out;
   // a plain explosion (no element) is a little heat
+  // water wets every cell it reaches (hard ground holds a film of water too, hardWet); fire only heats what burns
   // a stream lands many small soaks: only one wet mark per spot every so often (the ground is still soaked by each)
   const marks = [];
   function deliver(el, x, y, r, power = 1) {
     if (el === 'water') { if (!marks.some(m => m.until > S.t && Math.hypot(m.x - x, m.y - y) < m.r * 0.7)) { marks.push({ x, y, r: Math.max(r, 1.6), until: S.t + 1.5 }); if (marks.length > 40) marks.shift(); ev('soakGround', { x, y, r: Math.max(r, 1.6), dur: A.wetShow * Math.max(0.5, power) }); }
       for (let j = Math.floor((y - r) / cell); j <= Math.floor((y + r) / cell); j++) for (let i = Math.floor((x - r) / cell); i <= Math.floor((x + r) / cell); i++) { if (i < 0 || j < 0 || i >= cw || j >= ch) continue;
-        const c = j * cw + i, M = cellMat(c); if (!M || Math.hypot((i + 0.5) * cell - x, (j + 0.5) * cell - y) > r + cell * 0.5) continue; const s = cs(c); s.wet = Math.max(s.wet, M.soak * power); s.heat = 0; if (s.burn) { s.burn = 0; burning--; ev('doused', { x: (i + 0.5) * cell, y: (j + 0.5) * cell }); } }
+        const c = j * cw + i, M = cellMat(c); if (Math.hypot((i + 0.5) * cell - x, (j + 0.5) * cell - y) > r + cell * 0.5) continue; const s = cs(c); s.wet = Math.max(s.wet, (M ? M.soak : A.hardWet) * power); s.heat = 0; if (s.burn) { s.burn = 0; burning--; ev('doused', { x: (i + 0.5) * cell, y: (j + 0.5) * cell }); } }
       near(x, y, r, a => { const M = MAT[a.mat]; if (!M.soak) return; live.add(a); a.wet = Math.max(a.wet, M.soak * power); a.heat = 0; if (a.state === 'burning') { a.state = 'ok'; burning--; ev('doused', { x: a.x, y: a.y }); } });
       return; }
     const h = (el === 'fire' ? A.fireHeat : A.blastHeat) * power;

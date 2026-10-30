@@ -108,7 +108,7 @@ function start() {
     for (const e of evs) if (e.type === 'smash') falls.push({ x: e.x, y: e.y, fa: e.ang, id: 100000 + e.id, t0: t, prop: true, stamp: true });   // a smashed prop bursts into letters like a fall
     for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, metal: e.kind !== 'cinder' && e.kind !== 'flicker', brute: e.kind === 'brute', stamp: true });
     feel.events(evs, t);   // [m1] hitstop, shake, sparks, bursts
-    scars.events(evs, t);
+    scars.events(evs, t); look.atoms.events(evs);   // [atoms-look] flashes and steam
     while (falls.length && t - falls[0].t0 > 2.2) falls.shift();
     const { night, sun } = skyAt(S.clock); curNight = night;
     // the camera: follows Kai, leads her a little; on the bike it pulls back with the speed so you see what's coming

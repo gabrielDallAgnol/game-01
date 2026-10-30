@@ -142,3 +142,27 @@ So a scatter gun with a fire modifier burns machines but never lights the grass.
 - **Machines** take fire pips while standing in fire, lose them on wet ground, and steer round fire unless already in it.
 - **Tuning** found by headless runs: a dry field's fire front moves about 2 m/s downwind and barely upwind; a hedgerow carries it, slower than before; a terrace of houses goes one house every ~5 s. Numbers live in `materials.js` and `ROAM.atoms`.
 - **Tests:** `test/atoms-world.test.mjs` (materials complete, downwind beats upwind, soaked ground won't catch, a fence burns away, a car blows once, a fire pellet leaves the ground untouched).
+
+## 11. How atoms look: the medium, and real-world logic (Oct 30, Gabriel)
+> "Every design decision on this game should follow the design concept of the game. … Is the same rules as real life: how fire
+> would look in real-life grass, or water. How water behaves on asphalt compared to grass. All of that has logic that each
+> atom would know."
+
+**The rule:** an element is never an effect drawn on top. The atom itself changes, in the same medium as everything else
+(glyph cells, hair grass, roofs as letters). Each surface answers each state the way it would in real life:
+
+| State | Grass, crops | Tarmac, stone | Roof | Crown | Wreck |
+|---|---|---|---|---|---|
+| **Hot** | browns before it catches | (doesn't burn) | | browns | |
+| **Burning** | chars dark; flames break through in shifting patches of glowing cells, red to orange, a yellow core where fiercest | only oil on it burns | smoke-stained, flames break through the roof in patches | the crown glows the same way | glows |
+| **After** | char, for good | | black rafters, an ember now and then | gone (a stump, char ring) | the burnt variant |
+| **Wet** | soaks in: darker, deeper green, no mirror | wet tarmac goes dark; where it pools it holds the sky (like the town's puddles) | darker | darker | |
+| **Oil (fresh)** | a dark brown stain | a black glossy film, a faint rainbow at its thin edge | | | |
+
+Fire lights what is near it (much more at night); smoke drifts downwind as a grey haze (lighter than tarmac by day, dark by
+night) and dims what is under it; steam is a warm grey haze, fog a white one; a blast is a flash of light. Edges are
+ragged, never the 2 m grid.
+
+**Code:** `src/roam/atomlook.js` writes the atom world's state around the camera into two maps (1 m a texel:
+fire on the ground, fire in a solid, wet, oil; steam, fog, flash, heat). The ground shader's `[atoms-look]` block in
+`src/roam/medium.js` reads them per surface (ground, street, roof, crown). `feel.js` draws none of it.

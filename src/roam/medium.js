@@ -232,7 +232,64 @@ export function createMedium(o) {
           col = mix(col, under, tree * 0.8);   // under a tree: the crown covers the figure, a ghost of it shows through
         }
         gl_FragColor = vec4(mix(vec3(0.03), col, inside(t)), 1.0); }`);
+  // [atoms-look] begin: the atoms show their own state, in the medium (docs/design/atomic-engineering.md). Real-world logic,
+  // per surface: water films over hard ground (darker, holds the sky, glints) but soaks into grass (darker, deeper green)
+  // and darkens a roof or a crown; fresh oil is a black glossy film with a thin rainbow on tarmac, a brown stain on grass;
+  // a burning atom glows cell by cell (dull red embers, orange, a yellow core), its letters filling with the heat, and
+  // lights what is near; smoke drifts downwind and dims what is under it; hot grass browns before it catches; a burnt
+  // roof is black rafters with an ember or two; steam and fog are white haze; a blast is a flash of light.
+  swap('        vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);', `        { vec2 at = (w - uAtomO) / uAtomS, aE = vec2(1.0 / uAtomS); float inA = step(0.0, at.x) * step(at.x, 1.0) * step(0.0, at.y) * step(at.y, 1.0);
+          vec2 atW = at + (vec2(vnoise(w * 0.9), vnoise(w * 0.9 + 7.3)) - 0.5) * aE * 2.2 + (vec2(vnoise(w * 3.1), vnoise(w * 3.1 + 2.9)) - 0.5) * aE * 0.7;   // ragged, natural edges (no 2 m squares)
+          vec4 AS = texture2D(tAtom, atW) * inA, A2 = texture2D(tAtom2, atW) * inA; vec2 cpA = floor((gl_FragCoord.xy + uCellOff) / uCellPx), gA = fract((gl_FragCoord.xy + uCellOff) / uCellPx);
+          float glyphOn = smoothstep(2.4, 4.6, uCellPx);
+          vec3 skyA = mix(vec3(0.5, 0.57, 0.64) * tint(), vec3(0.05, 0.06, 0.09), uNight);
+          // a burnt roof (the char mark under it): black rafters, now and then an ember
+          float chr = texture2D(tDecal, t).g * roof; if (chr > 0.02) { float k = smoothstep(0.04, 0.3, chr);
+            float raft = lines(dot(w, vec2(cos(rf.r * 3.14159), sin(rf.r * 3.14159))), 0.9, max(0.04, 0.6 / uPpm));
+            col = mix(col, vec3(0.055, 0.05, 0.047) * (0.7 + 0.6 * h21(cpA)) + vec3(0.1, 0.09, 0.08) * raft, k * 0.92);
+            col += vec3(0.9, 0.28, 0.06) * k * step(0.988, h21(cpA + floor(uTime * 0.6))) * (0.6 + 0.4 * sin(uTime * 3.0 + h21(cpA) * 6.0)); }
+          // hot grass browns before it catches
+          col = mix(col, col * vec3(1.05, 0.8, 0.5), smoothstep(0.1, 0.9, A2.a) * (ground + tree) * 0.7);
+          // water
+          float wk = smoothstep(0.04, 0.45, AS.b); if (wk > 0.0) {
+            float pool = smoothstep(0.5, 0.72, vnoise(w * 0.55 + 3.1) * 0.75 + vnoise(w * 1.9) * 0.25 + AS.b * 0.22);
+            vec3 puddle = skyA * (0.5 + 0.5 * vnoise(w * 0.8 + vec2(uTime * 0.07, 0.0))) + vec3(0.25) * pow(max(0.0, vnoise(w * 6.0 + uTime * 0.3)), 6.0) * (1.0 - uNight);
+            col = mix(col, mix(col * 0.55, puddle, pool * 0.85), wk * street);
+            col = mix(col, col * vec3(0.6, 0.74, 0.62) + vec3(0.0, 0.015, 0.0), wk * ground * 0.9);
+            col = mix(col, col * 0.72 + skyA * 0.05, wk * (tree + roof) * 0.8); }
+          // fresh oil
+          float ok = smoothstep(0.04, 0.4, AS.a); if (ok > 0.0) { float edge = ok * (1.0 - smoothstep(0.35, 0.9, AS.a)); vec3 irid = 0.5 + 0.5 * cos(6.2832 * (vnoise(w * 2.2) * 1.4 + vec3(0.0, 0.33, 0.67)));
+            col = mix(col, vec3(0.03, 0.03, 0.035) + irid * 0.045 * edge * (1.0 - uNight * 0.7) + vec3(0.16) * pow(max(0.0, vnoise(w * 2.5)), 6.0) * (1.0 - uNight), ok * (street + roof) * 0.92);
+            col = mix(col, col * vec3(0.32, 0.27, 0.22), ok * (ground + tree) * 0.85); }
+          // fire: ground fire shows under open sky (a crown hides most of it); a solid's fire is its own footprint
+          float fire = max(AS.r * (1.0 - roof) * (1.0 - tree * 0.65), AS.g);
+          // its light on what is near (more at night) and its smoke downwind
+          float near = 0.0, smk = 0.0;
+          for (int k = 0; k < 6; k++) { float a = float(k) * 1.047; vec2 o = vec2(cos(a), sin(a)); vec4 n1 = texture2D(tAtom, at + o * aE * 3.5) * inA, n2 = texture2D(tAtom, at + o * aE * 8.0) * inA; near += max(n1.r, n1.g) * 0.5 + max(n2.r, n2.g) * 0.22; }
+          near = min(1.2, near / 3.0 + fire * 0.6);
+          for (int k = 1; k <= 5; k++) { vec4 u1 = texture2D(tAtom, at - WD * aE * (float(k) * 3.2) + vec2(-WD.y, WD.x) * aE * sin(float(k) + uTime * 0.4) * 1.5) * inA; smk += max(u1.r, u1.g) * (1.0 - float(k) * 0.12); }
+          smk = clamp(smk * 0.5, 0.0, 0.82) * (0.55 + 0.45 * vnoise(w * 0.22 - WD * uTime * 1.3)) * (0.6 + 0.4 * vnoise(w * 0.9 - WD * uTime * 2.1));
+          col = mix(col, mix(vec3(0.36, 0.34, 0.32) * tint(), vec3(0.05, 0.05, 0.055), uNight), smk * (1.0 - 0.5 * fire));   // smoke: a grey haze, lighter than tarmac by day, dark by night
+          col += col * near * mix(0.5, 1.6, uNight) + vec3(1.0, 0.45, 0.12) * near * mix(0.03, 0.2, uNight);
+          if (fire > 0.004) {
+            // under the flames the atom chars and glows dull red; the flames break through in patches that shift with the
+            // wind, more of them the harder it burns; each cell flickers on its own; a yellow core only where it's fiercest
+            float n1 = vnoise(w * 0.5 + vec2(0.0, -uTime * 0.4) - WD * uTime * 0.6), n2 = h21(cpA + floor(uTime * 7.0 + h21(cpA) * 3.0));
+            float cover = smoothstep(1.0 - fire * 0.36, 1.16 - fire * 0.36, n1 * 0.72 + n2 * 0.38);
+            col = mix(col, col * 0.24 + vec3(0.11, 0.018, 0.0) * fire * (0.35 + 0.65 * n1) * (0.8 + 0.2 * n2), smoothstep(0.0, 0.45, fire));
+            float I = clamp(cover * fire * (0.45 + 0.55 * n2), 0.0, 1.0);
+            vec3 fc = I < 0.5 ? mix(vec3(0.42, 0.05, 0.01), vec3(0.92, 0.3, 0.05), I / 0.5) : mix(vec3(0.92, 0.3, 0.05), vec3(1.0, 0.78, 0.4), (I - 0.5) / 0.5);
+            float lev = floor(clamp(I * 1.1, 0.0, 0.999) * ${NG}.0), gmF = mix(0.2 + 0.7 * lev / ${NG - 1}.0, texture2D(tGlyph, vec2((lev + gA.x) / ${NG}.0, gA.y)).a, glyphOn);
+            col = mix(col, fc * (0.45 + 0.85 * gmF), cover * (0.35 + 0.65 * gmF)); }
+          // steam (warm grey), fog (white), a blast's flash
+          float stm = A2.r * (0.6 + 0.4 * vnoise(w * 0.7 + vec2(0.0, -uTime * 0.8))), fog = A2.g * (0.75 + 0.25 * vnoise(w * 0.35 + uTime * 0.1));
+          col = mix(col, vec3(0.86, 0.84, 0.8) * mix(tint(), vec3(0.32), uNight), clamp(stm * 0.75, 0.0, 0.8));
+          col = mix(col, vec3(0.9, 0.92, 0.93) * mix(tint(), vec3(0.3), uNight), clamp(fog * 0.8, 0.0, 0.85));
+          col += (col * 1.5 + vec3(1.0, 0.82, 0.55) * 0.5) * A2.b; }
+        vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);`);
+  // [atoms-look] end
   const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir, tDecal, tLand; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
+    uniform sampler2D tAtom, tAtom2; uniform vec2 uAtomO; uniform float uAtomS;   // [atoms-look] the atom world's state (src/roam/atomlook.js)
     // one layer of strands with a fixed size in the world: seeds on a turned, jittered lattice (f a metre, p of the cells),
     // each combed len metres along the flow, r wide at the root and tapering. A pixel asks the cells behind it along the
     // flow whether a strand passes within its width; edges are antialiased by the pixel's own size. Returns (coverage, how

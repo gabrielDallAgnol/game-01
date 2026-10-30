@@ -32,7 +32,7 @@ export const ROAM = {
   // src/play/materials.js. tick: how often heat moves; simR: fires further than this from Kai wait; boil: water a unit of
   // heat boils off; cool: heat lost per second; downwind/upwind: the wind's push; fireHeat/blastHeat: what a delivered
   // fire or a plain explosion puts in; kaiBurn/kaiBlast: how much fire and blasts hurt Kai
-  atoms: { tick: 0.25, simR: 140, maxBurn: 650, boil: 0.9, cool: 0.18, downwind: 0.9, upwind: 0.3, wind: { x: 0.731, y: 0.682 }, fireHeat: 2.6, blastHeat: 1.2, stainR: 1.3, wetShow: 14, kaiBurn: 1, kaiBlast: 0.7 },
+  atoms: { tick: 0.25, simR: 140, maxBurn: 650, boil: 0.9, cool: 0.18, downwind: 0.9, upwind: 0.3, wind: { x: 0.731, y: 0.682 }, fireHeat: 2.6, blastHeat: 1.2, stainR: 1.3, wetShow: 14, kaiBurn: 1, kaiBlast: 0.7, hardWet: 12 },
   nest: { hp: 120, guards: 7, every: 7, nightEvery: 3.5 },
 };
 
