@@ -10,7 +10,7 @@ export const MACHINES = {
     name: 'Skitter', desc: 'Small and fast, comes in packs. Weak alone, a swarm hurts.', why: 'Catches a bike that cruises slowly; rewards spread shots and rams.' },
   hound: { ai: 'hound', hp: 9, speed: 4.4, dmg: 8, sense: 2.2, forget: 70, lunge: { range: 7, speed: 13, time: 0.32, cd: 2.6 }, tags: ['metal', 'chipped'], look: 'hound', color: '#a98bd6', weight: [0.13, 0.2],
     name: 'Hound', desc: 'Picks up your trail from far away and never lets go. Lunges when close.', why: 'Breaks "shoot from far away and forget": it follows you across the map.' },
-  spitter: { ai: 'ranged', hp: 7, speed: 2.6, dmg: 9, sense: 1.6, forget: 45, keep: [9, 13], range: 15, every: 1.9, windup: 0.5, bolt: { speed: 14, life: 1.6, r: 0.8 }, tags: ['metal', 'chipped'], look: 'spitter', color: '#6fb3c8', weight: [0.15, 0.16], most: 3,
+  spitter: { ai: 'ranged', hp: 7, speed: 2.6, dmg: 9, sense: 1.6, forget: 45, keep: [9, 13], range: 15, every: 1.9, windup: 0.5, bolt: { speed: 8.5, life: 2.4, r: 0.85 }, tags: ['metal', 'chipped'], look: 'spitter', color: '#6fb3c8', weight: [0.15, 0.16], most: 3,
     name: 'Spitter', desc: 'Keeps its distance and spits slow bolts. Its eye flares before it fires: move.', why: 'Breaks "stand still and shoot": you have to dodge while you aim.' },
   brute: { ai: 'melee', hp: 34, speed: 1.4, dmg: 16, windup: 0.6, reach: 1.5, heavy: true, tags: ['metal', 'chipped', 'heavy'], look: 'brute', color: '#d97a3a', weight: [0.08, 0.12],
     name: 'Brute', desc: 'Slow and armoured. Ramming it stops the bike dead. Hits very hard.', why: 'Can\'t be rammed: you have to shoot it, which makes the others close in.' },

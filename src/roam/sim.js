@@ -25,7 +25,9 @@ export const ROAM = {
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)
     bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [24, 46], alarm: 14, catchUp: 1.2, near: 70, far: 110 },
   hunt: { boil: 14, cool: 1.3, perShot: 1, size: [3, 5], nightExtra: 2, twoSides: 0.25 },   // [m1] gunfire heat → hunting packs
-  chem: { stainR: 1.3, slick: 0.45, slickR: [1.1, 1.7], slickLife: 40, fireGrow: 0.8, fireTime: 6 },   // [m2] oil and fire on the ground
+  // [m2] the chemistry in the world: oil, the ground's fire (char → seconds a 2 m cell burns), wet ground
+  chem: { stainR: 1.3, slick: 0.45, slickR: [1.1, 1.7], slickLife: 40, fireGrow: 0.8, fireTime: 6, catchOnLand: 0.35, wetShot: 9, groundGap: 0.9,
+    burn: { '"': 3.5, ',': 3, m: 4, w: 5, b: 5, r: 4, s: 2.5, f: 5, T: 9 }, spread: 0.3, downwind: 1.9, upwind: 0.35, spreadEvery: 0.4, maxFire: 700 },
   nest: { hp: 120, guards: 7, every: 7, nightEvery: 3.5 },
 };
 
@@ -53,5 +55,5 @@ export function createRoam(town, seed = 1) {
   for (let k = 0; k < 6; k++) G.populate();
   const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
   const debug = { spawn: (kind, x, y, o) => G.spawn(kind, x, y, o) };   // for tests, labs and screenshots
-  return { state: S, step, setClockRate, debug, drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }

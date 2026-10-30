@@ -2,7 +2,7 @@
 // and fight, by their `ai` (src/play/machines.js): melee (close in, wind up, bite), hound (follows from far, never lets
 // go, lunges), ranged (keeps its distance, flares its eye, spits a bolt). Reads G.S, G.view; offers G.spawn, G.kindRoll,
 // G.hurtFoe, G.populate, G.stepFoes. (The state keeps the prototype's id `S.dead` for the machines.)
-import { STATUSES } from '../../play/statuses.js';
+import { PIPS, STATUSES } from '../../play/statuses.js';
 export function createFoes(G) {
   const { R, S, rng, ev, dist, town } = G, { blocked, streetCells } = town;
   let nid = 1;
@@ -41,7 +41,7 @@ export function createFoes(G) {
       if (blind && d.state === 'chase') { d.state = 'wander'; d.wx = d.x; d.wy = d.y; d.aim = 0; d.wind = 0; }   // [m2] lost in the steam
       if (d.state === 'sleep') { if (!k.dead && r < (k.riding ? 9 : 5)) d.state = 'chase'; else { d.vx *= 0.8; d.vy *= 0.8; continue; } }
       if (seesKai) d.state = 'chase'; else if (d.state === 'chase' && (r > forget || k.dead)) { d.state = 'wander'; d.wx = d.x; d.wy = d.y; }
-      let gx, gy, sp = K.speed * (S.night ? R.dead.nightSpeed : 1) * (1 - Math.max(st.wet ? STATUSES.wet.slow[st.wet.stacks - 1] : 0, st.soaked ? STATUSES.soaked.slow[0] : 0));   // [m2] wet and soaked slow it
+      let gx, gy, sp = K.speed * (S.night ? R.dead.nightSpeed : 1) * (1 - Math.max((d.pips || []).filter(p => p.el === 'water').length * PIPS.water.slow, st.soaked ? STATUSES.soaked.slow : 0, G.onWet && G.onWet(d) ? PIPS.water.slow * 2 : 0));   // [m2] water pips and soaked slow it
       if (d.state === 'chase' && !k.dead) { gx = k.x; gy = k.y; }
       else { if (Math.hypot(d.wx - d.x, d.wy - d.y) < 1 || rng.chance(dt * 0.1)) {   // they drift: toward where they last heard Kai, more at night
           const toKai = !k.dead && r < 55 && rng.chance(S.night ? 0.75 : 0.45), a = toKai ? Math.atan2(k.y - d.y, k.x - d.x) + rng.range(-0.6, 0.6) : rng.range(0, 6.28), rr = rng.range(4, 12); d.wx = d.x + Math.cos(a) * rr; d.wy = d.y + Math.sin(a) * rr; }

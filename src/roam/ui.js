@@ -11,14 +11,23 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   press(rideBtn, () => { input.ride = true; }); press(dashBtn, () => { input.dash = true; });
   // [m1] FIRE is held: down starts, up / cancel / leaving the button stops
   const fireBtn = $('fire'), setFire = on => { input.fire = on; fireBtn.classList.toggle('on', on); };
-  // hold a weapon button: it aims itself; drag off the button while holding: it fires where you drag (the screen is the
-  // map, north up, so a screen direction is a world direction). FIRE: the main weapon; HOSE: the off-hand [m2]
-  const offBtn = $('offhand'), setOff = on => { input.off = on; offBtn.classList.toggle('on', on); };
+  // hold FIRE: the gun aims itself; drag off the button while holding: it fires where you drag (the screen is the map,
+  // north up, so a screen direction is a world direction)
   function holdAim(btn, set, aimKey) { let x0 = 0, y0 = 0;
     btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); btn.setPointerCapture(e.pointerId); x0 = e.clientX; y0 = e.clientY; input[aimKey] = null; set(true); });
     btn.addEventListener('pointermove', e => { const dx = e.clientX - x0, dy = e.clientY - y0; if (btn.classList.contains('on')) input[aimKey] = Math.hypot(dx, dy) > 18 ? Math.atan2(dy, dx) : null; });
     for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) btn.addEventListener(ev, () => { set(false); input[aimKey] = null; }); }
-  holdAim(fireBtn, setFire, 'aim'); holdAim(offBtn, setOff, 'offAim');
+  holdAim(fireBtn, setFire, 'aim');
+  // [m2] the loadout (a test control until the garage): the gun's element, the off-hand's enchant and how often, mods.
+  // The game pauses while it is open; changes go through the sim's API (setLoadout)
+  const kitEl = $('loadout'), LO = { el: 'fire', enchant: 'water', every: 2, mods: [] };
+  const paintKit = () => { for (const g of kitEl.querySelectorAll('.opts')) { const k = g.dataset.k; for (const b of g.children) b.classList.toggle('on', k === 'mods' ? LO.mods.includes(b.dataset.v) : String(LO[k] ?? '') === b.dataset.v); }
+    fireBtn.className = 'pb fire el-' + (LO.el || '') + (input.fire ? ' on' : ''); };
+  for (const g of kitEl.querySelectorAll('.opts')) for (const b of g.children) b.addEventListener('click', () => { const k = g.dataset.k, v = b.dataset.v;
+    if (k === 'mods') LO.mods = LO.mods.includes(v) ? LO.mods.filter(m => m !== v) : [...LO.mods, v]; else LO[k] = k === 'every' ? +v : (v || null);
+    sim.setLoadout(LO); paintKit(); });
+  press($('kit'), () => { kitEl.hidden = false; ui.paused = true; paintKit(); }); $('kitDone').addEventListener('click', () => { kitEl.hidden = true; ui.paused = false; });
+  const ui = { paused: false }; sim.setLoadout(LO); paintKit();
   // the clock speed (a test control): 1x, 10x, 30x; only the day passes faster
   const speedEl = $('speed'), RATES = [1, 10, 30];
   press(speedEl, () => { const r = RATES[(RATES.indexOf(S.clockRate) + 1) % RATES.length]; sim.setClockRate(r); speedEl.textContent = r + '×'; speedEl.classList.toggle('fast', r > 1); speedEl.setAttribute('aria-label', `Clock speed: ${r}x. Tap to change`); });
@@ -35,8 +44,8 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
   canvas.addEventListener('wheel', e => { e.preventDefault(); zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
   const keys = {};
-  addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'e') input.ride = true; if (k === ' ' || k === 'j') { if (S.kai.riding) setFire(true); else input.dash = true; e.preventDefault(); } if (k === 'k' || k === 'shift') setOff(true); if (k === '+' || k === '=') zoom(1.2); if (k === '-') zoom(0.83); if (k === 't') speedEl.dispatchEvent(new PointerEvent('pointerdown')); });
-  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'j') setFire(false); if (k === 'k' || k === 'shift') setOff(false); });
+  addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'e') input.ride = true; if (k === ' ' || k === 'j') { if (S.kai.riding) setFire(true); else input.dash = true; e.preventDefault(); } if (k === '+' || k === '=') zoom(1.2); if (k === '-') zoom(0.83); if (k === 't') speedEl.dispatchEvent(new PointerEvent('pointerdown')); });
+  addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'j') setFire(false); });
   function keyInput() { if (mover !== null) return; const x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), y = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0); if (x || y) { const r = Math.hypot(x, y); input.x = x / r; input.y = y / r; input.key = true; } else if (input.key) { input.x = input.y = 0; input.key = false; } }
   // ---------- events → words ----------
   const WORDS = { dusk: ['Dusk. The machines wake hungry.', true], dawn: ['Dawn. The machines slow and power down.', true], down: ['Wrecked. Back at the square in a moment.'], back: ['Back on the bike.'], crash: ['Crash!'], won: ['Every nest is ash. Hollowmere breathes.', true] };
@@ -69,5 +78,5 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     if (nest) one(nest.x, nest.y, '#ff5a3a', `${Math.round(nd)}m`);
     if (!k.riding && !k.dead) one(S.bike.x, S.bike.y, '#f0b44c', 'BIKE');
   }
-  return { update, arrows, toast };
+  return { update, arrows, toast, get paused() { return ui.paused; } };
 }

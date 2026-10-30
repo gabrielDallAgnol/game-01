@@ -1,8 +1,10 @@
-// [play] Statuses: what an element leaves on a machine for a while. Their numbers live here; the sim applies them each
-// step (burn damage, slows). Stacks show as pips above the machine.
+// [play] What stays on a machine. Pips: each element's dot works while it lasts (`pip`: per pip). Statuses: what a
+// reaction leaves (soaked, blind). The sim applies both each step; pips and statuses show above the machine.
+export const PIPS = {
+  fire: { life: 5, dps: 1.0, desc: 'Each fire pip burns it a little.', why: 'Fire keeps working after the shot.' },
+  water: { life: 6, slow: 0.12, desc: 'Each water pip slows it a little.', why: 'Water sets up reactions and buys time.' },
+};
 export const STATUSES = {
-  burning: { id: 'burning', element: 'fire', dur: 4, dps: [1.2, 1.8, 2.4], desc: 'Takes damage over time (more per stack).', why: 'Fire keeps working after the shot.' },
-  wet: { id: 'wet', element: 'water', dur: 6, slow: [0.12, 0.2, 0.28], desc: 'Slowed a little (more per stack).', why: 'Water sets up reactions and buys time.' },
-  soaked: { id: 'soaked', element: null, dur: 6, slow: [0.55], desc: 'Waterlogged: half speed.', why: 'The payoff of three water hits.' },
-  blind: { id: 'blind', element: null, dur: 1.2, desc: 'Lost track of you.', why: 'Steam hides you: machines inside a cloud stop chasing, biting and spitting.' },
+  soaked: { id: 'soaked', dur: 6, slow: 0.55, desc: 'Waterlogged: half speed.', why: 'The payoff of three water.' },
+  blind: { id: 'blind', dur: 1.2, desc: 'Lost track of you.', why: 'Steam and fog hide you: machines inside stop chasing, biting and spitting.' },
 };

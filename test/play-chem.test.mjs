@@ -1,25 +1,25 @@
-// [play] The chemistry: the grid has no empty cells, every entry explains itself, and the hit pipeline behaves
+// [play] The chemistry: every mix of three pips has a recipe, every entry explains itself, and the pipeline behaves
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { ELEMENTS } from '../src/play/elements.js';
-import { STATUSES } from '../src/play/statuses.js';
-import { REACTIONS, CLASH, reactionFor } from '../src/play/reactions.js';
+import { PIPS, STATUSES } from '../src/play/statuses.js';
+import { REACTIONS, CLASH, recipeFor } from '../src/play/reactions.js';
 import { EFFECTS } from '../src/play/effects.js';
 import { TAGS } from '../src/play/tags.js';
-import { hitElement } from '../src/play/hit.js';
+import { addPip } from '../src/play/hit.js';
 const ids = Object.keys(ELEMENTS);
-test('the element grid has no empty cells (every pair and every element with itself)', () => {
-  const missing = []; for (const a of ids) for (const b of ids) if (!reactionFor(a, b)) missing.push(`${a}+${b}`); assert.deepStrictEqual(missing, []); });
-test('same-element reactions are intensify (stacks) entries', () => { for (const a of ids) assert.ok(reactionFor(a, a).stacks >= 2, a); });
-test('every entry explains itself and uses known verbs and statuses', () => {
-  for (const t of [ELEMENTS, STATUSES, REACTIONS, TAGS]) for (const [k, v] of Object.entries(t)) assert.ok(v.desc && v.why, k);
-  for (const e of Object.values(ELEMENTS)) assert.ok(STATUSES[e.status], e.id);
-  for (const r of [...Object.values(REACTIONS), CLASH]) for (const e of r.effects) { assert.ok(EFFECTS[e.do], `${r.id}: ${e.do}`); if (e.status) assert.ok(STATUSES[e.status], `${r.id}: ${e.status}`); } });
-const world = () => { const log = []; return { log, damage: (t, n) => log.push(['damage', n]), apply: (t, s) => { (t.st ||= {})[s] = { stacks: 1, left: STATUSES[s].dur, at: 0 }; log.push(['apply', s]); },
+test('every mix of three pips has its own recipe (no clash in the grid)', () => { const missing = [];
+  for (let a = 0; a < ids.length; a++) for (let b = a; b < ids.length; b++) for (let c = b; c < ids.length; c++) { const mix = [ids[a], ids[b], ids[c]]; if (new Set(mix).size === 3) continue; if (recipeFor(mix) === CLASH) missing.push(mix.join('+')); }
+  assert.deepStrictEqual(missing, []); });
+test('every entry explains itself and uses known verbs, statuses and elements', () => {
+  for (const t of [ELEMENTS, PIPS, STATUSES, REACTIONS, TAGS]) for (const [k, v] of Object.entries(t)) assert.ok(v.desc && v.why, k);
+  for (const e of ids) assert.ok(PIPS[e], `pip for ${e}`);
+  for (const r of [...Object.values(REACTIONS), CLASH]) { for (const k of Object.keys(r.recipe)) assert.ok(ELEMENTS[k], `${r.id}: ${k}`);
+    for (const e of r.effects) { assert.ok(EFFECTS[e.do], `${r.id}: ${e.do}`); if (e.status) assert.ok(STATUSES[e.status], `${r.id}: ${e.status}`); if (e.el) assert.ok(ELEMENTS[e.el], `${r.id}: ${e.el}`); } } });
+const world = () => { const log = []; return { log, damage: (t, n) => log.push(['damage', n]), apply: (t, s) => log.push(['apply', s]), pip: (t, e) => log.push(['pip', e]),
   near: () => [], push: () => {}, mark: k => log.push(['mark', k]), cloud: k => log.push(['cloud', k]), ground: k => log.push(['ground', k]), react: R => log.push(['react', R.id]) }; };
-test('wet + fire = steam, and both statuses are used up', () => { const t = { x: 0, y: 0 }, W = world(); hitElement(t, 'water', 0, W); assert.ok(t.st.wet); assert.strictEqual(hitElement(t, 'fire', 1, W), 'steam'); assert.ok(!t.st.wet && !t.st.burning); assert.ok(W.log.some(l => l[0] === 'cloud')); });
-test('burning + water = steam too (either order)', () => { const t = { x: 0, y: 0 }, W = world(); hitElement(t, 'fire', 0, W); assert.strictEqual(hitElement(t, 'water', 1, W), 'steam'); });
-test('fire x3 = blaze; one volley counts once', () => { const t = { x: 0, y: 0 }, W = world();
-  hitElement(t, 'fire', 0, W); hitElement(t, 'fire', 0.05, W); hitElement(t, 'fire', 0.1, W); assert.strictEqual(t.st.burning.stacks, 1, 'same volley');
-  hitElement(t, 'fire', 0.5, W); assert.strictEqual(t.st.burning.stacks, 2); assert.strictEqual(hitElement(t, 'fire', 1, W), 'blaze'); assert.ok(!t.st.burning); });
-test('water x3 = soaked', () => { const t = { x: 0, y: 0 }, W = world(); hitElement(t, 'water', 0, W); hitElement(t, 'water', 0.5, W); assert.strictEqual(hitElement(t, 'water', 1, W), 'soak'); assert.ok(t.st.soaked); });
+const run = (els) => { const t = { x: 0, y: 0 }, W = world(); let out = null; els.forEach((e, i) => { out = addPip(t, e, i, W) || out; }); return { out, t, W }; };
+test('fire x3 = blaze, water x3 = soak', () => { assert.strictEqual(run(['fire', 'fire', 'fire']).out, 'blaze'); assert.strictEqual(run(['water', 'water', 'water']).out, 'soak'); });
+test('two fire + one water = scald, two water + one fire = fog (any order)', () => { assert.strictEqual(run(['fire', 'water', 'fire']).out, 'scald'); assert.strictEqual(run(['water', 'fire', 'water']).out, 'fog'); });
+test('the reaction clears the pips; one volley counts once', () => { const r = run(['fire', 'fire', 'fire']); assert.strictEqual(r.t.pips.length, 0);
+  const t = { x: 0, y: 0 }, W = world(); addPip(t, 'fire', 0, W); addPip(t, 'fire', 0.05, W); addPip(t, 'fire', 0.1, W); assert.strictEqual(t.pips.length, 1); });

@@ -51,5 +51,10 @@ export function createTiles({ layers, world }) {
   function update(x, y, budget, onTile) { const t0 = performance.now(); let n = 0;
     for (const [i, j] of want(x, y, REACH)) { if (n && performance.now() - t0 > budget) break; paint(i, j); n++; if (onTile) onTile(i, j); }
     return n; }
-  return { add, update, upload, layers: L, byName, TILE, WIN };
+  // [m2] the world changes (burnt ground, a soaked patch drying): take an item out, and mark the tiles under an area to
+  // be painted again (the streaming loop repaints them, nearest first)
+  function remove(it) { const i0 = Math.floor((it.x - it.r) / TILE), i1 = Math.floor((it.x + it.r) / TILE), j0 = Math.floor((it.y - it.r) / TILE), j1 = Math.floor((it.y + it.r) / TILE);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const list = index.get(key(i, j)); if (list) { const k = list.indexOf(it); if (k >= 0) list.splice(k, 1); } } }
+  function touch(x, y, r) { for (let j = Math.floor((y - r) / TILE); j <= Math.floor((y + r) / TILE); j++) for (let i = Math.floor((x - r) / TILE); i <= Math.floor((x + r) / TILE); i++) done.delete(key(i, j)); }
+  return { add, remove, touch, update, upload, layers: L, byName, TILE, WIN };
 }

@@ -55,6 +55,19 @@ Everything follows from that:
 
 ---
 
+## 3a. Revised Oct 30, 20:00 (Gabriel's playtest): pips, recipes, the off-hand as an enchant, the world on fire
+This replaces the "status + element → reaction" rule below; the rest of §3 stays as background.
+
+| Piece | How it works now | Code |
+|---|---|---|
+| **Pips** | Every elemental hit adds a pip (dot) to the machine, in its element's colour, up to 3. Hits from one volley count once. Each pip works while it lasts: fire pips burn, water pips slow. | `src/play/hit.js`, `PIPS` in `src/play/statuses.js` |
+| **Recipes** | When three pips are full, their **mix** goes off and clears them: fire×3 **blaze**, water×3 **soak**, 2 fire + 1 water **scald** (hot steam: hurts and hides you), 2 water + 1 fire **fog** (wide cloud: the escape). With more elements, 3 different ones make a third kind of recipe. A missing recipe falls back to its pair's other lead, then to clash, so a mix is never silent. | `src/play/reactions.js` (`recipeFor`) |
+| **The off-hand** | Not a button and not a second weapon: an **enchant** on the gun. Every 2nd (or 3rd) shot carries its element, so a fire gun with a water enchant lands fire, water, fire: a scald. | `S.guns.off` in `src/roam/sim/guns.js` |
+| **The world** | Fire catches grass, crops, the woods floor and trees (2 m cells of the char map), spreads to neighbours (more downwind), and burns out to char that never burns again. Water soaks the ground: it stops fire, puts out burning pips, slows what walks on it (no pips: wet ground setting off soaks would loop). Oil stains and the slicks machines leak burst into flame. Burnt and soaked ground is written into the streamed tiles (`src/roam/scars.js`). | `src/roam/sim/chem.js` |
+| **Testing** | The KIT button opens the loadout: the gun's element, the enchant and how often, mods. A test control until the garage exists. | `src/roam/ui.js`, `sim.setLoadout` |
+
+**Adding an element now:** its entry in `elements.js` and `PIPS`, then a recipe for each mix with every existing element (AAB and ABB), its three-of-a-kind, and which ground chars it touches. The validator lists missing mixes.
+
 ## 3. Elements, statuses and reactions: the chemistry
 **What:** a hit can carry an **element**. The element leaves a **status** on the target. If a target that already has a status gets hit by a *different* element, a **reaction** happens.
 
