@@ -23,6 +23,10 @@ export function createFeel({ S, input, town }) {
       else if (e.type === 'reaction') { const Rx = REACTIONS[e.id] || CLASH; words.push({ x: e.x, y: e.y, text: Rx.id === 'clash' ? 'clash' : Rx.id.toUpperCase(), col: Rx.color, t: 0, dy: words.filter(w => Math.hypot(w.x - e.x, w.y - e.y) < 3 && w.t < 0.8).length * 16 });
         rings.push({ x: e.x, y: e.y, t: 0, big: e.id === 'blaze', col: Rx.color }); spark(e.x, e.y, Math.random() * 6.28, e.id === 'blaze' ? 18 : 8, e.id === 'blaze' ? 7 : 4, Rx.color, 0.5, 1.1);
         if (e.id === 'blaze') { stop = Math.max(stop, 0.07); shakeAmt = Math.min(1, shakeAmt + 0.5); } }
+      else if (e.type === 'blast') { stop = Math.max(stop, e.el === undefined ? 0.08 : 0.04); shakeAmt = Math.min(1, shakeAmt + (e.r > 4 ? 0.9 : 0.45)); rings.push({ x: e.x, y: e.y, t: 0, big: true, col: '#ffb35a' });
+        spark(e.x, e.y, Math.random() * 6.28, e.r > 4 ? 30 : 16, e.r * 2.6, '#ffcf7a', 0.55, 1.4); spark(e.x, e.y, Math.random() * 6.28, 10, e.r * 1.4, '#3a3530', 0.9, 2.2); }
+      else if (e.type === 'catch') { rings.push({ x: e.x, y: e.y, t: 0, col: '#ff8a3a' }); spark(e.x, e.y, Math.random() * 6.28, 8, 3, '#ffb35a', 0.5); }
+      else if (e.type === 'doused') spark(e.x, e.y, -1.57, 6, 1.6, '#e6e2dc', 0.8, 1.6);
       else if (e.type === 'ignite') { rings.push({ x: e.x, y: e.y, t: 0, col: '#ff8a3a' }); spark(e.x, e.y, Math.random() * 6.28, 10, 4, '#ffb35a', 0.5); }
       else if (e.type === 'hurt') shakeAmt = Math.min(1, shakeAmt + 0.45);
       else if (e.type === 'crash') shakeAmt = Math.min(1, shakeAmt + 0.4);
@@ -55,17 +59,31 @@ export function createFeel({ S, input, town }) {
       p.x += p.vx * dt; p.y += p.vy * dt; const [x, y] = toS(p.x, p.y - p.z * 0.5); if (!on(x, y)) continue;
       fx.globalAlpha = Math.min(1, p.life / p.life0 * 2); fx.fillStyle = p.col; const s = Math.max(1, ppm * 0.07 * p.size); fx.fillRect(x - s / 2, y - s / 2, s, s); }
     fx.globalAlpha = 1;
-    // [m2] the ground: oil slicks (dark and glossy; the town's old stains are painted on the street already), fire patches
-    for (const o of S.oil || []) if (o.left !== undefined) { const [x, y] = toS(o.x, o.y); if (!on(x, y)) continue; fx.globalAlpha = Math.min(1, o.left / 4) * 0.8; fx.fillStyle = '#0d0c0b'; fx.beginPath(); fx.ellipse(x, y, o.r * ppm, o.r * ppm * 0.75, 0.6, 0, 6.283); fx.fill();
+    // [atoms] fresh oil slicks (dark and glossy; the town's old stains are painted on the street already)
+    for (const o of S.atoms || []) if (o.slick && o.state === 'ok') { const [x, y] = toS(o.x, o.y); if (!on(x, y)) continue; fx.globalAlpha = Math.min(1, o.life / 4) * 0.8; fx.fillStyle = '#0d0c0b'; fx.beginPath(); fx.ellipse(x, y, o.r * ppm, o.r * ppm * 0.75, 0.6, 0, 6.283); fx.fill();
       fx.globalAlpha *= 0.5; fx.strokeStyle = '#5a6a78'; fx.lineWidth = 1; fx.beginPath(); fx.ellipse(x - o.r * ppm * 0.2, y - o.r * ppm * 0.2, o.r * ppm * 0.5, o.r * ppm * 0.25, 0.6, 3.6, 5.4); fx.stroke(); }
-    // [m2] fire in the world: each burning 2 m cell a glow and flickering tongues of flame (yellow core, orange edge),
-    // embers lifting off; a fire patch on hard ground (lit oil) the same, rounder
+    fx.globalAlpha = 1;
+    // [atoms] fire in the world: a glow and flickering tongues (yellow core, orange edge), embers lifting off; burning
+    // ground cells one flame each; a burning tree a crown of flame; a house several along its roof, with smoke
     const flame = (x, y, r, k, seed) => { const gr = fx.createRadialGradient(x, y, 0, x, y, r * 1.5); gr.addColorStop(0, `rgba(255,190,80,${0.5 * k})`); gr.addColorStop(1, 'rgba(255,90,30,0)'); fx.fillStyle = gr; fx.beginPath(); fx.arc(x, y, r * 1.5, 0, 6.283); fx.fill();
       for (let q = 0; q < 3; q++) { const ph = performance.now() / 120 + seed * 1.7 + q * 2.1, h = r * (0.9 + 0.5 * Math.sin(ph)), ox = (q - 1) * r * 0.45 + Math.sin(ph * 1.3) * r * 0.1, w = r * 0.32;
         fx.fillStyle = q === 1 ? `rgba(255,214,120,${0.95 * k})` : `rgba(255,120,40,${0.85 * k})`; fx.beginPath(); fx.moveTo(x + ox - w, y + r * 0.2); fx.quadraticCurveTo(x + ox - w * 0.4, y - h * 0.5, x + ox + Math.sin(ph) * w * 0.5, y - h); fx.quadraticCurveTo(x + ox + w * 0.4, y - h * 0.5, x + ox + w, y + r * 0.2); fx.closePath(); fx.fill(); } };
-    if (S.fire) for (const [c, left] of S.fire) { const wx = (c % cw + 0.5) * cell, wy = (Math.floor(c / cw) + 0.5) * cell, [x, y] = toS(wx, wy); if (!on(x, y)) continue;
-      flame(x, y, Math.max(4, ppm * 0.85), Math.min(1, left / 1.2), c); if (Math.random() < 0.08) spark(wx + (Math.random() - 0.5) * cell, wy, -1.57, 1, 1.4, Math.random() < 0.5 ? '#ffb35a' : '#ff6a2a', 0.7, 0.9); }
-    for (const g of S.grounds || []) { if (g.kind === 'fire') { const [x, y] = toS(g.x, g.y); if (!on(x, y)) continue; flame(x, y, Math.max(3, g.r * ppm * 0.55), Math.min(1, g.left / 1.5), g.x + g.y); } }
+    const ember = (wx, wy, spread, p) => { if (Math.random() < p) spark(wx + (Math.random() - 0.5) * spread, wy + (Math.random() - 0.5) * spread, -1.57, 1, 1.4, Math.random() < 0.5 ? '#ffb35a' : '#ff6a2a', 0.7, 0.9); };
+    if (S.cells) for (const [c, st] of S.cells) { if (!st.burn) continue; const wx = (c % cw + 0.5) * cell, wy = (Math.floor(c / cw) + 0.5) * cell, [x, y] = toS(wx, wy); if (!on(x, y)) continue;
+      flame(x, y, Math.max(4, ppm * 0.85), Math.min(1, st.burn / 1.2), c); ember(wx, wy, cell, 0.08); }
+    // [atoms] a gutted house: the roof gone to black rafters over a dark shell, a few embers still glowing in it
+    for (const a of S.atoms || []) { if (a.kind !== 'building' || a.state !== 'done') continue; const [x, y] = toS(a.x, a.y); if (x < -200 || y < -200 || x > W + 200 || y > H + 200) continue; const o = a.obb;
+      fx.save(); fx.translate(x, y); fx.rotate(o.rot || 0); const w = o.w * ppm, h = o.h * ppm; fx.fillStyle = 'rgba(14,12,11,.86)'; fx.fillRect(-w / 2, -h / 2, w, h);
+      fx.strokeStyle = 'rgba(70,58,50,.8)'; fx.lineWidth = Math.max(1, ppm * 0.12); fx.beginPath(); for (let q = 1; q < 6; q++) { const u = -w / 2 + w * q / 6; fx.moveTo(u, -h / 2 + 2); fx.lineTo(u + ((q * 37) % 5 - 2), h / 2 - 2); } fx.moveTo(-w / 2, 0); fx.lineTo(w / 2, 0); fx.stroke();
+      fx.strokeStyle = 'rgba(40,34,30,.95)'; fx.lineWidth = Math.max(1.5, ppm * 0.2); fx.strokeRect(-w / 2, -h / 2, w, h);
+      for (let q = 0; q < 4; q++) { const fl = 0.5 + 0.5 * Math.sin(performance.now() / 400 + a.id * 3 + q * 2); fx.fillStyle = `rgba(255,${90 + 60 * fl},40,${0.35 + 0.4 * fl})`; fx.fillRect(((q * 0.618 + a.id * 0.13) % 1 - 0.5) * w * 0.8, ((q * 0.382 + 0.2) % 1 - 0.5) * h * 0.8, 2, 2); }
+      fx.restore(); }
+    for (const a of S.atoms || []) { if (a.state !== 'burning') continue; const [x, y] = toS(a.x, a.y); if (x < -200 || y < -200 || x > W + 200 || y > H + 200) continue; const k = Math.min(1, a.fuel / 2);
+      if (a.obb) { const o = a.obb, c = Math.cos(o.rot || 0), sn = Math.sin(o.rot || 0), n = Math.max(2, Math.min(7, Math.round(o.w * o.h / 30)));
+        for (let q = 0; q < n; q++) { const u = ((q * 0.618) % 1 - 0.5) * o.w * 0.8, v = ((q * 0.382 + 0.3) % 1 - 0.5) * o.h * 0.8, wx = o.x + u * c - v * sn, wy = o.y + u * sn + v * c, [fxx, fyy] = toS(wx, wy);
+          flame(fxx, fyy, Math.max(6, ppm * 1.6), k, a.id + q); ember(wx, wy, 2, 0.1); }
+        if (Math.random() < 0.3) spark(a.x + (Math.random() - 0.5) * o.w * 0.6, a.y + (Math.random() - 0.5) * o.h * 0.6, -1.57, 1, 0.8, Math.random() < 0.5 ? '#2a2624' : '#3a3530', 1.6, 3); }
+      else { flame(x, y, Math.max(5, ppm * Math.max(0.7, a.r * 0.9)), k, a.id); ember(a.x, a.y, a.r * 2, 0.12); } }
     // [m2] steam (warm, scalding) and fog (white, wide): soft billows that thin out as the cloud fades
     for (const c of S.clouds || []) { const [x, y] = toS(c.x, c.y); if (!on(x, y)) continue; const k = Math.min(1, c.left / 1.2) * Math.min(1, (c.dur - c.left) / 0.3 + 0.3);
       for (let i = 0; i < 7; i++) { const a = i * 0.9 + c.dur, rr = c.r * ppm * (0.35 + 0.18 * (i % 3)), bx = x + Math.cos(a + c.left * 0.2) * c.r * ppm * 0.45, by = y + Math.sin(a + c.left * 0.2) * c.r * ppm * 0.4;

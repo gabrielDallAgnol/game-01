@@ -20,7 +20,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   holdAim(fireBtn, setFire, 'aim');
   // [m2] the loadout (a test control until the garage): the gun's element, the off-hand's enchant and how often, mods.
   // The game pauses while it is open; changes go through the sim's API (setLoadout)
-  const kitEl = $('loadout'), LO = { el: 'fire', enchant: 'water', every: 2, mods: [] };
+  const kitEl = $('loadout'), LO = { base: 'scatter', el: 'fire', enchant: 'water', every: 2, mods: [] };
   const paintKit = () => { for (const g of kitEl.querySelectorAll('.opts')) { const k = g.dataset.k; for (const b of g.children) b.classList.toggle('on', k === 'mods' ? LO.mods.includes(b.dataset.v) : String(LO[k] ?? '') === b.dataset.v); }
     fireBtn.className = 'pb fire el-' + (LO.el || '') + (input.fire ? ' on' : ''); };
   for (const g of kitEl.querySelectorAll('.opts')) for (const b of g.children) b.addEventListener('click', () => { const k = g.dataset.k, v = b.dataset.v;
@@ -53,7 +53,8 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   const met = new Set(['crawler']);
   function meet() { const k = S.kai; for (const d of S.dead) if (!met.has(d.kind) && d.state === 'chase' && Math.hypot(d.x - k.x, d.y - k.y) < 20 && MACHINES[d.kind]) { met.add(d.kind); toast(`${MACHINES[d.kind].name}: ${MACHINES[d.kind].desc}`); } }
   let huntN = 0;
-  function onEvents(evs) { for (const e of evs) { if (e.type === 'hunt') { huntN++; if (huntN === 1) toast('The shots carry. A pack is coming.', true); else if (huntN % 4 === 0) toast('Another pack heard you.'); } else if (e.type === 'nestDown') toast(S.nestsLeft ? `A nest burns out. ${S.nestsLeft} left.` : 'The last nest burns out.', true); else if (WORDS[e.type]) toast(...WORDS[e.type]); } }
+  let burnTold = false, blastTold = false;
+  function onEvents(evs) { for (const e of evs) { if (e.type === 'scorch' && !burnTold) { burnTold = true; toast('Fire burns you too. Get out of it.', true); } else if (e.type === 'blast' && e.r > 4 && !blastTold) { blastTold = true; toast('Cars blow when they burn.'); } if (e.type === 'hunt') { huntN++; if (huntN === 1) toast('The shots carry. A pack is coming.', true); else if (huntN % 4 === 0) toast('Another pack heard you.'); } else if (e.type === 'nestDown') toast(S.nestsLeft ? `A nest burns out. ${S.nestsLeft} left.` : 'The last nest burns out.', true); else if (WORDS[e.type]) toast(...WORDS[e.type]); } }
   // ---------- each frame ----------
   let last = '';
   function update(evs) {

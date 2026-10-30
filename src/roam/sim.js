@@ -11,9 +11,10 @@ import { createGuns } from './sim/guns.js';
 import { createBolts } from './sim/bolts.js';
 import { createHunts } from './sim/hunts.js';
 import { createChem } from './sim/chem.js';
+import { createWorld } from './sim/world.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createNests, createVehicle, createKai, createGuns, createBolts, createHunts, createChem];
+const MODULES = [createFoes, createNests, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
@@ -25,9 +26,13 @@ export const ROAM = {
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)
     bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [24, 46], alarm: 14, catchUp: 1.2, near: 70, far: 110 },
   hunt: { boil: 14, cool: 1.3, perShot: 1, size: [3, 5], nightExtra: 2, twoSides: 0.25 },   // [m1] gunfire heat → hunting packs
-  // [m2] the chemistry in the world: oil, the ground's fire (char → seconds a 2 m cell burns), wet ground
-  chem: { stainR: 1.3, slick: 0.45, slickR: [1.1, 1.7], slickLife: 40, fireGrow: 0.8, fireTime: 6, catchOnLand: 0.35, wetShot: 9, groundGap: 0.9,
-    burn: { '"': 3.5, ',': 3, m: 4, w: 5, b: 5, r: 4, s: 2.5, f: 5, T: 9 }, spread: 0.3, downwind: 1.9, upwind: 0.35, spreadEvery: 0.4, maxFire: 700 },
+  // [m2] elements on machines (pips, clouds, oil they leak)
+  chem: { slick: 0.45, slickR: [1.1, 1.7], slickLife: 40, groundGap: 0.9 },
+  // [atoms] the atom world (docs/design/atomic-engineering.md): heat and water between atoms; numbers per material live in
+  // src/play/materials.js. tick: how often heat moves; simR: fires further than this from Kai wait; boil: water a unit of
+  // heat boils off; cool: heat lost per second; downwind/upwind: the wind's push; fireHeat/blastHeat: what a delivered
+  // fire or a plain explosion puts in; kaiBurn/kaiBlast: how much fire and blasts hurt Kai
+  atoms: { tick: 0.25, simR: 140, maxBurn: 650, boil: 0.9, cool: 0.18, downwind: 0.9, upwind: 0.3, wind: { x: 0.731, y: 0.682 }, fireHeat: 2.6, blastHeat: 1.2, stainR: 1.3, wetShow: 14, kaiBurn: 1, kaiBlast: 0.7 },
   nest: { hp: 120, guards: 7, every: 7, nightEvery: 3.5 },
 };
 
@@ -49,11 +54,11 @@ export function createRoam(town, seed = 1) {
     G.view = Math.min(160, inp.view || 0);
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepNests(dt); G.stepHunts(dt); G.stepChem(dt);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepNests(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();
   const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
   const debug = { spawn: (kind, x, y, o) => G.spawn(kind, x, y, o) };   // for tests, labs and screenshots
-  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }

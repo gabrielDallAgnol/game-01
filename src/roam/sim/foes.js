@@ -33,7 +33,9 @@ export function createFoes(G) {
   // and the noise sets the others near it on you too: shooting into a group brings the group
   function hurtFoe(d, n, src) { d.hp -= n; d.hit = S.t; if (d.state !== 'chase') { d.state = 'chase'; for (const o of S.dead) if (o.state !== 'chase' && dist(o, d) < R.dead.alarm) o.state = 'chase'; } if (d.hp <= 0) kill(d, src); }
   // steer round walls: try the straight line, then fan out to its side
-  function steer(d, dx, dy) { for (const a of [0, 0.5, 1, 1.5, 2.1]) { const t = Math.atan2(dy, dx) + a * d.side, ax = Math.cos(t), ay = Math.sin(t); if (!blocked(d.x + ax * 1.1, d.y + ay * 1.1)) return [ax, ay]; } return [dx, dy]; }
+  // [atoms] they walk round walls and round fire (unless already standing in it: then any way out will do)
+  const fireAhead = (d, x, y) => G.hot && !G.hot(d.x, d.y) && G.hot(x, y);
+  function steer(d, dx, dy) { for (const a of [0, 0.5, 1, 1.5, 2.1, -0.5, -1, -1.5, -2.1]) { const t = Math.atan2(dy, dx) + a * d.side, ax = Math.cos(t), ay = Math.sin(t); if (!blocked(d.x + ax * 1.1, d.y + ay * 1.1) && !fireAhead(d, d.x + ax * 1.8, d.y + ay * 1.8)) return [ax, ay]; } return [dx, dy]; }
   function stepFoes(dt) {
     const k = S.kai, sense0 = R.dead.sense[S.night ? 1 : 0] * (k.riding ? 1.3 : 1);   // the engine is loud
     for (const d of S.dead) {
