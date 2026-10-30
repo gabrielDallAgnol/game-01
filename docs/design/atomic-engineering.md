@@ -129,8 +129,16 @@ So a scatter gun with a fire modifier burns machines but never lights the grass.
 
 ---
 
-## 9. Open questions
-1. **Can Kai's own fire hurt her and the bike?** Far Cry 2 players found being caught in their own fires part of the fun. Current rule: immune.
-2. **Houses:** stone for now, or should some (timber barns, sheds) burn?
-3. **First splash and stream weapons for testing:** a bazooka (fire or water splash) and a flamethrower/hose as test loadout options?
-4. **Rain:** a later layer, or soon (it would put fires out and soak the world)?
+## 9. Decisions (Oct 30)
+1. **Fire hurts Kai, on the bike or off it** (Gabriel). Each material has `hurts` (per second while standing in it); a car blast hurts her by distance. First time: a toast, "Fire burns you too."
+2. **Houses, cars and trees burn** (Gabriel: "it would make the players less shooting everything all the time"). Houses: `building` (slow to catch, burn ~45 s, leave a gutted shell). Cars, pumps, tractors: `fuelTank` (never catch: heat up, blow, the wreck burns ~9 s). Trees leave a stump with no crown.
+3. **Test weapons in KIT:** `launcher` (splash: a rocket that bursts, r 2.6) and `thrower` (stream: short spray; fire by default, water hoses). The scatter gun's pellets never touch the world.
+4. **Rain:** later.
+
+## 10. As built (M2c)
+- **Heat moves on a tick** (`ROAM.atoms.tick`, 0.25 s), only within `simR` (140 m) of Kai; far fires wait. At most `maxBurn` burning things at once.
+- **Placed atoms** live in a list on an 8 m grid; a house is measured by its footprint (rotated box), others by a circle. Only atoms that are warm, wet, burning or slick are touched each tick (the `live` set), so 11 000 atoms cost nothing at rest.
+- **Ground cells** keep sparse state (a Map of hot, wet or burning cells over the char map); a burnt cell is char for good.
+- **Machines** take fire pips while standing in fire, lose them on wet ground, and steer round fire unless already in it.
+- **Tuning** found by headless runs: a dry field's fire front moves about 2 m/s downwind and barely upwind; a hedgerow carries it, slower than before; a terrace of houses goes one house every ~5 s. Numbers live in `materials.js` and `ROAM.atoms`.
+- **Tests:** `test/atoms-world.test.mjs` (materials complete, downwind beats upwind, soaked ground won't catch, a fence burns away, a car blows once, a fire pellet leaves the ground untouched).
