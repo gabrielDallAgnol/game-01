@@ -5,6 +5,7 @@ import { buildTown } from './town.js';
 import { createRoam, ROAM } from './sim.js';
 import { createLook } from './look.js';
 import { createUi } from './ui.js';
+import { createLootUi } from './lootui.js';
 import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
 import { createFeel } from './feel.js';
 import { createScars } from './scars.js';
@@ -31,6 +32,7 @@ function start() {
   const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
+  const lootUi = createLootUi({ sim, toast: ui.toast });   // [m3] counters and the quick swap
   const feel = createFeel({ S, input, town }), scars = createScars({ tiles: town.tiles, town });   // [m2] burnt and soaked ground   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
@@ -123,13 +125,13 @@ function start() {
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules
     for (const i of town.dress.live) { if (Math.abs(i.x - cam.x) > 90 || Math.abs(i.y - cam.y) > 120) continue; if (!i.st) i.atom.live.init(i); i.atom.live.step(i, dt, { kai: R.kai, t, night, WIND: { x: 0.731, y: 0.682 }, town }); }
-    try { look.draw(fx, { lightAt, broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 } }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
+    try { look.draw(fx, { lightAt, broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 }, drops: S.drops }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
     for (const o of R.dead) if (o.fa !== undefined) faMap.set(o.id, o.fa); if (faMap.size > 4 * S.dead.length + 50) faMap.clear();   // the dead keep facing where they last walked
     dustOf(R.kai, dt); drawPlumes(fx, toS, view.ppm, dt, { x: 0.731, y: 0.682 }, night, cssW, cssH, lightAt);
     throwChaff(R.kai, dt); drawChaff(dt);
     feel.draw(fx, toS, view.ppm, dt, R, lightAt, cssW, cssH);   // [m1] pellets, muzzle flash, sparks, bursts
     shook();
-    ui.arrows(toS, cssW, cssH); ui.update(evs);
+    ui.arrows(toS, cssW, cssH); ui.update(evs); lootUi.update(evs);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

@@ -57,6 +57,14 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 
 **Play it:** Do you turn back for a yellow beam? Does double shot + fire feel like a power spike? Is picking things up a jackpot or a chore?
 
+**As built (Oct 30, `play/m3-loot`):**
+- `src/play/loot.js`: rarities (common 0 slots, tuned 1 blue, rare 2 yellow and unscanned until the lamp reaches it, epic 3 violet), the modifier pool (double shot, faster, ricochet, fire, water; one element at most), the base pool (scatter; launcher and thrower rarer), drops per machine (scrap pieces, weapon chance, rarity weights), salvage values.
+- `src/roam/sim/loot.js`: drops on death and on a nest breaking (chips plus a tuned-or-better weapon); the lamp pulls scrap in (4 m, 5.5 m on the bike) and banks it; quick swap: equip leaves your old weapon on the ground; salvage pays scrap (and chips for rare+).
+- Ricochet: pellets glance off walls and jump to the next machine within 7 m.
+- Look: scrap is bent bits of steel in the glyph medium; a weapon is a small case with a plate in its rarity's paint and a lamp; its light is a point and a soft halo in the rarity colour (the machines' eye idiom), a pale flicker while unscanned. HUD: scrap ⚙ and chips ◆ counters; the swap card above the pad.
+- KIT: the element now defaults to the weapon's own; KIT mods are extra test mods on top of the weapon's.
+- Not yet: sounds (there is no audio yet), auto-salvage setting, the death cache (M5), the lamp part (M6).
+
 ## M4. Clear an area (the goal) · about 1 week
 **Why fourth:** gives a fight a purpose and an ending.
 

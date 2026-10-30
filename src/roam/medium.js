@@ -9,6 +9,7 @@
 // Lab code: it reads the lab's little scene and draws it; nothing here reaches the game yet.
 /* global THREE */
 import { MACHINES } from '../play/machines.js';
+import { RARITY } from '../play/loot.js';
 import { M, MATCOL } from './dress/mats.js';
 import { gardenLook } from './garden-look.js';
 import { landLook } from './world/land.js';
@@ -411,6 +412,13 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), D.metal ? (i % 2 ? M.dark : M.rust) : M.stone); } }   // [m1] a machine falls apart into steel and rust
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
     for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); if (MLOOK[d.kind]) machineVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); else deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
+    // [m3] loot on the ground: scrap is a few bent bits of steel and rust; a weapon is a small dark case with a plate in
+    // its rarity's paint and a lamp on it (the light itself is drawn in draw(), like the machines' eyes)
+    const RMAT = { common: M.steel, tuned: M.carBlue, rare: M.paint, epic: M.carRed };
+    for (const d of v.drops || []) { if (!on(d.x, d.y)) continue; const a = (d.id * 2.39) % 6.283;
+      if (d.kind === 'scrap') { box(d.x, d.y, 0.05, 0.11, 0.05, 0.04, 0.02, a, d.id % 2 ? M.steel : M.rust); box(d.x + Math.cos(a) * 0.12, d.y + Math.sin(a) * 0.12, 0.04, 0.06, 0.04, 0.035, 0.015, a * 1.7, M.dark); }
+      else { const bob = 0.03 * Math.sin(t * 2 + d.id); box(d.x, d.y, 0.26 + bob, 0.5, 0.28, 0.18, 0.06, a, M.dark); box(d.x, d.y, 0.46 + bob, 0.4, 0.19, 0.03, 0.03, a, RMAT[d.w.rarity] || M.steel);
+        sphere(d.x + Math.cos(a) * 0.3, d.y + Math.sin(a) * 0.3, 0.52 + bob, 0.07, M.lamp, d.scanned ? 0.9 : 0.3 + 0.3 * Math.sin(t * 7 + d.id)); } }
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
     for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;
@@ -481,6 +489,15 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
         for (const o of sep ? [-sep, sep] : [0]) { const ex = x - Math.sin(a) * o, ey = y + Math.cos(a) * o;
           fx.globalAlpha = 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5 * grow, 0, 6.283); fx.fill();   // the halo
           fx.globalAlpha = Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6 * grow, 0, 6.283); fx.fill(); } }   // the point
+      fx.restore(); fx.globalAlpha = 1; }
+    // [m3] a dropped weapon's light: a point and a soft halo in its rarity's colour that breathes slowly, brighter the rarer
+    // (the "beam", seen from above); unscanned, a pale flicker until the lamp reaches it
+    { fx.save(); fx.globalCompositeOperation = 'lighter'; const grow = Math.max(1, Math.min(2, cam.ppm / 12));
+      for (const d of v.drops || []) { if (d.kind !== 'weapon') continue; const [x, y] = toS(d.x, d.y); if (x < -40 || y < -40 || x > cssW + 40 || y > cssH + 40) continue;
+        const Rr = RARITY[d.w.rarity], col = d.scanned ? Rr.color : '#e8e4da', br = d.scanned ? Rr.glow * (0.8 + 0.2 * Math.sin(t * 2.2 + d.id)) : 0.35 + 0.25 * Math.sin(t * 9 + d.id);
+        fx.fillStyle = col; fx.globalAlpha = 0.18 * br; fx.beginPath(); fx.arc(x, y, 14 * grow * (0.6 + br * 0.6), 0, 6.283); fx.fill();
+        fx.globalAlpha = 0.45 * br; fx.beginPath(); fx.arc(x, y, 5 * grow, 0, 6.283); fx.fill();
+        fx.globalAlpha = Math.min(1, br * 1.3); fx.beginPath(); fx.arc(x, y, 1.8 * grow, 0, 6.283); fx.fill(); }
       fx.restore(); fx.globalAlpha = 1; }
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;

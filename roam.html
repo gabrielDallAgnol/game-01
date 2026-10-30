@@ -59,6 +59,13 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #loadout .hint{margin:0;color:#cfc8b8;font-weight:500;line-height:1.5}
 #kitDone{justify-self:end;font:700 14px var(--mono);background:var(--amber);color:#1a1206;border:0;border-radius:10px;padding:10px 20px;cursor:pointer}
 .pb.fire.el-water{background:#3f86b8;color:#eef7ff}.pb.fire.el-{background:#c9c2b2}
+/* [m3] loot: the counters under the HUD; the quick swap above the pad */
+#loot{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:calc(52px + env(safe-area-inset-top,0px));display:flex;gap:10px;font:700 12px var(--mono);color:#e9e2cf;pointer-events:none;background:var(--panel);border-radius:9px;padding:5px 9px}
+#loot span{display:inline-block}#loot .bump{animation:bump .35s ease-out}@keyframes bump{0%{transform:scale(1.35);color:#ffd36a}100%{transform:scale(1)}}
+#swap{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(238px + env(safe-area-inset-bottom,0px));width:min(360px,calc(100vw - 24px));background:rgba(12,13,15,.92);border:2px solid #bdb6a6;border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font:600 12px/1.35 var(--mono);color:#ece6d6}
+#swap .lab{font-size:10px;color:var(--dim);letter-spacing:.08em}#swap small{display:block;color:#bfb8a6;font-weight:500}
+#swap .row2{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
+#swap button{border:0;border-radius:9px;padding:9px 12px;font:700 12px var(--mono);cursor:pointer}#equip{background:var(--amber);color:#1a1206}#salvage{background:rgba(255,255,255,.12);color:#ece6d6}
 #fps{position:fixed;left:max(10px,env(safe-area-inset-left,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font:600 10px var(--mono);color:rgba(242,238,226,.55);pointer-events:none}
 #err{position:fixed;inset:auto 12px 50% 12px;background:#3a0d12;color:#ffd9dd;padding:12px;border-radius:10px}
 </style>
@@ -73,6 +80,10 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <button class="chip" id="kit" aria-label="Loadout: the gun's element, the off-hand enchant, modifiers">KIT</button>
   <button class="chip" id="speed" aria-label="Clock speed: 1x. Tap to make the day pass faster">1×</button>
 </div>
+<div id="loot" hidden><span>⚙ <span id="scrap">0</span></span><span>◆ <span id="chips">0</span></span></div>
+<!-- [m3] the quick swap: a dropped weapon beside yours -->
+<div id="swap" hidden><div><div class="lab">ON THE GROUND</div><div class="new"></div></div><div><div class="lab">YOURS</div><div class="have"></div></div>
+  <div class="row2"><button id="salvage">SALVAGE</button><button id="equip">EQUIP</button></div></div>
 <div id="toasts"></div>
 <div id="fps" aria-hidden="true"></div>
 <div id="btns">
@@ -101,10 +112,10 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <div class="card">
     <h2>Loadout</h2>
     <div class="row"><span>Weapon</span><div class="opts" data-k="base"><button data-v="scatter">scatter</button><button data-v="launcher">launcher</button><button data-v="thrower">thrower</button></div></div>
-    <div class="row"><span>Element</span><div class="opts" data-k="el"><button data-v="">plain</button><button data-v="fire">fire</button><button data-v="water">water</button></div></div>
+    <div class="row"><span>Element</span><div class="opts" data-k="el"><button data-v="">weapon's</button><button data-v="fire">fire</button><button data-v="water">water</button></div></div>
     <div class="row"><span>Off-hand enchant</span><div class="opts" data-k="enchant"><button data-v="">none</button><button data-v="fire">fire</button><button data-v="water">water</button></div></div>
     <div class="row"><span>Enchant every</span><div class="opts" data-k="every"><button data-v="2">2nd shot</button><button data-v="3">3rd shot</button></div></div>
-    <div class="row"><span>Mods</span><div class="opts multi" data-k="mods"><button data-v="double_shot">double shot</button><button data-v="faster">faster</button></div></div>
+    <div class="row"><span>Mods</span><div class="opts multi" data-k="mods"><button data-v="double_shot">double shot</button><button data-v="faster">faster</button><button data-v="ricochet">ricochet</button></div></div>
     <p class="hint">Three pips on a machine set off their mix: fire×3 blaze · water×3 soak · 2 fire + 1 water scald · 2 water + 1 fire fog. Scatter pellets only hit machines. A launcher's rocket bursts on everything near it; a thrower paints its element on whatever it reaches. Fire lights grass, hedges, trees, houses, and cars blow. It burns you too; water puts it out.</p>
     <button id="kitDone">Ride</button>
   </div>

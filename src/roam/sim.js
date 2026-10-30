@@ -12,16 +12,17 @@ import { createBolts } from './sim/bolts.js';
 import { createHunts } from './sim/hunts.js';
 import { createChem } from './sim/chem.js';
 import { createWorld } from './sim/world.js';
+import { createLoot } from './sim/loot.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createNests, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem];
+const MODULES = [createFoes, createNests, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
   kai: { hp: 100, speed: 4.4, reach: 1.8, dmg: 1.6, swing: 0.42, regen: 1.5, regenAfter: 6, respawn: 3 },   // [m1] slow regen: a hit costs you
   dash: { dist: 4.2, time: 0.22, cd: 1.2 },
   bike: { top: 14, accel: 9, brake: 14, turn: 2.6, ram: 6, ramDmg: 4, enter: 2.6 },
-  gun: { hitR: 0.6, heartR: 1.6, push: 2.2, noise: 30 },
+  gun: { hitR: 0.6, heartR: 1.6, push: 2.2, noise: 30, jump: 7 },
   // the machines (code id `dead` kept from the Roam prototype; caps 42/75 > 24/46 after Gabriel's playtest: too crowded): the crawler is M1's one machine
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)
     bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [24, 46], alarm: 14, catchUp: 1.2, near: 70, far: 110 },
@@ -33,6 +34,9 @@ export const ROAM = {
   // heat boils off; cool: heat lost per second; downwind/upwind: the wind's push; fireHeat/blastHeat: what a delivered
   // fire or a plain explosion puts in; kaiBurn/kaiBlast: how much fire and blasts hurt Kai
   atoms: { tick: 0.25, simR: 140, maxBurn: 650, boil: 0.9, cool: 0.18, downwind: 0.9, upwind: 0.3, wind: { x: 0.731, y: 0.682 }, fireHeat: 2.6, blastHeat: 1.2, stainR: 1.3, wetShow: 14, kaiBurn: 1, kaiBlast: 0.7, hardWet: 12 },
+  // [m3] loot: the lamp pulls scrap in within pull (more on the bike), it's banked within grab; a weapon is offered within
+  // offer metres; rare drops scan within scan; scrap left lying scrapLife seconds goes; at most max drops on the ground
+  loot: { pull: 4, pullRide: 5.5, grab: 0.7, slide: 9, offer: 2.4, scan: 9, scrapLife: 90, max: 220 },
   nest: { hp: 120, guards: 7, every: 7, nightEvery: 3.5 },
 };
 
@@ -54,11 +58,11 @@ export function createRoam(town, seed = 1) {
     G.view = Math.min(160, inp.view || 0);
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepNests(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepNests(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();
   const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
   const debug = { spawn: (kind, x, y, o) => G.spawn(kind, x, y, o) };   // for tests, labs and screenshots
-  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), equip: id => G.equip(id), salvage: id => G.salvage(id), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }
