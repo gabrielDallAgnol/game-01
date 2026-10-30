@@ -6,7 +6,7 @@
 export const MACHINES = {
   crawler: { ai: 'melee', hp: 8, speed: 2.3, dmg: 6, tags: ['metal', 'chipped', 'light'], look: 'crawler', color: '#e8553a', weight: [0.42, 0.3],
     name: 'Crawler', desc: 'Scuttles after you and latches on when you slow down.', why: 'The baseline: teaches "keep moving".' },
-  skitter: { ai: 'melee', hp: 2.4, speed: 5.4, dmg: 3, windup: 0.18, pack: [3, 5], tags: ['metal', 'chipped', 'light'], look: 'skitter', color: '#d6a34a', weight: [0.22, 0.22],
+  skitter: { ai: 'melee', hp: 2.4, speed: 5.4, dmg: 3, windup: 0.18, pack: [2, 4], tags: ['metal', 'chipped', 'light'], look: 'skitter', color: '#d6a34a', weight: [0.22, 0.22],
     name: 'Skitter', desc: 'Small and fast, comes in packs. Weak alone, a swarm hurts.', why: 'Catches a bike that cruises slowly; rewards spread shots and rams.' },
   hound: { ai: 'hound', hp: 9, speed: 4.4, dmg: 8, sense: 2.2, forget: 70, lunge: { range: 7, speed: 13, time: 0.32, cd: 2.6 }, tags: ['metal', 'chipped'], look: 'hound', color: '#a98bd6', weight: [0.13, 0.2],
     name: 'Hound', desc: 'Picks up your trail from far away and never lets go. Lunges when close.', why: 'Breaks "shoot from far away and forget": it follows you across the map.' },

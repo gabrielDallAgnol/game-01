@@ -19,11 +19,11 @@ export const ROAM = {
   kai: { hp: 100, speed: 4.4, reach: 1.8, dmg: 1.6, swing: 0.42, regen: 1.5, regenAfter: 6, respawn: 3 },   // [m1] slow regen: a hit costs you
   dash: { dist: 4.2, time: 0.22, cd: 1.2 },
   bike: { top: 14, accel: 9, brake: 14, turn: 2.6, ram: 6, ramDmg: 4, enter: 2.6 },
-  gun: { hitR: 0.6, heartR: 1.6, push: 2.2, noise: 40 },
-  // the machines (code id `dead` kept from the Roam prototype): the crawler is M1's one machine
+  gun: { hitR: 0.6, heartR: 1.6, push: 2.2, noise: 30 },
+  // the machines (code id `dead` kept from the Roam prototype; caps 42/75 > 24/46 after Gabriel's playtest: too crowded): the crawler is M1's one machine
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)
-    bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [42, 75], alarm: 16, catchUp: 1.2, near: 70, far: 110 },
-  hunt: { boil: 10, cool: 1.1, perShot: 1, size: [4, 6], nightExtra: 2, twoSides: 0.35 },   // [m1] gunfire heat → hunting packs
+    bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [24, 46], alarm: 14, catchUp: 1.2, near: 70, far: 110 },
+  hunt: { boil: 14, cool: 1.3, perShot: 1, size: [3, 5], nightExtra: 2, twoSides: 0.25 },   // [m1] gunfire heat → hunting packs
   nest: { hp: 120, guards: 7, every: 7, nightEvery: 3.5 },
 };
 

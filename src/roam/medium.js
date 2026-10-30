@@ -414,6 +414,17 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     // ---------- zoomed out: each thing becomes one letter on a dark plate, a fixed size on screen (the roguelike map) ----------
     // far 0 at the close camera, 1 when a figure would be a couple of cells. Amber rings are yours, ember red is the dead.
     const far = Math.max(0, Math.min(1, (11 - cam.ppm) / 4));
+    // [read] the machines' eyes, at every zoom (the one marker they have: close up it sits on the model's chip eye, far away
+    // it is all you see of them, so pulling the camera back and forth is seamless). A tiny point of light with a soft neon
+    // glow in the kind's hue; a brute shows two, a spitter's flares while it aims; asleep, barely a glimmer
+    { fx.save(); fx.globalCompositeOperation = 'lighter'; const grow = Math.max(1, Math.min(1.8, cam.ppm / 14));
+      for (const d of dead) { const L = MLOOK[d.kind]; if (!L) continue; const fwd = (L.shell[0] + 0.07) * L.S * FIGM, a = d.fa || 0, [x, y] = toS(d.x + Math.cos(a) * fwd, d.y + Math.sin(a) * fwd);
+        if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; const K = MACHINES[d.kind], asleep = d.state === 'sleep', hit = t - d.hit < 0.1;
+        const glow = (asleep ? 0.25 : 0.85 + 0.15 * Math.sin(t * 6 + d.id)) * (d.aim > 0 ? 1.6 : 1) * (0.75 + 0.35 * night), col = hit ? '#ffffff' : K.color, sep = d.kind === 'brute' ? 2.2 * grow : 0;
+        for (const o of sep ? [-sep, sep] : [0]) { const ex = x - Math.sin(a) * o, ey = y + Math.cos(a) * o;
+          fx.globalAlpha = 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5 * grow, 0, 6.283); fx.fill();   // the halo
+          fx.globalAlpha = Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6 * grow, 0, 6.283); fx.fill(); } }   // the point
+      fx.restore(); fx.globalAlpha = 1; }
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
       const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();
@@ -421,15 +432,6 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       // nests: a red ring with a heart in it while alive, grey once broken; the bike: an amber M when Kai is off it
       for (const nst of nests) { const [x, y] = toS(nst.x, nst.y); if (!onS(x, y)) continue; plate(x, y, 11, nst.alive ? '#ff4a3a' : '#5d5952', nst.alive ? '♥' : '×', nst.alive ? '#ff8a6a' : '#8a857c', 13, far); }
       if (bike && !kai.riding) { const [x, y] = toS(bike.x, bike.y); if (onS(x, y)) plate(x, y, 9, '#f0b44c', 'M', '#f6e7c8', 11, far); }
-      // [read] the machines from far away: only their eyes in the dark. A tiny point of light (bolt-sized) with a soft neon
-      // glow in the kind's hue; a brute shows two, a spitter's flares while it aims; asleep, barely a glimmer
-      fx.save(); fx.globalCompositeOperation = 'lighter';
-      for (const d of dead) { const [x, y] = toS(d.x, d.y); if (!onS(x, y)) continue; const K = MACHINES[d.kind] || { color: '#e8553a' }, asleep = d.state === 'sleep', hit = t - d.hit < 0.1;
-        const glow = (asleep ? 0.25 : 0.85 + 0.15 * Math.sin(t * 6 + d.id)) * (d.aim > 0 ? 1.6 : 1), col = hit ? '#ffffff' : K.color, a = d.fa || 0, eyes = d.kind === 'brute' ? [-2.2, 2.2] : [0];
-        for (const o of eyes) { const ex = x + Math.cos(a) * 1.5 - Math.sin(a) * o, ey = y + Math.sin(a) * 1.5 + Math.cos(a) * o;
-          fx.globalAlpha = far * 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5, 0, 6.283); fx.fill();   // the halo
-          fx.globalAlpha = far * Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6, 0, 6.283); fx.fill(); } }   // the point
-      fx.restore();
       // Kai: an @ on an amber ring, with a tick for where she faces
       // Kai: a hollow ring as wide as her wrench's reach (a dead inside it is in the fight), the @ on a small tag above, a facing tick
       { const [x, y] = toS(kai.x, kai.y), R = Math.max(11, 1.8 * cam.ppm); fx.globalAlpha = far; fx.strokeStyle = 'rgba(10,11,13,.7)'; fx.lineWidth = 4; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke(); fx.strokeStyle = '#f0b44c'; fx.lineWidth = 2; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke();
