@@ -39,9 +39,10 @@ export function createFeel({ S, input }) {
     if (input && input.fire && typeof input.aim === 'number') { const [x, y] = toS(S.kai.x, S.kai.y), [x1, y1] = toS(S.kai.x + Math.cos(input.aim) * 13, S.kai.y + Math.sin(input.aim) * 13);
       fx.strokeStyle = 'rgba(255,214,120,.55)'; fx.lineWidth = 2; fx.setLineDash([4, 7]); fx.beginPath(); fx.moveTo(x, y); fx.lineTo(x1, y1); fx.stroke(); fx.setLineDash([]); }
     // [read] close up: a thin ring on the ground under each awake machine in its kind's hue, so a small or half-hidden one
-    // still reads (and which kind it is); it fades out as the camera pulls back and the symbols take over
+    // still reads (and which kind it is); faint, a hint on the ground, not a UI marker; it fades out as the camera pulls back
+    // and the eye lights take over
     { const close = Math.max(0, Math.min(1, (ppm - 11) / 6)); if (close > 0) for (const d of S.dead) { if (d.state === 'sleep') continue; const K = MACHINES[d.kind]; if (!K) continue; const [x, y] = toS(d.x, d.y); if (!on(x, y)) continue;
-      const r = ppm * (d.kind === 'brute' ? 1.25 : d.kind === 'skitter' ? 0.6 : 0.8); fx.globalAlpha = 0.7 * close; fx.strokeStyle = K.color; fx.lineWidth = Math.max(1.5, ppm * 0.07); fx.beginPath(); fx.ellipse(x, y + ppm * 0.1, r, r * 0.8, 0, 0, 6.283); fx.stroke(); }
+      const r = ppm * (d.kind === 'brute' ? 1.25 : d.kind === 'skitter' ? 0.6 : 0.8); fx.globalAlpha = 0.45 * close; fx.strokeStyle = K.color; fx.lineWidth = Math.max(1, ppm * 0.045); fx.beginPath(); fx.ellipse(x, y + ppm * 0.1, r, r * 0.8, 0, 0, 6.283); fx.stroke(); }
       fx.globalAlpha = 1; }
     // pellets: a bright head and a streak behind it
     fx.lineCap = 'round';

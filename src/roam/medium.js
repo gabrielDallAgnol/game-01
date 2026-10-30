@@ -421,12 +421,15 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       // nests: a red ring with a heart in it while alive, grey once broken; the bike: an amber M when Kai is off it
       for (const nst of nests) { const [x, y] = toS(nst.x, nst.y); if (!onS(x, y)) continue; plate(x, y, 11, nst.alive ? '#ff4a3a' : '#5d5952', nst.alive ? '♥' : '×', nst.alive ? '#ff8a6a' : '#8a857c', 13, far); }
       if (bike && !kai.riding) { const [x, y] = toS(bike.x, bike.y); if (onS(x, y)) plate(x, y, 9, '#f0b44c', 'M', '#f6e7c8', 11, far); }
-      // [read] the machines: one symbol and one hue per kind, dark-edged, no plate (a horde stays a horde): crawler a dot,
-      // skitter a small triangle, hound a chevron pointing where it runs, spitter a target, brute a big square
-      fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.lineJoin = 'round';
-      for (const d of dead) { const [x, y] = toS(d.x, d.y); if (!onS(x, y)) continue; const K = MACHINES[d.kind]; fx.globalAlpha = far * (d.state === 'sleep' ? 0.55 : 1);
-        if (!K) { fx.font = '800 14px "IBM Plex Mono", ui-monospace, monospace'; fx.strokeStyle = 'rgba(8,8,10,.9)'; fx.lineWidth = 4; fx.strokeText('&', x, y); fx.fillStyle = '#e8553a'; fx.fillText('&', x, y); continue; }
-        machineIcon(fx, x, y, K.icon, t - d.hit < 0.1 ? '#ffffff' : K.color, d.fa || 0); }
+      // [read] the machines from far away: only their eyes in the dark. A tiny point of light (bolt-sized) with a soft neon
+      // glow in the kind's hue; a brute shows two, a spitter's flares while it aims; asleep, barely a glimmer
+      fx.save(); fx.globalCompositeOperation = 'lighter';
+      for (const d of dead) { const [x, y] = toS(d.x, d.y); if (!onS(x, y)) continue; const K = MACHINES[d.kind] || { color: '#e8553a' }, asleep = d.state === 'sleep', hit = t - d.hit < 0.1;
+        const glow = (asleep ? 0.25 : 0.85 + 0.15 * Math.sin(t * 6 + d.id)) * (d.aim > 0 ? 1.6 : 1), col = hit ? '#ffffff' : K.color, a = d.fa || 0, eyes = d.kind === 'brute' ? [-2.2, 2.2] : [0];
+        for (const o of eyes) { const ex = x + Math.cos(a) * 1.5 - Math.sin(a) * o, ey = y + Math.sin(a) * 1.5 + Math.cos(a) * o;
+          fx.globalAlpha = far * 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5, 0, 6.283); fx.fill();   // the halo
+          fx.globalAlpha = far * Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6, 0, 6.283); fx.fill(); } }   // the point
+      fx.restore();
       // Kai: an @ on an amber ring, with a tick for where she faces
       // Kai: a hollow ring as wide as her wrench's reach (a dead inside it is in the fight), the @ on a small tag above, a facing tick
       { const [x, y] = toS(kai.x, kai.y), R = Math.max(11, 1.8 * cam.ppm); fx.globalAlpha = far; fx.strokeStyle = 'rgba(10,11,13,.7)'; fx.lineWidth = 4; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke(); fx.strokeStyle = '#f0b44c'; fx.lineWidth = 2; fx.beginPath(); fx.arc(x, y, R, 0, 7); fx.stroke();
@@ -436,17 +439,4 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     }
   }
   return { material, render, draw };
-}
-// [read] a machine's symbol at (x, y) on the overlay: a dark edge first, then the kind's hue (also used by the close-up rings)
-export function machineIcon(fx, x, y, icon, col, ang = 0) {
-  fx.save(); fx.translate(x, y); fx.scale(1.35, 1.35); fx.translate(-x, -y);   // a touch bigger than a letter: it must read on a phone
-  fx.beginPath();
-  if (icon === 'dot') fx.arc(x, y, 5, 0, 6.283);
-  else if (icon === 'tri') { fx.moveTo(x, y - 5); fx.lineTo(x + 4.5, y + 3.5); fx.lineTo(x - 4.5, y + 3.5); fx.closePath(); }
-  else if (icon === 'chevron') { const c = Math.cos(ang), s = Math.sin(ang), P = (u, v) => [x + u * c - v * s, y + u * s + v * c]; fx.moveTo(...P(7, 0)); fx.lineTo(...P(-5, 5.5)); fx.lineTo(...P(-2, 0)); fx.lineTo(...P(-5, -5.5)); fx.closePath(); }
-  else if (icon === 'target') { fx.arc(x, y, 6, 0, 6.283); fx.moveTo(x + 2.2, y); fx.arc(x, y, 2.2, 0, 6.283); }
-  else if (icon === 'square') fx.rect(x - 7.5, y - 7.5, 15, 15);
-  fx.strokeStyle = 'rgba(8,8,10,.9)'; fx.lineWidth = 4; fx.stroke();
-  if (icon === 'target') { fx.strokeStyle = col; fx.lineWidth = 2.2; fx.stroke(); } else { fx.fillStyle = col; fx.fill(); }
-  fx.restore();
 }
