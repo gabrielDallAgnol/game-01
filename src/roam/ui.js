@@ -50,8 +50,8 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   /** arrows at the screen's edge: the nearest live nest (ember) and the bike when Kai is off it and it is out of view */
   function arrows(toS, cssW, cssH) {
     const k = S.kai; let nest = null, nd = 1e9; for (const n of S.nests) if (n.alive) { const d = Math.hypot(n.x - k.x, n.y - k.y); if (d < nd) { nd = d; nest = n; } }
-    const one = (x, y, col, label) => { const [sx, sy] = toS(x, y), m = 30; if (sx > m && sy > 70 && sx < cssW - m && sy < cssH - 240) return;   // [m1] clear of the combat pad
-      const cx = cssW / 2, cy = cssH / 2, a = Math.atan2(sy - cy, sx - cx), t = Math.min(Math.abs((cssW / 2 - m) / (Math.cos(a) || 1e-6)), Math.abs((cssH / 2 - (Math.sin(a) > 0 ? 170 : 90)) / (Math.sin(a) || 1e-6))), ex = cx + Math.cos(a) * t, ey = cy + Math.sin(a) * t;
+    const one = (x, y, col, label) => { const [sx, sy] = toS(x, y), m = 30; if (sx > m && sy > 70 && sx < cssW - m && sy < cssH - 260) return;   // [m1] clear of the combat pad
+      const cx = cssW / 2, cy = cssH / 2, a = Math.atan2(sy - cy, sx - cx), t = Math.min(Math.abs((cssW / 2 - m) / (Math.cos(a) || 1e-6)), Math.abs((cssH / 2 - (Math.sin(a) > 0 ? 250 : 90)) / (Math.sin(a) || 1e-6))), ex = cx + Math.cos(a) * t, ey = cy + Math.sin(a) * t;
       fx.save(); fx.translate(ex, ey); fx.rotate(a); fx.fillStyle = col; fx.strokeStyle = 'rgba(8,8,10,.8)'; fx.lineWidth = 3; fx.beginPath(); fx.moveTo(12, 0); fx.lineTo(-6, -9); fx.lineTo(-2, 0); fx.lineTo(-6, 9); fx.closePath(); fx.stroke(); fx.fill(); fx.restore();
       fx.font = '700 11px "IBM Plex Mono", ui-monospace, monospace'; fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.lineWidth = 3; fx.strokeText(label, ex - Math.cos(a) * 24, ey - Math.sin(a) * 18); fx.fillText(label, ex - Math.cos(a) * 24, ey - Math.sin(a) * 18); };
     if (nest) one(nest.x, nest.y, '#ff5a3a', `${Math.round(nd)}m`);
