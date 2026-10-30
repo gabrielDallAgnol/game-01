@@ -6,6 +6,7 @@ import { createRoam, ROAM } from './sim.js';
 import { createLook } from './look.js';
 import { createUi } from './ui.js';
 import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
+import { createFeel } from './feel.js';
 
 const $ = id => document.getElementById(id);
 try { start(); } catch (e) { console.error(e); const el = $('err'); el.hidden = false; el.textContent = 'The game could not start: ' + (e && e.message || e); }
@@ -26,9 +27,10 @@ function start() {
   const qs = new URLSearchParams(location.search), seed = +(qs.get('seed') || 1);
   const town = buildTown(7), sim = createRoam(town, seed), S = sim.state;
   const glc = $('gl'), fxc = $('fx'), fx = fxc.getContext('2d'), look = createLook(glc, town);
-  const input = { x: 0, y: 0, ride: false, dash: false };
+  const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
+  const feel = createFeel({ S });   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
   const fpsEl = $('fps'), fixedRes = !!qs.get('fixedres');
@@ -99,11 +101,12 @@ function start() {
     else if (fastT > fastNeed && scale < 1) { scale = Math.min(1, scale + 0.15); fastT = 0; resize(); }
     if (fpsT > 0.5) { fpsEl.textContent = `${Math.round(fpsN / fpsT)} fps · ${Math.round(scale * 100)}%`; fpsT = 0; fpsN = 0; }
     input.view = Math.hypot(cssW, cssH) / 2 / cam.ppm;   // what the player can see, for the dead to appear out of it
-    if (running) { acc += dt; while (acc >= ROAM.step) { snap(); sim.step(input); acc -= ROAM.step; } }
+    if (running && !feel.frozen(dt)) { acc += dt; while (acc >= ROAM.step) { snap(); sim.step(input); acc -= ROAM.step; } }   // [m1] a hitstop holds the rules for a few frames
     const R = between(running ? acc / ROAM.step : 1);
     const evs = sim.drain();
     for (const e of evs) if (e.type === 'smash') falls.push({ x: e.x, y: e.y, fa: e.ang, id: 100000 + e.id, t0: t, prop: true, stamp: true });   // a smashed prop bursts into letters like a fall
-    for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, brute: e.kind === 'brute', stamp: true });
+    for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, brute: e.kind === 'brute', metal: e.kind === 'crawler', stamp: true });
+    feel.events(evs, t);   // [m1] hitstop, shake, sparks, bursts
     while (falls.length && t - falls[0].t0 > 2.2) falls.shift();
     const { night, sun } = skyAt(S.clock); curNight = night;
     // the camera: follows Kai, leads her a little; on the bike it pulls back with the speed so you see what's coming
@@ -112,6 +115,7 @@ function start() {
     // the zoom eases to the pinch's and then holds still exactly (a zoom that never quite settles re-samples every glyph);
     // no pull-back with the bike's speed for the same reason
     { const want = cam.base; cam.ppm += (want - cam.ppm) * Math.min(1, dt * 6); if (Math.abs(want - cam.ppm) < want * 0.004) cam.ppm = want; }
+    const shook = feel.shake(cam, dt);   // [m1] the camera shakes for this frame only
     look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun });
     fx.clearRect(0, 0, cssW, cssH);
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
@@ -121,6 +125,8 @@ function start() {
     for (const o of R.dead) if (o.fa !== undefined) faMap.set(o.id, o.fa); if (faMap.size > 4 * S.dead.length + 50) faMap.clear();   // the dead keep facing where they last walked
     dustOf(R.kai, dt); drawPlumes(fx, toS, view.ppm, dt, { x: 0.731, y: 0.682 }, night, cssW, cssH, lightAt);
     throwChaff(R.kai, dt); drawChaff(dt);
+    feel.draw(fx, toS, view.ppm, dt, R, lightAt, cssW, cssH);   // [m1] pellets, muzzle flash, sparks, bursts
+    shook();
     ui.arrows(toS, cssW, cssH); ui.update(evs);
     requestAnimationFrame(frame);
   }

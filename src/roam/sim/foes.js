@@ -4,7 +4,7 @@ export function createFoes(G) {
   const { R, S, rng, ev, dist, town } = G, { blocked, streetCells } = town;
   let nid = 1;
   function spawn(kind, x, y, o = {}) { const K = R.dead[kind]; const d = { id: nid++, kind, x, y, vx: 0, vy: 0, hp: K.hp, maxHp: K.hp, fa: rng.range(0, 6.28), ph: rng.range(0, 6), side: rng.chance(0.5) ? -1 : 1, state: 'wander', wx: x, wy: y, bite: 0, wind: 0, hit: -9, ...o }; S.dead.push(d); return d; }
-  const kindRoll = () => { const r = rng.float(); return r < (S.night ? 0.12 : 0.06) ? 'brute' : r < (S.night ? 0.32 : 0.2) ? 'flicker' : 'cinder'; };
+  const kindRoll = () => 'crawler';   // M1: one machine (the brute returns as a machine in M3)
   // the street cells on a 32 m grid: a spawn draws from the buckets round Kai, not the whole world (a big world would starve)
   const SB = 32, sbuck = new Map(); for (let i = 0; i < streetCells.length; i += 2) { const k = Math.floor(streetCells[i] / SB) * 4096 + Math.floor(streetCells[i + 1] / SB); if (!sbuck.has(k)) sbuck.set(k, []); sbuck.get(k).push(i); }
   function streetNear(cx, cy, r0, r1) { const near = []; const n = Math.ceil(r1 / SB);
@@ -37,9 +37,10 @@ export function createFoes(G) {
         gx = d.wx; gy = d.wy; sp *= S.night ? 0.6 : 0.4; }
       let dx = gx - d.x, dy = gy - d.y; const gd = Math.hypot(dx, dy) || 1; dx /= gd; dy /= gd;
       let vx = dx, vy = dy;
-      if (d.state === 'chase' && r < R.dead.reach && !k.riding) { vx = 0; vy = 0;   // in reach: wind up, then bite (a dash gets out of it)
+      const reach = k.riding ? R.dead.rideReach : R.dead.reach, fast = k.riding && S.bike.speed > R.bike.ram;   // on the bike: a crawler latches on when you slow down; at speed you outrun or ram it
+      if (d.state === 'chase' && r < reach && !fast) { vx = 0; vy = 0;   // in reach: wind up, then bite (a dash gets out of it)
         if (d.wind <= 0 && d.bite <= 0) d.wind = R.dead.windup;
-        if (d.wind > 0) { d.wind -= dt; if (d.wind <= 0) { d.bite = R.dead.bite; if (dist(d, k) < R.dead.reach + 0.4) G.hurtKai(K.dmg); } } }
+        if (d.wind > 0) { d.wind -= dt; if (d.wind <= 0) { d.bite = R.dead.bite; if (dist(d, k) < reach + 0.4) G.hurtKai(K.dmg); } } }
       else for (const a of [0, 0.5, 1, 1.5, 2.1]) { const t = Math.atan2(dy, dx) + a * d.side, ax = Math.cos(t), ay = Math.sin(t); if (!blocked(d.x + ax * 1.1, d.y + ay * 1.1)) { vx = ax; vy = ay; break; } }
       d.bite = Math.max(0, d.bite - dt);
       for (const o of S.dead) { if (o === d) continue; const ex = d.x - o.x, ey = d.y - o.y, e = ex * ex + ey * ey; if (e < 0.8 && e > 1e-6) { vx += ex / e * 0.25; vy += ey / e * 0.25; } }

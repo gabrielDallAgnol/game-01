@@ -16,11 +16,11 @@ function snapshot(S) {
   const scalars = Object.fromEntries(Object.entries(S).filter(([, v]) => typeof v !== 'object').map(([k, v]) => [k, r3(v)]));
   return JSON.stringify({ ...scalars, kai: pick(S.kai), bike: pick(S.bike), foes: (S.machines || S.dead).map(pick), nests: S.nests.map(pick), shots: (S.shots || []).map(pick), broken: [...S.broken].sort() });
 }
-// the script: walk to the bike, ride loops round the town, get off and fight on foot (dashing), ride again
+// the script: she starts on the bike; ride loops round the town firing on and off, get off and fight on foot (dashing),
+// get back on
 function input(i, S) {
-  const t = i / 30, inp = { x: 0, y: 0, view: 30 };
-  if (t < 1.5) { inp.x = -0.6; inp.y = 0.4; }
-  else if (Math.abs(t - 2) < 0.02 || Math.abs(t - 70) < 0.02 || Math.abs(t - 95) < 0.02) inp.ride = true;
+  const t = i / 30, inp = { x: 0, y: 0, view: 30, fire: t % 8 < 5 };   // the gun held five seconds in eight
+  if (Math.abs(t - 70) < 0.02 || Math.abs(t - 95) < 0.02) inp.ride = true;
   else if (t < 70 || t > 95) { inp.x = Math.cos(t * 0.35) * 0.9; inp.y = Math.sin(t * 0.21) * 0.9; }
   else { inp.x = Math.sin(t * 0.9); inp.y = Math.cos(t * 0.6); if (i % 90 === 0) inp.dash = true; }
   return inp;

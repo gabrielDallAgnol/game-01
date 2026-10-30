@@ -274,6 +274,18 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     { const [x, y] = P(0.08, 0); sphere(x, y, 1.46 * S, 0.135 * S, M.bandana); }
     { const [x, y] = P(-0.13, 0); sphere(x, y, 1.48 * S, 0.06 * S, M.bandana); }   // the knot at the back
   }
+  // [m1] a crawler: a low steel shell on six scuttling legs, a chip eye that burns red when it hunts; asleep it squats, legs tucked
+  function crawlerVolumes(d, t, awake) {
+    const S = FIGM * 0.95, a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
+    const hit = t - d.hit < 0.08, shell = hit ? M.flash : M.steel, hem = hit ? 1 : 0, ph = d.ph || 0, hz = awake ? 0.2 : 0.11;
+    { const [x, y] = P(-0.02, 0); box(x, y, (hz + 0.07) * S, 0.2 * S, 0.14 * S, 0.07 * S, 0.05 * S, a, shell, hem); }   // the shell
+    { const [x, y] = P(-0.04, 0); box(x, y, (hz + 0.15) * S, 0.12 * S, 0.08 * S, 0.03 * S, 0.03 * S, a, hit ? M.flash : M.rust, hem); }   // a rusted spine plate
+    { const [x, y] = P(0.2, 0); sphere(x, y, (hz + 0.07) * S, 0.06 * S, hit ? M.flash : M.dark, hem); }   // the head
+    { const [x, y] = P(0.25, 0); sphere(x, y, (hz + 0.09) * S, 0.032 * S, M.crackHot, awake ? 0.75 + 0.25 * Math.sin(t * 9 + d.id) : 0.15); }   // the chip eye
+    for (let i = 0; i < 3; i++) for (const s of [-1, 1]) {   // six legs: alternate pairs lift as it scuttles
+      const lx = 0.11 - i * 0.12, step = awake ? Math.sin(ph * 1.6 + i * 2.1 + (s > 0 ? Math.PI : 0)) : 0, [x0, y0] = P(lx, s * 0.1), [x1, y1] = P(lx + 0.05 * step, s * (awake ? 0.27 : 0.17));
+      capsule(x0, y0, (hz + 0.04) * S, x1, y1, Math.max(0.01, 0.02 + 0.05 * Math.max(0, step)) * S, 0.022 * S, M.dark, 0); }
+  }
   function deadVolumes(d, t, awake, kind = 'cinder') {
     const big = kind === 'brute', S = FIGM * (big ? 1.6 : kind === 'flicker' ? 0.88 : 1), a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
     const hit = t - d.hit < 0.08, skin = hit ? M.flash : M.stone, crackM = kind === 'flicker' ? M.crackHot : M.crack, pulse = awake ? 0.7 + 0.3 * Math.sin(t * 3 + d.id) : 0, hem = hit ? 1 : 0;
@@ -324,10 +336,10 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
     for (const D of v.deaths || []) { const k = (t - D.t0) / 0.8; if (D.prop || k >= 1 || !on(D.x, D.y)) continue; const S = FIGM * (D.brute ? 1.6 : 1), a = D.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), e = 1 - (1 - k) * (1 - k);
       const r = 0.24 * S * (1 - 0.7 * k), fx0 = 0.25 * S * e;
-      sphere(D.x + ca * fx0, D.y + sa * fx0, r * 0.4 - k * r * 1.2, r, M.stone);
-      for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), M.stone); } }
+      sphere(D.x + ca * fx0, D.y + sa * fx0, r * 0.4 - k * r * 1.2, r, D.metal ? M.steel : M.stone);
+      for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), D.metal ? (i % 2 ? M.dark : M.rust) : M.stone); } }   // [m1] a machine falls apart into steel and rust
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
-    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
+    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); if (d.kind === 'crawler') crawlerVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep'); else deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
     for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;

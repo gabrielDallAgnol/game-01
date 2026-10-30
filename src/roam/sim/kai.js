@@ -2,10 +2,10 @@
 // in reach), being hurt, going down and coming back. Offers G.hurtKai, G.stepKai(dt, inp).
 export function createKai(G) {
   const { R, S, ev, dist, town } = G, { blocked } = town;
-  function hurtKai(n) { const k = S.kai; if (k.dead || k.dash > 0) return; k.hp -= n; k.hurtT = S.t; ev('hurt', { n }); if (k.hp <= 0) { k.hp = 0; k.dead = R.kai.respawn; k.riding = false; ev('down', {}); } }
+  function hurtKai(n) { const k = S.kai; if (k.dead || k.dash > 0) return; k.hp -= n; k.hurtT = S.t; ev('hurt', { n }); if (k.hp <= 0) { k.hp = 0; k.dead = R.kai.respawn; ev('down', {}); } }
   function stepKai(dt, inp) {
     const k = S.kai, b = S.bike;
-    if (k.dead > 0) { k.dead -= dt; if (k.dead <= 0) { k.dead = 0; k.hp = k.maxHp; k.x = town.start.x + 3; k.y = town.start.y + 5; ev('back', {}); } return; }
+    if (k.dead > 0) { k.dead -= dt; if (k.dead <= 0) { k.dead = 0; k.hp = k.maxHp; b.x = town.start.x + 0.8; b.y = town.start.y + 6.2; b.speed = 0; k.x = b.x; k.y = b.y; k.riding = true; ev('back', {}); } return; }   // back at the square, on the bike
     if (inp.ride) { inp.ride = false; if (k.riding) { k.riding = false; const s = Math.sin(b.ang), c = Math.cos(b.ang); for (const off of [1.6, -1.6]) { const x = b.x - s * off, y = b.y + c * off; if (!blocked(x, y)) { k.x = x; k.y = y; break; } } b.speed = 0; ev('dismount', {}); }
       else if (dist(k, b) < R.bike.enter) { k.riding = true; ev('mount', {}); } }
     if (k.riding) G.stepVehicle(dt, inp);
