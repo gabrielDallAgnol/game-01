@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hollowmere Zoom Demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Allerta+Stencil&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<style>
+/* The zoom demo: the whole screen is the world; a zoom rail on the right, a few buttons at the bottom, a hint at the top. */
+:root{--panel:rgba(12,13,16,.82);--fg:#F2EEE2;--dim:#9a988f;--amber:#F0B44C;--mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;--display:'Allerta Stencil',Impact,sans-serif;color-scheme:dark}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none}
+body{background:#07090c;color:var(--fg);font:400 12px/1.45 var(--mono);-webkit-user-select:none;user-select:none;touch-action:none}
+[hidden]{display:none!important}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#fx{pointer-events:none}
+#top{position:fixed;left:0;right:0;top:0;padding:calc(10px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px));display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;gap:8px}
+#title{font:400 13px var(--display);letter-spacing:.14em;text-transform:uppercase;color:#cfc9bc;text-shadow:0 1px 6px #000}
+#stage{font:600 11px var(--mono);color:var(--amber);letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 6px #000;text-align:right}
+#hint{position:fixed;left:50%;transform:translateX(-50%);top:calc(40px + env(safe-area-inset-top,0px));background:var(--panel);border-radius:10px;padding:7px 11px;color:#d6d2c6;max-width:calc(100vw - 90px);text-align:center;pointer-events:none;transition:opacity .6s}
+#rail{position:fixed;right:max(10px,env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--panel);border-radius:14px;padding:8px 6px}
+#rail button{font:700 16px var(--mono);color:var(--fg);background:rgba(255,255,255,.06);border:0;border-radius:9px;width:40px;height:40px;cursor:pointer}
+#rail input{writing-mode:vertical-lr;direction:rtl;width:28px;height:min(46vh,300px);accent-color:var(--amber)}
+#rail .lab{font:600 9px var(--mono);color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
+#bar{position:fixed;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;gap:6px;pointer-events:none;padding-inline:max(12px,env(safe-area-inset-left,0px))}
+#bar button{pointer-events:auto;font:600 12px var(--mono);color:var(--fg);background:var(--panel);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;cursor:pointer;min-height:42px}
+#bar button.go{background:var(--amber);color:#1a1206;border-color:transparent}
+button:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+#stick{position:fixed;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:2px solid rgba(240,180,76,.45);pointer-events:none}
+#stick i{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(240,180,76,.55)}
+#err{position:fixed;inset:auto 12px 50% 12px;background:#3a0d12;color:#ffd9dd;padding:12px;border-radius:10px}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="Hollowmere, from the map down to Kai's eyes"></canvas>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="top"><div id="title">Hollowmere · zoom</div><div id="stage" aria-live="polite"></div></div>
+<div id="hint">Pinch or use the rail to zoom from the map to Kai's eyes. Drag on the left to walk, on the right to look.</div>
+<div id="rail" role="group" aria-label="Zoom">
+  <span class="lab">Eyes</span>
+  <button id="zin" aria-label="Zoom in">+</button>
+  <input id="zoom" type="range" min="0" max="1000" value="330" aria-label="Zoom from map to first person">
+  <button id="zout" aria-label="Zoom out">−</button>
+  <span class="lab">Map</span>
+</div>
+<div id="bar">
+  <button id="wave" class="go">Send a march</button>
+  <button id="night">Night</button>
+  <button id="hintBtn">Help</button>
+</div>
+<div id="stick" hidden><i></i></div>
+<div id="err" hidden></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="module" src="./zoom.js"></script>
+</body>
+</html>
