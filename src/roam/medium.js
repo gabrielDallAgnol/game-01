@@ -274,17 +274,30 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     { const [x, y] = P(0.08, 0); sphere(x, y, 1.46 * S, 0.135 * S, M.bandana); }
     { const [x, y] = P(-0.13, 0); sphere(x, y, 1.48 * S, 0.06 * S, M.bandana); }   // the knot at the back
   }
-  // [m1] a crawler: a low steel shell on six scuttling legs, a chip eye that burns red when it hunts; asleep it squats, legs tucked
-  function crawlerVolumes(d, t, awake) {
-    const S = FIGM * 0.95, a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
-    const hit = t - d.hit < 0.08, shell = hit ? M.flash : M.steel, hem = hit ? 1 : 0, ph = d.ph || 0, hz = awake ? 0.2 : 0.11;
-    { const [x, y] = P(-0.02, 0); box(x, y, (hz + 0.07) * S, 0.2 * S, 0.14 * S, 0.07 * S, 0.05 * S, a, shell, hem); }   // the shell
-    { const [x, y] = P(-0.04, 0); box(x, y, (hz + 0.15) * S, 0.12 * S, 0.08 * S, 0.03 * S, 0.03 * S, a, hit ? M.flash : M.rust, hem); }   // a rusted spine plate
-    { const [x, y] = P(0.2, 0); sphere(x, y, (hz + 0.07) * S, 0.06 * S, hit ? M.flash : M.dark, hem); }   // the head
-    { const [x, y] = P(0.25, 0); sphere(x, y, (hz + 0.09) * S, 0.032 * S, M.crackHot, awake ? 0.75 + 0.25 * Math.sin(t * 9 + d.id) : 0.15); }   // the chip eye
-    for (let i = 0; i < 3; i++) for (const s of [-1, 1]) {   // six legs: alternate pairs lift as it scuttles
-      const lx = 0.11 - i * 0.12, step = awake ? Math.sin(ph * 1.6 + i * 2.1 + (s > 0 ? Math.PI : 0)) : 0, [x0, y0] = P(lx, s * 0.1), [x1, y1] = P(lx + 0.05 * step, s * (awake ? 0.27 : 0.17));
-      capsule(x0, y0, (hz + 0.04) * S, x1, y1, Math.max(0.01, 0.02 + 0.05 * Math.max(0, step)) * S, 0.022 * S, M.dark, 0); }
+  // [m1] the machines: one family (a steel shell on six scuttling legs, a chip eye that burns red when it hunts), each kind
+  // its own build. Crawler: low and plain. Skitter: small, rust, quick legs. Hound: long and lean, legs long, a dorsal
+  // fin. Spitter: a dome with a barrel; its eye flares white-hot while it aims. Brute: big, dark armour plates, thick legs.
+  const MLOOK = {
+    crawler: { S: 0.95, hz: 0.2, shell: [0.2, 0.14, 0.07], legL: 0.27, legR: 0.022, spine: 'rust' },
+    skitter: { S: 0.62, hz: 0.18, shell: [0.17, 0.11, 0.06], legL: 0.3, legR: 0.026, spine: 'rust', shellM: 'rust', quick: 2.4 },
+    hound: { S: 1.05, hz: 0.26, shell: [0.3, 0.1, 0.07], legL: 0.34, legR: 0.024, spine: 'dark', fin: true },
+    spitter: { S: 1.0, hz: 0.24, shell: [0.17, 0.17, 0.1], legL: 0.25, legR: 0.024, spine: 'paint', barrel: true },
+    brute: { S: 1.7, hz: 0.24, shell: [0.24, 0.17, 0.1], legL: 0.3, legR: 0.04, spine: 'dark', shellM: 'dark', plates: true, slow: 0.6 },
+  };
+  function machineVolumes(d, t, awake, kind) {
+    const L = MLOOK[kind] || MLOOK.crawler, S = FIGM * L.S, a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
+    const hit = t - d.hit < 0.08, base = M[L.shellM || 'steel'], shell = hit ? M.flash : base, hem = hit ? 1 : 0, ph = (d.ph || 0) * (L.quick || 1) * (L.slow || 1), hz = awake ? L.hz : L.hz * 0.55, [sx, sy, sz] = L.shell;
+    { const [x, y] = P(-0.02, 0); box(x, y, (hz + sz) * S, sx * S, sy * S, sz * S, 0.05 * S, a, shell, hem); }   // the shell
+    { const [x, y] = P(-0.04, 0); box(x, y, (hz + sz * 2 + 0.01) * S, sx * 0.6 * S, sy * 0.55 * S, 0.03 * S, 0.03 * S, a, hit ? M.flash : M[L.spine], hem); }   // the spine plate
+    if (L.plates) for (const s2 of [-1, 1]) { const [x, y] = P(-0.02, s2 * sy * 0.95); box(x, y, (hz + sz) * S, sx * 0.9 * S, 0.035 * S, sz * 0.9 * S, 0.02 * S, a, hit ? M.flash : M.steel, hem); }   // the brute's side armour
+    if (L.fin) { const [x0, y0] = P(-0.2, 0), [x1, y1] = P(0.08, 0); capsule(x0, y0, (hz + sz * 2 + 0.05) * S, x1, y1, (hz + sz * 2 + 0.02) * S, 0.02 * S, hit ? M.flash : M.dark, hem); }
+    const hx = sx + 0.02; { const [x, y] = P(hx, 0); sphere(x, y, (hz + sz) * S, 0.06 * S, hit ? M.flash : M.dark, hem); }   // the head
+    if (L.barrel) { const [x0, y0] = P(hx, 0), [x1, y1] = P(hx + 0.2, 0); capsule(x0, y0, (hz + sz * 1.4) * S, x1, y1, (hz + sz * 1.4) * S, 0.03 * S, M.dark, 0); }
+    const aiming = d.aim > 0, eye = aiming ? 1 : awake ? 0.75 + 0.25 * Math.sin(t * 9 + d.id) : 0.15;
+    { const [x, y] = P(hx + 0.05, 0); sphere(x, y, (hz + sz + 0.02) * S, (aiming ? 0.05 : 0.032) * S, aiming ? M.lamp : M.crackHot, eye); }   // the chip eye (white-hot while a spitter aims)
+    for (let i = 0; i < 3; i++) for (const s2 of [-1, 1]) {   // six legs: alternate pairs lift as it scuttles
+      const lx = sx * 0.55 - i * sx * 0.6, step = awake ? Math.sin(ph * 1.6 + i * 2.1 + (s2 > 0 ? Math.PI : 0)) : 0, [x0, y0] = P(lx, s2 * sy * 0.7), [x1, y1] = P(lx + 0.05 * step, s2 * (awake ? L.legL : L.legL * 0.63));
+      capsule(x0, y0, (hz + 0.04) * S, x1, y1, Math.max(0.01, 0.02 + 0.05 * Math.max(0, step)) * S, L.legR * S, M.dark, 0); }
   }
   function deadVolumes(d, t, awake, kind = 'cinder') {
     const big = kind === 'brute', S = FIGM * (big ? 1.6 : kind === 'flicker' ? 0.88 : 1), a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
@@ -339,7 +352,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       sphere(D.x + ca * fx0, D.y + sa * fx0, r * 0.4 - k * r * 1.2, r, D.metal ? M.steel : M.stone);
       for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), D.metal ? (i % 2 ? M.dark : M.rust) : M.stone); } }   // [m1] a machine falls apart into steel and rust
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
-    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); if (d.kind === 'crawler') crawlerVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep'); else deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
+    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); if (MLOOK[d.kind]) machineVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); else deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
     for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;

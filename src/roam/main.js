@@ -30,7 +30,7 @@ function start() {
   const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
-  const feel = createFeel({ S });   // [m1]
+  const feel = createFeel({ S, input });   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
   const fpsEl = $('fps'), fixedRes = !!qs.get('fixedres');
@@ -105,7 +105,7 @@ function start() {
     const R = between(running ? acc / ROAM.step : 1);
     const evs = sim.drain();
     for (const e of evs) if (e.type === 'smash') falls.push({ x: e.x, y: e.y, fa: e.ang, id: 100000 + e.id, t0: t, prop: true, stamp: true });   // a smashed prop bursts into letters like a fall
-    for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, brute: e.kind === 'brute', metal: e.kind === 'crawler', stamp: true });
+    for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, metal: e.kind !== 'cinder' && e.kind !== 'flicker', brute: e.kind === 'brute', stamp: true });
     feel.events(evs, t);   // [m1] hitstop, shake, sparks, bursts
     while (falls.length && t - falls[0].t0 > 2.2) falls.shift();
     const { night, sun } = skyAt(S.clock); curNight = night;

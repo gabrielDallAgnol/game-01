@@ -13,10 +13,12 @@ export function createGuns(G) {
     for (const d of S.dead) { const r = dist(d, k); if (r < td) { td = r; tgt = d; } }
     if (!tgt) for (const n of S.nests) if (n.alive) { const r = dist(n, k); if (r < td) { td = r; tgt = n; } }
     return tgt; }
-  function fire(g, k) {
-    const shot = buildShot(WEAPONS[g.base], g.mods), tgt = targetOf(k, shot.range);
-    const ang = tgt ? Math.atan2(tgt.y - k.y, tgt.x - k.x) : k.face;
-    g.aim = ang; g.target = tgt ? (tgt.kind ? tgt.id : -1) : -1; g.cd = 1 / shot.rate;
+  // aimed by hand (inp.aim, an angle: dragging off the FIRE button) or by itself at the nearest machine or heart
+  function fire(g, k, inp) {
+    const shot = buildShot(WEAPONS[g.base], g.mods), manual = typeof inp.aim === 'number', tgt = manual ? null : targetOf(k, shot.range);
+    const ang = manual ? inp.aim : tgt ? Math.atan2(tgt.y - k.y, tgt.x - k.x) : k.face;
+    g.aim = ang; g.manual = manual; g.target = tgt ? (tgt.kind ? tgt.id : -1) : -1; g.cd = 1 / shot.rate;
+    G.noise(k.x, k.y, R.gun.noise); G.heatUp(R.hunt.perShot);
     for (let i = 0; i < shot.count; i++) { const a = ang + (shot.count > 1 ? (i / (shot.count - 1) - 0.5) * shot.spread * 2 : 0) + rng.range(-0.04, 0.04), sp = shot.speed * rng.range(0.92, 1.05);
       S.shots.push({ id: sid++, x: k.x + Math.cos(ang) * 0.9, y: k.y + Math.sin(ang) * 0.9, vx: Math.cos(a) * sp + k.vx * 0.5, vy: Math.sin(a) * sp + k.vy * 0.5, life: shot.range / shot.speed, dmg: shot.dmg, close: shot.closeBonus || 0, ox: k.x, oy: k.y, pierce: shot.pierce }); }
     ev('shot', { x: k.x, y: k.y, ang, n: shot.count });
@@ -36,7 +38,7 @@ export function createGuns(G) {
   }
   function stepGuns(dt, inp) {
     const k = S.kai, g = S.guns.main; g.cd = Math.max(0, g.cd - dt);
-    if (inp.fire && !k.dead && g.cd <= 0) fire(g, k);
+    if (inp.fire && !k.dead && g.cd <= 0) fire(g, k, inp);
     stepShots(dt);
   }
   Object.assign(G, { stepGuns });
