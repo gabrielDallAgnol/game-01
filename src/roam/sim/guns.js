@@ -38,7 +38,7 @@ export function createGuns(G) {
   function land(p, x, y) {
     // (a blast reaches a machine's body edge, not its centre: a walker's centre is metres inside it)
     if (p.del === 'splash') { const B = p.splash; ev('blast', { x, y, r: B.r, el: p.el });
-      for (const d of [...S.dead]) { const q = Math.max(0, Math.hypot(d.x - x, d.y - y) - (R.body[d.kind] || 0.7) * 0.8); if (q < B.r) { G.hurtFoe(d, B.dmg * (1 - 0.5 * q / B.r), 'gun'); if (p.el) G.hitElement(d, p.el); } }
+      for (const d of [...S.dead]) { const q = Math.max(0, Math.hypot(d.x - x, d.y - y) - (R.body[d.kind] || 0.7) * 0.8); if (q < B.r) { G.hurtFoe(d, B.dmg * (1 - 0.5 * q / B.r), 'gun', x, y); if (p.el) G.hitElement(d, p.el); } }
       for (const n of S.nests) if (n.alive && Math.hypot(n.x - x, n.y - y) < B.r + 1) G.hitNest(n, B.dmg);
       const k = S.kai, q = Math.hypot(k.x - x, k.y - y); if (q < B.r * 0.8 && !k.dead) G.hurtKai(B.dmg * 0.6 * (1 - q / B.r));
       G.deliver(p.el, x, y, B.r, B.power); }
@@ -62,7 +62,7 @@ export function createGuns(G) {
         const ex = p.x - x0, ey = p.y - y0, L2 = ex * ex + ey * ey || 1e-9, u = Math.max(0, Math.min(1, ((d.x - x0) * ex + (d.y - y0) * ey) / L2)), hx = x0 + ex * u, hy = y0 + ey * u;
         if (Math.hypot(d.x - hx, d.y - hy) < R.gun.hitR + (R.body[d.kind] || 0.7) + (p.del === 'splash' ? R.gun.fuse : 0)) { const near = Math.hypot(hx - p.ox, hy - p.oy) < 5 ? 1 + p.close : 1, a = Math.atan2(p.vy, p.vx);
           d.vx += Math.cos(a) * p.push; d.vy += Math.sin(a) * p.push; ev('hit', { x: hx, y: hy, id: d.id, ang: a, el: p.el });
-          G.hurtFoe(d, p.dmg * near, 'gun'); if (p.el) G.hitElement(d, p.el); if (p.pierce-- <= 0) {
+          G.hurtFoe(d, p.dmg * near, 'gun', hx, hy); if (p.el) G.hitElement(d, p.el); if (p.pierce-- <= 0) {
             // [m3] ricochet: jump to the nearest other machine in reach
             let nx = null, nr = R.gun.jump; if (p.bounce > 0 && p.del === 'pellet') for (const o of S.dead) { if (o === d) continue; const q = Math.hypot(o.x - hx, o.y - hy); if (q < nr) { nr = q; nx = o; } }
             if (nx) { p.bounce--; p.last = d.id; const sp = Math.hypot(p.vx, p.vy), a2 = Math.atan2(nx.y - hy, nx.x - hx); p.vx = Math.cos(a2) * sp; p.vy = Math.sin(a2) * sp; p.x = hx; p.y = hy; p.life = Math.max(p.life, nr / sp + 0.1); p.pierce = 0; ev('ricochet', { x: hx, y: hy }); }

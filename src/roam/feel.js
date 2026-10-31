@@ -28,6 +28,7 @@ export function createFeel({ S, input, town }) {
       // [m4] the walker: a stomp shakes the ground, a plate breaking throws sparks, the area going clean freezes the moment
       else if (e.type === 'stomp') { shakeAmt = Math.min(1, shakeAmt + 0.9); spark(e.x, e.y, Math.random() * 6.28, 14, 7, '#cfc8b6', 0.6, 1.3); }
       else if (e.type === 'plate') { stop = Math.max(stop, 0.08); shakeAmt = Math.min(1, shakeAmt + 0.6); spark(e.x, e.y, Math.random() * 6.28, 16, 8, '#e8e4da', 0.7, 1.4); }
+      else if (e.type === 'part') { stop = Math.max(stop, 0.1); shakeAmt = Math.min(1, shakeAmt + 0.7); spark(e.x, e.y, Math.random() * 6.28, 22, 9, '#ffb35a', 0.8, 1.5); }
       else if (e.type === 'clean') { stop = Math.max(stop, 0.45); shakeAmt = 1; spark(e.x, e.y, Math.random() * 6.28, 30, 9, '#ffd27a', 1.2, 1.6); }
       else if (e.type === 'hurt') shakeAmt = Math.min(1, shakeAmt + 0.45);
       else if (e.type === 'crash') shakeAmt = Math.min(1, shakeAmt + 0.4);

@@ -33,7 +33,7 @@ export function createFoes(G) {
   function kill(d, src) { const i = S.dead.indexOf(d); if (i < 0) return; S.dead.splice(i, 1); S.kills++; for (const f of G.onDie || []) f(d, src); ev('die', { id: d.id, x: d.x, y: d.y, fa: d.fa, kind: d.kind, src }); }
   // being shot wakes a machine and sets it on you (nothing sits still while you snipe it)
   // and the noise sets the others near it on you too: shooting into a group brings the group
-  function hurtFoe(d, n, src) { if (d.boss) { G.hurtBoss(d, n, src); return; } d.hp -= n; d.hit = S.t; if (d.state !== 'chase') { d.state = 'chase'; for (const o of S.dead) if (o.state !== 'chase' && dist(o, d) < R.dead.alarm) o.state = 'chase'; } if (d.hp <= 0) kill(d, src); }
+  function hurtFoe(d, n, src, hx, hy) { if (d.boss) { G.hurtBoss(d, n, src, hx, hy); return; } d.hp -= n; d.hit = S.t; if (d.state !== 'chase') { d.state = 'chase'; for (const o of S.dead) if (o.state !== 'chase' && dist(o, d) < R.dead.alarm) o.state = 'chase'; } if (d.hp <= 0) kill(d, src); }
   // steer round walls: try the straight line, then fan out to its side
   // [atoms] they walk round walls and round fire (unless already standing in it: then any way out will do)
   const fireAhead = (d, x, y) => G.hot && !G.hot(d.x, d.y) && G.hot(x, y);

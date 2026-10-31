@@ -363,7 +363,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     hound: { S: 1.05, hz: 0.26, shell: [0.3, 0.1, 0.07], legL: 0.34, legR: 0.024, spine: 'dark', fin: true },
     spitter: { S: 1.0, hz: 0.24, shell: [0.17, 0.17, 0.1], legL: 0.25, legR: 0.024, spine: 'paint', barrel: true },
     brute: { S: 1.7, hz: 0.24, shell: [0.24, 0.17, 0.1], legL: 0.3, legR: 0.04, spine: 'dark', shellM: 'dark', plates: true, slow: 0.6 },
-    walker: { S: 1.8, shell: [0.86, 0.3, 0.2], big: 2.4 },   // [m4] drawn by walkerVolumes; this places its eyes
+    walker: { S: 2.6, shell: [0.86, 0.3, 0.2], big: 3 },   // [m4] drawn by walkerVolumes; this places its eyes
   };
   function machineVolumes(d, t, awake, kind) {
     const L = MLOOK[kind] || MLOOK.crawler, S = FIGM * L.S, a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
@@ -385,7 +385,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
   // glowing red. Rearing to stomp it lifts its hull
   function walkerVolumes(d, t) {
     // everything below is in the walker's own metres, scaled by WS about its centre (a giant: twice a brute's size and more)
-    const WS = 1.8, Q = v => v * WS, bx = (x, y, z, hx, hy, hz, r, rot, m, em) => box(d.x + (x - d.x) * WS, d.y + (y - d.y) * WS, Q(z), Q(hx), Q(hy), Q(hz), Q(r), rot, m, em),
+    const WS = 2.6, Q = v => v * WS, bx = (x, y, z, hx, hy, hz, r, rot, m, em) => box(d.x + (x - d.x) * WS, d.y + (y - d.y) * WS, Q(z), Q(hx), Q(hy), Q(hz), Q(r), rot, m, em),
       sp = (x, y, z, r, m, em) => sphere(d.x + (x - d.x) * WS, d.y + (y - d.y) * WS, Q(z), Q(r), m, em), cp = (x0, y0, z0, x1, y1, z1, r, m, em) => capsule(d.x + (x0 - d.x) * WS, d.y + (y0 - d.y) * WS, Q(z0), d.x + (x1 - d.x) * WS, d.y + (y1 - d.y) * WS, Q(z1), Q(r), m, em);
     const a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + lx * ca - ly * sa, d.y + lx * sa + ly * ca], hit = t - d.hit < 0.08, hem = hit ? 1 : 0;
     const moving = Math.hypot(d.vx || 0, d.vy || 0) > 0.2, ph = t * 2.2 + d.id, rear = d.windT > 0 ? 1 : 0, z = 2.6 + rear * 0.9 + (moving ? 0.12 * Math.abs(Math.sin(ph)) : 0);
@@ -395,6 +395,12 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     for (const s2 of [-0.32, 0.32]) { const [x, y] = P(2.42, s2); sp(x, y, z + 0.2, 0.13, M.crackHot, eye); }   // two chip eyes
     const PL = [[-0.9, -0.75], [0.5, -0.75], [-0.9, 0.75], [0.5, 0.75]];
     for (let i = 0; i < (d.plates ?? 4); i++) { const [x, y] = P(PL[i][0], PL[i][1]); bx(x, y, z + 0.62, 0.62, 0.42, 0.12, 0.06, a, hit ? M.flash : M.steel, hem); }   // the plates
+    // [m4b] its defences: a weapon pod on each shoulder (two barrels, its light flares as it takes aim), a fuel tank on its back
+    const pa = d.podAim > 0 ? 1 : 0.25;
+    for (const [pid, ly] of [['podL', -1.31], ['podR', 1.31]]) { if (!d.parts || d.parts[pid].hp <= 0) continue; const [x, y] = P(0.88, ly);
+      bx(x, y, z + 0.35, 0.36, 0.28, 0.24, 0.08, a, hit ? M.flash : M.rust, hem); for (const o of [-0.1, 0.1]) { const [x0, y0] = P(1.1, ly + o), [x1, y1] = P(1.55, ly + o); cp(x0, y0, z + 0.4, x1, y1, z + 0.4, 0.05, M.dark); }
+      sp(x, y, z + 0.62, 0.09, M.crackHot, pa); }
+    if (d.parts && d.parts.tank.hp > 0) { const [x0, y0] = P(-1.69, -0.45), [x1, y1] = P(-1.69, 0.45); cp(x0, y0, z + 0.5, x1, y1, z + 0.5, 0.3, M.cone, 0.12 + 0.1 * Math.sin(t * 3)); }
     if (!(d.plates > 0)) { const [x, y] = P(-0.2, 0); sp(x, y, z + 0.5, 0.55, M.crack, 0.7 + 0.3 * Math.sin(t * 6)); }   // the bare core
     else { const [x, y] = P(-0.2, 0); sp(x, y, z + 0.45, 0.35, M.dark, 0); }
     for (let i = 0; i < 4; i++) { const fx0 = i < 2 ? 1.3 : -1.3, side = i % 2 ? 1 : -1, step = moving ? Math.sin(ph + (i === 0 || i === 3 ? 0 : Math.PI)) : 0;
@@ -565,6 +571,15 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       const pt = (x, y, col, k) => { fx.fillStyle = col; fx.globalAlpha = 0.4 * k; fx.beginPath(); fx.arc(x, y, 5 * grow, 0, 6.283); fx.fill(); fx.globalAlpha = Math.min(1, k); fx.beginPath(); fx.arc(x, y, 1.8 * grow, 0, 6.283); fx.fill(); };
       for (const p of v.shots || []) { if (p.del === 'stream' || p.del === 'splash') continue; const [x, y] = toS(p.x, p.y); if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; pt(x, y, HUE[hueOf(p.el)], 1); }
       for (const b of v.bolts || []) { const [x, y] = toS(b.x, b.y); if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; pt(x, y, HUE.red, 1.2); }
+      fx.restore(); fx.globalAlpha = 1; }
+    // [m4b] a walker's parts, read by Kai's lamp within 30 m (Horizon's Focus): small tags over its pods, its tank, its plates
+    // or bare core, each with a health tick; amber while it stands, grey once broken
+    { fx.save(); fx.font = '700 10px "IBM Plex Mono", ui-monospace, monospace'; fx.textAlign = 'center'; fx.textBaseline = 'middle';
+      for (const d of dead) { if (!d.boss || Math.hypot(d.x - kai.x, d.y - kai.y) > 30) continue; const c = Math.cos(d.fa || 0), s2 = Math.sin(d.fa || 0);
+        const tag = (lx, ly, label, f) => { const [x, y] = toS(d.x + lx * c - ly * s2, d.y + lx * s2 + ly * c), w = fx.measureText(label).width + 8; fx.globalAlpha = 0.85; fx.fillStyle = 'rgba(8,9,11,.82)'; fx.fillRect(x - w / 2, y - 20, w, 13);
+          fx.fillStyle = f > 0 ? '#ffc35a' : '#6d6860'; fx.fillText(label, x, y - 13.5); if (f > 0) { fx.fillRect(x - w / 2, y - 7, w * f, 2); } };
+        for (const [id, lab] of [['podL', 'POD'], ['podR', 'POD'], ['tank', 'TANK']]) { const p = d.parts && d.parts[id]; if (p) tag(p.lx, p.ly, p.hp > 0 ? lab : '×', Math.max(0, p.hp / p.max)); }
+        tag(-0.5, 0, d.plates > 0 ? `PLATES ${d.plates}` : 'CORE', d.plates > 0 ? d.plate / d.plateMax : Math.max(0, d.hp / d.maxHp)); }
       fx.restore(); fx.globalAlpha = 1; }
     // [m3] loot on the ground. Scrap: a small glint on each bit so it reads in the grass, and a bright streak on the bits
     // flying to Kai. A weapon: a soft point of light in its rarity's colour, and its name over it on a dark plate in that

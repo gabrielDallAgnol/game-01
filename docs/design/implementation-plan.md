@@ -104,6 +104,13 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **HUD:** the area under the counters ("THE OLD TOWN · LV 1 · DARK", ember while dark, gold when clean), a toast when Kai rides in, a red WALKER arrow with the distance, toasts for plates breaking and for the clean moment.
 - Fix found on the way: a rocket's blast is measured to a machine's body edge, not its centre (a walker's centre is metres inside it).
 
+**After Gabriel's M4 feedback (Oct 31): a world map, and a Horizon Zero Dawn walker**
+- **The world map** (MAP, beside BAG): every area from the town's own district shapes, the streets as fine lines, live nests (♥), walkers as pairs of red eyes, Kai's @. Each area's name and fill take the colour of how hard it is for Kai now: grey clean, green at or under her level, yellow one or two above, red three or more (her level is cleaned areas + 1 until M7). TOWN / ALL zoom. The game pauses while it's open.
+- **A bigger walker:** drawn 2.6x (body radius 6 m), its stomp reaches 8.5 m and hits for 22.
+- **Its defence system, from Horizon Zero Dawn:** two weapon pods on its shoulders take aim (their lights flare, 0.7 s) and fire a three-bolt volley each every 3.2 s within 34 m; shoot a pod off and its volleys stop. A fuel tank on its back blows up on the walker itself: a plate off, 30% of its core, fire all round it (and Kai if she's close). Then the plates, then the core. In a fight it broods every 3 s, up to 14, a mix of crawlers, skitters, spitters and hounds, dropped around its feet.
+- **Reading it (Horizon's Focus):** within 30 m Kai's lamp tags its parts on screen (POD, TANK, PLATES n / CORE, each with a health tick; × when broken). **The boss bar** at the top during a fight: its name and area, four plate segments, the core.
+- Headless fight (a bot circling at 16 m, Kai taking damage): the scatter gun kills it in about 90 s with 2 downs; the launcher in about 160 s with 4 (its seeking rockets lock onto the brood).
+
 ## M5. Risk and repair · 2–3 evenings
 **Why fifth:** without a cost to dying, loot and fights lose tension.
 

@@ -42,6 +42,9 @@ export function createSound() {
       // [m4] the walker: a deep stomp, a plate's clang, a low groan as it rears; the area going clean: a rising chord
       else if (e.type === 'stomp') { tone('sine', 55, 22, 0.9, 1.0); noise('lowpass', 500, 40, 0.8, 0.8, 0.5); }
       else if (e.type === 'plate') { tone('square', 320, 180, 0.4, 0.25); tone('triangle', 960, 700, 0.5, 0.2); noise('highpass', 3000, 1500, 0.2, 0.3); }
+      else if (e.type === 'podAim') tone('square', 600, 1400, 0.6, 0.08);
+      else if (e.type === 'volley') { noise('bandpass', 900, 300, 0.25, 0.4, 1.5); tone('sawtooth', 300, 120, 0.2, 0.15); }
+      else if (e.type === 'part') { tone('square', 200, 60, 0.5, 0.3); noise('lowpass', 2500, 200, 0.6, 0.6); }
       else if (e.type === 'rear') tone('sawtooth', 70, 110, 0.7, 0.18);
       else if (e.type === 'clean') [392, 494, 587, 784, 988].forEach((f, i) => tone('triangle', f, f, 1.6, 0.18, i * 0.12));
       else if (e.type === 'doused') noise('highpass', 3000, 6000, 0.6, 0.18); } }

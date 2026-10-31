@@ -75,6 +75,17 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 /* [m4] the area under the counters */
 #area{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:calc(90px + env(safe-area-inset-top,0px));font:700 11px var(--mono);letter-spacing:.04em;padding:4px 8px;border-radius:7px;background:var(--panel);pointer-events:none}
 #area.dark{color:#ff8a6a}#area.clean{color:#ffd36a}
+/* [m4b] the boss bar */
+#boss{position:fixed;left:50%;transform:translateX(-50%);top:calc(150px + env(safe-area-inset-top,0px));width:min(320px,calc(100vw - 24px));background:rgba(10,11,13,.86);border:1px solid rgba(255,58,42,.5);border-radius:10px;padding:7px 10px;display:grid;gap:5px;pointer-events:none;font:700 11px var(--mono);color:#ff8a6a;letter-spacing:.04em}
+#boss .pl{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}#boss .pl i{height:7px;border-radius:3px;background:rgba(255,255,255,.1);position:relative;overflow:hidden}
+#boss .pl i.on,#boss .pl i.cur{background:linear-gradient(90deg,#c9c2b2 calc(var(--f)*100%),rgba(255,255,255,.1) 0)}
+#boss .core{height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden}#boss .core i{display:block;height:100%;background:#ff3a2a}
+/* [m4b] the world map */
+#mapBtn{border:0;background:rgba(255,255,255,.1);color:#e9e2cf;font:700 12px var(--mono);border-radius:7px;padding:2px 8px;cursor:pointer}
+#map{position:fixed;inset:0;background:#07090c;display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px));gap:8px}
+#map h2{margin:0;font:400 22px var(--display);letter-spacing:.06em;color:var(--amber)}#map canvas{position:static;inset:auto;display:block;width:100%;height:100%;min-height:0;touch-action:none}
+#map .row{display:flex;gap:8px;align-items:center;justify-content:space-between;font:600 11px var(--mono);color:var(--dim)}
+#map .row button{border:0;border-radius:9px;padding:9px 14px;font:700 12px var(--mono);cursor:pointer;background:rgba(255,255,255,.12);color:var(--fg)}#map .row button.go{background:var(--amber);color:#1a1206}
 #fps{position:fixed;left:max(10px,env(safe-area-inset-left,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font:600 10px var(--mono);color:rgba(242,238,226,.55);pointer-events:none}
 #err{position:fixed;inset:auto 12px 50% 12px;background:#3a0d12;color:#ffd9dd;padding:12px;border-radius:10px}
 </style>
@@ -89,8 +100,9 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <button class="chip" id="kit" aria-label="Loadout: the gun's element, the off-hand enchant, modifiers">KIT</button>
   <button class="chip" id="speed" aria-label="Clock speed: 1x. Tap to make the day pass faster">1×</button>
 </div>
-<div id="loot"><span>⚙ <span id="scrap">0</span></span><span>◆ <span id="chips">0</span></span><button id="bagBtn" aria-label="Open the bag">BAG <span id="bagN">0</span></button></div>
+<div id="loot"><span>⚙ <span id="scrap">0</span></span><span>◆ <span id="chips">0</span></span><button id="bagBtn" aria-label="Open the bag">BAG <span id="bagN">0</span></button><button id="mapBtn" aria-label="World map">MAP</button></div>
 <div id="area" hidden></div>
+<div id="boss" hidden></div>
 <div id="feed" aria-live="polite"></div>
 <div id="toasts"></div>
 <div id="fps" aria-hidden="true"></div>
@@ -117,6 +129,8 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 </section>
 <!-- [m2] the loadout (a test control until the garage exists): pick the gun's element, the off-hand's enchant, mods -->
 <!-- [m3] the bag: the weapon in hand and what you carry; equip or salvage -->
+<!-- [m4b] the world map: every area, its difficulty, its walker -->
+<section id="map" hidden><h2>Map</h2><canvas id="mapC"></canvas><div class="row"><span>grey clean · green easy · yellow fair · red hard</span><span><button id="mapZoom">TOWN</button> <button class="go" id="mapDone">Ride</button></span></div></section>
 <section id="bag" hidden><div class="card"><h2>Bag</h2><div id="bagList"></div><button id="bagDone">Ride</button></div></section>
 <section id="loadout" hidden>
   <div class="card">
