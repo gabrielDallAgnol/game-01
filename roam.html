@@ -65,7 +65,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #loot{pointer-events:auto}#bagBtn{border:0;background:rgba(255,255,255,.1);color:#e9e2cf;font:700 12px var(--mono);border-radius:7px;padding:2px 8px;margin-left:2px;cursor:pointer}
 #feed{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:calc(118px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:3px;font:700 12px var(--mono);pointer-events:none;text-shadow:0 1px 3px #000,0 0 2px #000}
 #feed div{animation:feed 3.2s ease-out forwards}@keyframes feed{0%{opacity:0;transform:translateX(-8px)}8%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0}}
-#bag{position:fixed;inset:0;display:grid;place-items:center;background:rgba(7,9,12,.72);padding:18px}
+#bag{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:rgba(7,9,12,.72);padding:18px}
 #bag .card{background:var(--panel);border-radius:14px;padding:16px;width:min(380px,100%);max-height:82vh;display:grid;grid-template-rows:auto 1fr auto;gap:10px}
 #bag h2{margin:0;font:400 22px var(--display);letter-spacing:.06em;color:var(--amber)}
 #bagList{overflow:auto;display:grid;gap:8px;align-content:start}
@@ -82,7 +82,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #boss .core{height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden}#boss .core i{display:block;height:100%;background:#ff3a2a}
 /* [m4b] the world map */
 #mapBtn{border:0;background:rgba(255,255,255,.1);color:#e9e2cf;font:700 12px var(--mono);border-radius:7px;padding:2px 8px;cursor:pointer}
-#map{position:fixed;inset:0;background:#07090c;display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px));gap:8px}
+#map{position:fixed;inset:0;z-index:40;background:#07090c;display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px));gap:8px}
 #map h2{margin:0;font:400 22px var(--display);letter-spacing:.06em;color:var(--amber)}#map canvas{position:static;inset:auto;display:block;width:100%;height:100%;min-height:0;touch-action:none}
 #map .row{display:flex;gap:8px;align-items:center;justify-content:space-between;font:600 11px var(--mono);color:var(--dim)}
 #map .row button{border:0;border-radius:9px;padding:9px 14px;font:700 12px var(--mono);cursor:pointer;background:rgba(255,255,255,.12);color:var(--fg)}#map .row button.go{background:var(--amber);color:#1a1206}
@@ -95,7 +95,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 <canvas id="fx" aria-hidden="true"></canvas>
 <div id="hud" aria-live="polite">
   <div class="chip" id="hp"><span>HP</span><div class="bars"><div class="bar"><i></i></div><div class="bar noise" id="heat" title="Noise: gunfire builds it; when it boils over a pack comes hunting"><i></i></div></div></div>
-  <div class="chip" id="nests">Nests <b>9</b></div>
+  <div class="chip" id="nests">Clean <b>0/6</b></div>
   <div class="chip" id="clock">☀ 4:00</div>
   <button class="chip" id="kit" aria-label="Loadout: the gun's element, the off-hand enchant, modifiers">KIT</button>
   <button class="chip" id="speed" aria-label="Clock speed: 1x. Tap to make the day pass faster">1×</button>
@@ -122,7 +122,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 <section id="start">
   <div class="card">
     <h1>HOLLOW<span>MERE</span></h1>
-    <p>Every machine with a chip turned in one night. Yours has none. Ride the town, gun the crawlers down, and break the nests that breed them.</p>
+    <p>Every machine with a chip turned in one night. Yours has none. Ride the town, gun the machines down, and break the walker of every area to make it clean.</p>
     <ul><li>Drag anywhere to steer · pinch to zoom</li><li>Hold FIRE (or Space): the gun aims itself · drag off FIRE to aim by hand</li><li>Keep moving: machines latch on when you slow down</li><li>Gunfire is loud: hold it too long and packs come hunting</li><li>Every hit leaves a pip; three pips set off their mix. Your off-hand enchants every 2nd shot. KIT to change them</li></ul>
     <button id="go">Start</button>
   </div>
@@ -130,7 +130,8 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 <!-- [m2] the loadout (a test control until the garage exists): pick the gun's element, the off-hand's enchant, mods -->
 <!-- [m3] the bag: the weapon in hand and what you carry; equip or salvage -->
 <!-- [m4b] the world map: every area, its difficulty, its walker -->
-<section id="map" hidden><h2>Map</h2><canvas id="mapC"></canvas><div class="row"><span>grey clean · green easy · yellow fair · red hard</span><span><button id="mapZoom">TOWN</button> <button class="go" id="mapDone">Ride</button></span></div></section>
+<section id="map" hidden><div class="row"><h2 id="mapTitle">Map</h2><span>grey clean · green easy · yellow fair · red hard</span></div><canvas id="mapC"></canvas>
+  <div class="row"><span>tap an area · drag · pinch</span><span><button id="mapZoom">WORLD</button> <button class="go" id="mapDone">Close</button></span></div></section>
 <section id="bag" hidden><div class="card"><h2>Bag</h2><div id="bagList"></div><button id="bagDone">Ride</button></div></section>
 <section id="loadout" hidden>
   <div class="card">

@@ -1,5 +1,4 @@
-// [m3] Loot: every entry explains itself; a rolled weapon has its rarity's slots and one element at most; a nest always
-// drops a tuned-or-better weapon and chips; scrap flies to Kai and is banked; weapons go in the bag on contact; equip
+// [m3] Loot: every entry explains itself; a rolled weapon has its rarity's slots and one element at most;  scrap flies to Kai and is banked; weapons go in the bag on contact; equip
 // from the bag (your old one goes in it); salvage pays; a ricochet pellet glances off a wall instead of stopping.
 import '../tools/roam/headless.mjs';
 import { test } from 'node:test';
@@ -18,11 +17,6 @@ test('every loot entry explains itself and points at real modifiers and bases', 
 test('a rolled weapon has its rarity\'s slots and one element at most', () => { const rng = new Rng(5);
   for (let i = 0; i < 400; i++) { const w = rollWeapon(rng, { common: 1, tuned: 1, rare: 1, epic: 1 }); assert.strictEqual(w.mods.length, RARITY[w.rarity].slots);
     assert.ok(w.mods.filter(m => MOD_POOL.find(p => p.id === m).element).length <= 1, w.mods.join()); } });
-test('a nest drops chips and a tuned-or-better weapon', () => { const sim = createRoam(town, 3), S = sim.state; S.dead.length = 0;
-  const n = S.nests[0]; S.kai.x = S.bike.x = n.x + 40; S.kai.y = S.bike.y = n.y; const before = S.drops.length;
-  n.hp = 0.1;   // one hit breaks it: stand by it and fire
-  S.kai.x = S.bike.x = n.x + 6; S.kai.y = S.bike.y = n.y; for (let i = 0; i < 30 * 8 && n.alive; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21, fire: true }); sim.drain(); }
-  assert.ok(!n.alive, 'nest down'); assert.ok(S.chips >= 2); const w = S.drops.filter(d => d.kind === 'weapon'); assert.ok(w.length >= 1 && w.every(d => d.w.rarity !== 'common')); assert.ok(S.drops.length > before); });
 test('scrap flies to Kai and is banked; a weapon goes in the bag when she passes over it; equip and salvage from the bag', () => { const sim = createRoam(town, 3), S = sim.state; S.dead.length = 0; const k = S.kai;
   for (let i = 0; i < 5; i++) S.drops.push({ id: 5000 + i, kind: 'scrap', x: k.x + 4 + i, y: k.y, v: 1, t: S.t, fly: 0 });
   for (let i = 0; i < 60; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); } assert.strictEqual(S.scrap, 5, 'all five flew in');

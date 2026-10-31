@@ -1,12 +1,10 @@
 // [roam] Areas and their walkers (M4, docs/design/implementation-plan.md): the town's districts are its areas (the old
 // town, the sugar works, the station quarter, the park, the estate, the strip, the farms...). Each has a level (further
 // from where Kai starts is harder: its machines are tougher) and a state: dark until its walker dies, then clean for good.
-// A walker is the area's giant: it walks between points on the area's streets, drops crawlers as it goes and plants a
-// nest now and then the longer it lives; close to Kai it turns on her and stomps (a slow wind-up, a big hit). Shots
+// A walker is the area's giant: it walks between points on the area's streets and drops machines as it goes; close to Kai it turns on her and stomps (a slow wind-up, a big hit). Shots
 // break its four plates first, then its core. Its defences, as in Horizon Zero Dawn: two weapon pods on its shoulders
 // fire volleys of bolts (shoot them off and they stop), a fuel tank on its back blows up on the walker itself (half its
-// plates' worth of hurt and fire all round it), and in a fight it drops machines much faster. When it dies the area is clean: no machine is born there again, its nests
-// go dark, and the town shows it (the glow-up, render-side). Its own Rng stream.
+// plates' worth of hurt and fire all round it), and in a fight it drops machines much faster. When it dies the area is clean: no machine is born there again, and the town shows it (the glow-up, render-side). Its own Rng stream.
 // Offers G.areaAt(x, y), G.levelAt(x, y), G.isClean(x, y), G.hurtBoss(d, n, src), G.stepAreas(dt).
 import { Rng, hashSeed } from '../../sim/rng.js';
 export function createAreas(G) {
@@ -15,7 +13,7 @@ export function createAreas(G) {
   const skip = new Set(['country', 'fields', 'bypass', 'lake', 'woods']);
   const list = (W.districts || []).filter(d => !skip.has(d.kind) && d.poly);
   const k0 = town.start;
-  S.areas = list.map((d, i) => { const at = d.at || centroid(d.poly); return { i, id: d.id, name: d.name, x: at.x, y: at.y, level: 1 + Math.floor(Math.hypot(at.x - k0.x, at.y - k0.y) / A.levelEvery), state: 'dark', walker: -1, spawnT: 0, nestT: A.nestEvery, planted: 0 }; });
+  S.areas = list.map((d, i) => { const at = d.at || centroid(d.poly); return { i, id: d.id, name: d.name, x: at.x, y: at.y, level: 1 + Math.floor(Math.hypot(at.x - k0.x, at.y - k0.y) / A.levelEvery), state: 'dark', walker: -1, spawnT: 0 }; });
   function centroid(P) { let x = 0, y = 0; for (const p of P) { x += p.x; y += p.y; } return { x: x / P.length, y: y / P.length }; }
   // the area under every 8 m of the map, looked up once
   const AG = A.grid, gw = Math.ceil(town.size.w / AG), gh = Math.ceil(town.size.h / AG), grid = new Int16Array(gw * gh).fill(-1), byId = new Map(S.areas.map(a => [a.id, a]));
@@ -55,8 +53,8 @@ export function createAreas(G) {
       const k = S.kai, q = Math.hypot(k.x - x, k.y - y); if (q < 6 && !k.dead) G.hurtKai(12 * (1 - q / 6));
       if (d.hp <= 0) G.killFoe(d, 'gun'); } }
   (G.onDie ||= []).push(d => { if (!d.boss) return; const a = S.areas[d.area]; if (!a || a.state === 'clean') return; a.state = 'clean'; a.walker = -1;
-    for (const n of S.nests) if (n.alive && areaAt(n.x, n.y) === a) G.hitNest(n, 1e9);   // its nests go dark with it
-    ev('clean', { area: a.i, name: a.name, x: d.x, y: d.y, level: a.level }); });
+    ev('clean', { area: a.i, name: a.name, x: d.x, y: d.y, level: a.level });
+    if (S.areas.every(q => q.root !== undefined || q.state === 'clean' || q.walker < 0 && q.state !== 'dark')) { S.won = true; ev('won', {}); } });   // every area clean: the town is yours
   function stepWalker(d, a, dt) {
     const K = R.dead.walker, k = S.kai, r = Math.hypot(k.x - d.x, k.y - d.y), P = pts[a.i];
     if (!k.dead && r < A.notice) d.state = 'hunt'; else if (d.state === 'hunt' && (r > A.notice * 1.8 || k.dead)) d.state = 'patrol';
@@ -69,7 +67,7 @@ export function createAreas(G) {
     const dx = gx - d.x, dy = gy - d.y, L = Math.hypot(dx, dy) || 1, nx = d.x + dx / L * sp * dt, ny = d.y + dy / L * sp * dt;
     if (!blocked(nx, ny)) { d.x = nx; d.y = ny; } else if (d.state === 'patrol' && P.length) { const q = P[rng.int(P.length)]; d.wx = q.x; d.wy = q.y; }
     d.vx = dx / L * sp; d.vy = dy / L * sp; d.fa = Math.atan2(dy, dx);
-    // it drops crawlers as it walks (more often at night, a cap per walker) and plants nests the longer it lives
+    // it drops crawlers as it walks (more often at night, a cap per walker) 
     const fight = d.state === 'hunt';
     if ((a.spawnT -= dt) <= 0) { a.spawnT = fight ? A.spawnFight : S.night ? A.spawnNight : A.spawnEvery; const mine = S.dead.filter(q => q.mother === d.id).length;
       if (mine < (fight ? A.broodFight : A.brood)) for (let t = 0; t < 6; t++) { const ang = rng.range(0, 6.283), x = d.x + Math.cos(ang) * 6.5, y = d.y + Math.sin(ang) * 6.5;
@@ -82,8 +80,6 @@ export function createAreas(G) {
               S.bolts.push({ id: 900000 + Math.floor(rng.range(0, 1e5)), x: px, y: py, vx: Math.cos(ang) * A.boltSpeed, vy: Math.sin(ang) * A.boltSpeed, life: 3.2, dmg: A.boltDmg, r: 0.9, from: d.id }); }
             ev('volley', { id: d.id, part: pid, x: px, y: py }); } } }
       else if ((d.volleyT -= dt) <= 0 && (d.parts.podL.hp > 0 || d.parts.podR.hp > 0)) { d.podAim = A.podWindup; ev('podAim', { id: d.id }); } }
-    if ((a.nestT -= dt) <= 0) { a.nestT = A.nestEvery; if (a.planted < A.nestsMax && !blocked(d.x, d.y)) { a.planted++; const n = { id: 1000 + S.nests.length, x: d.x, y: d.y, hp: A.nestHp, maxHp: A.nestHp, alive: true, spawnT: 3, hit: -9, planted: true };
-      S.nests.push(n); S.nestsLeft++; ev('planted', { id: n.id, x: n.x, y: n.y, area: a.i }); } }
   }
   function stepAreas(dt) { const k = S.kai;
     for (const d of S.dead) { if (!d.boss) continue; if (Math.hypot(d.x - k.x, d.y - k.y) > A.simR) continue; const a = S.areas[d.area]; if (a) stepWalker(d, a, dt); }

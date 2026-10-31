@@ -1,6 +1,6 @@
-// [roam] The HUD and the controls: health, nests left, the clock; the Ride and Dash buttons; a floating stick (drag
+// [roam] The HUD and the controls: health, areas cleaned, the clock; the Ride and Dash buttons; a floating stick (drag
 // anywhere), pinch and wheel to zoom, WASD/arrows, E to ride, Space to dash; toasts from the sim's events; and the
-// arrows at the screen's edge to the nearest nest and to the parked bike. Writes only `input` and the camera's base zoom.
+// arrows at the screen's edge to the walker and to the parked bike. Writes only `input` and the camera's base zoom.
 import { MACHINES } from '../play/machines.js';
 export function createUi({ canvas, fx, sim, cam, input }) {
   const $ = id => document.getElementById(id), S = sim.state;
@@ -26,7 +26,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   for (const g of kitEl.querySelectorAll('.opts')) for (const b of g.children) b.addEventListener('click', () => { const k = g.dataset.k, v = b.dataset.v;
     if (k === 'mods') LO.mods = LO.mods.includes(v) ? LO.mods.filter(m => m !== v) : [...LO.mods, v]; else LO[k] = k === 'every' ? +v : (v || null);
     sim.setLoadout(LO); paintKit(); });
-  press($('kit'), () => { kitEl.hidden = false; ui.paused = true; paintKit(); }); $('kitDone').addEventListener('click', () => { kitEl.hidden = true; ui.paused = false; });
+  press($('kit'), () => { kitEl.hidden = false; ui.paused = true; paintKit(); }); $('kitDone').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); kitEl.hidden = true; ui.paused = false; });
   const ui = { paused: false }; sim.setLoadout(LO); paintKit();
   // the clock speed (a test control): 1x, 10x, 30x; only the day passes faster
   const speedEl = $('speed'), RATES = [1, 10, 30];
@@ -48,7 +48,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'j') setFire(false); });
   function keyInput() { if (mover !== null) return; const x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), y = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0); if (x || y) { const r = Math.hypot(x, y); input.x = x / r; input.y = y / r; input.key = true; } else if (input.key) { input.x = input.y = 0; input.key = false; } }
   // ---------- events → words ----------
-  const WORDS = { dusk: ['Dusk. The machines wake hungry.', true], dawn: ['Dawn. The machines slow and power down.', true], down: ['Wrecked. Back at the square in a moment.'], back: ['Back on the bike.'], crash: ['Crash!'], won: ['Every nest is ash. Hollowmere breathes.', true] };
+  const WORDS = { dusk: ['Dusk. The machines wake hungry.', true], dawn: ['Dawn. The machines slow and power down.', true], down: ['Wrecked. Back at the square in a moment.'], back: ['Back on the bike.'], crash: ['Crash!'], won: ['Every area is clean. Hollowmere breathes.', true] };
   // the first time each machine comes for you, a line on what it does (the game teaches by meeting, not a manual)
   const met = new Set(['crawler']);
   function meet() { const k = S.kai; for (const d of S.dead) if (!met.has(d.kind) && d.state === 'chase' && Math.hypot(d.x - k.x, d.y - k.y) < 20 && MACHINES[d.kind]) { met.add(d.kind); toast(`${MACHINES[d.kind].name}: ${MACHINES[d.kind].desc}`); } }
@@ -62,21 +62,21 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     heatBar.style.width = `${Math.min(100, (S.heat || 0) * 10)}%`;
     const k = S.kai, f = k.hp / k.maxHp, near = !k.riding && Math.hypot(S.bike.x - k.x, S.bike.y - k.y) < 2.6;
     const ph = sim.dayPhase(), mm = Math.floor(ph.left / 60), ss = Math.floor(ph.left % 60);
-    const sig = `${Math.round(f * 100)}|${S.nestsLeft}|${ph.night}|${mm}:${ss}|${near}|${k.riding}|${k.dashCd > 0}`;
+    const roots = (S.areas || []).filter(a => a.root === undefined), cleanN = roots.filter(a => a.state === 'clean').length;
+    const sig = `${Math.round(f * 100)}|${cleanN}/${roots.length}|${ph.night}|${mm}:${ss}|${near}|${k.riding}|${k.dashCd > 0}`;
     if (sig !== last) { last = sig;
       hpBar.style.width = `${Math.max(0, f * 100)}%`; hpEl.classList.toggle('low', f < 0.35);
-      nestsEl.textContent = `${S.nestsLeft}`; clockEl.textContent = `${ph.night ? '☾ dawn' : '☀ dusk'} ${mm}:${String(ss).padStart(2, '0')}`;
+      nestsEl.textContent = `${cleanN}/${roots.length}`; clockEl.textContent = `${ph.night ? '☾ dawn' : '☀ dusk'} ${mm}:${String(ss).padStart(2, '0')}`;
       rideBtn.hidden = !near;   // [m1] on foot is for later: the button only shows if she is off the bike and beside it rideBtn.textContent = k.riding ? 'OFF' : 'RIDE'; rideBtn.setAttribute('aria-label', k.riding ? 'Get off the motorcycle' : 'Get on the motorcycle');
       dashBtn.hidden = k.riding; dashBtn.disabled = k.dashCd > 0; }
   }
-  /** arrows at the screen's edge: the nearest live nest (ember) and the bike when Kai is off it and it is out of view */
+  /** arrows at the screen's edge: the walker (red) and the bike when Kai is off it and it is out of view */
   function arrows(toS, cssW, cssH) {
-    const k = S.kai; let nest = null, nd = 1e9; for (const n of S.nests) if (n.alive) { const d = Math.hypot(n.x - k.x, n.y - k.y); if (d < nd) { nd = d; nest = n; } }
+    const k = S.kai;
     const one = (x, y, col, label) => { const [sx, sy] = toS(x, y), m = 30; if (sx > m && sy > 70 && sx < cssW - m && sy < cssH - 260) return;   // [m1] clear of the combat pad
       const cx = cssW / 2, cy = cssH / 2, a = Math.atan2(sy - cy, sx - cx), t = Math.min(Math.abs((cssW / 2 - m) / (Math.cos(a) || 1e-6)), Math.abs((cssH / 2 - (Math.sin(a) > 0 ? 250 : 90)) / (Math.sin(a) || 1e-6))), ex = cx + Math.cos(a) * t, ey = cy + Math.sin(a) * t;
       fx.save(); fx.translate(ex, ey); fx.rotate(a); fx.fillStyle = col; fx.strokeStyle = 'rgba(8,8,10,.8)'; fx.lineWidth = 3; fx.beginPath(); fx.moveTo(12, 0); fx.lineTo(-6, -9); fx.lineTo(-2, 0); fx.lineTo(-6, 9); fx.closePath(); fx.stroke(); fx.fill(); fx.restore();
       fx.font = '700 11px "IBM Plex Mono", ui-monospace, monospace'; fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.lineWidth = 3; fx.strokeText(label, ex - Math.cos(a) * 24, ey - Math.sin(a) * 18); fx.fillText(label, ex - Math.cos(a) * 24, ey - Math.sin(a) * 18); };
-    if (nest) one(nest.x, nest.y, '#ff5a3a', `${Math.round(nd)}m`);
     // [m4] the walker: the one of the area she's in (if it's still dark), else the nearest dark area's
     { const here = S.inArea >= 0 ? S.areas[S.inArea] : null; let w = here && here.walker >= 0 ? S.dead.find(d => d.id === here.walker) : null;
       if (!w) { let wd = 1e9; for (const d of S.dead) if (d.boss) { const q = Math.hypot(d.x - k.x, d.y - k.y); if (q < wd) { wd = q; w = d; } } }

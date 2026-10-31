@@ -111,6 +111,10 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **Reading it (Horizon's Focus):** within 30 m Kai's lamp tags its parts on screen (POD, TANK, PLATES n / CORE, each with a health tick; × when broken). **The boss bar** at the top during a fight: its name and area, four plate segments, the core.
 - Headless fight (a bot circling at 16 m, Kai taking damage): the scatter gun kills it in about 90 s with 2 downs; the launcher in about 160 s with 4 (its seeking rockets lock onto the brood).
 
+**The map, World of Warcraft style, and no more nests (Oct 31)**
+- **The map is painted from the real world:** one pixel per 2 m cell of the world's own record (grass, wheat, barley, rape, plough, pasture, woods, the mere, roads, pavements, yards, roofs with darker edges), in muted map colours. Area borders are dashed in their difficulty colour (solid once clean), names on dark plates. It opens on the area Kai is in (the land outside it dims, its quarters are named small inside it); WORLD shows everything; tap an area to open it; drag to pan, pinch or wheel to zoom; M opens and Esc closes it on a keyboard. Close now works on a phone: every panel button reacts on pointerdown, like the game's other buttons (a click could be eaten by the game's own touch handling).
+- **Nests are gone** (Gabriel: they don't make sense next to walkers). The walkers are each area's only source of machines; the win is every area clean; the HUD chip reads "Clean 0/6"; the walker arrow replaces the nest arrow.
+
 ## M5. Risk and repair · 2–3 evenings
 **Why fifth:** without a cost to dying, loot and fights lose tension.
 

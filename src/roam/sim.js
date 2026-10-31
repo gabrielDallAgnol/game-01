@@ -1,10 +1,9 @@
 // [roam] The rules of Hollowmere Roam (the composition root: the constants, the state, the loop; each system is a module in
 // src/roam/sim/): Kai rides the town and guns down the machines,
-// which sleep, wander and chase; nests breed them and have a heart to break, the day turns to night (more dead, faster, hungrier). No base, no
+// which sleep, wander and chase; each area's walker breeds them and has to be broken, the day turns to night (more dead, faster, hungrier). No base, no
 // building. Deterministic: one Rng stream, a fixed step; the renderer and the UI only read `state` and send `input`.
 import { Rng, hashSeed } from '../sim/rng.js';
 import { createFoes } from './sim/foes.js';
-import { createNests } from './sim/nests.js';
 import { createVehicle } from './sim/vehicle.js';
 import { createKai } from './sim/kai.js';
 import { createGuns } from './sim/guns.js';
@@ -16,7 +15,7 @@ import { createLoot } from './sim/loot.js';
 import { createAreas } from './sim/areas.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createNests, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas];
+const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
@@ -31,8 +30,8 @@ export const ROAM = {
   // [m3e] each machine's body radius for hits, matching how big it's drawn (figures are drawn larger than life)
   // [m4] areas: a level every levelEvery metres from the start (machines +hpPerLevel each); walkers act within simR of Kai,
   // notice her within notice m, stomp every stompEvery s; drop a crawler every spawnEvery s (spawnNight at night), at
-  // most brood alive; plant a nest every nestEvery s, at most nestsMax (nestHp each); the bare core takes coreMult damage
-  areas: { minPts: 25, grid: 8, levelEvery: 260, hpPerLevel: 0.3, simR: 160, notice: 22, stompEvery: 2.2, spawnEvery: 9, spawnNight: 5, brood: 8, nestEvery: 150, nestsMax: 2, nestHp: 80, coreMult: 1.4,
+  // most brood alive; the bare core takes coreMult damage
+  areas: { minPts: 25, grid: 8, levelEvery: 260, hpPerLevel: 0.3, simR: 160, notice: 22, stompEvery: 2.2, spawnEvery: 9, spawnNight: 5, brood: 8, coreMult: 1.4,
     // [m4b] its defences: pods (podHp each) fire a volley every volleyEvery s within volleyR after podWindup; the tank (tankHp)
     // blows for tankBite of its core; in a fight it broods every spawnFight s up to broodFight; partSlop: how near a part a hit counts
     podHp: 30, tankHp: 16, volleyEvery: 3.2, volleyR: 34, podWindup: 0.7, boltSpeed: 9, boltDmg: 7, tankBite: 0.3, spawnFight: 3, broodFight: 14, partSlop: 1.2 },
@@ -53,17 +52,16 @@ export const ROAM = {
   // by flyAcc), banked within grab; a weapon goes in the bag (bag slots) when she passes within take (takeRide on the
   // bike); rare drops scan within scan; scrap left lying scrapLife seconds goes; at most max drops on the ground
   loot: { pull: 14, settle: 0.45, fly0: 3, flyAcc: 40, flyMax: 30, grab: 0.8, take: 1.3, takeRide: 1.9, bag: 12, scan: 9, scrapLife: 90, max: 220 },
-  nest: { hp: 120, guards: 7, every: 7, nightEvery: 3.5 },
 };
 
 export function createRoam(town, seed = 1) {
   const R = ROAM, rng = new Rng(hashSeed(seed, 'roam'));
   const S = {
-    t: 0, clock: 40, clockRate: 1, night: false, kills: 0, nestsLeft: town.nests.length, won: false, events: [],
+    t: 0, clock: 40, clockRate: 1, night: false, kills: 0, won: false, events: [],
     kai: { x: town.start.x + 0.8, y: town.start.y + 6.2, vx: 0, vy: 0, face: 0, hp: R.kai.hp, maxHp: R.kai.hp, cd: 0, swing: 0, hurtT: -9, dead: 0, dash: 0, dashCd: 0, riding: true },   // she starts on the bike (on foot comes later)
     bike: { x: town.start.x + 0.8, y: town.start.y + 6.2, ang: 0, speed: 0 },
     broken: new Set(),   // the small props the bike has smashed (their ids in town.breakables)
-    dead: [], nests: town.nests.map((n, id) => ({ id, x: n.x, y: n.y, b: n.b, hp: R.nest.hp, maxHp: R.nest.hp, alive: true, spawnT: rng.range(0, 4), hit: -9 })),
+    dead: [], nests: [],   // [m4c] nests are gone: the walkers are the areas' only source (kept empty for old readers)
   };
   const G = { R, S, rng, town, seed, ev: (type, o) => S.events.push({ type, ...o }), dist: (a, b) => Math.hypot(a.x - b.x, a.y - b.y), view: 0 };
   // the systems, each a module; the order they are made in is fixed (append new ones at the end)
@@ -74,7 +72,7 @@ export function createRoam(town, seed = 1) {
     G.view = Math.min(160, inp.view || 0);
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepNests(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();

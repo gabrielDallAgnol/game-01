@@ -13,9 +13,9 @@ export function createLootUi({ sim, toast, ui }) {
       <div class="md">${w.rarity} · ${w.mods.length ? w.mods.map(m => `<span title="${esc((MODIFIERS[m] || {}).desc || '')}">${MODN[m] || m}</span>`).join(' · ') : 'no modifiers'}</div>
       ${id === undefined ? '<div class="md">in hand</div>' : `<div class="bt"><button data-s="${id}">SALVAGE +${p.scrap}${p.chips ? ' ◆' + p.chips : ''}</button><button class="eq" data-e="${id}">EQUIP</button></div>`}</div>`; };
   function paint() { list.innerHTML = row(S.guns.main.weapon) + (S.bag.length ? S.bag.map(b => row(b.w, b.id)).join('') : '<p class="empty">Nothing yet. Weapons you ride over go here.</p>'); }
-  list.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.e) sim.equip(+b.dataset.e); else if (b.dataset.s) sim.salvage(+b.dataset.s); paint(); });
+  list.addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.e) sim.equip(+b.dataset.e); else if (b.dataset.s) sim.salvage(+b.dataset.s); paint(); });
   bagBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); panel.hidden = false; ui.paused = true; paint(); });
-  $('bagDone').addEventListener('click', () => { panel.hidden = true; ui.paused = false; });
+  $('bagDone').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); panel.hidden = true; ui.paused = false; });
   const bump = el => { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); };
   const told = new Set(), once = (k, text, big) => { if (!told.has(k)) { told.add(k); toast(text, big); } };
   function pickup(w) { const el = document.createElement('div'); el.textContent = '+ ' + nameOf(w); el.style.color = RARITY[w.rarity].color; feed.appendChild(el); setTimeout(() => el.remove(), 3200); while (feed.children.length > 4) feed.firstChild.remove(); }

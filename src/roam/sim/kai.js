@@ -17,13 +17,12 @@ export function createKai(G) {
       const nx = k.x + k.vx * dt, ny = k.y + k.vy * dt; if (!blocked(nx, k.y)) k.x = nx; if (!blocked(k.x, ny)) k.y = ny;
       if (Math.hypot(k.vx, k.vy) > 0.3) k.face = Math.atan2(k.vy, k.vx);
       k.dash = Math.max(0, k.dash - dt);
-      // the wrench: hits the nearest foe (or a nest's heart) in reach, on its own
+      // the wrench: hits the nearest foe in reach, on its own
       k.cd -= dt; k.swing = Math.max(0, k.swing - dt);
       if (k.cd <= 0) {
         let tgt = null, td = R.kai.reach; for (const d of S.dead) { const r = dist(d, k); if (r < td) { td = r; tgt = d; } }
-        let nest = null; if (!tgt) for (const n of S.nests) if (n.alive && dist(n, k) < R.kai.reach + 0.8) nest = n;
-        if (tgt || nest) { const o = tgt || nest; k.cd = R.kai.swing; k.swing = 0.25; if (m < 0.1) k.face = Math.atan2(o.y - k.y, o.x - k.x); ev('swing', {});
-          if (tgt) G.hurtFoe(tgt, R.kai.dmg, 'kai'); else G.hitNest(nest, R.kai.dmg); }
+        if (tgt) { const o = tgt; k.cd = R.kai.swing; k.swing = 0.25; if (m < 0.1) k.face = Math.atan2(o.y - k.y, o.x - k.x); ev('swing', {});
+          G.hurtFoe(tgt, R.kai.dmg, 'kai'); }
       }
     }
     k.dashCd = Math.max(0, k.dashCd - dt);
