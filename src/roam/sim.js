@@ -21,7 +21,9 @@ export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
   kai: { hp: 100, speed: 4.4, reach: 1.8, dmg: 1.6, swing: 0.42, regen: 1.5, regenAfter: 6, respawn: 3 },   // [m1] slow regen: a hit costs you
   dash: { dist: 4.2, time: 0.22, cd: 1.2 },
-  bike: { top: 14, accel: 9, brake: 14, turn: 2.6, ram: 6, ramDmg: 4, enter: 2.6 },
+  // bounce/slide: what's left of the speed into / along a wall when the bike hits it; lock: seconds the stick can't steer it
+  // straight back into the wall after a bounce
+  bike: { top: 14, accel: 9, brake: 14, turn: 2.6, ram: 6, ramDmg: 4, enter: 2.6, bounce: 0.45, slide: 0.8, lock: 0.18 },
   gun: { hitR: 0.7, heartR: 1.6, push: 3.2, noise: 30, jump: 7 },
   // the machines (code id `dead` kept from the Roam prototype; caps 42/75 > 24/46 after Gabriel's playtest: too crowded): the crawler is M1's one machine
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)

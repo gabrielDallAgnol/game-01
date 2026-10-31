@@ -6,6 +6,7 @@
 //   tAtom:  r fire on the ground (grass, crops, oil) · g fire in a solid (a crown, a roof, a wreck) · b wet · a fresh oil
 //   tAtom2: r steam · g fog · b light (a blast's flash, a muzzle, a hit) · a open flame (a thrower's jet, a rocket's exhaust)
 //   tAtom3: r smoke put out directly (a rocket's trail, a blast, dust off a wall) · g heat not yet burning (scorching)
+//           · b a projectile's light trail · a its hue (amber .1, ember .35, blue .65, red .95)
 // The guns paint here too: a thrower's spray is fire (or water and mist) on the atoms it passes; a rocket's exhaust glows.
 /* global THREE */
 export const AN = 256;   // texels a side (one a metre)
@@ -46,14 +47,19 @@ export function createAtomLook({ U, town }) {
       if (a.wet > 0) { const v = Math.min(1, a.wet / 5); if (a.obb) box(d1, 2, a.obb, v); else disc(d1, 2, a.x, a.y, r, v); }
       if (a.slick && a.state === 'ok') disc(d1, 3, a.x, a.y, a.r, Math.min(1, a.life / 6), 0.25);
       if (a.state === 'ok' && a.heat > 0.05 && !a.obb) disc(d3, 1, a.x, a.y, r, Math.min(1, a.heat / 4)); }
+    // projectiles leave light in the cells they cross: a short trail behind each, brightest at the head
+    const trail = (x, y, vx, vy, len, hue) => { const sp = Math.hypot(vx, vy) || 1, ux = vx / sp, uy = vy / sp, n = Math.ceil(len / 0.4);
+      for (let k = 0; k <= n; k++) { const q = k / n, px = x - ux * len * q, py = y - uy * len * q; disc(d3, 2, px, py, 1.1, (1 - q) * 0.35, 1); disc(d3, 3, px, py, 1.8, hue, 0.01); } };
+    for (const p of S.shots || []) if (p.del === 'pellet' || !p.del) trail(p.x, p.y, p.vx, p.vy, 2.4, p.el === 'fire' ? 0.35 : p.el === 'water' ? 0.65 : 0.1);
+    for (const b of S.bolts || []) trail(b.x, b.y, b.vx, b.vy, 1.8, 0.95);
     // the guns' shots: a thrower's drops are flame (or water and its mist) on what they pass; a rocket's exhaust glows
     // and leaves a smoke trail
     for (const p of S.shots || []) {
       // a jet widens and cools as it travels (a tight white-yellow core at the nozzle, an orange tongue at its end, smoke round it)
-      if (p.del === 'stream') { const q = Math.hypot(p.x - p.ox, p.y - p.oy), rr = 0.3 + 0.16 * q;
-        if (p.el === 'water') { disc(d1, 2, p.x, p.y, rr, 0.8); disc(d2, 1, p.x, p.y, rr * 1.3, 0.55, 0.8); }
+      if (p.del === 'stream') { const q = Math.hypot(p.x - p.ox, p.y - p.oy), rr = 1 + 0.16 * q;   // (at least a texel of the 1 m map)
+        if (p.el === 'water') { disc(d1, 2, p.x, p.y, rr, 1); disc(d2, 1, p.x, p.y, rr * 1.2, 0.85, 0.8); }
         else { disc(d2, 3, p.x, p.y, rr, Math.max(0.35, 1 - q / 9), 0.75); if (q > 3) disc(d3, 0, p.x, p.y, rr * 1.5, 0.2, 0.9); } }
-      else if (p.del === 'splash') { const sp = Math.hypot(p.vx, p.vy) || 1, bx = p.x - p.vx / sp * 0.5, by = p.y - p.vy / sp * 0.5; disc(d2, 3, bx, by, 0.5, 1, 0.6);
+      else if (p.del === 'splash') { const sp = Math.hypot(p.vx, p.vy) || 1, bx = p.x - p.vx / sp * 0.5, by = p.y - p.vy / sp * 0.5; disc(d2, 3, bx, by, 1, 0.6, 0.8);
         if ((trailN = (trailN + 1) % 2) === 0) puffs.push({ x: bx, y: by, r: 0.7, d: d3, ch: 0, life: 1.6, t: 0, grow: 1, v: 0.8 }); } }
     // clouds from reactions: scalding steam and fog, thinning as they fade
     for (const c of S.clouds || []) disc(d2, c.kind === 'fog' ? 1 : 0, c.x, c.y, c.r, Math.min(1, c.left / 1.2) * Math.min(1, (c.dur - c.left) / 0.3 + 0.3), 0.6);

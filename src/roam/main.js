@@ -56,6 +56,7 @@ function start() {
   }
   const sound = createSound();   // [m3b] synthesized sound; starts on the first tap
   addEventListener('pointerdown', () => sound.start(), { passive: true });
+  const lab = { freeze: false };   // [m3d] the lab can hold the rules still while the frame keeps drawing
   let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; sound.start(); });
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
   // the trees on a 16 m grid (a crown never spans more than one cell's neighbours: each tree is filed in every cell its crown touches)
@@ -107,7 +108,7 @@ function start() {
     else if (fastT > fastNeed && scale < 1) { scale = Math.min(1, scale + 0.15); fastT = 0; resize(); }
     if (fpsT > 0.5) { fpsEl.textContent = `${Math.round(fpsN / fpsT)} fps · ${Math.round(scale * 100)}%`; fpsT = 0; fpsN = 0; }
     input.view = Math.hypot(cssW, cssH) / 2 / cam.ppm;   // what the player can see, for the dead to appear out of it
-    if (running && !ui.paused && !feel.frozen(dt)) { acc += dt; while (acc >= ROAM.step) { snap(); sim.step(input); acc -= ROAM.step; } }   // [m1] a hitstop holds the rules for a few frames
+    if (running && !ui.paused && !lab.freeze && !feel.frozen(dt)) { acc += dt; while (acc >= ROAM.step) { snap(); sim.step(input); acc -= ROAM.step; } }   // [m1] a hitstop holds the rules for a few frames
     const R = between(running ? acc / ROAM.step : 1);
     const evs = sim.drain();
     for (const e of evs) if (e.type === 'smash') falls.push({ x: e.x, y: e.y, fa: e.ang, id: 100000 + e.id, t0: t, prop: true, stamp: true });   // a smashed prop bursts into letters like a fall
@@ -118,7 +119,7 @@ function start() {
     const { night, sun } = skyAt(S.clock); curNight = night;
     // the camera: follows Kai, leads her a little; on the bike it pulls back with the speed so you see what's coming
     const k = R.kai, lead = k.riding ? 0.55 : 0.3;
-    cam.x += (k.x + k.vx * lead - cam.x) * Math.min(1, dt * 5); cam.y += (k.y + k.vy * lead - cam.y) * Math.min(1, dt * 5);
+    if (lab.cam) { cam.x = lab.cam.x; cam.y = lab.cam.y; } else { cam.x += (k.x + k.vx * lead - cam.x) * Math.min(1, dt * 5); cam.y += (k.y + k.vy * lead - cam.y) * Math.min(1, dt * 5); }   // [m3d] the lab can hold the camera
     // the zoom eases to the pinch's and then holds still exactly (a zoom that never quite settles re-samples every glyph);
     // no pull-back with the bike's speed for the same reason
     { const want = cam.base; cam.ppm += (want - cam.ppm) * Math.min(1, dt * 6); if (Math.abs(want - cam.ppm) < want * 0.004) cam.ppm = want; }
@@ -128,7 +129,7 @@ function start() {
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules
     for (const i of town.dress.live) { if (Math.abs(i.x - cam.x) > 90 || Math.abs(i.y - cam.y) > 120) continue; if (!i.st) i.atom.live.init(i); i.atom.live.step(i, dt, { kai: R.kai, t, night, WIND: { x: 0.731, y: 0.682 }, town }); }
-    try { look.draw(fx, { lightAt, broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 }, drops: S.drops }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
+    try { look.draw(fx, { lightAt, broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 }, drops: S.drops, shots: S.shots, bolts: S.bolts }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
     for (const o of R.dead) if (o.fa !== undefined) faMap.set(o.id, o.fa); if (faMap.size > 4 * S.dead.length + 50) faMap.clear();   // the dead keep facing where they last walked
     dustOf(R.kai, dt); drawPlumes(fx, toS, view.ppm, dt, { x: 0.731, y: 0.682 }, night, cssW, cssH, lightAt);
     throwChaff(R.kai, dt); drawChaff(dt);
@@ -138,5 +139,5 @@ function start() {
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  window.__roam = { sim, S, input, cam, skyAt, look, town, plumeCount, plumeEmit, drawPlumes, run: sec => { for (let i = 0; i < sec / ROAM.step; i++) sim.step(input); cam.x = S.kai.x; cam.y = S.kai.y; } };
+  window.__roam = { lab, sim, S, input, cam, skyAt, look, town, plumeCount, plumeEmit, drawPlumes, run: sec => { for (let i = 0; i < sec / ROAM.step; i++) sim.step(input); cam.x = S.kai.x; cam.y = S.kai.y; } };
 }

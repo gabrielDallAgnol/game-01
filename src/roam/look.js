@@ -74,7 +74,7 @@ export function createLook(canvas, town) {
     { const b = S.bike, a = b.ang, f = 0.72 * 0.9 * 2.6; U.uHead.value.set(b.x + Math.cos(a) * f, b.y + Math.sin(a) * f, a, S.kai.riding ? 0.25 + 0.75 * night : 0); }
     U.uCam.value.set(cam.x, cam.y); U.uView.value.set(cssW / cam.ppm, cssH / cam.ppm); U.uPpm.value = cam.ppm * dpr; U.uTime.value = t; U.uNight.value = night; U.uKai.value.set(S.kai.x, S.kai.y);
     stepDist(v.dt, S, v.falls, cam, cssW, cssH); atoms.update(S, cam, v.dt);
-    medium.render({ cam, cssW, cssH, dpr, kai: S.kai, dead: S.dead, deaths: v.falls, bike: S.bike, nests: S.nests, t, night, props: town.dress.volumes, broken: S.broken, drops: S.drops, shots: S.shots, guns: S.guns });
+    medium.render({ cam, cssW, cssH, dpr, kai: S.kai, dead: S.dead, deaths: v.falls, bike: S.bike, nests: S.nests, t, night, props: town.dress.volumes, broken: S.broken, drops: S.drops, shots: S.shots, guns: S.guns, bolts: S.bolts });
     renderer.render(scene, quadCam);
   }
   return { render, resize, draw: medium.draw, U, atoms, stamp: (x, y, r) => blasts.push({ x, y, r }) };
