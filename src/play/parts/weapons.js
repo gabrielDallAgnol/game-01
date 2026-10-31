@@ -14,7 +14,7 @@ export const WEAPONS = {
   // what it hits; a splash lands its element on everything in its blast; a stream puts a little down wherever it reaches
   launcher: {
     base: 'launcher', slot: 'weapon', theme: 'blast',
-    signature: { id: 'splash', desc: 'Rockets burst: everything near the blast takes the hit and the element.' },
+    signature: { id: 'splash', desc: 'Rockets seek the machine nearest where you point and burst: everything near the blast takes the hit and the element.' },
     shot: { count: 1, spread: 0, speed: 8, accel: 45, vmax: 30, dmg: 3, range: 19, rate: 0.75, size: 1.6, pierce: 0, element: null, delivery: 'splash', splash: { r: 2.6, dmg: 4, power: 3 } },
     module: 'mount_tube', tags: ['metal', 'blast'],
     desc: 'A tube on the rack that throws a rocket. Slow, loud, and it sets the world off.',

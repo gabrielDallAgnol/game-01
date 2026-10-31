@@ -24,7 +24,11 @@ export const ROAM = {
   // bounce/slide: what's left of the speed into / along a wall when the bike hits it; lock: seconds the stick can't steer it
   // straight back into the wall after a bounce
   bike: { top: 14, accel: 9, brake: 14, turn: 2.6, ram: 6, ramDmg: 4, enter: 2.6, bounce: 0.45, slide: 0.8, lock: 0.18 },
-  gun: { hitR: 0.7, heartR: 1.6, push: 3.2, noise: 30, jump: 7 },
+  // hitR: a shot's own radius (added to the machine's body, below); home: how far off your aim (rad) a rocket looks for its
+  // machine, homeR how far, homeTurn how fast it turns (rad/s); fuse: a rocket bursts this close to a machine's body
+  gun: { hitR: 0.35, heartR: 1.6, push: 3.2, noise: 30, jump: 7, home: 0.7, homeR: 20, homeTurn: 4.5, fuse: 0.9 },
+  // [m3e] each machine's body radius for hits, matching how big it's drawn (figures are drawn larger than life)
+  body: { crawler: 0.75, skitter: 0.6, hound: 0.8, spitter: 0.75, brute: 1.25 },
   // the machines (code id `dead` kept from the Roam prototype; caps 42/75 > 24/46 after Gabriel's playtest: too crowded): the crawler is M1's one machine
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)
     bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [24, 46], alarm: 14, catchUp: 1.2, near: 70, far: 110 },

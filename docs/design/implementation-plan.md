@@ -82,6 +82,8 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **The projectile lab** (`tools/roam/projectile-lab.cjs`): freezes the rules on a kerb, lines up every projectile and photographs it at close, mid and far zoom for design reviews (the main loop has a `lab` hook: freeze the rules, hold the camera).
 - **The bike off walls:** it no longer stops dead and crawls backwards. The speed into the wall bounces back (0.45), the speed along it slides on (0.8), and the bike turns to its new direction: a glancing hit steers it along the wall, a head-on one throws it back out already turned away; for 0.18 s the stick can't drag it straight back in.
 
+**Aim help (Oct 31):** shots hit a machine's whole drawn body now (a body radius per kind: crawler 0.75 m, skitter 0.6, hound 0.8, spitter 0.75, brute 1.25, plus the shot's own 0.35), not a 0.7 m point. Rockets seek: each picks the machine nearest where you pointed (within 40° of the aim and 20 m), turns toward it at 4.5 rad/s, retargets the nearest ahead if it dies, and bursts within 0.9 m of a body (a proximity fuse). Headless: scatter hits 25% → 34%, launcher 38% → 84%.
+
 ## M4. Clear an area (the goal) · about 1 week
 **Why fourth:** gives a fight a purpose and an ending.
 
