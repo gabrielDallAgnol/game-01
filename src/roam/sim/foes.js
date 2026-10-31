@@ -6,7 +6,9 @@ import { PIPS, STATUSES } from '../../play/statuses.js';
 export function createFoes(G) {
   const { R, S, rng, ev, dist, town } = G, { blocked, streetCells } = town;
   let nid = 1;
-  function spawn(kind, x, y, o = {}) { const K = R.dead[kind]; const d = { id: nid++, kind, x, y, vx: 0, vy: 0, hp: K.hp, maxHp: K.hp, fa: rng.range(0, 6.28), ph: rng.range(0, 6), side: rng.chance(0.5) ? -1 : 1, state: 'wander', wx: x, wy: y, bite: 0, wind: 0, hit: -9, cd: rng.range(0.5, 2), aim: 0, lunge: 0, lungeCd: 0, ...o }; S.dead.push(d); return d; }
+  // [m4] a machine is tougher in a higher-level area
+  const lvlHp = (x, y) => G.levelAt ? 1 + R.areas.hpPerLevel * (G.levelAt(x, y) - 1) : 1;
+  function spawn(kind, x, y, o = {}) { const K = R.dead[kind], hp0 = K.hp * lvlHp(x, y); const d = { id: nid++, kind, x, y, x0: x, y0: y, vx: 0, vy: 0, hp: hp0, maxHp: hp0, fa: rng.range(0, 6.28), ph: rng.range(0, 6), side: rng.chance(0.5) ? -1 : 1, state: 'wander', wx: x, wy: y, bite: 0, wind: 0, hit: -9, cd: rng.range(0.5, 2), aim: 0, lunge: 0, lungeCd: 0, ...o }; S.dead.push(d); return d; }
   // which machine: by each kind's weight, day or night
   const KINDS = Object.keys(R.dead).filter(k => R.dead[k] && R.dead[k].weight);
   // at most `most` of a kind on Kai's trail at once (a sky full of bolts is noise, not danger)
@@ -22,23 +24,23 @@ export function createFoes(G) {
   function populate() {
     const k = S.kai, cap = R.dead.cap[S.night ? 1 : 0], r0 = Math.max(24, G.view + 8), r1 = Math.max(R.dead.near, r0 + 40), far = Math.max(R.dead.far, r1 + 40);
     let near = 0; for (const d of S.dead) if (dist(d, k) < r1) near++;
-    for (let tries = 0; near < cap && tries < 6; tries++) { const p = streetNear(k.x, k.y, r0, r1); if (!p) break;
+    for (let tries = 0; near < cap && tries < 6; tries++) { const p = streetNear(k.x, k.y, r0, r1); if (!p) break; if (G.isClean && G.isClean(p.x, p.y)) continue;   // [m4] clean stays clean
       const kind = kindRoll(), K = R.dead[kind], pack = K.pack ? K.pack[0] + rng.int(K.pack[1] - K.pack[0] + 1) : 0;   // skitters come in packs
       const group = pack || (!S.night && rng.chance(0.25) ? 2 + rng.int(4) : 1);   // by day some sleep in little groups
-      for (let g = 0; g < group; g++) { const x = p.x + rng.range(-1.5, 1.5), y = p.y + rng.range(-1.5, 1.5); if (!blocked(x, y)) { spawn(g === 0 || pack ? kind : kindRoll(), x, y, { state: group > 1 && !pack ? 'sleep' : 'wander' }); near++; } } }
-    for (let i = S.dead.length - 1; i >= 0; i--) { const d = S.dead[i]; if (d.nest === undefined && d.state !== 'chase' && dist(d, k) > far) S.dead.splice(i, 1); }
+      for (let g = 0; g < group; g++) { const x = p.x + rng.range(-1.5, 1.5), y = p.y + rng.range(-1.5, 1.5); if (!blocked(x, y) && !(G.isClean && G.isClean(x, y))) { spawn(g === 0 || pack ? kind : kindRoll(), x, y, { state: group > 1 && !pack ? 'sleep' : 'wander' }); near++; } } }
+    for (let i = S.dead.length - 1; i >= 0; i--) { const d = S.dead[i]; if (d.nest === undefined && !d.boss && d.state !== 'chase' && dist(d, k) > far) S.dead.splice(i, 1); }
   }
   function kill(d, src) { const i = S.dead.indexOf(d); if (i < 0) return; S.dead.splice(i, 1); S.kills++; for (const f of G.onDie || []) f(d, src); ev('die', { id: d.id, x: d.x, y: d.y, fa: d.fa, kind: d.kind, src }); }
   // being shot wakes a machine and sets it on you (nothing sits still while you snipe it)
   // and the noise sets the others near it on you too: shooting into a group brings the group
-  function hurtFoe(d, n, src) { d.hp -= n; d.hit = S.t; if (d.state !== 'chase') { d.state = 'chase'; for (const o of S.dead) if (o.state !== 'chase' && dist(o, d) < R.dead.alarm) o.state = 'chase'; } if (d.hp <= 0) kill(d, src); }
+  function hurtFoe(d, n, src) { if (d.boss) { G.hurtBoss(d, n, src); return; } d.hp -= n; d.hit = S.t; if (d.state !== 'chase') { d.state = 'chase'; for (const o of S.dead) if (o.state !== 'chase' && dist(o, d) < R.dead.alarm) o.state = 'chase'; } if (d.hp <= 0) kill(d, src); }
   // steer round walls: try the straight line, then fan out to its side
   // [atoms] they walk round walls and round fire (unless already standing in it: then any way out will do)
   const fireAhead = (d, x, y) => G.hot && !G.hot(d.x, d.y) && G.hot(x, y);
   function steer(d, dx, dy) { for (const a of [0, 0.5, 1, 1.5, 2.1, -0.5, -1, -1.5, -2.1]) { const t = Math.atan2(dy, dx) + a * d.side, ax = Math.cos(t), ay = Math.sin(t); if (!blocked(d.x + ax * 1.1, d.y + ay * 1.1) && !fireAhead(d, d.x + ax * 1.8, d.y + ay * 1.8)) return [ax, ay]; } return [dx, dy]; }
   function stepFoes(dt) {
     const k = S.kai, sense0 = R.dead.sense[S.night ? 1 : 0] * (k.riding ? 1.3 : 1);   // the engine is loud
-    for (const d of S.dead) {
+    for (const d of S.dead) { if (d.boss) continue;   // [m4] walkers: areas.js
       const K = R.dead[d.kind], ai = K.ai || 'melee', r = dist(d, k), sense = sense0 * (K.sense || 1), forget = K.forget || sense * 1.6, st = d.st || {}, blind = !!st.blind, seesKai = !k.dead && !blind && r < sense;
       if (blind && d.state === 'chase') { d.state = 'wander'; d.wx = d.x; d.wy = d.y; d.aim = 0; d.wind = 0; }   // [m2] lost in the steam
       if (d.state === 'sleep') { if (!k.dead && r < (k.riding ? 9 : 5)) d.state = 'chase'; else { d.vx *= 0.8; d.vy *= 0.8; continue; } }
@@ -79,5 +81,5 @@ export function createFoes(G) {
   // noise: gunfire carries; machines in earshot come for you (sleepers only wake if it's close). Holding the trigger
   // draws a crowd: firing is the risk you take for the kills
   function noise(x, y, r) { for (const d of S.dead) { if (d.state === 'chase') continue; const q = Math.hypot(d.x - x, d.y - y); if (q < (d.state === 'sleep' ? r * 0.45 : r)) d.state = 'chase'; } }
-  Object.assign(G, { spawn, kindRoll, hurtFoe, populate, stepFoes, noise });
+  Object.assign(G, { spawn, kindRoll, hurtFoe, populate, stepFoes, noise, killFoe: kill });
 }

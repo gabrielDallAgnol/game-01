@@ -184,7 +184,7 @@ export function createMedium(o) {
           float rlev = floor(pow(clamp(rl, 0.0, 0.999), 0.6) * ${NG}.0), gm = mix(0.14 + 0.62 * rlev / ${NG - 1}.0, texture2D(tGlyph, vec2((rlev + g.x) / ${NG}.0, g.y)).a, smoothstep(2.4, 4.6, uCellPx));
           vec3 rc = vec3(0.9, 0.88, 0.82) * (0.45 + 0.6 * rl) * mix(tint(), vec3(0.55), uNight);
           // a lit house at night: its windows show as warm letters along the eaves, the roof catches a little of its own glow
-          vec4 LM = texture2D(tLight, t); float win = LM.g * uNight * step(0.55, h21(floor(cp * vec2(0.5, 1.0)) + 3.1)) * smoothstep(0.35, 0.95, 1.0 - rf.a + eave);
+          vec4 LM = texture2D(tLight, t); float cleanR = texture2D(tClean, w / uWorld).r; float win = LM.g * uNight * step(mix(0.55, 0.18, cleanR), h21(floor(cp * vec2(0.5, 1.0)) + 3.1)) * smoothstep(0.35, 0.95, 1.0 - rf.a + eave);
           rc = mix(rc, vec3(1.0, 0.7, 0.32) * (0.9 + 0.3 * rl), clamp(win * 1.4, 0.0, 1.0)); rc += vec3(0.22, 0.12, 0.04) * LM.g * uNight * 0.6;
           col = mix(col, mix(rc * 0.16, rc, gm), roof); }
 `);
@@ -203,6 +203,12 @@ export function createMedium(o) {
           col *= 1.0 - 0.7 * dk.g;
           vec3 sky = mix(vec3(0.5, 0.57, 0.64) * tint(), vec3(0.05, 0.06, 0.09), uNight);   // a puddle holds the sky, a little moving
           col = mix(col, sky * (0.5 + 0.5 * vnoise(w * 0.8 + vec2(uTime * 0.07, 0.0))) + vec3(0.25) * pow(max(0.0, vnoise(w * 6.0 + uTime * 0.3)), 6.0) * (1.0 - uNight), smoothstep(0.15, 0.55, dk.b) * 0.85); }
+        // [glowup] a clean area: by day its grass greens up and its dust settles, by night its street lamps and windows
+        // light the ground warmly; the sweep is a ring of light that carries the change out from where the walker fell
+        { float cl = texture2D(tClean, w / uWorld).r; if (cl > 0.01) { vec4 LMc = texture2D(tLight, t);
+            col = mix(col, col * vec3(0.94, 1.1, 0.9), cl * ground * 0.55 * (1.0 - uNight));
+            col += vec3(1.0, 0.64, 0.3) * (LMc.r * 0.5 + LMc.g * 0.25) * uNight * cl * 0.45; }
+          if (uSweep.w > 0.0) { float dd = length(w - uSweep.xy) - uSweep.z, ring = exp(-dd * dd / 30.0) * uSweep.w; col += (col * 1.2 + vec3(1.0, 0.85, 0.55) * 0.35) * ring; } }
         vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);
         float hp = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, skip = A.a > 0.5 ? 0.8 : 0.25;
         // lit windows and open doors: the light falls out of the house; whoever stands in it throws a shadow away from the window
@@ -305,7 +311,7 @@ export function createMedium(o) {
         vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);`);
   // [atoms-look] end
   const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir, tDecal, tLand; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
-    uniform sampler2D tAtom, tAtom2, tAtom3; uniform vec2 uAtomO; uniform float uAtomS;   // [atoms-look] the atom world's state (src/roam/atomlook.js)
+    uniform sampler2D tAtom, tAtom2, tAtom3, tClean; uniform vec2 uAtomO; uniform float uAtomS; uniform vec4 uSweep;   // [atoms-look] the atom world's state (src/roam/atomlook.js)
     // one layer of strands with a fixed size in the world: seeds on a turned, jittered lattice (f a metre, p of the cells),
     // each combed len metres along the flow, r wide at the root and tapering. A pixel asks the cells behind it along the
     // flow whether a strand passes within its width; edges are antialiased by the pixel's own size. Returns (coverage, how
@@ -357,6 +363,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     hound: { S: 1.05, hz: 0.26, shell: [0.3, 0.1, 0.07], legL: 0.34, legR: 0.024, spine: 'dark', fin: true },
     spitter: { S: 1.0, hz: 0.24, shell: [0.17, 0.17, 0.1], legL: 0.25, legR: 0.024, spine: 'paint', barrel: true },
     brute: { S: 1.7, hz: 0.24, shell: [0.24, 0.17, 0.1], legL: 0.3, legR: 0.04, spine: 'dark', shellM: 'dark', plates: true, slow: 0.6 },
+    walker: { S: 1.8, shell: [0.86, 0.3, 0.2], big: 2.4 },   // [m4] drawn by walkerVolumes; this places its eyes
   };
   function machineVolumes(d, t, awake, kind) {
     const L = MLOOK[kind] || MLOOK.crawler, S = FIGM * L.S, a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
@@ -372,6 +379,27 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     for (let i = 0; i < 3; i++) for (const s2 of [-1, 1]) {   // six legs: alternate pairs lift as it scuttles
       const lx = sx * 0.55 - i * sx * 0.6, step = awake ? Math.sin(ph * 1.6 + i * 2.1 + (s2 > 0 ? Math.PI : 0)) : 0, [x0, y0] = P(lx, s2 * sy * 0.7), [x1, y1] = P(lx + 0.05 * step, s2 * (awake ? L.legL : L.legL * 0.63));
       capsule(x0, y0, (hz + 0.04) * S, x1, y1, Math.max(0.01, 0.02 + 0.05 * Math.max(0, step)) * S, L.legR * S, M.dark, 0); }
+  }
+  // [m4] the walker: an area's giant, a dark hull carried high on four long legs that stride slowly, its armour plates on
+  // its back (they fall off as you break them), a chip eye at the front and, once the plates are gone, its core bare and
+  // glowing red. Rearing to stomp it lifts its hull
+  function walkerVolumes(d, t) {
+    // everything below is in the walker's own metres, scaled by WS about its centre (a giant: twice a brute's size and more)
+    const WS = 1.8, Q = v => v * WS, bx = (x, y, z, hx, hy, hz, r, rot, m, em) => box(d.x + (x - d.x) * WS, d.y + (y - d.y) * WS, Q(z), Q(hx), Q(hy), Q(hz), Q(r), rot, m, em),
+      sp = (x, y, z, r, m, em) => sphere(d.x + (x - d.x) * WS, d.y + (y - d.y) * WS, Q(z), Q(r), m, em), cp = (x0, y0, z0, x1, y1, z1, r, m, em) => capsule(d.x + (x0 - d.x) * WS, d.y + (y0 - d.y) * WS, Q(z0), d.x + (x1 - d.x) * WS, d.y + (y1 - d.y) * WS, Q(z1), Q(r), m, em);
+    const a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + lx * ca - ly * sa, d.y + lx * sa + ly * ca], hit = t - d.hit < 0.08, hem = hit ? 1 : 0;
+    const moving = Math.hypot(d.vx || 0, d.vy || 0) > 0.2, ph = t * 2.2 + d.id, rear = d.windT > 0 ? 1 : 0, z = 2.6 + rear * 0.9 + (moving ? 0.12 * Math.abs(Math.sin(ph)) : 0);
+    { const [x, y] = P(0, 0); bx(x, y, z, 2.0, 1.25, 0.55, 0.3, a, hit ? M.flash : M.dark, hem); }   // the hull
+    { const [x, y] = P(1.9, 0); bx(x, y, z + 0.1, 0.55, 0.7, 0.4, 0.2, a, hit ? M.flash : M.steel, hem); }   // the head
+    const eye = d.windT > 0 ? 1 : d.state === 'hunt' ? 0.9 + 0.1 * Math.sin(t * 10) : 0.6;
+    for (const s2 of [-0.32, 0.32]) { const [x, y] = P(2.42, s2); sp(x, y, z + 0.2, 0.13, M.crackHot, eye); }   // two chip eyes
+    const PL = [[-0.9, -0.75], [0.5, -0.75], [-0.9, 0.75], [0.5, 0.75]];
+    for (let i = 0; i < (d.plates ?? 4); i++) { const [x, y] = P(PL[i][0], PL[i][1]); bx(x, y, z + 0.62, 0.62, 0.42, 0.12, 0.06, a, hit ? M.flash : M.steel, hem); }   // the plates
+    if (!(d.plates > 0)) { const [x, y] = P(-0.2, 0); sp(x, y, z + 0.5, 0.55, M.crack, 0.7 + 0.3 * Math.sin(t * 6)); }   // the bare core
+    else { const [x, y] = P(-0.2, 0); sp(x, y, z + 0.45, 0.35, M.dark, 0); }
+    for (let i = 0; i < 4; i++) { const fx0 = i < 2 ? 1.3 : -1.3, side = i % 2 ? 1 : -1, step = moving ? Math.sin(ph + (i === 0 || i === 3 ? 0 : Math.PI)) : 0;
+      const [hx, hy] = P(fx0 * 0.8, side * 1.1), [kx, ky] = P(fx0 * 1.2 + step * 0.4, side * 2.6), [fx2, fy2] = P(fx0 * 1.35 + step * 0.7, side * 3.0);
+      cp(hx, hy, z, kx, ky, z + 0.9 + Math.max(0, step) * 0.5, 0.2, M.dark); cp(kx, ky, z + 0.9 + Math.max(0, step) * 0.5, fx2, fy2, Math.max(0.05, Math.max(0, step) * 0.7), 0.16, M.steel); }   // four legs: knee up, foot down
   }
   function deadVolumes(d, t, awake, kind = 'cinder') {
     const big = kind === 'brute', S = FIGM * (big ? 1.6 : kind === 'flicker' ? 0.88 : 1), a = d.fa ?? 0, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [d.x + (lx * ca - ly * sa) * S, d.y + (lx * sa + ly * ca) * S];
@@ -440,7 +468,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       sphere(D.x + ca * fx0, D.y + sa * fx0, r * 0.4 - k * r * 1.2, r, D.metal ? M.steel : M.stone);
       for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), D.metal ? (i % 2 ? M.dark : M.rust) : M.stone); } }   // [m1] a machine falls apart into steel and rust
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
-    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); if (MLOOK[d.kind]) machineVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); else deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
+    for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); if (d.kind === 'walker') walkerVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t); else if (MLOOK[d.kind]) machineVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); else deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
     // [m3] loot on the ground: scrap is a few bent bits of steel and rust; a weapon is a small dark case with a plate in
     // its rarity's paint and a lamp on it (the light itself is drawn in draw(), like the machines' eyes)
     const RMAT = { common: M.steel, tuned: M.carBlue, rare: M.paint, epic: M.carRed };
@@ -526,10 +554,10 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     { fx.save(); fx.globalCompositeOperation = 'lighter'; const grow = Math.max(1, Math.min(1.8, cam.ppm / 14));
       for (const d of dead) { const L = MLOOK[d.kind]; if (!L) continue; const fwd = (L.shell[0] + 0.07) * L.S * FIGM, a = d.fa || 0, [x, y] = toS(d.x + Math.cos(a) * fwd, d.y + Math.sin(a) * fwd);
         if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; const K = MACHINES[d.kind], asleep = d.state === 'sleep', hit = t - d.hit < 0.1;
-        const glow = (asleep ? 0.25 : 0.85 + 0.15 * Math.sin(t * 6 + d.id)) * (d.aim > 0 ? 1.6 : 1) * (0.75 + 0.35 * night), col = hit ? '#ffffff' : K.color, sep = d.kind === 'brute' ? 2.2 * grow : 0;
+        const glow = (asleep ? 0.25 : 0.85 + 0.15 * Math.sin(t * 6 + d.id)) * (d.aim > 0 || d.windT > 0 ? 1.6 : 1) * (0.75 + 0.35 * night), col = hit ? '#ffffff' : K.color, sep = d.kind === 'brute' ? 2.2 * grow : d.kind === 'walker' ? 4 * grow : 0;
         for (const o of sep ? [-sep, sep] : [0]) { const ex = x - Math.sin(a) * o, ey = y + Math.cos(a) * o;
-          fx.globalAlpha = 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5 * grow, 0, 6.283); fx.fill();   // the halo
-          fx.globalAlpha = Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6 * grow, 0, 6.283); fx.fill(); } }   // the point
+          const big = L.big || 1; fx.globalAlpha = 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5 * grow * big, 0, 6.283); fx.fill();   // the halo
+          fx.globalAlpha = Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6 * grow * big, 0, 6.283); fx.fill(); } }   // the point
       fx.restore(); fx.globalAlpha = 1; }
     // [m3d] projectiles: the same tiny point of light with a soft neon halo as the machines' eyes, in the shot's hue (amber,
     // ember, blue; the machines' bolts red), so close up and far away they read the same way the eyes do

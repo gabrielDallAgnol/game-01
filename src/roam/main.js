@@ -7,6 +7,7 @@ import { createLook } from './look.js';
 import { createUi } from './ui.js';
 import { createLootUi } from './lootui.js';
 import { createSound } from './sound.js';
+import { createAreaUi } from './areaui.js';
 import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
 import { createFeel } from './feel.js';
 import { createScars } from './scars.js';
@@ -33,7 +34,7 @@ function start() {
   const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
-  const lootUi = createLootUi({ sim, toast: ui.toast, ui });   // [m3] counters and the quick swap
+  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast });   // [m4] the area on the HUD   // [m3] counters and the quick swap
   const feel = createFeel({ S, input, town }), scars = createScars({ tiles: town.tiles, town });   // [m2] burnt and soaked ground   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
@@ -114,7 +115,7 @@ function start() {
     for (const e of evs) if (e.type === 'smash') falls.push({ x: e.x, y: e.y, fa: e.ang, id: 100000 + e.id, t0: t, prop: true, stamp: true });   // a smashed prop bursts into letters like a fall
     for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, metal: e.kind !== 'cinder' && e.kind !== 'flicker', brute: e.kind === 'brute', stamp: true });
     feel.events(evs, t);   // [m1] hitstop, shake, sparks, bursts
-    scars.events(evs, t); sound.events(evs, S); sound.frame(S, input); for (const e of evs) if (e.type === 'blast') look.stamp(e.x, e.y, e.r * 1.2); look.atoms.events(evs);   // [atoms-look] flashes and steam
+    scars.events(evs, t); sound.events(evs, S); sound.frame(S, input); for (const e of evs) if (e.type === 'blast' || e.type === 'stomp') look.stamp(e.x, e.y, e.r * 1.2); look.atoms.events(evs); look.glow.events(evs, S, t);   // [atoms-look] flashes and steam
     while (falls.length && t - falls[0].t0 > 2.2) falls.shift();
     const { night, sun } = skyAt(S.clock); curNight = night;
     // the camera: follows Kai, leads her a little; on the bike it pulls back with the speed so you see what's coming
@@ -135,7 +136,7 @@ function start() {
     throwChaff(R.kai, dt); drawChaff(dt);
     feel.draw(fx, toS, view.ppm, dt, R, lightAt, cssW, cssH);   // [m1] pellets, muzzle flash, sparks, bursts
     shook();
-    ui.arrows(toS, cssW, cssH); ui.update(evs); lootUi.update(evs);
+    ui.arrows(toS, cssW, cssH); ui.update(evs); lootUi.update(evs); areaUi.update(evs);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

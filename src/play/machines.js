@@ -14,4 +14,7 @@ export const MACHINES = {
     name: 'Spitter', desc: 'Keeps its distance and spits slow bolts. Its eye flares before it fires: move.', why: 'Breaks "stand still and shoot": you have to dodge while you aim.' },
   brute: { ai: 'melee', hp: 34, speed: 1.4, dmg: 16, windup: 0.6, reach: 1.5, heavy: true, tags: ['metal', 'chipped', 'heavy'], look: 'brute', color: '#d97a3a', weight: [0.08, 0.12],
     name: 'Brute', desc: 'Slow and armoured. Ramming it stops the bike dead. Hits very hard.', why: 'Can\'t be rammed: you have to shoot it, which makes the others close in.' },
+  // [m4] the area's boss: no weight (it is never rolled), one per area
+  walker: { ai: 'walker', hp: 70, speed: 1.4, dmg: 20, windup: 0.8, reach: 6, heavy: true, boss: true, plates: 4, plateHp: 26, tags: ['metal', 'chipped', 'heavy'], look: 'walker', color: '#ff3a2a',
+    name: 'Walker', desc: 'The area\'s machine-mother: a giant on four legs that walks its streets, drops crawlers and plants nests. Break its four plates, then its core.', why: 'The area\'s goal: kill it and the area stays clean. Farming its spawns first is a choice.' },
 };

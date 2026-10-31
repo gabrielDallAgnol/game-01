@@ -63,7 +63,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #loot{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:calc(52px + env(safe-area-inset-top,0px));display:flex;gap:10px;font:700 12px var(--mono);color:#e9e2cf;pointer-events:none;background:var(--panel);border-radius:9px;padding:5px 9px}
 #loot span{display:inline-block}#loot .bump{animation:bump .35s ease-out}@keyframes bump{0%{transform:scale(1.35);color:#ffd36a}100%{transform:scale(1)}}
 #loot{pointer-events:auto}#bagBtn{border:0;background:rgba(255,255,255,.1);color:#e9e2cf;font:700 12px var(--mono);border-radius:7px;padding:2px 8px;margin-left:2px;cursor:pointer}
-#feed{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:calc(90px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:3px;font:700 12px var(--mono);pointer-events:none;text-shadow:0 1px 3px #000,0 0 2px #000}
+#feed{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:calc(118px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:3px;font:700 12px var(--mono);pointer-events:none;text-shadow:0 1px 3px #000,0 0 2px #000}
 #feed div{animation:feed 3.2s ease-out forwards}@keyframes feed{0%{opacity:0;transform:translateX(-8px)}8%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0}}
 #bag{position:fixed;inset:0;display:grid;place-items:center;background:rgba(7,9,12,.72);padding:18px}
 #bag .card{background:var(--panel);border-radius:14px;padding:16px;width:min(380px,100%);max-height:82vh;display:grid;grid-template-rows:auto 1fr auto;gap:10px}
@@ -72,6 +72,9 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #bagList .it{border:1px solid;border-radius:10px;padding:8px 10px;background:rgba(0,0,0,.25)}#bagList .nm{font:700 13px var(--mono)}#bagList .md{font:500 11px var(--mono);color:#bfb8a6;margin-top:2px}
 #bagList .bt{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}#bagList button{border:0;border-radius:8px;padding:7px 10px;font:700 11px var(--mono);background:rgba(255,255,255,.12);color:#ece6d6;cursor:pointer}#bagList button.eq{background:var(--amber);color:#1a1206}
 #bagList .empty{color:var(--dim);margin:4px 0}#bagDone{justify-self:end;font:700 14px var(--mono);background:var(--amber);color:#1a1206;border:0;border-radius:10px;padding:10px 20px;cursor:pointer}
+/* [m4] the area under the counters */
+#area{position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:calc(90px + env(safe-area-inset-top,0px));font:700 11px var(--mono);letter-spacing:.04em;padding:4px 8px;border-radius:7px;background:var(--panel);pointer-events:none}
+#area.dark{color:#ff8a6a}#area.clean{color:#ffd36a}
 #fps{position:fixed;left:max(10px,env(safe-area-inset-left,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font:600 10px var(--mono);color:rgba(242,238,226,.55);pointer-events:none}
 #err{position:fixed;inset:auto 12px 50% 12px;background:#3a0d12;color:#ffd9dd;padding:12px;border-radius:10px}
 </style>
@@ -87,6 +90,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <button class="chip" id="speed" aria-label="Clock speed: 1x. Tap to make the day pass faster">1×</button>
 </div>
 <div id="loot"><span>⚙ <span id="scrap">0</span></span><span>◆ <span id="chips">0</span></span><button id="bagBtn" aria-label="Open the bag">BAG <span id="bagN">0</span></button></div>
+<div id="area" hidden></div>
 <div id="feed" aria-live="polite"></div>
 <div id="toasts"></div>
 <div id="fps" aria-hidden="true"></div>

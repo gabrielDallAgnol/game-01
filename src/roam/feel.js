@@ -25,6 +25,10 @@ export function createFeel({ S, input, town }) {
         rings.push({ x: e.x, y: e.y, t: 0, big: e.id === 'blaze', col: Rx.color }); spark(e.x, e.y, Math.random() * 6.28, e.id === 'blaze' ? 18 : 8, e.id === 'blaze' ? 7 : 4, Rx.color, 0.5, 1.1);
         if (e.id === 'blaze') { stop = Math.max(stop, 0.07); shakeAmt = Math.min(1, shakeAmt + 0.5); } }
       else if (e.type === 'blast') { stop = Math.max(stop, 0.06); shakeAmt = Math.min(1, shakeAmt + (e.r > 4 ? 0.9 : 0.45)); }   // the flash and the smoke are the atoms' (atomlook.js)
+      // [m4] the walker: a stomp shakes the ground, a plate breaking throws sparks, the area going clean freezes the moment
+      else if (e.type === 'stomp') { shakeAmt = Math.min(1, shakeAmt + 0.9); spark(e.x, e.y, Math.random() * 6.28, 14, 7, '#cfc8b6', 0.6, 1.3); }
+      else if (e.type === 'plate') { stop = Math.max(stop, 0.08); shakeAmt = Math.min(1, shakeAmt + 0.6); spark(e.x, e.y, Math.random() * 6.28, 16, 8, '#e8e4da', 0.7, 1.4); }
+      else if (e.type === 'clean') { stop = Math.max(stop, 0.45); shakeAmt = 1; spark(e.x, e.y, Math.random() * 6.28, 30, 9, '#ffd27a', 1.2, 1.6); }
       else if (e.type === 'hurt') shakeAmt = Math.min(1, shakeAmt + 0.45);
       else if (e.type === 'crash') shakeAmt = Math.min(1, shakeAmt + 0.4);
       else if (e.type === 'nestHit') shakeAmt = Math.min(0.6, shakeAmt + 0.05);

@@ -77,6 +77,10 @@ export function createUi({ canvas, fx, sim, cam, input }) {
       fx.save(); fx.translate(ex, ey); fx.rotate(a); fx.fillStyle = col; fx.strokeStyle = 'rgba(8,8,10,.8)'; fx.lineWidth = 3; fx.beginPath(); fx.moveTo(12, 0); fx.lineTo(-6, -9); fx.lineTo(-2, 0); fx.lineTo(-6, 9); fx.closePath(); fx.stroke(); fx.fill(); fx.restore();
       fx.font = '700 11px "IBM Plex Mono", ui-monospace, monospace'; fx.textAlign = 'center'; fx.textBaseline = 'middle'; fx.lineWidth = 3; fx.strokeText(label, ex - Math.cos(a) * 24, ey - Math.sin(a) * 18); fx.fillText(label, ex - Math.cos(a) * 24, ey - Math.sin(a) * 18); };
     if (nest) one(nest.x, nest.y, '#ff5a3a', `${Math.round(nd)}m`);
+    // [m4] the walker: the one of the area she's in (if it's still dark), else the nearest dark area's
+    { const here = S.inArea >= 0 ? S.areas[S.inArea] : null; let w = here && here.walker >= 0 ? S.dead.find(d => d.id === here.walker) : null;
+      if (!w) { let wd = 1e9; for (const d of S.dead) if (d.boss) { const q = Math.hypot(d.x - k.x, d.y - k.y); if (q < wd) { wd = q; w = d; } } }
+      if (w) one(w.x, w.y, '#ff2a1a', `WALKER ${Math.round(Math.hypot(w.x - k.x, w.y - k.y))}m`); }
     if (!k.riding && !k.dead) one(S.bike.x, S.bike.y, '#f0b44c', 'BIKE');
   }
   return { update, arrows, toast, get paused() { return ui.paused; }, set paused(v) { ui.paused = v; } };

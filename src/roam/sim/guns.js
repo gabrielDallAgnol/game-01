@@ -36,8 +36,9 @@ export function createGuns(G) {
     if (shot.delivery === 'splash') G.noise(k.x, k.y, R.gun.noise * 1.6);
   }
   function land(p, x, y) {
+    // (a blast reaches a machine's body edge, not its centre: a walker's centre is metres inside it)
     if (p.del === 'splash') { const B = p.splash; ev('blast', { x, y, r: B.r, el: p.el });
-      for (const d of [...S.dead]) { const q = Math.hypot(d.x - x, d.y - y); if (q < B.r) { G.hurtFoe(d, B.dmg * (1 - 0.5 * q / B.r), 'gun'); if (p.el) G.hitElement(d, p.el); } }
+      for (const d of [...S.dead]) { const q = Math.max(0, Math.hypot(d.x - x, d.y - y) - (R.body[d.kind] || 0.7) * 0.8); if (q < B.r) { G.hurtFoe(d, B.dmg * (1 - 0.5 * q / B.r), 'gun'); if (p.el) G.hitElement(d, p.el); } }
       for (const n of S.nests) if (n.alive && Math.hypot(n.x - x, n.y - y) < B.r + 1) G.hitNest(n, B.dmg);
       const k = S.kai, q = Math.hypot(k.x - x, k.y - y); if (q < B.r * 0.8 && !k.dead) G.hurtKai(B.dmg * 0.6 * (1 - q / B.r));
       G.deliver(p.el, x, y, B.r, B.power); }

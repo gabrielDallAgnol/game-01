@@ -96,6 +96,14 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 
 **Play it:** Do you see the walker and want to go after it? Is farming its spawns first a real choice? Does the glow-up feel like a reward?
 
+**As built (Oct 31, `play/m4-areas`):**
+- **Areas are the town's own districts** (`src/roam/sim/areas.js`). A district with fewer than 25 street points (the park, the transmitter field, the barn quarter...) joins its nearest big neighbour, so seed 7 has six areas: the old town (level 1), south end (1), east end (1), the strip (2), the estate (4), Ashford Hollow (6). Level: one per 260 m from Kai's start; machines in an area have +30% health per level above 1.
+- **The walker** (`MACHINES.walker`): a giant on four long legs, about twice a brute's size, drawn in the glyph medium with its four armour plates on its back and two red chip eyes (the biggest pair on the far map). It walks between points on its area's streets, drops a crawler every 9 s (5 at night, at most 8 alive), plants a new nest every 150 s (at most 2). Within 22 m it turns on Kai; in reach it rears (0.8 s, its eyes flare) and stomps (20 damage, throws her, flattens the grass, kicks up dust). Shots break its plates first (26 health each, more per level), then its bare, glowing core (takes 1.4x). It drops 24–32 scrap, 5 chips and a rare or epic weapon.
+- **Clean stays clean:** when the walker dies its nests go dark and nothing is born in the area again (not the town's spawner, not its nests, not the hunting packs, which now come from outside).
+- **The glow-up** (`src/roam/glowup.js`): a freeze and a ring of light sweeping out from where the walker fell, spreading the change; a clean area's grass greens by day, and at night its windows and street lamps light the ground warmly. A rising chord.
+- **HUD:** the area under the counters ("THE OLD TOWN · LV 1 · DARK", ember while dark, gold when clean), a toast when Kai rides in, a red WALKER arrow with the distance, toasts for plates breaking and for the clean moment.
+- Fix found on the way: a rocket's blast is measured to a machine's body edge, not its centre (a walker's centre is metres inside it).
+
 ## M5. Risk and repair · 2–3 evenings
 **Why fifth:** without a cost to dying, loot and fights lose tension.
 

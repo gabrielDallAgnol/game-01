@@ -39,6 +39,11 @@ export function createSound() {
       else if (e.type === 'ricochet') tone('sawtooth', 2400, 900, 0.08, 0.08);
       else if (e.type === 'hurt') { tone('sine', 90, 45, 0.25, 0.7); noise('lowpass', 900, 200, 0.15, 0.4); }
       else if (e.type === 'catch') noise('bandpass', 600, 1800, 0.5, 0.25, 1);
+      // [m4] the walker: a deep stomp, a plate's clang, a low groan as it rears; the area going clean: a rising chord
+      else if (e.type === 'stomp') { tone('sine', 55, 22, 0.9, 1.0); noise('lowpass', 500, 40, 0.8, 0.8, 0.5); }
+      else if (e.type === 'plate') { tone('square', 320, 180, 0.4, 0.25); tone('triangle', 960, 700, 0.5, 0.2); noise('highpass', 3000, 1500, 0.2, 0.3); }
+      else if (e.type === 'rear') tone('sawtooth', 70, 110, 0.7, 0.18);
+      else if (e.type === 'clean') [392, 494, 587, 784, 988].forEach((f, i) => tone('triangle', f, f, 1.6, 0.18, i * 0.12));
       else if (e.type === 'doused') noise('highpass', 3000, 6000, 0.6, 0.18); } }
   // held and ambient: the thrower's roar (a hiss for water) while firing; crackle by how much burns near Kai
   function frame(S, input) { if (!ac) return; const t = now(), g = S.guns && S.guns.main, el = g && (g.el || (g.mods || []).find(m => m === 'fire' || m === 'water'));

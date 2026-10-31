@@ -13,9 +13,10 @@ import { createHunts } from './sim/hunts.js';
 import { createChem } from './sim/chem.js';
 import { createWorld } from './sim/world.js';
 import { createLoot } from './sim/loot.js';
+import { createAreas } from './sim/areas.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createNests, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot];
+const MODULES = [createFoes, createNests, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
@@ -28,7 +29,11 @@ export const ROAM = {
   // machine, homeR how far, homeTurn how fast it turns (rad/s); fuse: a rocket bursts this close to a machine's body
   gun: { hitR: 0.35, heartR: 1.6, push: 3.2, noise: 30, jump: 7, home: 0.7, homeR: 20, homeTurn: 4.5, fuse: 0.9 },
   // [m3e] each machine's body radius for hits, matching how big it's drawn (figures are drawn larger than life)
-  body: { crawler: 0.75, skitter: 0.6, hound: 0.8, spitter: 0.75, brute: 1.25 },
+  // [m4] areas: a level every levelEvery metres from the start (machines +hpPerLevel each); walkers act within simR of Kai,
+  // notice her within notice m, stomp every stompEvery s; drop a crawler every spawnEvery s (spawnNight at night), at
+  // most brood alive; plant a nest every nestEvery s, at most nestsMax (nestHp each); the bare core takes coreMult damage
+  areas: { minPts: 25, grid: 8, levelEvery: 260, hpPerLevel: 0.3, simR: 160, notice: 22, stompEvery: 2.2, spawnEvery: 9, spawnNight: 5, brood: 8, nestEvery: 150, nestsMax: 2, nestHp: 80, coreMult: 1.4 },
+  body: { walker: 4.2, crawler: 0.75, skitter: 0.6, hound: 0.8, spitter: 0.75, brute: 1.25 },
   // the machines (code id `dead` kept from the Roam prototype; caps 42/75 > 24/46 after Gabriel's playtest: too crowded): the crawler is M1's one machine
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)
     bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [24, 46], alarm: 14, catchUp: 1.2, near: 70, far: 110 },
@@ -66,7 +71,7 @@ export function createRoam(town, seed = 1) {
     G.view = Math.min(160, inp.view || 0);
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepNests(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepNests(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();
