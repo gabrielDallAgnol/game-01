@@ -9,6 +9,7 @@
 // Lab code: it reads the lab's little scene and draws it; nothing here reaches the game yet.
 /* global THREE */
 import { MACHINES } from '../play/machines.js';
+import { RARITY, nameOf } from '../play/loot.js';
 import { M, MATCOL } from './dress/mats.js';
 import { gardenLook } from './garden-look.js';
 import { landLook } from './world/land.js';
@@ -21,6 +22,9 @@ export const CELLW = 0.15;        // a glyph cell's size in the world (m): 5 px 
 // materials (the composite's palette): ids are stored in the cell pass as id / 32
 // the materials (the composite's palette) are shared with the city's atoms: src/roam/dress/mats.js
 
+// [m3d] a projectile's hue: amber is yours (Kai's colour on the map), ember is fire, cold blue is water, red is theirs
+export const HUE = { amber: '#ffc35a', ember: '#ff7a2a', blue: '#7cc4ff', red: '#ff3a2a' };
+export const hueOf = el => el === 'fire' ? 'ember' : el === 'water' ? 'blue' : 'amber';
 export function createMedium(o) {
   const { renderer, U, mat, VERT, quadGeo, quadCam, ASH3F } = o;
   // ---------- the volumes: three texels each, in a float texture ----------
@@ -240,7 +244,7 @@ export function createMedium(o) {
   // roof is black rafters with an ember or two; steam and fog are white haze; a blast is a flash of light.
   swap('        vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);', `        { vec2 at = (w - uAtomO) / uAtomS, aE = vec2(1.0 / uAtomS); float inA = step(0.0, at.x) * step(at.x, 1.0) * step(0.0, at.y) * step(at.y, 1.0);
           vec2 atW = at + (vec2(vnoise(w * 0.9), vnoise(w * 0.9 + 7.3)) - 0.5) * aE * 2.2 + (vec2(vnoise(w * 3.1), vnoise(w * 3.1 + 2.9)) - 0.5) * aE * 0.7;   // ragged, natural edges (no 2 m squares)
-          vec4 AS = texture2D(tAtom, atW) * inA, A2 = texture2D(tAtom2, atW) * inA; vec2 cpA = floor((gl_FragCoord.xy + uCellOff) / uCellPx), gA = fract((gl_FragCoord.xy + uCellOff) / uCellPx);
+          vec4 AS = texture2D(tAtom, atW) * inA, A2 = texture2D(tAtom2, atW) * inA, A3 = texture2D(tAtom3, atW) * inA; vec2 cpA = floor((gl_FragCoord.xy + uCellOff) / uCellPx), gA = fract((gl_FragCoord.xy + uCellOff) / uCellPx);
           float glyphOn = smoothstep(2.4, 4.6, uCellPx);
           vec3 skyA = mix(vec3(0.5, 0.57, 0.64) * tint(), vec3(0.05, 0.06, 0.09), uNight);
           // a burnt roof (the char mark under it): black rafters, now and then an ember
@@ -249,7 +253,7 @@ export function createMedium(o) {
             col = mix(col, vec3(0.055, 0.05, 0.047) * (0.7 + 0.6 * h21(cpA)) + vec3(0.1, 0.09, 0.08) * raft, k * 0.92);
             col += vec3(0.9, 0.28, 0.06) * k * step(0.988, h21(cpA + floor(uTime * 0.6))) * (0.6 + 0.4 * sin(uTime * 3.0 + h21(cpA) * 6.0)); }
           // hot grass browns before it catches
-          col = mix(col, col * vec3(1.05, 0.8, 0.5), smoothstep(0.1, 0.9, A2.a) * (ground + tree) * 0.7);
+          col = mix(col, col * vec3(1.05, 0.8, 0.5), smoothstep(0.1, 0.9, A3.g) * (ground + tree) * 0.7);
           // water
           float wk = smoothstep(0.04, 0.45, AS.b); if (wk > 0.0) {
             float pool = smoothstep(0.5, 0.72, vnoise(w * 0.55 + 3.1) * 0.75 + vnoise(w * 1.9) * 0.25 + AS.b * 0.22);
@@ -269,6 +273,7 @@ export function createMedium(o) {
           near = min(1.2, near / 3.0 + fire * 0.6);
           for (int k = 1; k <= 5; k++) { vec4 u1 = texture2D(tAtom, at - WD * aE * (float(k) * 3.2) + vec2(-WD.y, WD.x) * aE * sin(float(k) + uTime * 0.4) * 1.5) * inA; smk += max(u1.r, u1.g) * (1.0 - float(k) * 0.12); }
           smk = clamp(smk * 0.5, 0.0, 0.82) * (0.55 + 0.45 * vnoise(w * 0.22 - WD * uTime * 1.3)) * (0.6 + 0.4 * vnoise(w * 0.9 - WD * uTime * 2.1));
+          smk = clamp(smk + A3.r * 0.8 * (0.6 + 0.4 * vnoise(w * 0.8 - WD * uTime * 1.5)), 0.0, 0.88);   // and smoke put out directly (a rocket's trail, a blast)
           col = mix(col, mix(vec3(0.36, 0.34, 0.32) * tint(), vec3(0.05, 0.05, 0.055), uNight), smk * (1.0 - 0.5 * fire));   // smoke: a grey haze, lighter than tarmac by day, dark by night
           col += col * near * mix(0.5, 1.6, uNight) + vec3(1.0, 0.45, 0.12) * near * mix(0.03, 0.2, uNight);
           if (fire > 0.004) {
@@ -281,6 +286,17 @@ export function createMedium(o) {
             vec3 fc = I < 0.5 ? mix(vec3(0.42, 0.05, 0.01), vec3(0.92, 0.3, 0.05), I / 0.5) : mix(vec3(0.92, 0.3, 0.05), vec3(1.0, 0.78, 0.4), (I - 0.5) / 0.5);
             float lev = floor(clamp(I * 1.1, 0.0, 0.999) * ${NG}.0), gmF = mix(0.2 + 0.7 * lev / ${NG - 1}.0, texture2D(tGlyph, vec2((lev + gA.x) / ${NG}.0, gA.y)).a, glyphOn);
             col = mix(col, fc * (0.45 + 0.85 * gmF), cover * (0.35 + 0.65 * gmF)); }
+          // open flame from a gun (a thrower's jet, a rocket's exhaust): all of it lit, turbulent, a white-yellow core cooling
+          // to orange at the edge, in the same letters, and it lights what's round it
+          float jet = A2.a; if (jet > 0.01) { float jn = vnoise(w * 2.4 - WD * uTime * 2.0 + vec2(uTime * 5.0, uTime * 1.3)) * 0.7 + h21(cpA + floor(uTime * 12.0)) * 0.3, J = clamp(jet * (0.55 + 0.7 * jn), 0.0, 1.0);
+            vec3 jc = J < 0.5 ? mix(vec3(0.85, 0.22, 0.03), vec3(1.0, 0.58, 0.14), J / 0.5) : mix(vec3(1.0, 0.58, 0.14), vec3(1.0, 0.94, 0.72), (J - 0.5) / 0.5);
+            float levJ = floor(clamp(J, 0.0, 0.999) * ${NG}.0), gmJ = mix(0.3 + 0.6 * levJ / ${NG - 1}.0, texture2D(tGlyph, vec2((levJ + gA.x) / ${NG}.0, gA.y)).a, glyphOn);
+            col = mix(col, jc * (0.75 + 0.5 * gmJ), smoothstep(0.04, 0.4, J)); }
+          { float jl = 0.0; for (int k = 0; k < 4; k++) { float a = float(k) * 1.571 + 0.4; jl += texture2D(tAtom2, at + vec2(cos(a), sin(a)) * aE * 2.5).a; } col += col * jl * 0.35 * mix(0.6, 1.6, uNight) + vec3(1.0, 0.5, 0.15) * jl * mix(0.02, 0.08, uNight); }
+          // [m3d] a projectile's trail: the cells it just crossed keep its light a moment and fade, as letters (b: how lit, a: hue)
+          float trl = A3.b; if (trl > 0.01) { float hh = A3.a; vec3 tc = hh < 0.2 ? vec3(1.0, 0.76, 0.35) : hh < 0.5 ? vec3(1.0, 0.45, 0.12) : hh < 0.8 ? vec3(0.45, 0.75, 1.0) : vec3(1.0, 0.22, 0.14);
+            float levT = floor(clamp(trl, 0.0, 0.999) * ${NG}.0), gmT = mix(0.2 + 0.7 * levT / ${NG - 1}.0, texture2D(tGlyph, vec2((levT + gA.x) / ${NG}.0, gA.y)).a, glyphOn);
+            col = mix(col, tc * (0.35 + 0.9 * gmT), smoothstep(0.03, 0.6, trl) * (0.3 + 0.7 * gmT)); col += tc * trl * mix(0.06, 0.2, uNight); }
           // steam (warm grey), fog (white), a blast's flash
           float stm = A2.r * (0.6 + 0.4 * vnoise(w * 0.7 + vec2(0.0, -uTime * 0.8))), fog = A2.g * (0.75 + 0.25 * vnoise(w * 0.35 + uTime * 0.1));
           col = mix(col, vec3(0.86, 0.84, 0.8) * mix(tint(), vec3(0.32), uNight), clamp(stm * 0.75, 0.0, 0.8));
@@ -289,7 +305,7 @@ export function createMedium(o) {
         vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);`);
   // [atoms-look] end
   const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir, tDecal, tLand; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
-    uniform sampler2D tAtom, tAtom2; uniform vec2 uAtomO; uniform float uAtomS;   // [atoms-look] the atom world's state (src/roam/atomlook.js)
+    uniform sampler2D tAtom, tAtom2, tAtom3; uniform vec2 uAtomO; uniform float uAtomS;   // [atoms-look] the atom world's state (src/roam/atomlook.js)
     // one layer of strands with a fixed size in the world: seeds on a turned, jittered lattice (f a metre, p of the cells),
     // each combed len metres along the flow, r wide at the root and tapering. A pixel asks the cells behind it along the
     // flow whether a strand passes within its width; edges are antialiased by the pixel's own size. Returns (coverage, how
@@ -313,7 +329,7 @@ export function createMedium(o) {
         float hs = S3.a > 0.5 ? (S3.a - 0.52) / 0.48 * 8.0 : -1.0; o = max(o, smoothstep(0.0, 0.4, hs - mix(hp, hl, u))); }
       return o; }
     vec3 matCol(float m, float em){
-${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42, 0.1); if (m > 8.5 && m < 9.5) return vec3(1.0, 0.78, 0.3); if (m > 14.5 && m < 15.5) return vec3(0.9); return vec3(1.0, 0.68, 0.28); }
+${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42, 0.1); if (m > 8.5 && m < 9.5) return vec3(1.0, 0.78, 0.3); if (m > 14.5 && m < 15.5) return vec3(0.9); if (m > 17.5 && m < 18.5) return vec3(0.45, 0.75, 1.0); if (m > 18.5 && m < 19.5) return vec3(1.0, 0.2, 0.12); return vec3(1.0, 0.68, 0.28); }   // [m3d] glass glows cold blue, red paint glows machine red (projectiles)
   `;
   const material = mat(PAL + src);
 
@@ -386,6 +402,20 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     { const [x0, y0] = P(0.48, -0.32), [x1, y1] = P(0.48, 0.32); capsule(x0, y0, 0.86 * S, x1, y1, 0.86 * S, 0.035 * S, M.steel); }
     { const [x, y] = P(0.72, 0); sphere(x, y, 0.62 * S, 0.08 * S, M.lamp, night > 0.3 || riding ? 1 : 0.15); }
   }
+  // [m3c] the gun on the bike (Enter the Gungeon: you always see the gun): a turret on the handlebars that turns to where
+  // it fires (back to the road a moment after), kicks back on every shot and eases home. The scatter gun two stubby
+  // barrels, the launcher a fat tube, the thrower a long nozzle with a tank behind Kai
+  let gunAim = null, gunKick = 0, gunN = -1, gunT = 0, gunShotT = -9;
+  function gunVolumes(b, g, t) {
+    const dt = Math.min(0.1, Math.max(0, t - gunT)); gunT = t; if (gunN >= 0 && g.n > gunN) { gunKick = 1; gunShotT = t; } gunN = g.n; gunKick *= Math.exp(-dt * 16);
+    const want = t - gunShotT < 1.2 ? g.aim : b.ang; if (gunAim === null) gunAim = want; let da = ((want - gunAim + Math.PI * 3) % (Math.PI * 2)) - Math.PI; gunAim += da * Math.min(1, dt * 22);
+    const S = FIGM * 0.9, ca = Math.cos(b.ang), sa = Math.sin(b.ang), mx = b.x + 0.42 * S * ca, my = b.y + 0.42 * S * sa, z = 0.98 * S, ux = Math.cos(gunAim), uy = Math.sin(gunAim), back = gunKick * 0.12 * S;
+    const bar = (side, len, rad, m, z0 = z) => { const px = -uy * side, py = ux * side, x0 = mx + px - ux * back, y0 = my + py - uy * back; capsule(x0, y0, z0, x0 + ux * len, y0 + uy * len, z0, rad, m); return [x0 + ux * len, y0 + uy * len]; };
+    sphere(mx, my, z, 0.07 * S, M.dark);   // the swivel
+    if (g.base === 'launcher') { bar(0, 0.66 * S, 0.1 * S, M.carGreen); bar(0, 0.16 * S, 0.115 * S, M.dark); }
+    else if (g.base === 'thrower') { bar(0, 0.6 * S, 0.045 * S, M.steel); bar(0, 0.14 * S, 0.07 * S, M.dark); const tx = b.x - 0.5 * S * ca, ty = b.y - 0.5 * S * sa; capsule(tx - sa * 0.12 * S, ty + ca * 0.12 * S, 0.8 * S, tx + sa * 0.12 * S, ty - ca * 0.12 * S, 0.8 * S, 0.09 * S, M.rust); }
+    else { for (const sd of [-0.06, 0.06]) bar(sd * S, 0.5 * S, 0.05 * S, M.steel); bar(0, 0.16 * S, 0.09 * S, M.dark); }
+  }
   // a nest: a swollen heart of stone at the infested building's door, cracks pulsing; a dying nest goes dark
   function nestVolumes(nst, t) {
     const S = FIGM * 1.4, beat = 1 + 0.08 * Math.max(0, Math.sin(t * 3.2 + nst.id)) * (nst.alive ? 1 : 0), hit = t - nst.hit < 0.1;
@@ -400,7 +430,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     for (const nst of nests) if (on(nst.x, nst.y)) nestVolumes(nst, t);
     // what moves is drawn snapped to the cell grid: its letters ride with it instead of re-sampling as it slides
     const sn = q => Math.round(q / CELLW) * CELLW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
-    if (on(bike.x, bike.y)) bikeVolumes(snap(bike), t, night, kai.riding);
+    if (on(bike.x, bike.y)) { bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.guns.main, t); }
     if (!kai.dead) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
@@ -411,6 +441,25 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), D.metal ? (i % 2 ? M.dark : M.rust) : M.stone); } }   // [m1] a machine falls apart into steel and rust
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
     for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); if (MLOOK[d.kind]) machineVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); else deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
+    // [m3] loot on the ground: scrap is a few bent bits of steel and rust; a weapon is a small dark case with a plate in
+    // its rarity's paint and a lamp on it (the light itself is drawn in draw(), like the machines' eyes)
+    const RMAT = { common: M.steel, tuned: M.carBlue, rare: M.paint, epic: M.carRed };
+    for (const d of v.drops || []) { if (!on(d.x, d.y)) continue; const a = (d.id * 2.39) % 6.283;
+      if (d.kind === 'scrap') { const z = d.fly ? 0.35 : 0.08, sp = d.fly ? t * 14 + d.id : a; box(d.x, d.y, z, 0.2, 0.09, 0.07, 0.03, sp, d.id % 2 ? M.steel : M.rust); box(d.x + Math.cos(sp) * 0.18, d.y + Math.sin(sp) * 0.18, z, 0.1, 0.07, 0.06, 0.02, sp * 1.7, d.id % 3 ? M.dark : M.steel); }
+      else { const bob = 0.03 * Math.sin(t * 2 + d.id); box(d.x, d.y, 0.26 + bob, 0.5, 0.28, 0.18, 0.06, a, M.dark); box(d.x, d.y, 0.46 + bob, 0.4, 0.19, 0.03, 0.03, a, RMAT[d.w.rarity] || M.steel);
+        sphere(d.x + Math.cos(a) * 0.3, d.y + Math.sin(a) * 0.3, 0.52 + bob, 0.07, M.lamp, d.scanned ? 0.9 : 0.3 + 0.3 * Math.sin(t * 7 + d.id)); } }
+    // [m3d] a projectile's head is a lit cell like any other light in the town: yours amber (plain), ember (fire), cold blue
+    // (water); the machines' bolts their eyes' red. Its trail is the atoms' (atomlook.js); its point of light is draw()'s
+    const PMAT = { amber: M.lamp, ember: M.crack, blue: M.glass, red: M.carRed };
+    // its trail: a line of lit cells behind it, dimming (the letters of the town's own grid, not a smear)
+    const lit = (x, y, vx, vy, len, m, r0) => { const sp = Math.hypot(vx, vy) || 1, ux = vx / sp, uy = vy / sp, n = Math.ceil(len / 0.13);
+      sphere(x, y, 0.55, r0, m, 1); for (let k = 1; k <= n; k++) { const q = k / n; sphere(x - ux * len * q, y - uy * len * q, 0.5, r0 * (0.85 - 0.4 * q), m, 0.85 * (1 - q) + 0.05); } };
+    for (const p of v.shots || []) { if (p.del === 'stream' || p.del === 'splash' || !on(p.x, p.y)) continue; lit(p.x, p.y, p.vx, p.vy, 1.6, PMAT[hueOf(p.el)], 0.1); }
+    for (const b of v.bolts || []) { if (!on(b.x, b.y)) continue; lit(b.x, b.y, b.vx, b.vy, 1.2, M.carRed, 0.13); }
+    // [m3b] a rocket in flight: a steel body with a dark nose, pointing where it flies (its exhaust and smoke are the atoms')
+    for (const p of v.shots || []) { if (p.del !== 'splash' || !on(p.x, p.y)) continue; const sp = Math.hypot(p.vx, p.vy) || 1, ux = p.vx / sp, uy = p.vy / sp;
+      capsule(p.x - ux * 0.55, p.y - uy * 0.55, 0.9, p.x + ux * 0.45, p.y + uy * 0.45, 0.9, 0.15, M.steel); sphere(p.x + ux * 0.5, p.y + uy * 0.5, 0.9, 0.13, M.dark);
+      for (let k = 0; k < 4; k++) sphere(p.x - ux * (0.7 + k * 0.28), p.y - uy * (0.7 + k * 0.28), 0.85, 0.12 - k * 0.02, k ? M.crack : M.crackHot, 1 - k * 0.2); }   // its exhaust: lit cells
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
     for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;
@@ -481,6 +530,31 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
         for (const o of sep ? [-sep, sep] : [0]) { const ex = x - Math.sin(a) * o, ey = y + Math.cos(a) * o;
           fx.globalAlpha = 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5 * grow, 0, 6.283); fx.fill();   // the halo
           fx.globalAlpha = Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6 * grow, 0, 6.283); fx.fill(); } }   // the point
+      fx.restore(); fx.globalAlpha = 1; }
+    // [m3d] projectiles: the same tiny point of light with a soft neon halo as the machines' eyes, in the shot's hue (amber,
+    // ember, blue; the machines' bolts red), so close up and far away they read the same way the eyes do
+    { fx.save(); fx.globalCompositeOperation = 'lighter'; const grow = Math.max(1, Math.min(1.8, cam.ppm / 14));
+      const pt = (x, y, col, k) => { fx.fillStyle = col; fx.globalAlpha = 0.4 * k; fx.beginPath(); fx.arc(x, y, 5 * grow, 0, 6.283); fx.fill(); fx.globalAlpha = Math.min(1, k); fx.beginPath(); fx.arc(x, y, 1.8 * grow, 0, 6.283); fx.fill(); };
+      for (const p of v.shots || []) { if (p.del === 'stream' || p.del === 'splash') continue; const [x, y] = toS(p.x, p.y); if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; pt(x, y, HUE[hueOf(p.el)], 1); }
+      for (const b of v.bolts || []) { const [x, y] = toS(b.x, b.y); if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; pt(x, y, HUE.red, 1.2); }
+      fx.restore(); fx.globalAlpha = 1; }
+    // [m3] loot on the ground. Scrap: a small glint on each bit so it reads in the grass, and a bright streak on the bits
+    // flying to Kai. A weapon: a soft point of light in its rarity's colour, and its name over it on a dark plate in that
+    // colour (Diablo II); unscanned, the name is '?' and the light a pale flicker until the lamp reaches it
+    { fx.save(); const grow = Math.max(1, Math.min(2, cam.ppm / 12)), kx = kai.x, ky = kai.y; fx.globalCompositeOperation = 'lighter'; fx.lineCap = 'round';
+      for (const d of v.drops || []) { if (d.kind !== 'scrap') continue; const [x, y] = toS(d.x, d.y); if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue;
+        if (d.fly) { const q = Math.hypot(kx - d.x, ky - d.y) || 1, L2 = Math.min(1.6, d.fly * 0.05), [x0, y0] = toS(d.x - (kx - d.x) / q * L2, d.y - (ky - d.y) / q * L2);
+          fx.globalAlpha = 0.85; fx.strokeStyle = '#ffe2a8'; fx.lineWidth = Math.max(2, 2.2 * grow); fx.beginPath(); fx.moveTo(x0, y0); fx.lineTo(x, y); fx.stroke();
+          fx.fillStyle = '#fff4dc'; fx.beginPath(); fx.arc(x, y, 2.2 * grow, 0, 6.283); fx.fill(); }
+        else { const tw = 0.5 + 0.5 * Math.sin(t * 5 + d.id * 1.7); fx.globalAlpha = 0.35 + 0.5 * tw; fx.fillStyle = '#e9e0c8'; fx.beginPath(); fx.arc(x, y, (1.2 + tw) * grow, 0, 6.283); fx.fill(); } }
+      for (const d of v.drops || []) { if (d.kind !== 'weapon') continue; const [x, y] = toS(d.x, d.y); if (x < -60 || y < -40 || x > cssW + 60 || y > cssH + 40) continue;
+        const Rr = RARITY[d.w.rarity], col = d.scanned ? Rr.color : '#e8e4da', br = d.scanned ? Rr.glow * (0.8 + 0.2 * Math.sin(t * 2.2 + d.id)) : 0.35 + 0.25 * Math.sin(t * 9 + d.id);
+        fx.fillStyle = col; fx.globalAlpha = 0.16 * br; fx.beginPath(); fx.arc(x, y, 11 * grow, 0, 6.283); fx.fill();
+        fx.globalAlpha = Math.min(1, br * 1.3); fx.beginPath(); fx.arc(x, y, 1.8 * grow, 0, 6.283); fx.fill(); }
+      fx.globalCompositeOperation = 'source-over'; fx.font = '700 11px "IBM Plex Mono", ui-monospace, monospace'; fx.textAlign = 'center'; fx.textBaseline = 'middle';
+      for (const d of v.drops || []) { if (d.kind !== 'weapon') continue; const [x, y0] = toS(d.x, d.y), y = y0 - 14 * grow - 6; if (x < -120 || y < -20 || x > cssW + 120 || y > cssH + 20) continue;
+        const label = d.scanned ? nameOf(d.w) : '?', w = fx.measureText(label).width + 10; fx.globalAlpha = 0.9; fx.fillStyle = 'rgba(8,9,11,.82)'; fx.fillRect(x - w / 2, y - 8, w, 16);
+        fx.globalAlpha = 1; fx.fillStyle = d.scanned ? RARITY[d.w.rarity].color : '#e8e4da'; fx.fillText(label, x, y + 0.5); }
       fx.restore(); fx.globalAlpha = 1; }
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;

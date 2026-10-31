@@ -2,7 +2,9 @@
 // (src/play/materials.js, mapped in src/play/atoms-map.js). The ground's 2 m cells (grass, crops, the woods floor) and the
 // placed atoms (trees, hedges, houses, cars, benches, bales, oil) live by the same three rules: elements change atoms;
 // water cools heat; atoms never touch each other, a burning atom only gives off heat and each neighbour reacts to the heat
-// it gets by its own material (wet ones boil their water off first). Fuel runs out into char, a stump, a gap, a gutted
+// it gets by its own material (wet ones boil their water off first). A fire weakens as it travels: each thing it lights
+// burns at `hop` times the strength of what lit it (heat and reach of its heat with it), so a blaze dies out on its own
+// some ten hops from where it started, unless something feeds it new strength (a car blowing, more fire delivered). Fuel runs out into char, a stump, a gap, a gutted
 // house or a wreck; a fuel tank blows instead of burning. Fire hurts what stands in it, Kai too. Only fires near Kai
 // simulate (far ones wait), within a cap. Its own Rng stream.
 // Offers G.deliver(el, x, y, r, power), G.addOil(x, y, r, life), G.inFire(x, y), G.hot(x, y), G.onWet(d), G.stepWorld(dt).
@@ -38,16 +40,17 @@ export function createWorld(G) {
   // an atom (cell state or placed atom) takes heat: water boils off first; then it heats; past its ignite it catches
   let burning = 0;
   const live = new Set();
-  function take(s, M, h) { if (h <= 0 || !M || M.ignite === undefined) return; if (s.kind) live.add(s); if (s.wet > 0) { s.wet = Math.max(0, s.wet - h * A.boil); return; } s.heat += h; }
-  function catches(s, M) { return burning < A.maxBurn && s.heat >= M.ignite && !s.burn && s.state !== 'burning' && s.state !== 'done'; }
+  function take(s, M, h, pw = 1) { if (h <= 0 || !M || M.ignite === undefined) return; if (s.kind) live.add(s); if (pw > (s.pin || 0)) s.pin = pw; if (s.wet > 0) { s.wet = Math.max(0, s.wet - h * A.boil); return; } s.heat += h; }
+  function catches(s, M) { return burning < A.maxBurn && s.heat >= M.ignite && (s.pin || 0) * A.hop >= A.minPw && !s.burn && s.state !== 'burning' && s.state !== 'done'; }
   const windAt = (dx, dy, d) => { if (d < 0.01) return 1; const along = (dx * A.wind.x + dy * A.wind.y) / d; return Math.max(A.upwind, 1 + A.downwind * along); };
   // heat out of (x, y): `amount` reaching `reach` metres, falling off with distance, pushed by the wind
-  function emit(x, y, amount, reach, self) {
+  // (pw: the burning thing's strength; its heat and the strength it passes on both scale by it)
+  function emit(x, y, amount, reach, self, pw = 1) { amount *= pw;
     const i0 = Math.floor((x - reach) / cell), i1 = Math.floor((x + reach) / cell), j0 = Math.floor((y - reach) / cell), j1 = Math.floor((y + reach) / cell);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { if (i < 0 || j < 0 || i >= cw || j >= ch) continue; const c = j * cw + i; if (c === self) continue; const M = cellMat(c); if (!M) continue;
-      const dx = (i + 0.5) * cell - x, dy = (j + 0.5) * cell - y, d = Math.hypot(dx, dy); if (d > reach) continue; take(cs(c), M, amount * (1 - d / reach) * windAt(dx, dy, d)); }
+      const dx = (i + 0.5) * cell - x, dy = (j + 0.5) * cell - y, d = Math.hypot(dx, dy); if (d > reach) continue; take(cs(c), M, amount * (1 - d / reach) * windAt(dx, dy, d), pw); }
     near(x, y, reach, (a, d) => { if (a === self || a.state === 'done') return; const M = MAT[a.mat]; if (M.ignite === undefined && !M.explodeAt) return; const dx = a.x - x, dy = a.y - y;
-      const h = amount * (1 - d / reach) * windAt(dx, dy, Math.hypot(dx, dy)); if (M.explodeAt) { live.add(a); if (a.wet > 0) a.wet = Math.max(0, a.wet - h * A.boil); else a.heat += h; } else take(a, M, h); });
+      const h = amount * (1 - d / reach) * windAt(dx, dy, Math.hypot(dx, dy)); if (M.explodeAt) { live.add(a); if (a.wet > 0) a.wet = Math.max(0, a.wet - h * A.boil); else a.heat += h; } else take(a, M, h, pw); });
   }
   // a fuel tank blows: blast damage and push, heat out to the blast's edge, then the wreck burns (wreckBurn seconds)
   function explode(a) { const M0 = MAT[a.mat], B = M0.blast; a.heat = 0; if (M0.wreckBurn) { a.state = 'burning'; a.wreck = true; a.fuel = M0.wreckBurn; burning++; } else a.state = 'done'; ev('blast', { x: a.x, y: a.y, r: B.r });
@@ -73,8 +76,8 @@ export function createWorld(G) {
     settle(); }
   // after heat moves: what passed its ignite catches, fuel tanks past their limit blow
   function settle() {
-    for (const [c, s] of S.cells) { const M = cellMat(c); if (M && catches(s, M)) { s.burn = M.fuel * rng.range(0.85, 1.15); burning++; } }
-    for (const a of [...live]) { const M = MAT[a.mat]; if (a.state !== 'ok') continue; if (M.explodeAt && a.heat >= M.explodeAt) explode(a); else if (M.ignite !== Infinity && catches(a, M)) { a.state = 'burning'; a.fuel = M.fuel * rng.range(0.85, 1.15); burning++; ev('catch', { id: a.id, kind: a.kind, x: a.x, y: a.y }); } } }
+    for (const [c, s] of S.cells) { const M = cellMat(c); if (M && catches(s, M)) { s.burn = M.fuel * rng.range(0.85, 1.15); s.pw = s.pin * A.hop; burning++; } }
+    for (const a of [...live]) { const M = MAT[a.mat]; if (a.state !== 'ok') continue; if (M.explodeAt && a.heat >= M.explodeAt) explode(a); else if (M.ignite !== Infinity && catches(a, M)) { a.state = 'burning'; a.fuel = M.fuel * rng.range(0.85, 1.15); a.pw = a.pin * A.hop; burning++; ev('catch', { id: a.id, kind: a.kind, x: a.x, y: a.y }); } } }
   // ---------- the questions others ask ----------
   function inFire(x, y) { const s = S.cells.get(cellAt(x, y)); if (s && s.burn) return cellMat(cellAt(x, y)); let M = null; near(x, y, 0.6, a => { if (a.state === 'burning') M = MAT[a.mat]; }); return M; }
   const hotAt = (x, y) => !!inFire(x, y);
@@ -85,16 +88,16 @@ export function createWorld(G) {
     if ((tickT -= dt) > 0) return; const T = A.tick; tickT = T;
     const k = S.kai, R2 = A.simR * A.simR, inRange = (x, y) => (x - k.x) * (x - k.x) + (y - k.y) * (y - k.y) < R2;
     // burning things give off heat and spend fuel (far from Kai they wait)
-    for (const [c, s] of S.cells) { if (!s.burn) continue; const [x, y] = centre(c); if (!inRange(x, y)) continue; const M = cellMat(c); emit(x, y, M.burnHeat * T, M.burnReach, c);
+    for (const [c, s] of S.cells) { if (!s.burn) continue; const [x, y] = centre(c); if (!inRange(x, y)) continue; const M = cellMat(c); emit(x, y, M.burnHeat * T, M.burnReach, c, s.pw || 1);
       if ((s.burn -= T) <= 0) { s.burn = 0; burning--; S.burnt.add(c); S.cells.delete(c); ev('burnt', { x, y, c }); } }
-    for (const a of [...live]) { if (a.state !== 'burning' || !inRange(a.x, a.y)) continue; const M = MAT[a.mat]; emit(a.x, a.y, M.burnHeat * T, M.burnReach + a.r * 0.5, a);
+    for (const a of [...live]) { if (a.state !== 'burning' || !inRange(a.x, a.y)) continue; const M = MAT[a.mat]; emit(a.x, a.y, M.burnHeat * T, M.burnReach + a.r * 0.5, a, a.pw || 1);
       if ((a.fuel -= T) <= 0) { a.state = 'done'; burning--; if (a.wreck) continue; ev('atomBurnt', { id: a.id, kind: a.kind, prop: a.prop, ref: a.ref, x: a.x, y: a.y, r: a.kind === 'tree' ? a.r / 0.8 : a.r, to: M.onBurnt, obb: a.obb }); if (M.onBurnt === 'gone' && a.ref !== undefined) S.broken.add(a.ref); } }
     settle();
     // cooling and drying; slicks fade
     for (const [c, s] of S.cells) { s.heat *= Math.exp(-A.cool * T); if (s.wet > 0) s.wet = Math.max(0, s.wet - T); if (!s.burn && s.heat < 0.02 && s.wet <= 0) S.cells.delete(c); }
     for (const a of live) { if (a.state !== 'burning') a.heat *= Math.exp(-A.cool * T); if (a.wet > 0) a.wet = Math.max(0, a.wet - T);
       if (a.slick && a.state === 'ok' && (a.life -= T) <= 0) a.state = 'done';
-      if (a.state === 'done' || (a.state === 'ok' && a.heat < 0.02 && a.wet <= 0 && !a.slick)) { if (a.state === 'ok') a.heat = 0; live.delete(a); } }
+      if (a.state === 'done' || (a.state === 'ok' && a.heat < 0.02 && a.wet <= 0 && !a.slick)) { if (a.state === 'ok') { a.heat = 0; a.pin = 0; } live.delete(a); } }
     // fire hurts what stands in it: Kai (on the bike or not) and the machines (as fire pips, via chem)
     if (!k.dead) { const M = inFire(k.x, k.y); if (M && M.hurts) { G.hurtKai(M.hurts * T * A.kaiBurn); ev('scorch', {}); } }
   }

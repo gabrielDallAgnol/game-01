@@ -14,3 +14,6 @@ MODIFIERS.fire = { id: 'fire', stage: 'element', fits: ['weapon', 'offhand'], st
   desc: 'Hits set machines burning.', why: 'Element modifiers are how the two weapons combo.' };
 MODIFIERS.water = { id: 'water', stage: 'element', fits: ['weapon', 'offhand'], stack: 'replace', edit: s => ({ ...s, element: 'water' }),
   desc: 'Hits soak machines.', why: 'The setup element: steam with fire.' };
+// [m3] ricochet: the path stage; a pellet that hits a wall glances off it, one that hits a machine jumps to the next
+MODIFIERS.ricochet = { id: 'ricochet', stage: 'path', fits: ['weapon', 'offhand'], stack: 'add', cap: { bounce: 3 }, edit: s => ({ ...s, bounce: (s.bounce || 0) + 1 }),
+  desc: 'Shots bounce: off walls, and from one machine to the next.', why: 'A path change you can feel: narrow streets become a strength.' };

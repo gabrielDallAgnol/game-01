@@ -5,7 +5,7 @@ export const WEAPONS = {
   scatter: {
     base: 'scatter', slot: 'weapon', theme: 'scatter',
     signature: { id: 'point_blank', desc: 'Pellets hit harder up close.' },
-    shot: { count: 3, spread: 0.24, speed: 22, dmg: 1.4, range: 13, rate: 2.6, size: 1, pierce: 0, element: null, closeBonus: 0.5, delivery: 'pellet' },
+    shot: { count: 3, spread: 0.24, speed: 15, dmg: 1.4, range: 13, rate: 2.6, size: 1, pierce: 0, element: null, closeBonus: 0.5, delivery: 'pellet' },
     module: 'mount_scatter', tags: ['metal'],
     desc: 'A sawn-off scatter gun bolted to the handlebars. Three pellets a shot.',
     why: 'The first weapon: forgiving aim from a moving bike, strong when you dare to ride close (risk vs reward).',
@@ -14,8 +14,8 @@ export const WEAPONS = {
   // what it hits; a splash lands its element on everything in its blast; a stream puts a little down wherever it reaches
   launcher: {
     base: 'launcher', slot: 'weapon', theme: 'blast',
-    signature: { id: 'splash', desc: 'Rockets burst: everything near the blast takes the hit and the element.' },
-    shot: { count: 1, spread: 0, speed: 15, dmg: 3, range: 19, rate: 0.75, size: 1.6, pierce: 0, element: null, delivery: 'splash', splash: { r: 2.6, dmg: 4, power: 1 } },
+    signature: { id: 'splash', desc: 'Rockets seek the machine nearest where you point and burst: everything near the blast takes the hit and the element.' },
+    shot: { count: 1, spread: 0, speed: 8, accel: 45, vmax: 30, dmg: 3, range: 19, rate: 0.75, size: 1.6, pierce: 0, element: null, delivery: 'splash', splash: { r: 2.6, dmg: 4, power: 3 } },
     module: 'mount_tube', tags: ['metal', 'blast'],
     desc: 'A tube on the rack that throws a rocket. Slow, loud, and it sets the world off.',
     why: 'The first weapon that changes the town: a fire rocket lights a hedge, a car, a field. Power with a cost (noise, your own fires).',

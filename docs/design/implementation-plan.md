@@ -57,6 +57,33 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 
 **Play it:** Do you turn back for a yellow beam? Does double shot + fire feel like a power spike? Is picking things up a jackpot or a chore?
 
+**As built (Oct 30, `play/m3-loot`):**
+- `src/play/loot.js`: rarities (common 0 slots, tuned 1 blue, rare 2 yellow and unscanned until the lamp reaches it, epic 3 violet), the modifier pool (double shot, faster, ricochet, fire, water; one element at most), the base pool (scatter; launcher and thrower rarer), drops per machine (scrap pieces, weapon chance, rarity weights), salvage values.
+- `src/roam/sim/loot.js`: drops on death and on a nest breaking (chips plus a tuned-or-better weapon); the lamp pulls scrap in (4 m, 5.5 m on the bike) and banks it; quick swap: equip leaves your old weapon on the ground; salvage pays scrap (and chips for rare+).
+- Ricochet: pellets glance off walls and jump to the next machine within 7 m.
+- Look: scrap is bent bits of steel in the glyph medium; a weapon is a small case with a plate in its rarity's paint and a lamp; its light is a point and a soft halo in the rarity colour (the machines' eye idiom), a pale flicker while unscanned. HUD: scrap ⚙ and chips ◆ counters; the swap card above the pad.
+- KIT: the element now defaults to the weapon's own; KIT mods are extra test mods on top of the weapon's.
+- Not yet: sounds (there is no audio yet), auto-salvage setting, the death cache (M5), the lamp part (M6).
+
+**After Gabriel's first M3 playtest (Oct 31):**
+- **Fire weakens hop by hop:** each thing a fire lights burns at 0.85× the strength of what lit it, heat and reach included, so a grass fire dies out about 20 m from where it started (it can still jump if it reaches a car). At most 300 burning things at once (FPS).
+- **Houses and cars need real fire:** a house catches at heat 22 (a grass fire beside it isn't enough; a thrower takes about 2 s, three fire rockets), a car blows at 12 (two fire rockets).
+- **Scrap comes to you:** it settles for half a second, then flies to Kai from up to 14 m, speeding up, as bigger bits with a bright streak; each one pings a step up a little scale.
+- **Diablo II pickup:** a weapon's name floats over it in its rarity's colour ("Burning Launcher of Haste": prefix from the first modifier, suffix from the second; '?' until the lamp scans a rare). Ride over it and it goes in the **bag** (12 slots). The pickup feed shows its name; BAG (next to the counters) opens the bag: equip (your weapon goes in the bag) or salvage. The quick-swap card is gone.
+- **Guns rework, first pass:** synthesized sound for everything (a boom and thump per scatter shot, the rocket's whoosh and the blast, the thrower's roar or a hose's hiss while held, hit ticks, a machine's crunch, scrap pings, rarity chimes, crackle near fire); recoil (the camera kicks back, hardest for the launcher); muzzle and hit light in the medium; hot tracers for pellets; spent shells that fly out and lie a while; rockets start slow and accelerate, with a steel body, an exhaust glow and a smoke trail; the thrower's spray is open flame in the medium, wider and cooler as it travels (water: wet ground and mist); blasts lay the grass flat.
+
+**Guns, second pass (Oct 31, after studying Enter the Gungeon and Vlambeer's Nuclear Throne):**
+- Lessons taken: bigger bullets read better and feel stronger; a bullet's first frame is a fat circle (the muzzle flash, Vlambeer's trick); a hit is several small responses at once (an impact pop, the target's white flash, knockback, a sound); you always see the gun, and it kicks; readable projectiles have a dark outline so they show on any ground.
+- Built: pellets are pills with a dark outline, a bright body in the shot's colour (yellow plain, orange fire, blue water) and a white core, a short soft trail, a fat white circle on their first frame; slower (15 m/s, was 22) so you see them fly; a hit pops (a ring snapping open, a burst of short strokes) and pushes harder; walls pop with dust. The gun is a turret on the handlebars that turns to where it fires and kicks back on each shot (scatter: twin barrels; launcher: a fat tube; thrower: a nozzle and a tank). The camera kick is a third of what it was; the triangle flash on Kai is gone.
+
+**Guns, third pass: projectiles in our own language (Oct 31).** Gabriel: the Gungeon pass felt "copied from another game"; every projectile must follow the design concept. The rules it follows (already the town's): the world is glyph cells; only light shouts; amber is yours, ember red is theirs (the far map's own rule).
+- A projectile is a flying light, the machines' eye idiom: a lit cell at its head, the same point of light with a soft neon halo as an eye (so it reads the same close up and far away), and a trail that is a line of lit cells in the town's own glyph grid, dimming behind it, plus a faint glow on the ground (the atom map).
+- Hues: amber (plain, yours), ember (fire), cold blue (water), red (the machines' bolts). The rocket: a glyph-solid body with lit exhaust cells, open flame and a smoke trail in the medium. The thrower: open flame or white mist in the medium. Hit sparks are glyphs (`* + · ×`) like the town's drifting sparkles. Pills, pops, orb bolts and ejected shells are gone.
+- **The projectile lab** (`tools/roam/projectile-lab.cjs`): freezes the rules on a kerb, lines up every projectile and photographs it at close, mid and far zoom for design reviews (the main loop has a `lab` hook: freeze the rules, hold the camera).
+- **The bike off walls:** it no longer stops dead and crawls backwards. The speed into the wall bounces back (0.45), the speed along it slides on (0.8), and the bike turns to its new direction: a glancing hit steers it along the wall, a head-on one throws it back out already turned away; for 0.18 s the stick can't drag it straight back in.
+
+**Aim help (Oct 31):** shots hit a machine's whole drawn body now (a body radius per kind: crawler 0.75 m, skitter 0.6, hound 0.8, spitter 0.75, brute 1.25, plus the shot's own 0.35), not a 0.7 m point. Rockets seek: each picks the machine nearest where you pointed (within 40° of the aim and 20 m), turns toward it at 4.5 rad/s, retargets the nearest ahead if it dies, and bursts within 0.9 m of a body (a proximity fuse). Headless: scatter hits 25% → 34%, launcher 38% → 84%.
+
 ## M4. Clear an area (the goal) · about 1 week
 **Why fourth:** gives a fight a purpose and an ending.
 

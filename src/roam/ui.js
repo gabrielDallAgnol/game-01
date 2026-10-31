@@ -20,7 +20,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   holdAim(fireBtn, setFire, 'aim');
   // [m2] the loadout (a test control until the garage): the gun's element, the off-hand's enchant and how often, mods.
   // The game pauses while it is open; changes go through the sim's API (setLoadout)
-  const kitEl = $('loadout'), LO = { base: 'scatter', el: 'fire', enchant: 'water', every: 2, mods: [] };
+  const kitEl = $('loadout'), LO = { base: null, el: '', enchant: 'water', every: 2, mods: [] };
   const paintKit = () => { for (const g of kitEl.querySelectorAll('.opts')) { const k = g.dataset.k; for (const b of g.children) b.classList.toggle('on', k === 'mods' ? LO.mods.includes(b.dataset.v) : String(LO[k] ?? '') === b.dataset.v); }
     fireBtn.className = 'pb fire el-' + (LO.el || '') + (input.fire ? ' on' : ''); };
   for (const g of kitEl.querySelectorAll('.opts')) for (const b of g.children) b.addEventListener('click', () => { const k = g.dataset.k, v = b.dataset.v;
@@ -79,5 +79,5 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     if (nest) one(nest.x, nest.y, '#ff5a3a', `${Math.round(nd)}m`);
     if (!k.riding && !k.dead) one(S.bike.x, S.bike.y, '#f0b44c', 'BIKE');
   }
-  return { update, arrows, toast, get paused() { return ui.paused; } };
+  return { update, arrows, toast, get paused() { return ui.paused; }, set paused(v) { ui.paused = v; } };
 }
