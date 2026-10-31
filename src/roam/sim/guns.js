@@ -16,6 +16,8 @@ export function createGuns(G) {
     if (!tgt) for (const n of S.nests) if (n.alive) { const r = dist(n, k); if (r < td) { td = r; tgt = n; } }
     return tgt; }
   // aimed by hand (inp.aim, an angle: dragging off the FIRE button) or by itself at the nearest machine or heart
+  // how long a shot flies to cover its range (a rocket starts slow and speeds up to vmax)
+  const lifeOf = s => { if (!s.accel) return s.range / s.speed; const ta = (s.vmax - s.speed) / s.accel, da = (s.speed + s.vmax) / 2 * ta; return da >= s.range ? ta * s.range / da : ta + (s.range - da) / s.vmax; };
   function fire(g, k, inp) {
     const shot = buildShot(WEAPONS[g.base], [...g.mods, ...g.test]), aimIn = inp.aim, off = S.guns.off;
     g.n++; const el = off.enchant && off.every && g.n % off.every === 0 ? off.enchant : (g.el || shot.element);
@@ -24,7 +26,7 @@ export function createGuns(G) {
     g.aim = ang; g.manual = manual; g.target = tgt ? (tgt.kind ? tgt.id : -1) : -1; g.cd = 1 / shot.rate;
     G.noise(k.x, k.y, R.gun.noise); G.heatUp(R.hunt.perShot);
     for (let i = 0; i < shot.count; i++) { const a = ang + (shot.count > 1 ? (i / (shot.count - 1) - 0.5) * shot.spread * 2 : 0) + rng.range(-0.04, 0.04), sp = shot.speed * rng.range(0.92, 1.05);
-      S.shots.push({ id: sid++, x: k.x + Math.cos(ang) * 0.9, y: k.y + Math.sin(ang) * 0.9, vx: Math.cos(a) * sp + k.vx * 0.5, vy: Math.sin(a) * sp + k.vy * 0.5, life: shot.range / shot.speed, dmg: shot.dmg, close: shot.closeBonus || 0, ox: k.x, oy: k.y, pierce: shot.pierce, el, push: shot.push || R.gun.push, del: shot.delivery || 'pellet', splash: shot.splash, stream: shot.stream, big: shot.size > 1.2, bounce: shot.bounce || 0, last: -1 }); }
+      S.shots.push({ id: sid++, x: k.x + Math.cos(ang) * 0.9, y: k.y + Math.sin(ang) * 0.9, vx: Math.cos(a) * sp + k.vx * 0.5, vy: Math.sin(a) * sp + k.vy * 0.5, life: lifeOf(shot), acc: shot.accel || 0, vmax: shot.vmax || 0, dmg: shot.dmg, close: shot.closeBonus || 0, ox: k.x, oy: k.y, pierce: shot.pierce, el, push: shot.push || R.gun.push, del: shot.delivery || 'pellet', splash: shot.splash, stream: shot.stream, big: shot.size > 1.2, bounce: shot.bounce || 0, last: -1 }); }
     ev('shot', { x: k.x, y: k.y, ang, n: shot.count, el, base: g.base });
     if (shot.delivery === 'splash') G.noise(k.x, k.y, R.gun.noise * 1.6);
   }
@@ -37,6 +39,7 @@ export function createGuns(G) {
     else if (p.del === 'stream' && p.el) G.deliver(p.el, x, y, p.stream.r, p.stream.power); }
   function stepShots(dt) {
     for (let i = S.shots.length - 1; i >= 0; i--) { const p = S.shots[i]; p.life -= dt;
+      if (p.acc) { const sp = Math.hypot(p.vx, p.vy), ns = Math.min(p.vmax, sp + p.acc * dt); p.vx *= ns / sp; p.vy *= ns / sp; }   // [m3b] a rocket speeds up
       const x0 = p.x, y0 = p.y; p.x += p.vx * dt; p.y += p.vy * dt;
       // [atoms] a pellet never touches the world (it is spent before it lands); a rocket bursts where it stops, a stream
       // leaves its element wherever its drops end

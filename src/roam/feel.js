@@ -5,14 +5,16 @@ import { ELEMENTS } from '../play/elements.js';
 import { REACTIONS, CLASH } from '../play/reactions.js';
 export function createFeel({ S, input, town }) {
   const CH = town && town.chars, cw = CH ? CH.w : 1, cell = CH ? CH.cell : 2;
-  let stop = 0, shakeAmt = 0, flash = null;
+  let stop = 0, shakeAmt = 0, flash = null; const kick = { x: 0, y: 0 }, KICK = { scatter: 0.32, launcher: 0.75, thrower: 0.03 };
   const parts = Array.from({ length: 220 }, () => ({ life: 0 })); let pi = 0;
   const rings = [], words = [];   // [m2] a reaction's name floats up where it happened (Sakurai: praise the player)
   const spark = (x, y, a, n, sp, col, life, size = 1) => { for (let i = 0; i < n; i++) { const p = parts[pi++ % parts.length], aa = a + (Math.random() - 0.5) * 1.8, v = sp * (0.4 + Math.random());
     Object.assign(p, { x, y, z: 0.5 + Math.random() * 0.4, vx: Math.cos(aa) * v, vy: Math.sin(aa) * v, vz: 1 + Math.random() * 3, life: life * (0.6 + Math.random() * 0.6), life0: life, col, size }); } };
   function events(evs, t) {
     for (const e of evs) {
-      if (e.type === 'shot') flash = { x: S.kai.x + Math.cos(e.ang) * 0.9, y: S.kai.y + Math.sin(e.ang) * 0.9, ang: e.ang, t: 0.06 };
+      if (e.type === 'shot') { const K = KICK[e.base] ?? 0.2; kick.x -= Math.cos(e.ang) * K; kick.y -= Math.sin(e.ang) * K; shakeAmt = Math.min(1, shakeAmt + K * 0.35);
+        if (e.base === 'scatter' || !e.base) spark(S.kai.x, S.kai.y, e.ang + Math.PI / 2 + (Math.random() - 0.5) * 0.6, 1, 2.4, '#c9a24a', 2.2, 1.6);   // a spent shell flies out and lies a while
+        if (e.base === 'thrower') continue; flash = { x: S.kai.x + Math.cos(e.ang) * 0.9, y: S.kai.y + Math.sin(e.ang) * 0.9, ang: e.ang, t: e.base === 'launcher' ? 0.1 : 0.06 }; }
       else if (e.type === 'hit') spark(e.x, e.y, e.ang, 4, 7, '#ffd27a', 0.25);
       else if (e.type === 'spark') spark(e.x, e.y, Math.random() * 6.28, 2, 3, '#b8b2a0', 0.2, 0.7);
       else if (e.type === 'die' && (e.src === 'gun' || e.src === 'bike')) { stop = Math.max(stop, 0.055); shakeAmt = Math.min(0.9, shakeAmt + 0.28);
@@ -31,7 +33,7 @@ export function createFeel({ S, input, town }) {
     }
   }
   const frozen = dt => { if (stop > 0) { stop -= dt; return true; } return false; };
-  function shake(cam, dt) { const ox = (Math.random() - 0.5) * shakeAmt * 0.5, oy = (Math.random() - 0.5) * shakeAmt * 0.5; cam.x += ox; cam.y += oy; shakeAmt *= Math.exp(-dt * 9); return () => { cam.x -= ox; cam.y -= oy; }; }
+  function shake(cam, dt) { const kk = Math.exp(-dt * 14); kick.x *= kk; kick.y *= kk; const ox = (Math.random() - 0.5) * shakeAmt * 0.5 + kick.x, oy = (Math.random() - 0.5) * shakeAmt * 0.5 + kick.y; cam.x += ox; cam.y += oy; shakeAmt *= Math.exp(-dt * 9); return () => { cam.x -= ox; cam.y -= oy; }; }
   function draw(fx, toS, ppm, dt, R, lightAt, W, H) {
     const on = (x, y) => x > -30 && y > -30 && x < W + 30 && y < H + 30;
     // a spitter taking aim: a thin red line to Kai that firms up until it fires (the warning to move)
@@ -46,9 +48,12 @@ export function createFeel({ S, input, town }) {
       fx.strokeStyle = 'rgba(255,214,120,.55)'; fx.lineWidth = 2; fx.setLineDash([4, 7]); fx.beginPath(); fx.moveTo(x, y); fx.lineTo(x1, y1); fx.stroke(); fx.setLineDash([]); }
     // pellets: a bright head and a streak behind it
     fx.lineCap = 'round';
-    for (const p of S.shots) { const [x, y] = toS(p.x, p.y), [x0, y0] = toS(p.x - p.vx * 0.035, p.y - p.vy * 0.035); if (!on(x, y)) continue;
-      const wet = p.el === 'water'; fx.strokeStyle = wet ? 'rgba(140,200,240,.5)' : p.el === 'fire' ? 'rgba(255,150,70,.6)' : 'rgba(255,200,110,.55)'; fx.lineWidth = Math.max(2.5, ppm * 0.16); fx.beginPath(); fx.moveTo(x0, y0); fx.lineTo(x, y); fx.stroke();   // [m2] thicker: readable on a phone
-      fx.fillStyle = wet ? '#d6efff' : p.el === 'fire' ? '#ffd28a' : '#fff3cf'; fx.beginPath(); fx.arc(x, y, Math.max(2.2, ppm * 0.11), 0, 6.283); fx.fill(); }
+    // pellets: hot tracers, a warm streak with a white-hot head (tinted by their element); a thrower's spray and a rocket
+    // are not drawn here: the spray is fire or water on the atoms, the rocket a solid with its exhaust (atomlook.js)
+    for (const p of S.shots) { if (p.del === 'stream' || p.del === 'splash') continue; const [x, y] = toS(p.x, p.y), [x0, y0] = toS(p.x - p.vx * 0.05, p.y - p.vy * 0.05); if (!on(x, y)) continue;
+      const tint = p.el === 'water' ? '120,190,255' : p.el === 'fire' ? '255,120,40' : '255,170,70';
+      fx.strokeStyle = `rgba(${tint},.35)`; fx.lineWidth = Math.max(3.5, ppm * 0.2); fx.beginPath(); fx.moveTo(x0, y0); fx.lineTo(x, y); fx.stroke();
+      fx.strokeStyle = 'rgba(255,246,220,.95)'; fx.lineWidth = Math.max(1.4, ppm * 0.07); fx.beginPath(); fx.moveTo((x0 + x * 2) / 3, (y0 + y * 2) / 3); fx.lineTo(x, y); fx.stroke(); }
     if (flash && (flash.t -= dt) > 0) { const [x, y] = toS(flash.x, flash.y), r = ppm * 0.5; fx.save(); fx.translate(x, y); fx.rotate(flash.ang); fx.fillStyle = 'rgba(255,214,120,.85)';
       fx.beginPath(); fx.moveTo(0, -r * 0.35); fx.lineTo(r * 1.3, 0); fx.lineTo(0, r * 0.35); fx.closePath(); fx.fill(); fx.restore(); }
     for (const p of parts) { if (p.life <= 0) continue; p.life -= dt; p.vz -= 9 * dt; p.z += p.vz * dt; if (p.z < 0) { p.z = 0; p.vx *= 0.4; p.vy *= 0.4; p.vz *= -0.3; }

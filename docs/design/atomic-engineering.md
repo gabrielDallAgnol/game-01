@@ -166,3 +166,12 @@ ragged, never the 2 m grid.
 **Code:** `src/roam/atomlook.js` writes the atom world's state around the camera into two maps (1 m a texel:
 fire on the ground, fire in a solid, wet, oil; steam, fog, flash, heat). The ground shader's `[atoms-look]` block in
 `src/roam/medium.js` reads them per surface (ground, street, roof, crown). `feel.js` draws none of it.
+
+## 12. Fire weakens as it travels (Oct 31, Gabriel)
+> "It's losing firepower from one atom to another, and then it cannot go so far." And: houses and cars "would need more
+> fire … if there is just one small grass around it on fire, it will certainly go on fire, which in reality doesn't make sense."
+
+Every burning thing carries a **strength** (`pw`). Its heat and the strength it passes on both scale by it; what it lights
+burns at `hop` (0.85) times that. Below `minPw` (0.2) nothing catches, so a fire runs out about ten hops (about 20 m) from where
+it started, unless something feeds it new strength: delivered fire (a thrower, a rocket) and a car blowing start at full
+strength. Houses catch at heat 22 and cars blow at 12, so a burning lawn beside them isn't enough; fire has to be put on them.

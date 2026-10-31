@@ -9,7 +9,7 @@
 // Lab code: it reads the lab's little scene and draws it; nothing here reaches the game yet.
 /* global THREE */
 import { MACHINES } from '../play/machines.js';
-import { RARITY } from '../play/loot.js';
+import { RARITY, nameOf } from '../play/loot.js';
 import { M, MATCOL } from './dress/mats.js';
 import { gardenLook } from './garden-look.js';
 import { landLook } from './world/land.js';
@@ -241,7 +241,7 @@ export function createMedium(o) {
   // roof is black rafters with an ember or two; steam and fog are white haze; a blast is a flash of light.
   swap('        vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);', `        { vec2 at = (w - uAtomO) / uAtomS, aE = vec2(1.0 / uAtomS); float inA = step(0.0, at.x) * step(at.x, 1.0) * step(0.0, at.y) * step(at.y, 1.0);
           vec2 atW = at + (vec2(vnoise(w * 0.9), vnoise(w * 0.9 + 7.3)) - 0.5) * aE * 2.2 + (vec2(vnoise(w * 3.1), vnoise(w * 3.1 + 2.9)) - 0.5) * aE * 0.7;   // ragged, natural edges (no 2 m squares)
-          vec4 AS = texture2D(tAtom, atW) * inA, A2 = texture2D(tAtom2, atW) * inA; vec2 cpA = floor((gl_FragCoord.xy + uCellOff) / uCellPx), gA = fract((gl_FragCoord.xy + uCellOff) / uCellPx);
+          vec4 AS = texture2D(tAtom, atW) * inA, A2 = texture2D(tAtom2, atW) * inA, A3 = texture2D(tAtom3, atW) * inA; vec2 cpA = floor((gl_FragCoord.xy + uCellOff) / uCellPx), gA = fract((gl_FragCoord.xy + uCellOff) / uCellPx);
           float glyphOn = smoothstep(2.4, 4.6, uCellPx);
           vec3 skyA = mix(vec3(0.5, 0.57, 0.64) * tint(), vec3(0.05, 0.06, 0.09), uNight);
           // a burnt roof (the char mark under it): black rafters, now and then an ember
@@ -250,7 +250,7 @@ export function createMedium(o) {
             col = mix(col, vec3(0.055, 0.05, 0.047) * (0.7 + 0.6 * h21(cpA)) + vec3(0.1, 0.09, 0.08) * raft, k * 0.92);
             col += vec3(0.9, 0.28, 0.06) * k * step(0.988, h21(cpA + floor(uTime * 0.6))) * (0.6 + 0.4 * sin(uTime * 3.0 + h21(cpA) * 6.0)); }
           // hot grass browns before it catches
-          col = mix(col, col * vec3(1.05, 0.8, 0.5), smoothstep(0.1, 0.9, A2.a) * (ground + tree) * 0.7);
+          col = mix(col, col * vec3(1.05, 0.8, 0.5), smoothstep(0.1, 0.9, A3.g) * (ground + tree) * 0.7);
           // water
           float wk = smoothstep(0.04, 0.45, AS.b); if (wk > 0.0) {
             float pool = smoothstep(0.5, 0.72, vnoise(w * 0.55 + 3.1) * 0.75 + vnoise(w * 1.9) * 0.25 + AS.b * 0.22);
@@ -270,6 +270,7 @@ export function createMedium(o) {
           near = min(1.2, near / 3.0 + fire * 0.6);
           for (int k = 1; k <= 5; k++) { vec4 u1 = texture2D(tAtom, at - WD * aE * (float(k) * 3.2) + vec2(-WD.y, WD.x) * aE * sin(float(k) + uTime * 0.4) * 1.5) * inA; smk += max(u1.r, u1.g) * (1.0 - float(k) * 0.12); }
           smk = clamp(smk * 0.5, 0.0, 0.82) * (0.55 + 0.45 * vnoise(w * 0.22 - WD * uTime * 1.3)) * (0.6 + 0.4 * vnoise(w * 0.9 - WD * uTime * 2.1));
+          smk = clamp(smk + A3.r * 0.8 * (0.6 + 0.4 * vnoise(w * 0.8 - WD * uTime * 1.5)), 0.0, 0.88);   // and smoke put out directly (a rocket's trail, a blast)
           col = mix(col, mix(vec3(0.36, 0.34, 0.32) * tint(), vec3(0.05, 0.05, 0.055), uNight), smk * (1.0 - 0.5 * fire));   // smoke: a grey haze, lighter than tarmac by day, dark by night
           col += col * near * mix(0.5, 1.6, uNight) + vec3(1.0, 0.45, 0.12) * near * mix(0.03, 0.2, uNight);
           if (fire > 0.004) {
@@ -282,6 +283,13 @@ export function createMedium(o) {
             vec3 fc = I < 0.5 ? mix(vec3(0.42, 0.05, 0.01), vec3(0.92, 0.3, 0.05), I / 0.5) : mix(vec3(0.92, 0.3, 0.05), vec3(1.0, 0.78, 0.4), (I - 0.5) / 0.5);
             float lev = floor(clamp(I * 1.1, 0.0, 0.999) * ${NG}.0), gmF = mix(0.2 + 0.7 * lev / ${NG - 1}.0, texture2D(tGlyph, vec2((lev + gA.x) / ${NG}.0, gA.y)).a, glyphOn);
             col = mix(col, fc * (0.45 + 0.85 * gmF), cover * (0.35 + 0.65 * gmF)); }
+          // open flame from a gun (a thrower's jet, a rocket's exhaust): all of it lit, turbulent, a white-yellow core cooling
+          // to orange at the edge, in the same letters, and it lights what's round it
+          float jet = A2.a; if (jet > 0.01) { float jn = vnoise(w * 2.4 - WD * uTime * 2.0 + vec2(uTime * 5.0, uTime * 1.3)) * 0.7 + h21(cpA + floor(uTime * 12.0)) * 0.3, J = clamp(jet * (0.55 + 0.7 * jn), 0.0, 1.0);
+            vec3 jc = J < 0.5 ? mix(vec3(0.85, 0.22, 0.03), vec3(1.0, 0.58, 0.14), J / 0.5) : mix(vec3(1.0, 0.58, 0.14), vec3(1.0, 0.94, 0.72), (J - 0.5) / 0.5);
+            float levJ = floor(clamp(J, 0.0, 0.999) * ${NG}.0), gmJ = mix(0.3 + 0.6 * levJ / ${NG - 1}.0, texture2D(tGlyph, vec2((levJ + gA.x) / ${NG}.0, gA.y)).a, glyphOn);
+            col = mix(col, jc * (0.75 + 0.5 * gmJ), smoothstep(0.04, 0.4, J)); }
+          { float jl = 0.0; for (int k = 0; k < 4; k++) { float a = float(k) * 1.571 + 0.4; jl += texture2D(tAtom2, at + vec2(cos(a), sin(a)) * aE * 2.5).a; } col += col * jl * 0.35 * mix(0.6, 1.6, uNight) + vec3(1.0, 0.5, 0.15) * jl * mix(0.02, 0.08, uNight); }
           // steam (warm grey), fog (white), a blast's flash
           float stm = A2.r * (0.6 + 0.4 * vnoise(w * 0.7 + vec2(0.0, -uTime * 0.8))), fog = A2.g * (0.75 + 0.25 * vnoise(w * 0.35 + uTime * 0.1));
           col = mix(col, vec3(0.86, 0.84, 0.8) * mix(tint(), vec3(0.32), uNight), clamp(stm * 0.75, 0.0, 0.8));
@@ -290,7 +298,7 @@ export function createMedium(o) {
         vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);`);
   // [atoms-look] end
   const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir, tDecal, tLand; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
-    uniform sampler2D tAtom, tAtom2; uniform vec2 uAtomO; uniform float uAtomS;   // [atoms-look] the atom world's state (src/roam/atomlook.js)
+    uniform sampler2D tAtom, tAtom2, tAtom3; uniform vec2 uAtomO; uniform float uAtomS;   // [atoms-look] the atom world's state (src/roam/atomlook.js)
     // one layer of strands with a fixed size in the world: seeds on a turned, jittered lattice (f a metre, p of the cells),
     // each combed len metres along the flow, r wide at the root and tapering. A pixel asks the cells behind it along the
     // flow whether a strand passes within its width; edges are antialiased by the pixel's own size. Returns (coverage, how
@@ -416,9 +424,12 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     // its rarity's paint and a lamp on it (the light itself is drawn in draw(), like the machines' eyes)
     const RMAT = { common: M.steel, tuned: M.carBlue, rare: M.paint, epic: M.carRed };
     for (const d of v.drops || []) { if (!on(d.x, d.y)) continue; const a = (d.id * 2.39) % 6.283;
-      if (d.kind === 'scrap') { box(d.x, d.y, 0.05, 0.11, 0.05, 0.04, 0.02, a, d.id % 2 ? M.steel : M.rust); box(d.x + Math.cos(a) * 0.12, d.y + Math.sin(a) * 0.12, 0.04, 0.06, 0.04, 0.035, 0.015, a * 1.7, M.dark); }
+      if (d.kind === 'scrap') { const z = d.fly ? 0.35 : 0.08, sp = d.fly ? t * 14 + d.id : a; box(d.x, d.y, z, 0.2, 0.09, 0.07, 0.03, sp, d.id % 2 ? M.steel : M.rust); box(d.x + Math.cos(sp) * 0.18, d.y + Math.sin(sp) * 0.18, z, 0.1, 0.07, 0.06, 0.02, sp * 1.7, d.id % 3 ? M.dark : M.steel); }
       else { const bob = 0.03 * Math.sin(t * 2 + d.id); box(d.x, d.y, 0.26 + bob, 0.5, 0.28, 0.18, 0.06, a, M.dark); box(d.x, d.y, 0.46 + bob, 0.4, 0.19, 0.03, 0.03, a, RMAT[d.w.rarity] || M.steel);
         sphere(d.x + Math.cos(a) * 0.3, d.y + Math.sin(a) * 0.3, 0.52 + bob, 0.07, M.lamp, d.scanned ? 0.9 : 0.3 + 0.3 * Math.sin(t * 7 + d.id)); } }
+    // [m3b] a rocket in flight: a steel body with a dark nose, pointing where it flies (its exhaust and smoke are the atoms')
+    for (const p of v.shots || []) { if (p.del !== 'splash' || !on(p.x, p.y)) continue; const sp = Math.hypot(p.vx, p.vy) || 1, ux = p.vx / sp, uy = p.vy / sp;
+      capsule(p.x - ux * 0.35, p.y - uy * 0.35, 0.9, p.x + ux * 0.3, p.y + uy * 0.3, 0.9, 0.09, M.steel); sphere(p.x + ux * 0.32, p.y + uy * 0.32, 0.9, 0.08, M.dark); }
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
     for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;
@@ -490,14 +501,23 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
           fx.globalAlpha = 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5 * grow, 0, 6.283); fx.fill();   // the halo
           fx.globalAlpha = Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6 * grow, 0, 6.283); fx.fill(); } }   // the point
       fx.restore(); fx.globalAlpha = 1; }
-    // [m3] a dropped weapon's light: a point and a soft halo in its rarity's colour that breathes slowly, brighter the rarer
-    // (the "beam", seen from above); unscanned, a pale flicker until the lamp reaches it
-    { fx.save(); fx.globalCompositeOperation = 'lighter'; const grow = Math.max(1, Math.min(2, cam.ppm / 12));
-      for (const d of v.drops || []) { if (d.kind !== 'weapon') continue; const [x, y] = toS(d.x, d.y); if (x < -40 || y < -40 || x > cssW + 40 || y > cssH + 40) continue;
+    // [m3] loot on the ground. Scrap: a small glint on each bit so it reads in the grass, and a bright streak on the bits
+    // flying to Kai. A weapon: a soft point of light in its rarity's colour, and its name over it on a dark plate in that
+    // colour (Diablo II); unscanned, the name is '?' and the light a pale flicker until the lamp reaches it
+    { fx.save(); const grow = Math.max(1, Math.min(2, cam.ppm / 12)), kx = kai.x, ky = kai.y; fx.globalCompositeOperation = 'lighter'; fx.lineCap = 'round';
+      for (const d of v.drops || []) { if (d.kind !== 'scrap') continue; const [x, y] = toS(d.x, d.y); if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue;
+        if (d.fly) { const q = Math.hypot(kx - d.x, ky - d.y) || 1, L2 = Math.min(1.6, d.fly * 0.05), [x0, y0] = toS(d.x - (kx - d.x) / q * L2, d.y - (ky - d.y) / q * L2);
+          fx.globalAlpha = 0.85; fx.strokeStyle = '#ffe2a8'; fx.lineWidth = Math.max(2, 2.2 * grow); fx.beginPath(); fx.moveTo(x0, y0); fx.lineTo(x, y); fx.stroke();
+          fx.fillStyle = '#fff4dc'; fx.beginPath(); fx.arc(x, y, 2.2 * grow, 0, 6.283); fx.fill(); }
+        else { const tw = 0.5 + 0.5 * Math.sin(t * 5 + d.id * 1.7); fx.globalAlpha = 0.35 + 0.5 * tw; fx.fillStyle = '#e9e0c8'; fx.beginPath(); fx.arc(x, y, (1.2 + tw) * grow, 0, 6.283); fx.fill(); } }
+      for (const d of v.drops || []) { if (d.kind !== 'weapon') continue; const [x, y] = toS(d.x, d.y); if (x < -60 || y < -40 || x > cssW + 60 || y > cssH + 40) continue;
         const Rr = RARITY[d.w.rarity], col = d.scanned ? Rr.color : '#e8e4da', br = d.scanned ? Rr.glow * (0.8 + 0.2 * Math.sin(t * 2.2 + d.id)) : 0.35 + 0.25 * Math.sin(t * 9 + d.id);
-        fx.fillStyle = col; fx.globalAlpha = 0.18 * br; fx.beginPath(); fx.arc(x, y, 14 * grow * (0.6 + br * 0.6), 0, 6.283); fx.fill();
-        fx.globalAlpha = 0.45 * br; fx.beginPath(); fx.arc(x, y, 5 * grow, 0, 6.283); fx.fill();
+        fx.fillStyle = col; fx.globalAlpha = 0.16 * br; fx.beginPath(); fx.arc(x, y, 11 * grow, 0, 6.283); fx.fill();
         fx.globalAlpha = Math.min(1, br * 1.3); fx.beginPath(); fx.arc(x, y, 1.8 * grow, 0, 6.283); fx.fill(); }
+      fx.globalCompositeOperation = 'source-over'; fx.font = '700 11px "IBM Plex Mono", ui-monospace, monospace'; fx.textAlign = 'center'; fx.textBaseline = 'middle';
+      for (const d of v.drops || []) { if (d.kind !== 'weapon') continue; const [x, y0] = toS(d.x, d.y), y = y0 - 14 * grow - 6; if (x < -120 || y < -20 || x > cssW + 120 || y > cssH + 20) continue;
+        const label = d.scanned ? nameOf(d.w) : '?', w = fx.measureText(label).width + 10; fx.globalAlpha = 0.9; fx.fillStyle = 'rgba(8,9,11,.82)'; fx.fillRect(x - w / 2, y - 8, w, 16);
+        fx.globalAlpha = 1; fx.fillStyle = d.scanned ? RARITY[d.w.rarity].color : '#e8e4da'; fx.fillText(label, x, y + 0.5); }
       fx.restore(); fx.globalAlpha = 1; }
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;

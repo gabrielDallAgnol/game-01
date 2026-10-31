@@ -65,6 +65,13 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - KIT: the element now defaults to the weapon's own; KIT mods are extra test mods on top of the weapon's.
 - Not yet: sounds (there is no audio yet), auto-salvage setting, the death cache (M5), the lamp part (M6).
 
+**After Gabriel's first M3 playtest (Oct 31):**
+- **Fire weakens hop by hop:** each thing a fire lights burns at 0.85× the strength of what lit it, heat and reach included, so a grass fire dies out about 20 m from where it started (it can still jump if it reaches a car). At most 300 burning things at once (FPS).
+- **Houses and cars need real fire:** a house catches at heat 22 (a grass fire beside it isn't enough; a thrower takes about 2 s, three fire rockets), a car blows at 12 (two fire rockets).
+- **Scrap comes to you:** it settles for half a second, then flies to Kai from up to 14 m, speeding up, as bigger bits with a bright streak; each one pings a step up a little scale.
+- **Diablo II pickup:** a weapon's name floats over it in its rarity's colour ("Burning Launcher of Haste": prefix from the first modifier, suffix from the second; '?' until the lamp scans a rare). Ride over it and it goes in the **bag** (12 slots). The pickup feed shows its name; BAG (next to the counters) opens the bag: equip (your weapon goes in the bag) or salvage. The quick-swap card is gone.
+- **Guns rework, first pass:** synthesized sound for everything (a boom and thump per scatter shot, the rocket's whoosh and the blast, the thrower's roar or a hose's hiss while held, hit ticks, a machine's crunch, scrap pings, rarity chimes, crackle near fire); recoil (the camera kicks back, hardest for the launcher); muzzle and hit light in the medium; hot tracers for pellets; spent shells that fly out and lie a while; rockets start slow and accelerate, with a steel body, an exhaust glow and a smoke trail; the thrower's spray is open flame in the medium, wider and cooler as it travels (water: wet ground and mist); blasts lay the grass flat.
+
 ## M4. Clear an area (the goal) · about 1 week
 **Why fourth:** gives a fight a purpose and an ending.
 

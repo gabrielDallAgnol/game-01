@@ -79,5 +79,5 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     if (nest) one(nest.x, nest.y, '#ff5a3a', `${Math.round(nd)}m`);
     if (!k.riding && !k.dead) one(S.bike.x, S.bike.y, '#f0b44c', 'BIKE');
   }
-  return { update, arrows, toast, get paused() { return ui.paused; } };
+  return { update, arrows, toast, get paused() { return ui.paused; }, set paused(v) { ui.paused = v; } };
 }

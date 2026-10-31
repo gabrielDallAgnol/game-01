@@ -6,6 +6,7 @@ import { createRoam, ROAM } from './sim.js';
 import { createLook } from './look.js';
 import { createUi } from './ui.js';
 import { createLootUi } from './lootui.js';
+import { createSound } from './sound.js';
 import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
 import { createFeel } from './feel.js';
 import { createScars } from './scars.js';
@@ -32,7 +33,7 @@ function start() {
   const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
-  const lootUi = createLootUi({ sim, toast: ui.toast });   // [m3] counters and the quick swap
+  const lootUi = createLootUi({ sim, toast: ui.toast, ui });   // [m3] counters and the quick swap
   const feel = createFeel({ S, input, town }), scars = createScars({ tiles: town.tiles, town });   // [m2] burnt and soaked ground   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
@@ -53,7 +54,9 @@ function start() {
     const dead = S.dead.map(d => { const p = prev.dead.get(d.id), o = { ...d, fa: faMap.has(d.id) ? faMap.get(d.id) : d.fa }; if (p) { o.x = L(p[0], d.x); o.y = L(p[1], d.y); } return o; });
     return { ...S, kai, bike, dead };
   }
-  let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; });
+  const sound = createSound();   // [m3b] synthesized sound; starts on the first tap
+  addEventListener('pointerdown', () => sound.start(), { passive: true });
+  let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; sound.start(); });
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
   // the trees on a 16 m grid (a crown never spans more than one cell's neighbours: each tree is filed in every cell its crown touches)
   const treeGrid = new Map(); for (const p of town.trees) { const r = (p.r || p.def.size[0] / 2); for (let j = Math.floor((p.y - r) / 16); j <= Math.floor((p.y + r) / 16); j++) for (let i = Math.floor((p.x - r) / 16); i <= Math.floor((p.x + r) / 16); i++) { const kk = i * 4096 + j; if (!treeGrid.has(kk)) treeGrid.set(kk, []); treeGrid.get(kk).push(p); } }
@@ -110,7 +113,7 @@ function start() {
     for (const e of evs) if (e.type === 'smash') falls.push({ x: e.x, y: e.y, fa: e.ang, id: 100000 + e.id, t0: t, prop: true, stamp: true });   // a smashed prop bursts into letters like a fall
     for (const e of evs) if (e.type === 'die') falls.push({ x: e.x, y: e.y, fa: e.fa, id: e.id, t0: t, metal: e.kind !== 'cinder' && e.kind !== 'flicker', brute: e.kind === 'brute', stamp: true });
     feel.events(evs, t);   // [m1] hitstop, shake, sparks, bursts
-    scars.events(evs, t); look.atoms.events(evs);   // [atoms-look] flashes and steam
+    scars.events(evs, t); sound.events(evs, S); sound.frame(S, input); for (const e of evs) if (e.type === 'blast') look.stamp(e.x, e.y, e.r * 1.2); look.atoms.events(evs);   // [atoms-look] flashes and steam
     while (falls.length && t - falls[0].t0 > 2.2) falls.shift();
     const { night, sun } = skyAt(S.clock); curNight = night;
     // the camera: follows Kai, leads her a little; on the bike it pulls back with the speed so you see what's coming

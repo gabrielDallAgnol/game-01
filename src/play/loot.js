@@ -41,3 +41,11 @@ export function rollWeapon(rng, weights) {
 }
 // what salvaging a weapon pays
 export const salvageOf = w => ({ scrap: RARITY[w.rarity].scrap + w.mods.length, chips: RARITY[w.rarity].chips });
+
+// [m3b] a dropped weapon's name, Diablo-style: a prefix from its first modifier, a suffix from its second (the third
+// shows in the bag). The base names come from the weapon parts. Words only; the colour is its rarity's.
+export const PREFIX = { double_shot: 'Twin', faster: 'Quick', ricochet: 'Glancing', fire: 'Burning', water: 'Soaking' };
+export const SUFFIX = { double_shot: 'of Plenty', faster: 'of Haste', ricochet: 'of Echoes', fire: 'of Embers', water: 'of the Flood' };
+export const BASE_NAME = { scatter: 'Scatter Gun', launcher: 'Launcher', thrower: 'Thrower' };
+export const NAMING = { desc: 'A weapon is named by its modifiers: Burning Launcher of Haste.', why: 'Diablo II: the name on the ground tells you what it is before you pick it up.' };
+export function nameOf(w) { const [a, b] = w.mods; return [a && PREFIX[a], BASE_NAME[w.base] || w.base, b && SUFFIX[b]].filter(Boolean).join(' '); }

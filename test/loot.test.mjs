@@ -1,10 +1,10 @@
 // [m3] Loot: every entry explains itself; a rolled weapon has its rarity's slots and one element at most; a nest always
-// drops a tuned-or-better weapon and chips; scrap slides to Kai and is banked; equip swaps (your old weapon is left on the
-// ground); salvage pays; a ricochet pellet glances off a wall instead of stopping.
+// drops a tuned-or-better weapon and chips; scrap flies to Kai and is banked; weapons go in the bag on contact; equip
+// from the bag (your old one goes in it); salvage pays; a ricochet pellet glances off a wall instead of stopping.
 import '../tools/roam/headless.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { RARITY, DROPS, MOD_POOL, rollWeapon, salvageOf } from '../src/play/loot.js';
+import { RARITY, DROPS, MOD_POOL, rollWeapon, salvageOf, nameOf } from '../src/play/loot.js';
 import { MODIFIERS } from '../src/play/modifiers.js';
 import { WEAPONS } from '../src/play/parts/weapons.js';
 import { Rng } from '../src/sim/rng.js';
@@ -23,13 +23,15 @@ test('a nest drops chips and a tuned-or-better weapon', () => { const sim = crea
   n.hp = 0.1;   // one hit breaks it: stand by it and fire
   S.kai.x = S.bike.x = n.x + 6; S.kai.y = S.bike.y = n.y; for (let i = 0; i < 30 * 8 && n.alive; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21, fire: true }); sim.drain(); }
   assert.ok(!n.alive, 'nest down'); assert.ok(S.chips >= 2); const w = S.drops.filter(d => d.kind === 'weapon'); assert.ok(w.length >= 1 && w.every(d => d.w.rarity !== 'common')); assert.ok(S.drops.length > before); });
-test('scrap slides to Kai and is banked; equip swaps; salvage pays', () => { const sim = createRoam(town, 3), S = sim.state; S.dead.length = 0; const k = S.kai;
-  for (let i = 0; i < 5; i++) S.drops.push({ id: 5000 + i, kind: 'scrap', x: k.x + 2 + i * 0.3, y: k.y, v: 1, t: S.t });
-  for (let i = 0; i < 60; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); } assert.strictEqual(S.scrap, 5);
-  S.drops.push({ id: 6000, kind: 'weapon', x: k.x + 1, y: k.y, w: { base: 'launcher', rarity: 'rare', mods: ['double_shot', 'fire'], seed: 1 }, scanned: true, t: S.t });
+test('scrap flies to Kai and is banked; a weapon goes in the bag when she passes over it; equip and salvage from the bag', () => { const sim = createRoam(town, 3), S = sim.state; S.dead.length = 0; const k = S.kai;
+  for (let i = 0; i < 5; i++) S.drops.push({ id: 5000 + i, kind: 'scrap', x: k.x + 4 + i, y: k.y, v: 1, t: S.t, fly: 0 });
+  for (let i = 0; i < 60; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); } assert.strictEqual(S.scrap, 5, 'all five flew in');
+  S.drops.push({ id: 6000, kind: 'weapon', x: k.x + 0.5, y: k.y, w: { base: 'launcher', rarity: 'rare', mods: ['double_shot', 'fire'], seed: 1 }, scanned: true, t: S.t });
+  sim.step({ x: 0, y: 0, view: 21 }); assert.ok(S.bag.some(b => b.id === 6000), 'picked up into the bag');
   assert.ok(sim.equip(6000)); assert.strictEqual(S.guns.main.base, 'launcher'); assert.deepStrictEqual(S.guns.main.mods, ['double_shot', 'fire']);
-  const old = S.drops.find(d => d.kind === 'weapon' && d.w.base === 'scatter'); assert.ok(old, 'the old weapon lies where the new one was');
-  const p = salvageOf(old.w), s0 = S.scrap; assert.ok(sim.salvage(old.id)); assert.strictEqual(S.scrap, s0 + p.scrap); assert.ok(!S.drops.includes(old)); });
+  const old = S.bag.find(b => b.w.base === 'scatter'); assert.ok(old, 'the old weapon went in the bag');
+  const p = salvageOf(old.w), s0 = S.scrap; assert.ok(sim.salvage(old.id)); assert.strictEqual(S.scrap, s0 + p.scrap); assert.ok(!S.bag.includes(old)); });
+test('weapon names read prefix, base, suffix', () => { assert.strictEqual(nameOf({ base: 'launcher', mods: ['fire', 'faster'] }), 'Burning Launcher of Haste'); assert.strictEqual(nameOf({ base: 'scatter', mods: [] }), 'Scatter Gun'); });
 test('a ricochet pellet glances off a wall', () => { const sim = createRoam(town, 3), S = sim.state; S.dead.length = 0; sim.setLoadout({ base: 'scatter', mods: ['ricochet'] });
   // face a wall a few metres away: find a free spot with a wall 3 m east
   let spot = null; for (let r = 5; r < 200 && !spot; r += 2) for (let a = 0; a < 6.28 && !spot; a += 0.3) { const x = S.kai.x + Math.cos(a) * r, y = S.kai.y + Math.sin(a) * r; if (!town.blocked(x, y) && !town.blocked(x + 1.5, y) && town.blocked(x + 3.5, y)) spot = { x, y }; }

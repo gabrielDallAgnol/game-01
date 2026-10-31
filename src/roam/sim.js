@@ -29,14 +29,16 @@ export const ROAM = {
   hunt: { boil: 14, cool: 1.3, perShot: 1, size: [3, 5], nightExtra: 2, twoSides: 0.25 },   // [m1] gunfire heat → hunting packs
   // [m2] elements on machines (pips, clouds, oil they leak)
   chem: { slick: 0.45, slickR: [1.1, 1.7], slickLife: 40, groundGap: 0.9 },
-  // [atoms] the atom world (docs/design/atomic-engineering.md): heat and water between atoms; numbers per material live in
+  // [atoms] the atom world (docs/design/atomic-engineering.md): heat and water between atoms; hop: the strength a fire
+  // passes on to what it lights (minPw: below this nothing catches; so a fire runs out ~10 hops from its start); numbers per material live in
   // src/play/materials.js. tick: how often heat moves; simR: fires further than this from Kai wait; boil: water a unit of
   // heat boils off; cool: heat lost per second; downwind/upwind: the wind's push; fireHeat/blastHeat: what a delivered
   // fire or a plain explosion puts in; kaiBurn/kaiBlast: how much fire and blasts hurt Kai
-  atoms: { tick: 0.25, simR: 140, maxBurn: 650, boil: 0.9, cool: 0.18, downwind: 0.9, upwind: 0.3, wind: { x: 0.731, y: 0.682 }, fireHeat: 2.6, blastHeat: 1.2, stainR: 1.3, wetShow: 14, kaiBurn: 1, kaiBlast: 0.7, hardWet: 12 },
-  // [m3] loot: the lamp pulls scrap in within pull (more on the bike), it's banked within grab; a weapon is offered within
-  // offer metres; rare drops scan within scan; scrap left lying scrapLife seconds goes; at most max drops on the ground
-  loot: { pull: 4, pullRide: 5.5, grab: 0.7, slide: 9, offer: 2.4, scan: 9, scrapLife: 90, max: 220 },
+  atoms: { hop: 0.85, minPw: 0.2, tick: 0.25, simR: 140, maxBurn: 300, boil: 0.9, cool: 0.18, downwind: 0.9, upwind: 0.3, wind: { x: 0.731, y: 0.682 }, fireHeat: 2.6, blastHeat: 1.2, stainR: 1.3, wetShow: 14, kaiBurn: 1, kaiBlast: 0.7, hardWet: 12 },
+  // [m3] loot: scrap settles for settle seconds, then flies to Kai from within pull metres (fly0 → flyMax m/s, speeding up
+  // by flyAcc), banked within grab; a weapon goes in the bag (bag slots) when she passes within take (takeRide on the
+  // bike); rare drops scan within scan; scrap left lying scrapLife seconds goes; at most max drops on the ground
+  loot: { pull: 14, settle: 0.45, fly0: 3, flyAcc: 40, flyMax: 30, grab: 0.8, take: 1.3, takeRide: 1.9, bag: 12, scan: 9, scrapLife: 90, max: 220 },
   nest: { hp: 120, guards: 7, every: 7, nightEvery: 3.5 },
 };
 

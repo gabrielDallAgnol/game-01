@@ -31,7 +31,14 @@ test('soaked ground does not catch', () => { const { sim, S } = fresh(), f = fie
 test('a fence burns away; a car blows once', () => { const { sim, S } = fresh();
   const fence = S.atoms.find(a => a.mat === 'wood' && a.prop === 'fence'), car = S.atoms.find(a => a.mat === 'fuelTank' && a.prop === 'car'); assert.ok(fence && car);
   put(S, fence.x + 25, fence.y); sim.deliver('fire', fence.x, fence.y, 0.5, 2); run(sim, 12); assert.strictEqual(fence.state, 'done'); assert.ok(S.broken.has(fence.ref));
-  put(S, car.x + 25, car.y); let blasts = 0; for (let k = 0; k < 4; k++) { sim.deliver('fire', car.x, car.y, 0.5, 1); for (const e of run(sim, 1)) if (e.type === 'blast' && Math.hypot(e.x - car.x, e.y - car.y) < 0.1) blasts++; }
+  put(S, car.x + 25, car.y); let blasts = 0; for (let k = 0; k < 4; k++) { sim.deliver('fire', car.x, car.y, 0.5, 2); for (const e of run(sim, 1)) if (e.type === 'blast' && Math.hypot(e.x - car.x, e.y - car.y) < 0.1) blasts++; }
   assert.strictEqual(blasts, 1); assert.notStrictEqual(car.state, 'ok'); assert.ok(car.wreck); });
 test('a fire pellet never touches the world', () => { const { sim, S } = fresh(), f = field(); put(S, f.x, f.y); sim.setLoadout({ base: 'scatter', el: 'fire', enchant: null });
   run(sim, 4, { fire: true, aim: 0 }); assert.strictEqual(S.cells.size, 0); assert.strictEqual(S.burnt.size, 0); });
+test('a grass fire runs out of strength: it stops some twenty metres from its start', () => { const { sim, S } = fresh(), f = field(); put(S, f.x - 30, f.y);
+  sim.deliver('fire', f.x, f.y, 1, 1); run(sim, 40); let far = 0; for (const c of S.burnt) { const x = (c % town.chars.w + 0.5) * town.chars.cell, y = (Math.floor(c / town.chars.w) + 0.5) * town.chars.cell; far = Math.max(far, Math.hypot(x - f.x, y - f.y)); }
+  assert.ok(S.burnt.size > 10 && far < 34, `burnt ${S.burnt.size}, furthest ${far.toFixed(1)} m`); });
+test('a house does not catch from a grass fire beside it, only from fire put on it', () => { const { sim, S } = fresh();
+  const h = S.atoms.find(a => a.kind === 'building' && a.obb.w * a.obb.h > 60); put(S, h.x + 30, h.y);
+  for (let i = 0; i < 6; i++) sim.deliver('fire', h.obb.x + h.obb.w / 2 + 2.5, h.obb.y + (i - 3) * 1.5, 1, 1); run(sim, 8); assert.notStrictEqual(h.state, 'burning', 'grass alone');
+  for (let i = 0; i < 4; i++) { sim.deliver('fire', h.x, h.y, 2, 3); run(sim, 0.3); } assert.strictEqual(h.state, 'burning', 'fire put on it'); });

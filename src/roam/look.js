@@ -28,7 +28,7 @@ export function createLook(canvas, town) {
   const medium = createMedium({ renderer, U, mat, VERT, quadGeo, quadCam, ASH3F: GROUND });
   const scene = new THREE.Scene(), quad = new THREE.Mesh(quadGeo, medium.material); quad.frustumCulled = false; scene.add(quad);
   const dScene = new THREE.Scene(), dQuad = new THREE.Mesh(quadGeo, new THREE.ShaderMaterial({ uniforms: U, vertexShader: VERT, fragmentShader: DIST, depthTest: false, depthWrite: false })); dQuad.frustumCulled = false; dScene.add(dQuad);
-  let ping = 0, decayAcc = 0, flatAcc = 0;
+  let ping = 0, decayAcc = 0, flatAcc = 0; const blasts = [];
   /** what parts and presses the grass this frame: Kai (or the bike), the nearest dead, the falls */
   // only the part of the field around the view is stepped (a scissor): the whole town's field is 2048² texels, each
   // looping over the stamps, which a phone cannot afford every frame. Trails off screen simply wait.
@@ -41,6 +41,7 @@ export function createLook(canvas, town) {
     const k = S.kai, ks = Math.hypot(k.vx, k.vy); if (!k.dead) put(k.x, k.y, k.vx, k.vy, k.riding ? 2.2 : 1.6, k.riding ? 0.7 : 0.3, k.riding ? Math.min(1, ks / 3) : Math.min(0.55, ks / 6), k.riding ? 0.6 : 0.4);
     if (!k.riding) put(S.bike.x, S.bike.y, 0, 0, 1.4, 0.4);
     for (const f of falls) if (f.stamp) { put(f.x, f.y, 0, 0, 1.4, 1); f.stamp = false; }
+    for (const b of blasts.splice(0)) put(b.x, b.y, 0, 0, b.r, 1, 1, b.r);   // [m3b] a blast lays the grass flat around it
     const byNear = S.dead.filter(d => inV(d.x, d.y)).sort((a, b) => Math.hypot(a.x - k.x, a.y - k.y) - Math.hypot(b.x - k.x, b.y - k.y));
     for (const d of byNear) { const sp = Math.hypot(d.vx, d.vy); put(d.x, d.y, d.vx, d.vy, 0.8, sp > 0.2 ? 1 : 0.6, Math.min(0.4, sp / 4), 0.35); }
     U.uN.value = n;
@@ -73,8 +74,8 @@ export function createLook(canvas, town) {
     { const b = S.bike, a = b.ang, f = 0.72 * 0.9 * 2.6; U.uHead.value.set(b.x + Math.cos(a) * f, b.y + Math.sin(a) * f, a, S.kai.riding ? 0.25 + 0.75 * night : 0); }
     U.uCam.value.set(cam.x, cam.y); U.uView.value.set(cssW / cam.ppm, cssH / cam.ppm); U.uPpm.value = cam.ppm * dpr; U.uTime.value = t; U.uNight.value = night; U.uKai.value.set(S.kai.x, S.kai.y);
     stepDist(v.dt, S, v.falls, cam, cssW, cssH); atoms.update(S, cam, v.dt);
-    medium.render({ cam, cssW, cssH, dpr, kai: S.kai, dead: S.dead, deaths: v.falls, bike: S.bike, nests: S.nests, t, night, props: town.dress.volumes, broken: S.broken, drops: S.drops });
+    medium.render({ cam, cssW, cssH, dpr, kai: S.kai, dead: S.dead, deaths: v.falls, bike: S.bike, nests: S.nests, t, night, props: town.dress.volumes, broken: S.broken, drops: S.drops, shots: S.shots });
     renderer.render(scene, quadCam);
   }
-  return { render, resize, draw: medium.draw, U, atoms };
+  return { render, resize, draw: medium.draw, U, atoms, stamp: (x, y, r) => blasts.push({ x, y, r }) };
 }
