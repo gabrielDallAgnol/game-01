@@ -5,7 +5,7 @@ import { ELEMENTS } from '../play/elements.js';
 import { REACTIONS, CLASH } from '../play/reactions.js';
 export function createFeel({ S, input, town }) {
   const CH = town && town.chars, cw = CH ? CH.w : 1, cell = CH ? CH.cell : 2;
-  let stop = 0, shakeAmt = 0, flash = null; const kick = { x: 0, y: 0 }, KICK = { scatter: 0.32, launcher: 0.75, thrower: 0.03 };
+  let stop = 0, shakeAmt = 0, flash = null; const kick = { x: 0, y: 0 }, KICK = { scatter: 0.1, launcher: 0.3, thrower: 0.02 }, pops = [], seen = new Map();
   const parts = Array.from({ length: 220 }, () => ({ life: 0 })); let pi = 0;
   const rings = [], words = [];   // [m2] a reaction's name floats up where it happened (Sakurai: praise the player)
   const spark = (x, y, a, n, sp, col, life, size = 1) => { for (let i = 0; i < n; i++) { const p = parts[pi++ % parts.length], aa = a + (Math.random() - 0.5) * 1.8, v = sp * (0.4 + Math.random());
@@ -14,9 +14,9 @@ export function createFeel({ S, input, town }) {
     for (const e of evs) {
       if (e.type === 'shot') { const K = KICK[e.base] ?? 0.2; kick.x -= Math.cos(e.ang) * K; kick.y -= Math.sin(e.ang) * K; shakeAmt = Math.min(1, shakeAmt + K * 0.35);
         if (e.base === 'scatter' || !e.base) spark(S.kai.x, S.kai.y, e.ang + Math.PI / 2 + (Math.random() - 0.5) * 0.6, 1, 2.4, '#c9a24a', 2.2, 1.6);   // a spent shell flies out and lies a while
-        if (e.base === 'thrower') continue; flash = { x: S.kai.x + Math.cos(e.ang) * 0.9, y: S.kai.y + Math.sin(e.ang) * 0.9, ang: e.ang, t: e.base === 'launcher' ? 0.1 : 0.06 }; }
-      else if (e.type === 'hit') spark(e.x, e.y, e.ang, 4, 7, '#ffd27a', 0.25);
-      else if (e.type === 'spark') spark(e.x, e.y, Math.random() * 6.28, 2, 3, '#b8b2a0', 0.2, 0.7);
+        continue; flash = { x: S.kai.x + Math.cos(e.ang) * 0.9, y: S.kai.y + Math.sin(e.ang) * 0.9, ang: e.ang, t: e.base === 'launcher' ? 0.1 : 0.06 }; }
+      else if (e.type === 'hit') { pops.push({ x: e.x, y: e.y, ang: e.ang, t: 0, col: e.el === 'water' ? '#9fd4ff' : e.el === 'fire' ? '#ffa04a' : '#ffe08a', big: 1 }); spark(e.x, e.y, e.ang, 5, 8, '#ffd27a', 0.22); }
+      else if (e.type === 'spark') { pops.push({ x: e.x, y: e.y, ang: Math.random() * 6.28, t: 0, col: '#d8d0bc', big: 0.7 }); spark(e.x, e.y, Math.random() * 6.28, 3, 3, '#b8b2a0', 0.3, 0.9); }
       else if (e.type === 'die' && (e.src === 'gun' || e.src === 'bike')) { stop = Math.max(stop, 0.055); shakeAmt = Math.min(0.9, shakeAmt + 0.28);
         spark(e.x, e.y, Math.random() * 6.28, 14, 6, '#c9c4b6', 0.6, 1.2); spark(e.x, e.y, Math.random() * 6.28, 6, 4, '#ff5a3a', 0.45, 1); rings.push({ x: e.x, y: e.y, t: 0 }); }
       else if (e.type === 'spit') spark(e.x + Math.cos(e.ang) * 0.6, e.y + Math.sin(e.ang) * 0.6, e.ang, 5, 4, '#ff8a3a', 0.25);
@@ -48,12 +48,27 @@ export function createFeel({ S, input, town }) {
       fx.strokeStyle = 'rgba(255,214,120,.55)'; fx.lineWidth = 2; fx.setLineDash([4, 7]); fx.beginPath(); fx.moveTo(x, y); fx.lineTo(x1, y1); fx.stroke(); fx.setLineDash([]); }
     // pellets: a bright head and a streak behind it
     fx.lineCap = 'round';
-    // pellets: hot tracers, a warm streak with a white-hot head (tinted by their element); a thrower's spray and a rocket
-    // are not drawn here: the spray is fire or water on the atoms, the rocket a solid with its exhaust (atomlook.js)
-    for (const p of S.shots) { if (p.del === 'stream' || p.del === 'splash') continue; const [x, y] = toS(p.x, p.y), [x0, y0] = toS(p.x - p.vx * 0.05, p.y - p.vy * 0.05); if (!on(x, y)) continue;
-      const tint = p.el === 'water' ? '120,190,255' : p.el === 'fire' ? '255,120,40' : '255,170,70';
-      fx.strokeStyle = `rgba(${tint},.35)`; fx.lineWidth = Math.max(3.5, ppm * 0.2); fx.beginPath(); fx.moveTo(x0, y0); fx.lineTo(x, y); fx.stroke();
-      fx.strokeStyle = 'rgba(255,246,220,.95)'; fx.lineWidth = Math.max(1.4, ppm * 0.07); fx.beginPath(); fx.moveTo((x0 + x * 2) / 3, (y0 + y * 2) / 3); fx.lineTo(x, y); fx.stroke(); }
+    // [m3c] bullets, Enter the Gungeon style: big enough to read, a pill with a dark outline (it reads on grass, tarmac and
+    // fire alike), a bright body in the shot's colour and a white-hot core; on its first frame it's a fat circle (the muzzle
+    // flash, Vlambeer's trick); a short soft trail. A thrower's spray and a rocket are the atoms' (atomlook.js, medium.js)
+    const now = performance.now() / 1000;
+    for (const p of S.shots) { if (p.del === 'stream' || p.del === 'splash') continue; const [x, y] = toS(p.x, p.y); if (!on(x, y)) continue;
+      if (!seen.has(p.id)) seen.set(p.id, now); const age = now - seen.get(p.id), sp = Math.hypot(p.vx, p.vy) || 1, ux = p.vx / sp, uy = p.vy / sp;
+      const body = p.el === 'water' ? '#7cc4ff' : p.el === 'fire' ? '#ff8a2a' : '#ffd23a', glow = p.el === 'water' ? '120,190,255' : p.el === 'fire' ? '255,120,40' : '255,200,70';
+      const R = Math.max(3.2, ppm * 0.16);
+      if (age < 0.04) { fx.fillStyle = 'rgba(12,10,8,.85)'; fx.beginPath(); fx.arc(x, y, R * 2.1 + 1.5, 0, 6.283); fx.fill(); fx.fillStyle = '#fff6dc'; fx.beginPath(); fx.arc(x, y, R * 2.1, 0, 6.283); fx.fill(); continue; }
+      for (let k = 3; k >= 1; k--) { const [tx, ty] = toS(p.x - p.vx * 0.022 * k, p.y - p.vy * 0.022 * k); fx.globalAlpha = 0.22 * (1 - k / 4); fx.fillStyle = `rgb(${glow})`; fx.beginPath(); fx.arc(tx, ty, R * (1 - k * 0.15), 0, 6.283); fx.fill(); }
+      fx.globalAlpha = 1; const L = R * 1.5, hx = ux * L, hy = uy * L;
+      fx.lineCap = 'round'; fx.strokeStyle = 'rgba(12,10,8,.9)'; fx.lineWidth = R * 2 + 3; fx.beginPath(); fx.moveTo(x - hx, y - hy); fx.lineTo(x + hx * 0.6, y + hy * 0.6); fx.stroke();
+      fx.strokeStyle = body; fx.lineWidth = R * 2; fx.beginPath(); fx.moveTo(x - hx, y - hy); fx.lineTo(x + hx * 0.6, y + hy * 0.6); fx.stroke();
+      fx.strokeStyle = '#fffbe8'; fx.lineWidth = R * 0.8; fx.beginPath(); fx.moveTo(x - hx * 0.3, y - hy * 0.3); fx.lineTo(x + hx * 0.55, y + hy * 0.55); fx.stroke(); }
+    if (seen.size > 400) for (const k of seen.keys()) { if (!S.shots.some(p => p.id === k)) seen.delete(k); }
+    // impact pops: a ring that snaps open and a burst of short strokes, in the bullet's colour (Gungeon's bullet pop)
+    for (let i = pops.length - 1; i >= 0; i--) { const q = pops[i]; q.t += dt; const k = q.t / 0.16; if (k >= 1) { pops.splice(i, 1); continue; } const [x, y] = toS(q.x, q.y), R = ppm * 0.45 * q.big;
+      fx.globalAlpha = 1 - k; fx.strokeStyle = 'rgba(12,10,8,.8)'; fx.lineWidth = 4; fx.beginPath(); fx.arc(x, y, R * (0.4 + k), 0, 6.283); fx.stroke(); fx.strokeStyle = q.col; fx.lineWidth = 2.2; fx.beginPath(); fx.arc(x, y, R * (0.4 + k), 0, 6.283); fx.stroke();
+      if (k < 0.5) { fx.fillStyle = '#fff6dc'; fx.beginPath(); fx.arc(x, y, R * 0.45 * (1 - k * 2), 0, 6.283); fx.fill(); }
+      for (let j = 0; j < 5; j++) { const a = q.ang + Math.PI + (j - 2) * 0.55, r0 = R * (0.5 + k * 1.2), r1 = r0 + R * 0.5 * (1 - k); fx.beginPath(); fx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0); fx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); fx.stroke(); } }
+    fx.globalAlpha = 1;
     if (flash && (flash.t -= dt) > 0) { const [x, y] = toS(flash.x, flash.y), r = ppm * 0.5; fx.save(); fx.translate(x, y); fx.rotate(flash.ang); fx.fillStyle = 'rgba(255,214,120,.85)';
       fx.beginPath(); fx.moveTo(0, -r * 0.35); fx.lineTo(r * 1.3, 0); fx.lineTo(0, r * 0.35); fx.closePath(); fx.fill(); fx.restore(); }
     for (const p of parts) { if (p.life <= 0) continue; p.life -= dt; p.vz -= 9 * dt; p.z += p.vz * dt; if (p.z < 0) { p.z = 0; p.vx *= 0.4; p.vy *= 0.4; p.vz *= -0.3; }

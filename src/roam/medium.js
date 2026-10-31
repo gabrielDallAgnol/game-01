@@ -395,6 +395,20 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     { const [x0, y0] = P(0.48, -0.32), [x1, y1] = P(0.48, 0.32); capsule(x0, y0, 0.86 * S, x1, y1, 0.86 * S, 0.035 * S, M.steel); }
     { const [x, y] = P(0.72, 0); sphere(x, y, 0.62 * S, 0.08 * S, M.lamp, night > 0.3 || riding ? 1 : 0.15); }
   }
+  // [m3c] the gun on the bike (Enter the Gungeon: you always see the gun): a turret on the handlebars that turns to where
+  // it fires (back to the road a moment after), kicks back on every shot and eases home. The scatter gun two stubby
+  // barrels, the launcher a fat tube, the thrower a long nozzle with a tank behind Kai
+  let gunAim = null, gunKick = 0, gunN = -1, gunT = 0, gunShotT = -9;
+  function gunVolumes(b, g, t) {
+    const dt = Math.min(0.1, Math.max(0, t - gunT)); gunT = t; if (gunN >= 0 && g.n > gunN) { gunKick = 1; gunShotT = t; } gunN = g.n; gunKick *= Math.exp(-dt * 16);
+    const want = t - gunShotT < 1.2 ? g.aim : b.ang; if (gunAim === null) gunAim = want; let da = ((want - gunAim + Math.PI * 3) % (Math.PI * 2)) - Math.PI; gunAim += da * Math.min(1, dt * 22);
+    const S = FIGM * 0.9, ca = Math.cos(b.ang), sa = Math.sin(b.ang), mx = b.x + 0.42 * S * ca, my = b.y + 0.42 * S * sa, z = 0.98 * S, ux = Math.cos(gunAim), uy = Math.sin(gunAim), back = gunKick * 0.12 * S;
+    const bar = (side, len, rad, m, z0 = z) => { const px = -uy * side, py = ux * side, x0 = mx + px - ux * back, y0 = my + py - uy * back; capsule(x0, y0, z0, x0 + ux * len, y0 + uy * len, z0, rad, m); return [x0 + ux * len, y0 + uy * len]; };
+    sphere(mx, my, z, 0.07 * S, M.dark);   // the swivel
+    if (g.base === 'launcher') { bar(0, 0.66 * S, 0.1 * S, M.carGreen); bar(0, 0.16 * S, 0.115 * S, M.dark); }
+    else if (g.base === 'thrower') { bar(0, 0.6 * S, 0.045 * S, M.steel); bar(0, 0.14 * S, 0.07 * S, M.dark); const tx = b.x - 0.5 * S * ca, ty = b.y - 0.5 * S * sa; capsule(tx - sa * 0.12 * S, ty + ca * 0.12 * S, 0.8 * S, tx + sa * 0.12 * S, ty - ca * 0.12 * S, 0.8 * S, 0.09 * S, M.rust); }
+    else { for (const sd of [-0.06, 0.06]) bar(sd * S, 0.5 * S, 0.05 * S, M.steel); bar(0, 0.16 * S, 0.09 * S, M.dark); }
+  }
   // a nest: a swollen heart of stone at the infested building's door, cracks pulsing; a dying nest goes dark
   function nestVolumes(nst, t) {
     const S = FIGM * 1.4, beat = 1 + 0.08 * Math.max(0, Math.sin(t * 3.2 + nst.id)) * (nst.alive ? 1 : 0), hit = t - nst.hit < 0.1;
@@ -409,7 +423,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     for (const nst of nests) if (on(nst.x, nst.y)) nestVolumes(nst, t);
     // what moves is drawn snapped to the cell grid: its letters ride with it instead of re-sampling as it slides
     const sn = q => Math.round(q / CELLW) * CELLW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
-    if (on(bike.x, bike.y)) bikeVolumes(snap(bike), t, night, kai.riding);
+    if (on(bike.x, bike.y)) { bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.guns.main, t); }
     if (!kai.dead) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)

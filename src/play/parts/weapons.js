@@ -5,7 +5,7 @@ export const WEAPONS = {
   scatter: {
     base: 'scatter', slot: 'weapon', theme: 'scatter',
     signature: { id: 'point_blank', desc: 'Pellets hit harder up close.' },
-    shot: { count: 3, spread: 0.24, speed: 22, dmg: 1.4, range: 13, rate: 2.6, size: 1, pierce: 0, element: null, closeBonus: 0.5, delivery: 'pellet' },
+    shot: { count: 3, spread: 0.24, speed: 15, dmg: 1.4, range: 13, rate: 2.6, size: 1, pierce: 0, element: null, closeBonus: 0.5, delivery: 'pellet' },
     module: 'mount_scatter', tags: ['metal'],
     desc: 'A sawn-off scatter gun bolted to the handlebars. Three pellets a shot.',
     why: 'The first weapon: forgiving aim from a moving bike, strong when you dare to ride close (risk vs reward).',
