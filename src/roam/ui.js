@@ -26,7 +26,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   for (const g of kitEl.querySelectorAll('.opts')) for (const b of g.children) b.addEventListener('click', () => { const k = g.dataset.k, v = b.dataset.v;
     if (k === 'mods') LO.mods = LO.mods.includes(v) ? LO.mods.filter(m => m !== v) : [...LO.mods, v]; else LO[k] = k === 'every' ? +v : (v || null);
     sim.setLoadout(LO); paintKit(); });
-  press($('kit'), () => { kitEl.hidden = false; ui.paused = true; paintKit(); }); $('kitDone').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); kitEl.hidden = true; ui.paused = false; });
+  press($('kit'), () => { kitEl.hidden = false; ui.paused = true; paintKit(); }); for (const id of ['kitDone', 'kitX']) for (const t of ['pointerdown', 'pointerup', 'touchend', 'click']) $(id).addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); kitEl.hidden = true; ui.paused = false; }, { passive: false });
   const ui = { paused: false }; sim.setLoadout(LO); paintKit();
   // the clock speed (a test control): 1x, 10x, 30x; only the day passes faster
   const speedEl = $('speed'), RATES = [1, 10, 30];

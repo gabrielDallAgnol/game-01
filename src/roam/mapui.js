@@ -64,9 +64,11 @@ export function createMapUi({ sim, town, ui }) {
   cv.addEventListener('wheel', e => { e.preventDefault(); aim.s = Math.max(0.15, Math.min(12, aim.s * Math.exp(-e.deltaY * 0.0015))); kick(); }, { passive: false });
   // open, close (pointerdown, like every button in the game: a click can be eaten by the game's own touch handling)
   const tap = (el, fn) => el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+  // closing must never fail: any kind of tap on any of the close controls does it (touch, pointer or click)
+  const closer = el => { for (const t of ['pointerdown', 'pointerup', 'touchend', 'click']) el.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); close(); }, { passive: false }); };
   function open() { if (!base) paintBase(); panel.hidden = false; ui.paused = true; const here = S.inArea >= 0 ? S.areas[S.inArea] : null; openArea(here); Object.assign(view, aim); draw(); }
   function close() { panel.hidden = true; ui.paused = false; }
-  tap($('mapBtn'), open); tap($('mapDone'), close); tap(zoomBtn, () => { if (focus) openArea(null); else openArea(S.inArea >= 0 ? S.areas[S.inArea] : null); });
+  tap($('mapBtn'), open); closer($('mapDone')); closer($('mapX')); closer(title); tap(zoomBtn, () => { if (focus) openArea(null); else openArea(S.inArea >= 0 ? S.areas[S.inArea] : null); });
   addEventListener('keydown', e => { if (e.key === 'm' || e.key === 'M') { panel.hidden ? open() : close(); } else if (e.key === 'Escape' && !panel.hidden) close(); });
   return { open, close };
 }

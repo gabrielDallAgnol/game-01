@@ -15,7 +15,7 @@ export function createLootUi({ sim, toast, ui }) {
   function paint() { list.innerHTML = row(S.guns.main.weapon) + (S.bag.length ? S.bag.map(b => row(b.w, b.id)).join('') : '<p class="empty">Nothing yet. Weapons you ride over go here.</p>'); }
   list.addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.e) sim.equip(+b.dataset.e); else if (b.dataset.s) sim.salvage(+b.dataset.s); paint(); });
   bagBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); panel.hidden = false; ui.paused = true; paint(); });
-  $('bagDone').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); panel.hidden = true; ui.paused = false; });
+  for (const id of ['bagDone', 'bagX']) for (const t of ['pointerdown', 'pointerup', 'touchend', 'click']) $(id).addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); panel.hidden = true; ui.paused = false; }, { passive: false });
   const bump = el => { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); };
   const told = new Set(), once = (k, text, big) => { if (!told.has(k)) { told.add(k); toast(text, big); } };
   function pickup(w) { const el = document.createElement('div'); el.textContent = '+ ' + nameOf(w); el.style.color = RARITY[w.rarity].color; feed.appendChild(el); setTimeout(() => el.remove(), 3200); while (feed.children.length > 4) feed.firstChild.remove(); }
