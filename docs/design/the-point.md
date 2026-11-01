@@ -43,13 +43,13 @@ hold is grey because it is covered in it.
 - Chips also go into upgrading the vehicle, so there is a real choice where they go.
 - The first parts the bike has may not need levels at all [open; left as it is for now].
 
-## 4. Freeing a big machine [open: first shape]
+## 4. Freeing a big machine [built: first shape, §6]
 
 A mini-game made of one simple input done well (it's a phone game). First idea: the robot holds a chip link to the boss
 while you tap in time to its pulses; its small machines keep attacking, so clearing its guards first matters. To be
 prototyped once the first map plays.
 
-## 5. The first map: the Point [built: map; the rest to build]
+## 5. The first map: the Point [built, §6]
 
 A peninsula where two rivers meet, closed on its third side by an old canal, so it is fully surrounded by water. Machines
 cannot cross water (it shorts them out), and neither can you, except over a bridge.
@@ -91,9 +91,11 @@ with fewer survivors; the centre holds the reason for it all.
 | Water meets its neighbours: a soft bank by grass and fields (mud, stones, rank grass, reeds, shallows, lapping), a stone quay by hard ground, a bridge's shadow on the water | `src/roam/world/land.js` `[shore]` |
 | A home district (clean from the start, no walker); a pinned walker (the boss in the bridge); a free area (its walker can only be freed) | `src/roam/sim/areas.js` |
 | **Freeing:** shot down, the boss's core stops at 15% and lies open (the boss bar: OPEN · FREE IT, an amber call on it). The **freeing chip** (garage BUILD, key items: 40 scrap, 6 chips; Kai knows it from the start). LINK beside FIRE; tap as the closing ring meets it (a pulse every 1.3 s, 0.36 s window), 5 in time; a miss costs one and locks the link 0.6 s; riding away breaks it (the chip is kept). Freed: its brood powers down (they drop what they carry), the area is clean, the colour sweeps from it, its eyes turn amber, ash motes rise off it (it filters), and it climbs out of the gap to a post on the bank | `src/roam/sim/freeing.js`, `freeview.js`, `freeui.js` |
-| **Chips are a machine's own chip:** it comes through a death whole only sometimes (crawler and skitter 8%, hound 12%, spitter 14%, brute 60%); a machine that died burning keeps none (x0.3). Fire costs you chips | `src/play/loot.js`, `src/roam/sim/loot.js` |
+| **Chips are a machine's own chip:** it comes through a death whole only sometimes (crawler and skitter 2%, hound 4%, spitter 5%, brute 35%: about 4 minutes of fighting for six); a machine that died burning keeps none (x0.3). Fire costs you chips | `src/play/loot.js`, `src/roam/sim/loot.js` |
 | **Mending Wend Bridge:** while the boss is wedged in it nobody can mend it; once it is free, MEND at the bridge's end with 60 scrap carried; the people of Wendbridge work while Kai guards (14 s; the work waits while she's away); mended, the gate opens and the road north runs on. Drawn: snapped ends (concrete chunks, rebar, rubble), then girders and planks, then rails | `src/roam/sim/bridges.js`, `bridgeview.js`, `bridgeui.js` |
 | **The objective line:** the tutorial chain read from the state (Wendbridge → chips → the freeing chip → free the boss → mend the bridge → the road north) | `src/roam/objui.js` |
 | **The ash, seen:** flakes drift down in dark areas, none in clean ones; the boss breathes ash from its back like a stack | `src/roam/ashview.js`, plume preset `ash` |
+| **The people of Wendbridge:** hidden while the boss holds the town; out at their doors once it is free but shy (they step back in when the robot comes close); hi-vis workers at the bridge while it is mended; after it stands they trust the robot and wave | `src/roam/peopleview.js` |
+| The overlay's colours (washing, signs, birds) go grey in dark areas too | `medium.js` `[grey]` |
 
-Not yet: the people of Wendbridge on screen and their trust missions, the first recipe from a mission (the incremental start), the kids, the robot's rest pose and cutscenes, colour on the small details drawn on the separate layer, the rivers' flow, the first town beyond the bridge.
+Not yet: trust missions with the people (they are on screen, but don't ask anything yet), the first recipe from a mission (the incremental start), the kids, the robot's rest pose and cutscenes, the rivers' flow, the first town beyond the bridge.
