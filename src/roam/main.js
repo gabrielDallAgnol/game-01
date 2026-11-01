@@ -14,6 +14,7 @@ import { createFreeUi } from './freeui.js';
 import { createBridgeUi } from './bridgeui.js';
 import { createObjUi } from './objui.js';
 import { folkOf } from './peopleview.js';
+import { createIntroUi } from './introui.js';
 import { createGarageUi } from './garageui.js';
 import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
 import { createFeel } from './feel.js';
@@ -66,7 +67,7 @@ function start() {
   const sound = createSound();   // [m3b] synthesized sound; starts on the first tap
   addEventListener('pointerdown', () => sound.start(), { passive: true });
   // [m3d] the lab can hold the rules still while the frame keeps drawing (declared with the input, [m6c]: the garage holds the camera too)
-  let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; sound.start(); });
+  let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; sound.start(); if (town.W.decks && town.W.decks.length) createIntroUi({ sim, ui, lab, cam, qs }); });   // [point] the opening, once
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
   // [grey] begin: the grey-world prototype (?proto=grey, Nov 1): you are the robot (no rider), the town is drained of colour
   // until an area is cleaned, and the area you start in is already yours. ?look=pixel|fine|dots picks the cell mark; the

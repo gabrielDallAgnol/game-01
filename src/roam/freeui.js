@@ -3,7 +3,7 @@
 // linked, a tap landed or missed, the link broke, it is free, it climbed out of the bridge. Acts only through input.link.
 export function createFreeUi({ sim, toast, input }) {
   const S = sim.state, btn = document.createElement('button'); btn.id = 'linkBtn'; btn.className = 'rb'; btn.hidden = true; btn.textContent = 'LINK';
-  btn.style.cssText = 'position:fixed;right:max(126px,calc(env(safe-area-inset-right,0px) + 126px));bottom:calc(140px + env(safe-area-inset-bottom,0px));width:88px;height:88px;border-radius:50%;font:700 15px ui-monospace,monospace;letter-spacing:.08em;color:#1b1406;background:#f0b44c;border:2px solid #ffd98a;box-shadow:0 0 22px rgba(240,180,76,.55);z-index:20';
+  btn.style.cssText = 'position:fixed;right:max(126px,calc(env(safe-area-inset-right,0px) + 126px));bottom:calc(250px + env(safe-area-inset-bottom,0px));width:88px;height:88px;border-radius:50%;font:700 15px ui-monospace,monospace;letter-spacing:.08em;color:#1b1406;background:#f0b44c;border:2px solid #ffd98a;box-shadow:0 0 22px rgba(240,180,76,.55);z-index:20';
   btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); input.link = true; btn.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1)' }], { duration: 140 }); });
   document.body.appendChild(btn);
   let told = {}; const once = (k, msg, big) => { if (told[k]) return; told[k] = true; toast(msg, big); };
