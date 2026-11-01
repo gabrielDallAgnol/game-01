@@ -6,7 +6,7 @@
 // machine's mod is carried the same way, until a bank sends it to the garage.
 // Its own Rng stream. Offers G.stepLoot(dt), G.dropRecipe(x, y, id), G.wield(w), G.lootStat(key).
 import { Rng, hashSeed } from '../../sim/rng.js';
-import { DROPS, RARITY } from '../../play/loot.js';
+import { DROPS, chipBurnt, RARITY } from '../../play/loot.js';
 import { RECIPES, rollRecipe, dupeChips } from '../../play/recipes.js';
 export function createLoot(G) {
   const { R, S, ev, town } = G, L = R.loot, rng = new Rng(hashSeed(G.seed, 'loot'));
@@ -20,7 +20,10 @@ export function createLoot(G) {
   function roll(table, x, y) { const D = DROPS[table]; if (!D) return; dropScrap(x, y, Math.floor(rng.range(D.scrap[0], D.scrap[1] + 1)));
     if (D.chips) { S.chips += D.chips; ev('chips', { n: D.chips, x, y }); }
     if (rng.chance(D.recipe)) dropRecipe(x, y, rollRecipe(rng, D.rarity)); }
-  (G.onDie ||= []).push(d => roll(d.kind, d.x, d.y));
+  // [point] a machine's own chip: it comes through whole only sometimes, and burns with it if it died burning
+  function rollChip(d) { const D = DROPS[d.kind]; if (!D || !D.chip) return; const burnt = (d.pips || []).some(p => p.el === 'fire') || !!(d.st && d.st.blaze);
+    if (rng.chance(D.chip * (burnt ? chipBurnt : 1))) { S.chips += 1; ev('chips', { n: 1, x: d.x, y: d.y }); } else if (burnt && rng.chance(0.25)) ev('chipBurnt', { x: d.x, y: d.y }); }
+  (G.onDie ||= []).push(d => { roll(d.kind, d.x, d.y); rollChip(d); });
   // the weapon in hand changes: the gun takes its base and modifiers
   function wield(w) { const g = S.guns.main; g.weapon = w; g.base = w.base; g.mods = w.mods.slice(); g.cd = 0; ev('equip', { base: w.base, rarity: w.rarity, mods: w.mods.join(',') }); }
   // the lamp's reach comes from the lamp part when the garage is in (G.bikeStat), else the defaults

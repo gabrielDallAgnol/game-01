@@ -23,14 +23,17 @@ export const BASE_POOL = [{ id: 'scatter', w: 6 }, { id: 'launcher', w: 2 }, { i
 // [m6] machines drop recipes, not weapons (Gabriel, Nov 1: gear off a monster is confusing): `recipe` is the chance of
 // one, `rarity` its weights (play/recipes.js rolls which). [m6b] fewer, and almost no epics (Gabriel: too much dropping to
 // keep up with); the incremental start (scrap first, the first recipe from a mission) comes with M8
+// [point] chip: the chance a machine's chip comes through its death whole (every machine runs on one; most crack). Burning
+// when it dies, the chip burns with it (chance x chipBurnt): fire costs you chips. Chips build the freeing chip and upgrades
+export const chipBurnt = 0.3;
 export const DROPS = {
-  crawler: { scrap: [1, 2], recipe: 0.012, rarity: { common: 80, tuned: 20, rare: 0, epic: 0 },
+  crawler: { scrap: [1, 2], chip: 0.08, recipe: 0.012, rarity: { common: 80, tuned: 20, rare: 0, epic: 0 },
     desc: 'A crawler: a little scrap.', why: 'The common kill feeds the common currency.' },
-  skitter: { scrap: [1, 2], recipe: 0.012, rarity: { common: 80, tuned: 20, rare: 0, epic: 0 }, desc: 'A skitter: a little scrap.', why: 'Fast and weak: small reward.' },
-  hound: { scrap: [2, 3], recipe: 0.025, rarity: { common: 65, tuned: 30, rare: 5, epic: 0 }, desc: 'A hound: some scrap, now and then a recipe.', why: 'It hunts you: a bit more for the risk.' },
-  spitter: { scrap: [2, 3], recipe: 0.03, rarity: { common: 60, tuned: 32, rare: 8, epic: 0 }, desc: 'A spitter: some scrap, now and then a recipe.', why: 'Ranged and dangerous: worth chasing down.' },
-  brute: { scrap: [4, 6], recipe: 0.2, chips: 1, rarity: { common: 45, tuned: 45, rare: 10, epic: 0 },
-    desc: 'A brute: a pile of scrap, a chip, often a recipe.', why: 'The tougher machine is the loot piñata.' },
+  skitter: { scrap: [1, 2], chip: 0.08, recipe: 0.012, rarity: { common: 80, tuned: 20, rare: 0, epic: 0 }, desc: 'A skitter: a little scrap.', why: 'Fast and weak: small reward.' },
+  hound: { scrap: [2, 3], chip: 0.12, recipe: 0.025, rarity: { common: 65, tuned: 30, rare: 5, epic: 0 }, desc: 'A hound: some scrap, now and then a recipe.', why: 'It hunts you: a bit more for the risk.' },
+  spitter: { scrap: [2, 3], chip: 0.14, recipe: 0.03, rarity: { common: 60, tuned: 32, rare: 8, epic: 0 }, desc: 'A spitter: some scrap, now and then a recipe.', why: 'Ranged and dangerous: worth chasing down.' },
+  brute: { scrap: [4, 6], chip: 0.6, recipe: 0.2, rarity: { common: 45, tuned: 45, rare: 10, epic: 0 },
+    desc: 'A brute: a pile of scrap, often its chip, often a recipe.', why: 'The tougher machine is the loot piñata.' },
   walker: { scrap: [24, 32], recipe: 1, chips: 5, rarity: { common: 0, tuned: 60, rare: 35, epic: 5 },
     desc: 'A walker: a heap of scrap, chips, and a good recipe.', why: 'The area boss pays like one: the reward for a clean area.' },
 };
