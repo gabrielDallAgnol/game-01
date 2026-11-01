@@ -57,8 +57,11 @@ export function createMedium(o) {
   // (the letters, today), 'dots' (a halftone dot growing with the light), 'tiles' (a square growing with the light, a mosaic),
   // 'pixel' (a full square, its strength the light: flat pixel art); and the cell's size in the world (cellW) can shrink
   // until the cells melt into smooth shading. Set by the design lab (lab.look); the game keeps the letters
-  const look = { style: 'glyph', cellW: CELLW };
-  function setLook(o) { Object.assign(look, o); atlasPx = 0; }
+  // [grey] the grey world (Nov 1 prototype): where the machines still hold the town, colour drains out; a clean area gets
+  // it back (the glow-up's map). Amber and ember lights, lamps and your own robot keep theirs: only light shouts
+  const look = { style: 'glyph', cellW: CELLW, grey: 0 };
+  Object.assign(U, { uGrey: { value: 0 }, uMe: { value: new THREE.Vector2(-1e5, -1e5) } });
+  function setLook(o) { Object.assign(look, o); atlasPx = 0; U.uGrey.value = look.grey ? 1 : 0; }
   function paintAtlas(px) {
     if (px === atlasPx) return; atlasPx = px; atlas.width = px * NG; atlas.height = px; const g = atlas.getContext('2d');
     g.clearRect(0, 0, atlas.width, atlas.height); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(px * 1.05)}px "IBM Plex Mono", ui-monospace, Menlo, monospace`;
@@ -225,6 +228,8 @@ export function createMedium(o) {
             col = mix(col, col * vec3(0.94, 1.1, 0.9), cl * ground * 0.55 * (1.0 - uNight));
             col += vec3(1.0, 0.64, 0.3) * (LMc.r * 0.5 + LMc.g * 0.25) * uNight * cl * 0.45; }
           if (uSweep.w > 0.0) { float dd = length(w - uSweep.xy) - uSweep.z, ring = exp(-dd * dd / 30.0) * uSweep.w; col += (col * 1.2 + vec3(1.0, 0.85, 0.55) * 0.35) * ring; } }
+        float gk = uGrey * (1.0 - texture2D(tClean, w / uWorld).r);
+        { float lu = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(mix(vec3(lu), col, 1.0 + 0.5 * uGrey), mix(vec3(lu), vec3(0.32, 0.34, 0.37), 0.25) * vec3(0.9, 0.95, 1.03) * 0.8, clamp(gk, 0.0, 1.0)); }   // a clean area comes back a little richer than before
         vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);
         float hp = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, skip = A.a > 0.5 ? 0.8 : 0.25;
         // lit windows and open doors: the light falls out of the house; whoever stands in it throws a shadow away from the window
@@ -249,6 +254,7 @@ export function createMedium(o) {
         col *= 1.0 - 0.42 * sMask;
         if (A.a > 0.5) {
           float mi = floor(A.g * 32.0 + 0.5), em = A.b; vec3 mc = matCol(mi, em), ec = emCol(mi);
+          mc = mix(mc, vec3(dot(mc, vec3(0.3, 0.55, 0.15))), gk * 0.9 * smoothstep(2.6, 3.6, length(w - uMe)));
           float lev = max(max(floor(pow(clamp(A.r, 0.0, 0.999), 0.5) * ${NG}.0), floor(em * ${NG - 1}.0)), floor(clamp(head * 1.4 + lm * uNight, 0.0, 0.95) * ${NG}.0));   // light on it fills its letters
           vec2 g = fract((gl_FragCoord.xy + uCellOff) / uCellPx); float gm = mix(0.14 + 0.62 * lev / ${NG - 1}.0, texture2D(tGlyph, vec2((lev + g.x) / ${NG}.0, g.y)).a, smoothstep(2.4, 4.6, uCellPx));   // far: a cell too small for a letter shows its average ink
           vec3 lc = mix(vec3(0.94, 0.92, 0.87), mc, 0.6) * (0.55 + 0.75 * A.r) * mix(tint(), vec3(0.62), uNight);   // pale letters, the colour as a tint
@@ -327,7 +333,7 @@ export function createMedium(o) {
         vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);`);
   // [atoms-look] end
   const PAL = `uniform sampler2D tCells, tGlyph, tLight, tLDir, tDecal, tLand; uniform vec2 uCells, uCellOff; uniform float uCellPx; uniform vec4 uHead;
-    uniform sampler2D tAtom, tAtom2, tAtom3, tClean; uniform vec2 uAtomO; uniform float uAtomS; uniform vec4 uSweep;   // [atoms-look] the atom world's state (src/roam/atomlook.js)
+    uniform sampler2D tAtom, tAtom2, tAtom3, tClean; uniform float uGrey; uniform vec2 uMe; uniform vec2 uAtomO; uniform float uAtomS; uniform vec4 uSweep;   // [atoms-look] the atom world's state (src/roam/atomlook.js)
     // one layer of strands with a fixed size in the world: seeds on a turned, jittered lattice (f a metre, p of the cells),
     // each combed len metres along the flow, r wide at the root and tapering. A pixel asks the cells behind it along the
     // flow whether a strand passes within its width; edges are antialiased by the pixel's own size. Returns (coverage, how
@@ -481,6 +487,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     for (const nst of nests) if (on(nst.x, nst.y)) nestVolumes(nst, t);
     // what moves is drawn snapped to the cell grid: its letters ride with it instead of re-sampling as it slides
     const sn = q => Math.round(q / look.cellW) * look.cellW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
+    U.uMe.value.set(bike.x, bike.y);
     if (on(bike.x, bike.y)) { if (v.bikeStyle) { if (v.bikeStyle === 'B') bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM); bikeLookLab(v.bikeStyle, snap(bike), K, t, night, kai.riding, v.gear, FIGM); } else if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM, v.garageSel); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.gunBase ? { ...v.guns.main, base: v.gunBase } : v.guns.main, t, v.garageSel === 'weapon' ? 0.85 + 0.15 * Math.sin(t * 4) : 0); }   // [m6] the bike from its parts' modules
     if (!kai.dead && !v.hideKai) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;

@@ -64,6 +64,20 @@ function start() {
   // [m3d] the lab can hold the rules still while the frame keeps drawing (declared with the input, [m6c]: the garage holds the camera too)
   let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; sound.start(); });
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
+  // [grey] begin: the grey-world prototype (?proto=grey, Nov 1): you are the robot (no rider), the town is drained of colour
+  // until an area is cleaned, and the area you start in is already yours. ?look=pixel|fine|dots picks the cell mark; the
+  // LOOK chip cycles it while you play
+  if ((qs.get('proto') || window.ROAM_PROTO) === 'grey') {
+    const LOOKS = { glyph: { style: 'glyph', cellW: 0.15 }, pixel: { style: 'pixel', cellW: 0.15 }, fine: { style: 'pixel', cellW: 0.06 }, dots: { style: 'dots', cellW: 0.15 } }, order = Object.keys(LOOKS);
+    let li = Math.max(0, order.indexOf(qs.get('look') || 'glyph'));
+    const apply = () => { look.setLook({ ...LOOKS[order[li]], grey: 1 }); chip.textContent = 'LOOK · ' + order[li].toUpperCase(); };
+    lab.bikeStyle = 'C'; lab.hideKai = true; look.glow.setHome(S.kai.x, S.kai.y);
+    const chip = document.createElement('button'); chip.id = 'lookChip';
+    chip.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top) + 54px);right:10px;z-index:30;font:700 11px ui-monospace,monospace;letter-spacing:.08em;color:#f0b44c;background:rgba(10,10,12,.72);border:1px solid #f0b44c55;border-radius:10px;padding:7px 10px';
+    chip.addEventListener('click', e => { e.stopPropagation(); li = (li + 1) % order.length; apply(); }); document.body.appendChild(chip); apply();
+    setInterval(() => { if (running && !S.kai.riding && !S.kai.dead) input.ride = true; }, 250);   // the robot is the vehicle: no one gets off
+  }
+  // [grey] end
   // the trees on a 16 m grid (a crown never spans more than one cell's neighbours: each tree is filed in every cell its crown touches)
   const treeGrid = new Map(); for (const p of town.trees) { const r = (p.r || p.def.size[0] / 2); for (let j = Math.floor((p.y - r) / 16); j <= Math.floor((p.y + r) / 16); j++) for (let i = Math.floor((p.x - r) / 16); i <= Math.floor((p.x + r) / 16); i++) { const kk = i * 4096 + j; if (!treeGrid.has(kk)) treeGrid.set(kk, []); treeGrid.get(kk).push(p); } }
   // chaff: what the bike (or Kai at a run) throws up from tall plants, by what it is riding through (the char map): straw
