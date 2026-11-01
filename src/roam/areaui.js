@@ -5,9 +5,9 @@ export function createAreaUi({ sim, toast }) {
   const S = sim.state, el = document.getElementById('area'), bossEl = document.getElementById('boss'); let last = '', bossSig = '';
   // [m4b] the boss bar (Horizon): when a walker is fighting her, or near, its name, its four plates and its core
   function boss() { const k = S.kai; let w = null, wd = 40; for (const d of S.dead) if (d.boss) { const q = Math.hypot(d.x - k.x, d.y - k.y); if (q < wd && (d.state === 'hunt' || q < 30)) { wd = q; w = d; } }
-    const sig = w ? `${w.id}|${w.plates}|${Math.round(w.plate)}|${Math.round(w.hp)}` : '-'; if (sig === bossSig) return; bossSig = sig; if (!w) { bossEl.hidden = true; return; }
+    const sig = w ? `${w.id}|${w.plates}|${Math.round(w.plate)}|${Math.round(w.hp)}|${!!w.weak}` : '-'; if (sig === bossSig) return; bossSig = sig; if (!w) { bossEl.hidden = true; return; }
     const a = S.areas[w.area], pl = [0, 1, 2, 3].map(i => `<i class="${i < w.plates ? (i === w.plates - 1 ? 'cur' : 'on') : ''}" style="--f:${i === w.plates - 1 ? w.plate / w.plateMax : i < w.plates ? 1 : 0}"></i>`).join('');
-    bossEl.hidden = false; bossEl.innerHTML = `<b>WALKER · ${a.name.toUpperCase()} · LV ${a.level}</b><div class="pl">${pl}</div><div class="core"><i style="width:${Math.max(0, w.hp / w.maxHp * 100)}%"></i></div>`; }
+    bossEl.hidden = false; bossEl.innerHTML = `<b>${w.free ? (w.weak ? 'OPEN · FREE IT' : 'BIG MACHINE') : 'WALKER'} · ${a.name.toUpperCase()} · LV ${a.level}</b><div class="pl">${pl}</div><div class="core"><i style="width:${Math.max(0, w.hp / w.maxHp * 100)}%${w.weak ? ';background:#f0b44c' : ''}"></i></div>`; }   // [point] a machine to free: its core goes amber when it lies open
   function update(evs) {
     for (const e of evs || []) {
       if (e.type === 'enter') toast(`${e.name} · level ${e.level} · ${e.state === 'clean' ? 'clean' : 'dark: a walker roams here'}`);

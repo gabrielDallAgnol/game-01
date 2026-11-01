@@ -19,3 +19,15 @@ test('home is clean, the peninsula is one area held by one walker wedged in the 
   for (let i = 0; i < 30 * 20; i++) sim.step({ x: 0, y: 0 });
   assert.ok(Math.hypot(d.x - x0, d.y - y0) < 0.01, 'it never moves'); assert.ok(Math.hypot(d.x - deck.x, d.y - deck.y) < 1);
 });
+test('the boss in the bridge can only be freed: shot down it lies open; a chip and five taps in time free it, its brood powers down, the area is clean', () => {
+  const sim = createRoam(town, 2), S = sim.state, d = S.dead.find(q => q.boss), F = 1.3;
+  assert.ok(S.known.includes('link_chip'));
+  d.plates = 0; d.hp = 1; S.kai.x = S.bike.x = d.x - 14; S.kai.y = S.bike.y = d.y; S.kai.riding = true;
+  for (let i = 0; i < 30 * 60 && !d.weak; i++) { S.kai.hp = 1e6; sim.step({ x: 0, y: 0, fire: true }); }
+  assert.ok(d.weak && S.dead.includes(d) && d.hp > 0, 'it lies open, not destroyed');
+  const inp = { x: 0, y: 0, link: true }; sim.step(inp); assert.ok(!S.link, 'no chip, no link');
+  S.keys.link = 1; inp.link = true; sim.step(inp); assert.ok(S.link);
+  for (let k = 0; k < 30 * 30 && S.link; k++) { const L = S.link, ph = L.t % F; if (Math.min(ph, F - ph) < 0.04 && L.lock <= 0) inp.link = true; S.kai.hp = 1e6; sim.step(inp); }
+  assert.strictEqual(S.guardians.length, 1); assert.ok(!S.dead.includes(d)); assert.strictEqual(S.keys.link, 0);
+  assert.ok(!S.dead.some(q => q.mother === d.id), 'its brood powered down'); assert.ok(S.areas.every(a => a.state === 'clean'));
+});

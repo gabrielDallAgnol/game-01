@@ -15,7 +15,7 @@ import { MODIFIERS } from '../play/modifiers.js';
 import { PARTS } from '../play/parts/bike.js';
 import { ROAM } from './sim.js';
 const SLOTS = ['weapon', 'engine', 'frame', 'lamp', 'tyres'], SLOTN = { weapon: 'Weapon', engine: 'Engine', frame: 'Frame', lamp: 'Lamp', tyres: 'Tyres' };
-const GROUPS = [['Weapons', r => r.kind === 'weapon'], ['Mods', r => r.kind === 'mod'], ['Engines', r => r.slot === 'engine'], ['Frames', r => r.slot === 'frame'], ['Lamps', r => r.slot === 'lamp'], ['Tyres', r => r.slot === 'tyres']];
+const GROUPS = [['Key items', r => r.kind === 'key'], ['Weapons', r => r.kind === 'weapon'], ['Mods', r => r.kind === 'mod'], ['Engines', r => r.slot === 'engine'], ['Frames', r => r.slot === 'frame'], ['Lamps', r => r.slot === 'lamp'], ['Tyres', r => r.slot === 'tyres']];
 export function createGarageUi({ sim, ui, cam, lab }) {
   const $ = id => document.getElementById(id), S = sim.state, panel = $('garage'), list = $('garList'), funds = $('garFunds'), msg = $('garMsg'), btn = $('garageBtn');
   let tab = 'bike', only = null, pick = null, prev = null;   // [m6f] prev: a stash item tried on the bike (the bike shows it, the part glows)   // pick: { i, mod } a socket being filled (the second tap confirms)
@@ -52,7 +52,7 @@ export function createGarageUi({ sim, ui, cam, lab }) {
     return h; }
   function buildTab() { let h = '';
     for (const [title, f] of GROUPS) { const rs = S.known.map(id => RECIPES[id]).filter(r => r && f(r)); if (!rs.length) continue; h += `<h3>${title}</h3>`;
-      for (const r of rs) { const c = costOf(r), have = r.kind === 'mod' ? S.mods[r.mod] || 0 : 0;
+      for (const r of rs) { const c = costOf(r), have = r.kind === 'mod' ? S.mods[r.mod] || 0 : r.kind === 'key' ? (S.keys || {})[r.key] || 0 : 0;
         h += `<div class="it row" style="border-color:${col(r.rarity)}55"><div><div class="nm" style="color:${col(r.rarity)}">${esc(r.name)}${have ? ' <span class="md">×' + have + '</span>' : ''}</div><div class="md">${esc(r.kind === 'weapon' ? weaponLine(r) : r.desc)}</div></div><button class="eq" data-build="${r.id}" ${can(c) ? '' : 'disabled'}>BUILD ${cost(c)}</button></div>`; } }
     return h + `<p class="md">${S.known.length} recipes known. Find more on machines; bank them to learn them.</p>`; }
   const weaponLine = r => `${r.base} · ${r.mods.length ? r.mods.map(m => MOD_NAME[m]).join(' + ') : 'no mods'} · ${r.sockets} socket${r.sockets === 1 ? '' : 's'}`;

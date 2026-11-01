@@ -19,6 +19,7 @@ import { bikeLookLab } from './bikelook-lab.js';
 import { drawElites } from './elitesview.js';
 import { dressVolumes, dressDraw } from './sitedress.js';
 import { drawGarageSel } from './garageview.js';
+import { drawFreeing } from './freeview.js';
 
 export const MAXP = 1024;          // volumes a frame (the dead off screen are left out)
 const RAMP = ' .,:-=+*%#@';
@@ -414,16 +415,16 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     { const [x, y] = P(0, 0); bx(x, y, z, 2.0, 1.25, 0.55, 0.3, a, hit ? M.flash : M.dark, hem); }   // the hull
     { const [x, y] = P(1.9, 0); bx(x, y, z + 0.1, 0.55, 0.7, 0.4, 0.2, a, hit ? M.flash : M.steel, hem); }   // the head
     const eye = d.windT > 0 ? 1 : d.state === 'hunt' ? 0.9 + 0.1 * Math.sin(t * 10) : 0.6;
-    for (const s2 of [-0.32, 0.32]) { const [x, y] = P(2.42, s2); sp(x, y, z + 0.2, 0.13, M.crackHot, eye); }   // two chip eyes
+    for (const s2 of [-0.32, 0.32]) { const [x, y] = P(2.42, s2); sp(x, y, z + 0.2, 0.13, d.friend ? M.lamp : M.crackHot, d.friend ? 1 : eye); }   // two chip eyes (amber once freed)
     const PL = [[-0.9, -0.75], [0.5, -0.75], [-0.9, 0.75], [0.5, 0.75]];
     for (let i = 0; i < (d.plates ?? 4); i++) { const [x, y] = P(PL[i][0], PL[i][1]); bx(x, y, z + 0.62, 0.62, 0.42, 0.12, 0.06, a, hit ? M.flash : M.steel, hem); }   // the plates
     // [m4b] its defences: a weapon pod on each shoulder (two barrels, its light flares as it takes aim), a fuel tank on its back
     const pa = d.podAim > 0 ? 1 : 0.25;
     for (const [pid, ly] of [['podL', -1.31], ['podR', 1.31]]) { if (!d.parts || d.parts[pid].hp <= 0) continue; const [x, y] = P(0.88, ly);
       bx(x, y, z + 0.35, 0.36, 0.28, 0.24, 0.08, a, hit ? M.flash : M.rust, hem); for (const o of [-0.1, 0.1]) { const [x0, y0] = P(1.1, ly + o), [x1, y1] = P(1.55, ly + o); cp(x0, y0, z + 0.4, x1, y1, z + 0.4, 0.05, M.dark); }
-      sp(x, y, z + 0.62, 0.09, M.crackHot, pa); }
+      sp(x, y, z + 0.62, 0.09, d.friend ? M.lamp : M.crackHot, d.friend ? 0.6 : pa); }
     if (d.parts && d.parts.tank.hp > 0) { const [x0, y0] = P(-1.69, -0.45), [x1, y1] = P(-1.69, 0.45); cp(x0, y0, z + 0.5, x1, y1, z + 0.5, 0.3, M.cone, 0.12 + 0.1 * Math.sin(t * 3)); }
-    if (!(d.plates > 0)) { const [x, y] = P(-0.2, 0); sp(x, y, z + 0.5, 0.55, M.crack, 0.7 + 0.3 * Math.sin(t * 6)); }   // the bare core
+    if (!(d.plates > 0)) { const [x, y] = P(-0.2, 0); sp(x, y, z + 0.5, 0.55, d.friend ? M.lamp : M.crack, d.friend ? 0.5 + 0.2 * Math.sin(t * 2) : 0.7 + 0.3 * Math.sin(t * 6)); }   // the bare core
     else { const [x, y] = P(-0.2, 0); sp(x, y, z + 0.45, 0.35, M.dark, 0); }
     for (let i = 0; i < 4; i++) { const fx0 = i < 2 ? 1.3 : -1.3, side = i % 2 ? 1 : -1, step = moving ? Math.sin(ph + (i === 0 || i === 3 ? 0 : Math.PI)) : 0;
       const [hx, hy] = P(fx0 * 0.8, side * 1.1), [kx, ky] = P(fx0 * 1.2 + step * 0.4, side * 2.6), [fx2, fy2] = P(fx0 * 1.35 + step * 0.7, side * 3.0);
@@ -498,6 +499,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       sphere(D.x + ca * fx0, D.y + sa * fx0, r * 0.4 - k * r * 1.2, r, D.metal ? M.steel : M.stone);
       for (let i = 0; i < 5; i++) { const ang = a + (i - 2) * 0.9 + (D.id % 7) * 0.3, dd = (0.15 + 0.5 * e) * S * (0.7 + 0.1 * i); sphere(D.x + Math.cos(ang) * dd, D.y + Math.sin(ang) * dd, -0.02, 0.06 * S * (1 - k), D.metal ? (i % 2 ? M.dark : M.rust) : M.stone); } }   // [m1] a machine falls apart into steel and rust
     const near = dead.filter(d => on(d.x, d.y)).sort((p, q) => Math.hypot(p.x - kai.x, p.y - kai.y) - Math.hypot(q.x - kai.x, q.y - kai.y));
+    for (const g of v.guardians || []) if (on(g.x, g.y)) walkerVolumes({ ...g, x: sn(g.x), y: sn(g.y), state: 'patrol', windT: 0, hit: -9 }, t);   // [point] the freed: amber eyes
     for (const d of near) { const sp = Math.hypot(d.vx, d.vy); if (sp > 0.1) d.fa = Math.atan2(d.vy, d.vx); if (d.kind === 'walker') walkerVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t); else if (MLOOK[d.kind]) machineVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); else deadVolumes({ ...d, x: sn(d.x), y: sn(d.y) }, t, d.state !== 'sleep', d.kind); }
     // [m3] loot on the ground: scrap is a few bent bits of steel and rust; a weapon is a small dark case with a plate in
     // its rarity's paint and a lamp on it (the light itself is drawn in draw(), like the machines' eyes)
@@ -632,7 +634,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
         fx.globalAlpha = 1; fx.fillStyle = d.scanned ? RARITY[d.w.rarity].color : '#e8e4da'; fx.fillText(label, x, y + 0.5); }
       fx.restore(); fx.globalAlpha = 1; }
     // [m5] the banks' lamps and the cache's light (riskview.js); [m6b] the elites' names
-    riskDraw(fx, v); dressDraw(fx, v); drawElites(fx, v); drawGarageSel(fx, v, FIGM);
+    riskDraw(fx, v); dressDraw(fx, v); drawElites(fx, v); drawFreeing(fx, v); drawGarageSel(fx, v, FIGM);
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
       const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();
