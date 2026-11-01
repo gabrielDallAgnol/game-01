@@ -32,7 +32,7 @@ function skyAt(clock) {
 function start() {
   if (typeof THREE === 'undefined') throw new Error('three.js did not load (no network?)');
   const qs = new URLSearchParams(location.search), seed = +(qs.get('seed') || 1);
-  const town = buildTown(7, { world: qs.get('world') || window.ROAM_WORLD || 'region' }), sim = createRoam(town, seed), S = sim.state;   // [point] ?world=point: the first map
+  const town = buildTown(7, { world: qs.get('world') || window.ROAM_WORLD || 'point' }), sim = createRoam(town, seed), S = sim.state;   // [point] ?world=point: the first map
   const glc = $('gl'), fxc = $('fx'), fx = fxc.getContext('2d'), look = createLook(glc, town);
   const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
   const lab = { freeze: false };
@@ -67,7 +67,9 @@ function start() {
   // [grey] begin: the grey-world prototype (?proto=grey, Nov 1): you are the robot (no rider), the town is drained of colour
   // until an area is cleaned, and the area you start in is already yours. ?look=pixel|fine|dots picks the cell mark; the
   // LOOK chip cycles it while you play
-  if ((qs.get('proto') || window.ROAM_PROTO) === 'grey') {
+  // the base since Nov 1 is the Point in the grey world: ?world=region for Hollowmere, ?proto=none for the old look
+  const proto = qs.get('proto') || window.ROAM_PROTO || ((qs.get('world') || window.ROAM_WORLD || 'point') === 'point' ? 'grey' : 'none');
+  if (proto === 'grey') {
     const LOOKS = { glyph: { style: 'glyph', cellW: 0.15 }, pixel: { style: 'pixel', cellW: 0.15 }, fine: { style: 'pixel', cellW: 0.06 }, dots: { style: 'dots', cellW: 0.15 } }, order = Object.keys(LOOKS);
     let li = Math.max(0, order.indexOf(qs.get('look') || 'glyph'));
     const apply = () => { look.setLook({ ...LOOKS[order[li]], grey: 1 }); chip.textContent = 'LOOK · ' + order[li].toUpperCase(); };

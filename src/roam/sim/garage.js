@@ -18,7 +18,7 @@ import { SITES, offers } from '../../play/sites.js';
 export const GEAR_SLOTS = ['weapon', ...PART_SLOTS];
 export function createGarage(G) {
   const { R, S, ev, town } = G, K = R.garage;
-  S.known = STARTING.slice(); S.stash = []; S.mods = {}; S.gear = {}; S.garageRun = null;
+  S.known = STARTING.slice(); S.stash = []; S.mods = {}; S.gear = {}; S.garageRun = null; S.keys = {};   // [point] keys: built key items (the freeing chip)
   let uid = 1;
   const inLotRaw = (L, x, y, m = 0) => { const c = Math.cos(-L.rot), sn = Math.sin(-L.rot), dx = x - L.x, dy = y - L.y, u = c * dx - sn * dy, v = sn * dx + c * dy; return Math.abs(u) < L.w / 2 + m && Math.abs(v) < L.h / 2 + m; };
   // ---------- the garage site: the town's own garage (world/sites.js), the forecourt in front of its roller doors ----------
@@ -75,7 +75,7 @@ export function createGarage(G) {
   function build(rid) { const r = RECIPES[rid]; if (!r) return no('unknown'); if (!atBench()) return no('bench'); if (!S.known.includes(rid)) return no('unknown');
     const c = costOf(r); if (S.bank.scrap < c.scrap || S.bank.chips < c.chips) return no('funds');
     S.bank.scrap -= c.scrap; S.bank.chips -= c.chips;
-    if (r.kind === 'mod') S.mods[r.mod] = (S.mods[r.mod] || 0) + 1; else S.stash.push(make(rid));
+    if (r.kind === 'key') S.keys[r.key] = (S.keys[r.key] || 0) + 1; else if (r.kind === 'mod') S.mods[r.mod] = (S.mods[r.mod] || 0) + 1; else S.stash.push(make(rid));
     ev('built', { r: rid, rarity: r.rarity, kind: r.kind }); return true; }
   function equipItem(id) { if (!atBench()) return no('bench'); const i = S.stash.findIndex(it => it.uid === id); if (i < 0) return no('missing');
     const it = S.stash[i], old = S.gear[it.slot]; S.stash.splice(i, 1, old); S.gear[it.slot] = it;

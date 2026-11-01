@@ -5,7 +5,7 @@ import { Rng, hashSeed } from '../../sim/rng.js';
 import { WEAPONS } from '../../play/parts/weapons.js';
 import { buildShot } from '../../play/fire.js';
 export function createGuns(G) {
-  const { R, S, ev, dist, town } = G, { blocked } = town, rng = new Rng(hashSeed(G.seed, 'guns'));
+  const { R, S, ev, dist, town } = G, { blocked: walk, wall } = town, blocked = wall || walk, rng = new Rng(hashSeed(G.seed, 'guns'));
   // [m2] the gun carries an element; the off-hand is not a weapon but an enchant: every `every`th shot carries its element
   // instead (fire gun + water enchant: fire, water, fire... a mix in three pips). Set from the loadout (G.setLoadout, a test
   // control). [m6] none by default: the charge mods (fire_charge, water_charge) in a socket do this in play.

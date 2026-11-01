@@ -2,7 +2,7 @@
 // flies straight, pops on walls, hurts her if it reaches her. Slow on purpose: you see it coming and can steer out of it.
 // Offers G.foeShoot(d), G.stepBolts(dt).
 export function createBolts(G) {
-  const { R, S, ev, town } = G, { blocked } = town;
+  const { R, S, ev, town } = G, { blocked: walk, wall } = town, blocked = wall || walk;
   S.bolts = []; let bid = 1;
   function foeShoot(d) {
     const K = R.dead[d.kind], B = K.bolt, k = S.kai, r = Math.hypot(k.x - d.x, k.y - d.y), lead = Math.min(0.8, r / B.speed) * 0.5;   // [m2] slower bolts, less lead: you can see them and steer out

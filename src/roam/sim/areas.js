@@ -13,7 +13,7 @@ export function createAreas(G) {
   const skip = new Set(['country', 'fields', 'bypass', 'lake', 'woods']);
   const list = (W.districts || []).filter(d => !skip.has(d.kind) && d.poly);
   const k0 = town.start;
-  S.areas = list.map((d, i) => { const at = d.at || centroid(d.poly); return { i, id: d.id, name: d.name, x: at.x, y: at.y, level: d.level || 1 + Math.floor(Math.hypot(at.x - k0.x, at.y - k0.y) / A.levelEvery), state: d.home ? 'clean' : 'dark', walker: -1, spawnT: 0, ...(d.home ? { home: true } : {}), ...(d.pin ? { pin: d.pin } : {}) }; });
+  S.areas = list.map((d, i) => { const at = d.at || centroid(d.poly); return { i, id: d.id, name: d.name, x: at.x, y: at.y, level: d.level || 1 + Math.floor(Math.hypot(at.x - k0.x, at.y - k0.y) / A.levelEvery), state: d.home ? 'clean' : 'dark', walker: -1, spawnT: 0, ...(d.home ? { home: true } : {}), ...(d.pin ? { pin: d.pin } : {}), ...(d.free ? { free: true } : {}) }; });
   // [point] a district may be home (clean from the start, no walker) or pin its walker (it sits there and never walks: the
   // first boss, wedged in the broken bridge); neither ever joins a neighbour
   function centroid(P) { let x = 0, y = 0; for (const p of P) { x += p.x; y += p.y; } return { x: x / P.length, y: y / P.length }; }
@@ -39,7 +39,7 @@ export function createAreas(G) {
     const lv = 1 + A.hpPerLevel * (a.level - 1); d.hp = d.maxHp = R.dead.walker.hp * lv; d.plateMax = d.plate = R.dead.walker.plateHp * lv; a.walker = d.id;
     // its parts, in its own frame (metres: forward, left), each with its health: the pods and the tank
     d.parts = { podL: { lx: 2.3, ly: -3.4, r: 1.6, hp: A.podHp * lv, max: A.podHp * lv }, podR: { lx: 2.3, ly: 3.4, r: 1.6, hp: A.podHp * lv, max: A.podHp * lv }, tank: { lx: -4.4, ly: 0, r: 1.5, hp: A.tankHp * lv, max: A.tankHp * lv } };
-    d.volleyT = A.volleyEvery; d.podAim = 0; }
+    d.volleyT = A.volleyEvery; d.podAim = 0; if (a.free) d.free = true; }
   // a shot on a walker: its plates take it first, then the core (worth more once bare)
   // where a hit lands on it: a part, if the hit is on one (the pods and the tank stand clear of its armour)
   const partAt = (d, hx, hy) => { if (hx === undefined) return null; const c = Math.cos(d.fa || 0), s2 = Math.sin(d.fa || 0); let best = null, bd = 1e9;
@@ -47,16 +47,20 @@ export function createAreas(G) {
   function hurtBoss(d, n, src, hx, hy) { d.hit = S.t; if (d.state === 'patrol') d.state = 'hunt';
     const pid = partAt(d, hx, hy); if (pid) { const p = d.parts[pid]; p.hp -= n; if (p.hp <= 0) breakPart(d, pid); return; }
     if (d.plates > 0) { d.plate -= n; if (d.plate <= 0) { d.plates--; d.plate = d.plateMax; ev('plate', { id: d.id, x: d.x, y: d.y, left: d.plates }); } return; }
-    d.hp -= n * A.coreMult; if (d.hp <= 0) G.killFoe(d, src); }
+    d.hp -= n * A.coreMult; if (d.free) { floorFree(d); return; } if (d.hp <= 0) G.killFoe(d, src); }
+  // [point] a machine to free can't be destroyed: its core goes down to a floor and there it lies open (weak) for the link
+  function floorFree(d) { const f = d.maxHp * R.free.floor; if (d.hp <= f) { d.hp = f; if (!d.weak) { d.weak = true; ev('weak', { id: d.id, x: d.x, y: d.y }); } } }
   function breakPart(d, pid) { const p = d.parts[pid], c = Math.cos(d.fa || 0), s2 = Math.sin(d.fa || 0), x = d.x + p.lx * c - p.ly * s2, y = d.y + p.lx * s2 + p.ly * c;
     ev('part', { id: d.id, part: pid, x, y });
     if (pid === 'tank') {   // the tank blows on the walker: a plate off and a bite of its core, and fire all round it
       ev('blast', { x, y, r: 6 }); G.deliver('fire', x, y, 5, 3); if (d.plates > 0) d.plates--; d.hp -= d.maxHp * A.tankBite;
       const k = S.kai, q = Math.hypot(k.x - x, k.y - y); if (q < 6 && !k.dead) G.hurtKai(12 * (1 - q / 6));
-      if (d.hp <= 0) G.killFoe(d, 'gun'); } }
-  (G.onDie ||= []).push(d => { if (!d.boss) return; const a = S.areas[d.area]; if (!a || a.state === 'clean') return; a.state = 'clean'; a.walker = -1;
-    ev('clean', { area: a.i, name: a.name, x: d.x, y: d.y, level: a.level });
-    if (S.areas.every(q => q.root !== undefined || q.state === 'clean' || q.walker < 0 && q.state !== 'dark')) { S.won = true; ev('won', {}); } });   // every area clean: the town is yours
+      if (d.free) floorFree(d); else if (d.hp <= 0) G.killFoe(d, 'gun'); } }
+  // an area cleaned (its walker fell, or was freed: sim/freeing.js), from where it happened
+  function cleanArea(a, x, y) { if (!a || a.state === 'clean') return; a.state = 'clean'; a.walker = -1;
+    ev('clean', { area: a.i, name: a.name, x, y, level: a.level });
+    if (S.areas.every(q => q.root !== undefined || q.state === 'clean' || q.walker < 0 && q.state !== 'dark')) { S.won = true; ev('won', {}); } }   // every area clean: the town is yours
+  (G.onDie ||= []).push(d => { if (!d.boss) return; cleanArea(S.areas[d.area], d.x, d.y); });
   function stepWalker(d, a, dt) {
     const K = R.dead.walker, k = S.kai, r = Math.hypot(k.x - d.x, k.y - d.y), P = pts[a.i];
     if (!k.dead && r < A.notice) d.state = 'hunt'; else if (d.state === 'hunt' && (r > A.notice * 1.8 || k.dead)) d.state = 'patrol';
@@ -86,5 +90,5 @@ export function createAreas(G) {
   function stepAreas(dt) { const k = S.kai;
     for (const d of S.dead) { if (!d.boss) continue; if (Math.hypot(d.x - k.x, d.y - k.y) > A.simR) continue; const a = S.areas[d.area]; if (a) stepWalker(d, a, dt); }
     const a = areaAt(k.x, k.y), id = a ? a.i : -1; if (id !== S.inArea) { S.inArea = id; if (a) ev('enter', { area: a.i, name: a.name, level: a.level, state: a.state }); } }
-  Object.assign(G, { areaAt, levelAt, isClean, hurtBoss, stepAreas });
+  Object.assign(G, { areaAt, levelAt, isClean, hurtBoss, stepAreas, cleanArea });
 }

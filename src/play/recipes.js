@@ -38,10 +38,13 @@ const LIST = [
   PT('engine_torque', 'tuned'), PT('frame_plated', 'tuned'), PT('frame_light', 'tuned'), PT('lamp_wide', 'tuned'), PT('tyres_grip', 'tuned'), PT('tyres_bouncy', 'tuned'),
   PT('engine_racer', 'rare'), PT('engine_charger', 'rare'), PT('frame_bullbar', 'rare'), PT('lamp_scanner', 'rare'), PT('lamp_dazzle', 'rare'), PT('tyres_knobbly', 'rare'),
 ];
-export const RECIPES = Object.fromEntries(LIST.map(r => [r.id, r]));
+// [point] key items: built, never dropped (the rolls below skip them). The freeing chip: Kai's copy of whatever woke the
+// robot up, built for one big machine; it is spent when that machine is freed
+const KEYS = [{ id: 'link_chip', kind: 'key', key: 'link', name: 'Freeing Chip', rarity: 'rare', cost: [40, 6], desc: 'Kai\'s copy of whatever woke you up. Link it to a weakened big machine to free it. Spent when it works.', why: 'Big machines are freed, not destroyed: freed, one filters the ash and the colour comes back. Chips from machines are what it is made of.' }];
+export const RECIPES = Object.fromEntries(LIST.concat(KEYS).map(r => [r.id, r]));
 // known from the start: the gun and the stock parts Kai rides out with
 export const STARTING = ['scatter', 'part_engine_stock', 'part_frame_stock', 'part_lamp_stock', 'part_tyres_stock'];
-export const costOf = r => { const c = COST[r.kind === 'mod' ? 'mod' : 'gear'][r.rarity]; return { scrap: c[0], chips: c[1] }; };
+export const costOf = r => { const c = r.cost || COST[r.kind === 'mod' ? 'mod' : 'gear'][r.rarity]; return { scrap: c[0], chips: c[1] }; };
 export const recipeName = id => (RECIPES[id] ? RECIPES[id].name : id) + ' recipe';
 // what a recipe you already know is worth instead
 export const dupeChips = r => ({ common: 1, tuned: 1, rare: 2, epic: 3 })[r.rarity];

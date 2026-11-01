@@ -152,7 +152,7 @@ export function buildPeninsula(seed = 7) {
   // the peninsula is one area, Wendbridge, held by one walker: the first boss, wedged in the gap of Wend Bridge (pin: it
   // never walks). Freed, the colour comes back over all of it. The Point, home, is clean from the start (home: true)
   const penin = [P(300, 440), P(430, 515), P(650, 575), P(1000, 815), P(1235, 1095), P(1345, 1262), P(1408, 1398), P(1180, 1365), P(980, 1395), P(800, 1378), P(620, 1355), P(450, 1368), P(345, 1312), P(318, 1180), P(345, 1000), P(316, 820), P(284, 640)];
-  { const X0 = W.decks[0], d = district('wendbridge', 'village', 'Wendbridge', penin, P(X0.x, X0.y)); d.pin = P(X0.x, X0.y); d.level = 1; fillPoly(d, penin); fillPoly(d, obbPoly({ x: X0.x, y: X0.y, w: 40, h: 40, rot: 0 })); }
+  { const X0 = W.decks[0], d = district('wendbridge', 'village', 'Wendbridge', penin, P(X0.x, X0.y)); d.pin = P(X0.x, X0.y); d.level = 1; d.free = true; fillPoly(d, penin); fillPoly(d, obbPoly({ x: X0.x, y: X0.y, w: 40, h: 40, rot: 0 })); }
   for (const l of [canal, rivers]) for (const ln of l.lines) for (let i = 1; i < ln.pts.length; i++) { const a = ln.pts[i - 1], b = ln.pts[i], dR = D.find(q => q.id === 'river'); dput(dR, (x, y) => polyDist(x, y, [a, b]) < ln.half + 2 && Math.hypot(x - W.decks[0].x, y - W.decks[0].y) > 26, ...bb([a, b], ln.half + 2)); }
   if (home) { const poly = obbPoly({ ...home.box, w: home.box.w + 70, h: home.box.h + 60 }); fillPoly(district('point', 'home', 'the Point', poly, P(home.x, home.y)), poly); D[D.length - 1].home = true; }
   W.districts = D;
