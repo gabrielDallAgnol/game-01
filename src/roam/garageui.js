@@ -1,6 +1,7 @@
 // [roam] The garage panel (M6): opened with GARAGE when Kai is at a workbench (the town's garage). Three tabs:
 // - BIKE: a picture of the bike with its five fitted parts (gun, engine, frame, lamp, tyres) labelled where they sit; tap
-//   one to see it: its level and UPGRADE THIS <PART> (banked scrap, capped by Kai's level), SWAP; the gun's built-in mods
+//   one to see it: its level and UPGRADE THIS <PART> (banked scrap, capped by Kai's level); the others in the stash for that
+//   slot to try on (the bike shows the one you tap, glowing) and FIT; the gun's built-in mods
 //   and its sockets. Tap an empty socket to put a mod in: it stays for good
 //   (a second tap confirms; over an old mod, the old one is destroyed). CHANGE opens the stash for that slot.
 // - BUILD: every known recipe by kind, its cost, BUILD (banked scrap and chips).
@@ -17,7 +18,7 @@ const SLOTS = ['weapon', 'engine', 'frame', 'lamp', 'tyres'], SLOTN = { weapon: 
 const GROUPS = [['Weapons', r => r.kind === 'weapon'], ['Mods', r => r.kind === 'mod'], ['Engines', r => r.slot === 'engine'], ['Frames', r => r.slot === 'frame'], ['Lamps', r => r.slot === 'lamp'], ['Tyres', r => r.slot === 'tyres']];
 export function createGarageUi({ sim, ui, cam, lab }) {
   const $ = id => document.getElementById(id), S = sim.state, panel = $('garage'), list = $('garList'), funds = $('garFunds'), msg = $('garMsg'), btn = $('garageBtn');
-  let tab = 'bike', only = null, pick = null;   // pick: { i, mod } a socket being filled (the second tap confirms)
+  let tab = 'bike', only = null, pick = null, prev = null;   // [m6f] prev: a stash item tried on the bike (the bike shows it, the part glows)   // pick: { i, mod } a socket being filled (the second tap confirms)
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const col = r => RARITY[r].color, nm = it => RECIPES[it.r].name;
   const NO = { bench: 'Only at the garage.', funds: 'Not enough banked scrap or chips.', cap: 'At the level cap: clean more areas to raise it.', nomod: 'You have none of that mod.', element: 'One element per weapon.', unknown: 'You don\'t know that recipe.', missing: 'Not there.' };
@@ -43,7 +44,10 @@ export function createGarageUi({ sim, ui, cam, lab }) {
       if (pick) { const owned = Object.entries(S.mods).filter(([, c]) => c > 0);
         h += '<div class="pk">' + (owned.length ? owned.map(([m, c]) => `<button data-put="${m}" class="${pick.mod === m ? 'on' : ''}">${pick.mod === m ? 'CONFIRM: ' + MOD_NAME[m] + ' for good' : MOD_NAME[m] + ' ×' + c}</button>`).join('') : '<span class="md">No mods yet: beat an elite machine, or build one in BUILD.</span>') + '</div>';
         if (it.sockets[pick.i]) h += `<div class="md warn">${MOD_NAME[it.sockets[pick.i]]} is in that socket: putting a mod over it destroys it.</div>`; } }
-    h += `<div class="bt"><button data-up="${sel}" ${it.level >= cap || S.bank.scrap < uc ? 'disabled' : ''}>UPGRADE ${sel === 'tyres' ? 'THESE' : 'THIS'} ${what.toUpperCase()} ⚙${uc}</button><button data-chg="${sel}" ${n ? '' : 'disabled'}>SWAP${n ? ' (' + n + ' in stash)' : ''}</button></div>`;
+    h += `<div class="bt"><button data-up="${sel}" ${it.level >= cap || S.bank.scrap < uc ? 'disabled' : ''}>UPGRADE ${sel === 'tyres' ? 'THESE' : 'THIS'} ${what.toUpperCase()} ⚙${uc}</button></div>`;
+    // [m6f] the others for this slot, from the stash: tap one to try it on (the bike shows it, glowing), FIT to keep it
+    const others = S.stash.filter(q => q.slot === sel);
+    if (others.length) { h += `<h3>Try another ${what}</h3>` + others.map(o => `<div class="it row try${prev && prev.uid === o.uid ? ' on' : ''}" data-try="${o.uid}" style="border-color:${col(o.rarity)}88"><div><div class="nm" style="color:${col(o.rarity)}">${esc(nm(o))}</div><div class="md">${prev && prev.uid === o.uid ? 'on the bike now: see it glow' : 'tap to try it on'} · Lv ${o.level}</div></div><button class="eq" data-eq="${o.uid}">FIT</button></div>`).join(''); }
     h += `<div class="md note">Upgrading makes ${sel === 'tyres' ? 'these tyres' : 'this ' + what} better, not the bike. Swap ${sel === 'tyres' ? 'them' : 'it'} and the level goes with ${sel === 'tyres' ? 'them' : 'it'}.${it.level >= cap ? ' At the cap: clean more areas to raise it.' : ''}</div></div>`;
     return h; }
   function buildTab() { let h = '';
@@ -61,22 +65,23 @@ export function createGarageUi({ sim, ui, cam, lab }) {
   function paint() { funds.textContent = `⌂ ⚙${S.bank.scrap} ◆${S.bank.chips}`; for (const b of panel.querySelectorAll('.tabs button')) b.classList.toggle('on', b.dataset.t === tab);
     list.innerHTML = tab === 'bike' ? bikeTab() : tab === 'build' ? buildTab() : stashTab(); }
   const did = (ok, good) => { if (ok) say(good); else { const e = S.events.slice().reverse().find(q => q.type === 'garageNo'); say(NO[e && e.why] || 'Can\'t.', true); } paint(); };
-  panel.addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; const d = b.dataset;
-    if (d.t) { tab = d.t; only = null; pick = null; say(''); paint(); return; }
-    if (d.sel) { sel = d.sel; pick = null; say(''); paint(); return; }
+  panel.addEventListener('pointerdown', e => { const tr = e.target.closest('[data-try]'); if (tr && !e.target.closest('button')) { const o = S.stash.find(q => q.uid === +tr.dataset.try); prev = prev && o && prev.uid === o.uid ? null : o; paint(); return; }
+    const b = e.target.closest('button'); if (!b || b.disabled) return; const d = b.dataset;
+    if (d.t) { tab = d.t; only = null; pick = null; prev = null; say(''); paint(); return; }
+    if (d.sel) { sel = d.sel; pick = null; prev = null; say(''); paint(); return; }
     if (d.up) return did(sim.upgrade(d.up), `${nm(S.gear[d.up])} is now level ${S.gear[d.up].level + 1}.`);
     if (d.chg) { tab = 'stash'; only = d.chg; pick = null; paint(); return; }
     if (d.all) { only = null; paint(); return; }
     if (d.sock !== undefined) { pick = pick && pick.i === +d.sock ? null : { i: +d.sock, mod: null }; say(pick ? 'Pick a mod for this socket. It stays there for good.' : ''); paint(); return; }
     if (d.put) { if (pick.mod !== d.put) { pick.mod = d.put; paint(); return; } const ok = sim.socket(S.gear.weapon.uid, pick.i, d.put); pick = null; return did(ok, `${MOD_NAME[d.put]} is in for good.`); }
     if (d.build) return did(sim.build(d.build), `Built: ${RECIPES[d.build].name}.`);
-    if (d.eq) { const it = S.stash.find(q => q.uid === +d.eq); const ok = sim.equipItem(+d.eq); if (ok) { sel = it.slot; tab = 'bike'; } return did(ok, it ? `${nm(it)} fitted to the bike.` : 'Fitted.'); }
+    if (d.eq) { const it = S.stash.find(q => q.uid === +d.eq); const ok = sim.equipItem(+d.eq); prev = null; if (ok) { sel = it.slot; tab = 'bike'; } return did(ok, it ? `${nm(it)} fitted to the bike.` : 'Fitted.'); }
     if (d.salv) return did(sim.salvageItem(+d.salv), 'Salvaged.'); });
   // [m6c] the camera comes in on the bike, set in the top of the screen above the sheet; the HUD steps aside
   let saved = null; const CLOSE = 56;
-  const open = () => { panel.hidden = false; ui.paused = true; tab = 'bike'; only = null; pick = null; say(''); paint(); document.body.classList.add('garage-open');
+  const open = () => { panel.hidden = false; ui.paused = true; ui.zoomOnly = true; tab = 'bike'; only = null; pick = null; prev = null; say(''); paint(); document.body.classList.add('garage-open');
     if (cam && lab) { saved = { base: cam.base, labCam: lab.cam }; cam.base = CLOSE; const b = S.bike; lab.cam = { x: b.x, y: b.y + innerHeight * 0.27 / CLOSE }; } };
-  const close = () => { panel.hidden = true; ui.paused = false; document.body.classList.remove('garage-open'); if (saved) { cam.base = saved.base; lab.cam = saved.labCam; saved = null; } sim.leaveGarage(); };   // [m6e] it rides itself back out
+  const close = () => { panel.hidden = true; ui.paused = false; ui.zoomOnly = false; prev = null; document.body.classList.remove('garage-open'); if (saved) { cam.base = saved.base; lab.cam = saved.labCam; saved = null; } sim.leaveGarage(); };   // [m6e] it rides itself back out
   // [m6e] GARAGE asks the bike to ride itself into the bay; the panel opens when it's parked ('parked')
   const enter = () => { if (!S.garageRun && sim.enterGarage()) btn.hidden = true; };
   btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); enter(); });
@@ -88,6 +93,9 @@ export function createGarageUi({ sim, ui, cam, lab }) {
   function update(evs) { const w = S.gear.weapon, gs = `${w.r}|${w.level}`; if (gs !== lastGun) { lastGun = gs; fire.innerHTML = `FIRE<small>${esc(RECIPES[w.r].name)}${w.level > 1 ? ' · Lv' + w.level : ''}</small>`; }
     fire.classList.toggle('quiet', !!S.guns.main.holstered);   // [m6d] dimmed on the safe lot
     for (const e of evs || []) if (e.type === 'parked') open();
-    const at = sim.atBench() && !S.garageRun; if (at !== lastAt) { lastAt = at; btn.hidden = !at; if (at && !told) { told = true; ui.toast('The garage: build from your recipes, fit parts and mods. Tap GARAGE.', true); } } }
-  return { update, open, get sel() { return panel.hidden || tab !== 'bike' ? null : sel; } };
+    if (!panel.hidden && lab && saved) { const b = S.bike; lab.cam = { x: b.x, y: b.y + innerHeight * 0.27 / Math.max(10, cam.ppm) }; }   // the bike stays in the top of the screen at any zoom
+    const at = sim.atGate() && !S.garageRun; if (at !== lastAt) { lastAt = at; btn.hidden = !at; if (at && !told) { told = true; ui.toast('The garage gate. Tap GARAGE and the bike rides in.', true); } } }
+  // what the renderer needs: the picked slot, whether Kai is hidden (the close-up is just the bike), and the gear as tried on
+  const gearView = () => prev && !panel.hidden ? { ...S.gear, [prev.slot]: prev } : S.gear;
+  return { update, open, get sel() { return panel.hidden || tab !== 'bike' ? null : sel; }, get isOpen() { return !panel.hidden; }, gearView, get gunBase() { return prev && !panel.hidden && prev.slot === 'weapon' ? prev.base : null; } };
 }

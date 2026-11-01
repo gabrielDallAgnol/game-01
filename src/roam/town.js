@@ -77,7 +77,33 @@ export function buildTown(seed = 7) {
   for (const l of W.land || []) { if (l.kind !== 'water' || l.brook) continue; const xs = l.poly.map(q => q.x), ys = l.poly.map(q => q.y);
     for (let gy = Math.max(0, Math.floor(Math.min(...ys) * GR)); gy <= Math.min(GH - 1, Math.ceil(Math.max(...ys) * GR)); gy++) for (let gx = Math.max(0, Math.floor(Math.min(...xs) * GR)); gx <= Math.min(GW - 1, Math.ceil(Math.max(...xs) * GR)); gx++) {
       const x = (gx + 0.5) / GR, y = (gy + 0.5) / GR; if (pip(l.poly, x, y) && pip(l.poly, x + 1, y) && pip(l.poly, x - 1, y) && pip(l.poly, x, y + 1) && pip(l.poly, x, y - 1)) solid.set(gx, gy, 1); } }   // a canopy (a gas station's) is ridden under
-  const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); return gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid.get(gx, gy) === 1; };
+  // [m6f] gates: a closed gate is a wall, an open one isn't (the sim opens the garage's: sim/garage.js)
+  const gates = [], inGate = (g, x, y) => { const c = Math.cos(-g.a), sn = Math.sin(-g.a), dx = x - g.x, dy = y - g.y, u = c * dx - sn * dy, v = sn * dx + c * dy; return Math.abs(u) < 0.5 && Math.abs(v) < g.w / 2; };
+  const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); if (gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid.get(gx, gy) === 1) return true; for (const g of gates) if (!g.open && inGate(g, x, y)) return true; return false; };
+  // [m6f] the garage's lot: the town's garage site, cleared of its parked cars and clutter (only its fixtures stay: the roller
+  // doors, the ramp), fenced all round, the fence kept off the roads, with one gate on the side nearest the road
+  const garageLot = fenceGarage();
+  function fenceGarage() { const gs = (W.sites || []).find(q => q.id === 'garage'); if (!gs || !gs.box) return null;
+    gs.anchors = gs.anchors.filter(a => a.kind === 'fixture');
+    const B = gs.box, c = Math.cos(B.rot), sn = Math.sin(B.rot), ext = { u: [-B.w / 2, B.w / 2], v: [-B.h / 2, B.h / 2] }, toW = (u, v) => ({ x: B.x + c * u - sn * v, y: B.y + sn * u + c * v });
+    const roadGap = (x, y) => { let best = 1e9; for (const st of W.streets) for (let i = 0; i < st.pts.length - 1; i++) { const a = st.pts[i], b = st.pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / L2)); best = Math.min(best, Math.hypot(x - a.x - dx * t, y - a.y - dy * t) - sw(st) / 2); } return best; };
+    // each side: pulled in until it stands 1.5 m clear of any road (only that side moves); the gate goes on the side that was nearest one
+    const SIDES = [{ k: 'u', s: 1 }, { k: 'u', s: -1 }, { k: 'v', s: 1 }, { k: 'v', s: -1 }], mid = S => { const i = S.s > 0 ? 1 : 0, o = S.k === 'u' ? 'v' : 'u', m = (ext[o][0] + ext[o][1]) / 2; return S.k === 'u' ? toW(ext.u[i], m) : toW(m, ext.v[i]); };
+    let gateSide = null, gd = 1e9;
+    for (const S of SIDES) { const m = mid(S), d = roadGap(m.x, m.y); if (d < gd) { gd = d; gateSide = S; } if (d < 1.5) ext[S.k][S.s > 0 ? 1 : 0] -= S.s * (1.5 - d); }
+    const cu = (ext.u[0] + ext.u[1]) / 2, cv = (ext.v[0] + ext.v[1]) / 2, cw = toW(cu, cv);
+    const L = { x: cw.x, y: cw.y, rot: B.rot, hu: (ext.u[1] - ext.u[0]) / 2, hv: (ext.v[1] - ext.v[0]) / 2 };
+    const corners = [toW(ext.u[0], ext.v[0]), toW(ext.u[1], ext.v[0]), toW(ext.u[1], ext.v[1]), toW(ext.u[0], ext.v[1])];
+    const gm = mid(gateSide), gn = gateSide.k === 'u' ? { x: c * gateSide.s, y: sn * gateSide.s } : { x: -sn * gateSide.s, y: c * gateSide.s }, GW2 = 7;
+    const gate = { x: gm.x, y: gm.y, a: Math.atan2(gn.y, gn.x), w: GW2, nx: gn.x, ny: gn.y, open: false };
+    // the fence: the four sides, broken at the gate; stamped into the walls a post every 25 cm
+    const fence = []; for (let i = 0; i < 4; i++) { const a = corners[i], b = corners[(i + 1) % 4], dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
+      const tg = ((gm.x - a.x) * dx + (gm.y - a.y) * dy) / (len * len), off = Math.abs((gm.x - a.x) * dy - (gm.y - a.y) * dx) / len;
+      if (off < 0.5 && tg > 0 && tg < 1) { const g0 = tg - GW2 / 2 / len, g1 = tg + GW2 / 2 / len; fence.push({ ax: a.x, ay: a.y, bx: a.x + dx * g0, by: a.y + dy * g0 }, { ax: a.x + dx * g1, ay: a.y + dy * g1, bx: b.x, by: b.y }); }
+      else fence.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y }); }
+    for (const f of fence) { const len = Math.hypot(f.bx - f.ax, f.by - f.ay); for (let q = 0; q <= len; q += 0.25) { const x = f.ax + (f.bx - f.ax) * q / len, y = f.ay + (f.by - f.ay) * q / len, gx = Math.floor(x * GR), gy = Math.floor(y * GR); if (gx >= 0 && gy >= 0 && gx < GW && gy < GH) solid.set(gx, gy, 1); } }
+    gates.push(gate);
+    return { box: L, corners, fence, gate }; }
   // the nests: infested and nestable buildings first, then the biggest houses, spread across the town
   const cand = buildings.filter(p => p.def.collide !== 'none').filter(p => p.def.tags.includes('infested') || p.def.tags.includes('nestable')).concat(buildings.filter(p => !p.def.tags.includes('site')).sort((a, b) => b.w * b.h - a.w * a.h));   // [world] the biggest houses of the towns, not every shed in the country (a site's nest is tagged nestable)
   const nests = [];
@@ -119,6 +145,6 @@ export function buildTown(seed = 7) {
   // [dress] end
   // where on a street: for spawning the dead and parking the bike (a street cell, 1 m grid)
   const streetCells = []; for (let y = 4; y < W.h - 4; y += 2) for (let x = 4; x < W.w - 4; x += 2) if (onStreet(x, y, -0.6) && !blocked(x, y)) streetCells.push(x, y);
-  return { W, start, size, tiles, onStreet, gardens, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress, breakables,
+  return { garageLot, gates, W, start, size, tiles, onStreet, gardens, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress, breakables,
     chars: makeCharmap(W) };   // [world] the world as characters, 2 m a cell (world/charmap.js)
 }

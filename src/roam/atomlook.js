@@ -66,6 +66,7 @@ export function createAtomLook({ U, town }) {
     for (const c of S.clouds || []) disc(d2, c.kind === 'fog' ? 1 : 0, c.x, c.y, c.r, Math.min(1, c.left / 1.2) * Math.min(1, (c.dur - c.left) / 0.3 + 0.3), 0.6);
     // [m5] a bank's lamp pools warm light on the ground round it (its reach: ride in to bank); a death cache's pulses; a hurt
     // bike smokes from its engine, thick and black once wrecked
+    for (const q of S.sites || []) if (q.gate) { const g = q.gate; for (const sd of [-1, 1]) disc(d2, 2, g.x - g.ny * sd * 4, g.y + g.nx * sd * 4, 6, 0.55, 0.7); disc(d2, 2, g.x + g.nx * 2.5, g.y + g.ny * 2.5, 5, 0.4, 0.8); }   // [m6f] the gate's lamps light the way in
     for (const q of S.sites || []) { if (!q.dress) disc(d2, 2, q.x, q.y, 6, 0.16 + 0.04 * Math.sin(S.t * 1.3), 0.5);
       // [m6c] a dressed site: its work lamps and sign pool warm light on the forecourt; old oil stains the ground under it
       for (const d of q.dress || []) { if (d.k === 'worklamp') disc(d2, 2, d.x + Math.cos(d.a + Math.PI / 2) * 1.5, d.y + Math.sin(d.a + Math.PI / 2) * 1.5, 6.5, 0.55, 0.7); else if (d.k === 'sign') disc(d2, 2, d.x, d.y, 3, 0.35, 0.6); else if (d.k === 'doors') disc(d2, 2, d.x + Math.cos(d.a + Math.PI / 2) * 2.5, d.y + Math.sin(d.a + Math.PI / 2) * 2.5, 5, 0.5, 0.8); else if (d.k === 'lotlamp') disc(d2, 2, d.x, d.y, 8, 0.5, 0.7); else if (d.k === 'stain') disc(d1, 3, d.x, d.y, 1.3, 0.55, 0.35); } }

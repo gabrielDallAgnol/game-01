@@ -190,6 +190,11 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **Need for Speed: Most Wanted's garage:** at the front of the garage, GARAGE has the bike ride itself into the bay in front of the doors (no control meanwhile), where it always stands at the same angle; the close-up and the panel open once it's parked. Closing rides it back out to the forecourt, facing away from the doors and rolling, and you have the bike again.
 - **The picked part glows:** instead of a ring, the part's own cells light up in their own colours (the medium's glow) under a soft round glow of the selection yellow, strongest in the middle.
 
+**A fenced lot, a gate, and the bike on its own (Nov 1):**
+- **The lot is fenced with one gate** (`town.js` `garageLot`): the town's garage site is cleared of its parked cars and clutter, fenced all round (steel posts and panels, kept 1.5 m off the roads), with one gate on the side nearest the road. The gate is two posts with lamps, an arch with GARAGE lit on it, two leaves that slide apart, amber bars painted on the ground in front. Shut, it's a wall.
+- **Ride to the gate, tap GARAGE:** the gate opens, the bike rides itself in through it to the bay, the gate shuts behind it, the close-up opens. Leaving rides back out through the gate. From inside the lot the gate opens for Kai by herself.
+- **The close-up is just the bike** (Kai isn't drawn while the garage is open). The picked part glows and the rest of the view dims, with a soft clear window over the part. **Try another:** the stash's other parts for that slot are listed under it; tap one and the bike shows it on, glowing, then FIT to keep it. **Pinch or wheel to zoom** in and out of the close-up (it stays on the bike).
+
 **Later, recorded (Gabriel, Nov 1):**
 - **A workbench that grows:** at first the garage can only upgrade; building from recipes needs a station you build first, and a better station lets rarer recipes start to show up.
 - **Garage cosmetics:** things to make the garage's surroundings feel alive, built or bought over time. The map is not very interactive; the garage is, and it should look it.

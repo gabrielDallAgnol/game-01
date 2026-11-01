@@ -64,9 +64,11 @@ export const ROAM = {
   // M7); an upgrade costs weaponCost (partCost for a part) x its level in banked scrap; salvage gives back salvage of what
   // it cost; a dazzle lamp keeps dazzleSlow of a machine's speed each step it's in the beam; door: how far out from the
   // garage's roller doors its forecourt (the service spot) is; lotMargin: how far past the lot's edge machines are kept;
-  // [m6e] the drive-in: the bay bay m out from the doors, the bike always at bayAng there; it rides in over driveIn s, out
-  // over driveOut s to exitOut m past the forecourt, and leaves rolling at rollOut m/s
-  garage: { lotMargin: 1, door: 6, bay: 3, bayAng: 0, exitOut: 4, driveIn: 1.6, driveOut: 1.3, rollOut: 3, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
+  // [m6e/m6f] the drive-in: the bay bay m out from the doors, the bike always at bayAng there; it rides at drive m/s from
+  // gateOut m outside the gate, through it, gateIn m inside, to the bay (turning to bayAng over the last settle m); out the
+  // same way to exitOut m past the entry, leaving at rollOut m/s. GARAGE shows within gateReach of the entry; the gate opens
+  // by itself for Kai inside the lot within gateAuto of it
+  garage: { lotMargin: 1, door: 6, bay: 3, bayAng: 0, exitOut: 5, rollOut: 3, gateOut: 3, gateIn: 3, gateReach: 6, gateAuto: 9, drive: 7, settle: 4, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
   // [m6b] elites: the chance a machine is one (+perLevel per area level above 1, x night at night), how much tougher, and
   // the trail a burning or soaking one leaves (every trailEvery s, trailR m, trailPower of the element)
   elites: { chance: 0.03, perLevel: 0.012, night: 1.5, hp: 2.6, trailEvery: 1.2, trailR: 1.2, trailPower: 0.5 },
@@ -97,5 +99,5 @@ export function createRoam(town, seed = 1) {
   for (let k = 0; k < 6; k++) G.populate();
   const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
   const debug = { spawn: (kind, x, y, o) => G.spawn(kind, x, y, o) };   // for tests, labs and screenshots
-  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), repair: () => G.startFix(), build: id => G.build(id), equipItem: uid => G.equipItem(uid), salvageItem: uid => G.salvageItem(uid), upgrade: slot => G.upgrade(slot), enterGarage: () => G.enterGarage(), leaveGarage: () => G.leaveGarage(), socket: (uid, i, mod) => G.socket(uid, i, mod), levelCap: () => G.levelCap(), upCost: slot => G.upCost(S.gear[slot]), atBench: () => !!G.atBench(), bikeStats: () => G.bikeStats(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), repair: () => G.startFix(), build: id => G.build(id), equipItem: uid => G.equipItem(uid), salvageItem: uid => G.salvageItem(uid), upgrade: slot => G.upgrade(slot), enterGarage: () => G.enterGarage(), leaveGarage: () => G.leaveGarage(), socket: (uid, i, mod) => G.socket(uid, i, mod), levelCap: () => G.levelCap(), upCost: slot => G.upCost(S.gear[slot]), atBench: () => !!G.atBench(), atGate: () => !!G.atGate(), bikeStats: () => G.bikeStats(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }

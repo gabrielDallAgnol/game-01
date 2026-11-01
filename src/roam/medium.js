@@ -470,8 +470,8 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     for (const nst of nests) if (on(nst.x, nst.y)) nestVolumes(nst, t);
     // what moves is drawn snapped to the cell grid: its letters ride with it instead of re-sampling as it slides
     const sn = q => Math.round(q / CELLW) * CELLW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
-    if (on(bike.x, bike.y)) { if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM, v.garageSel); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.guns.main, t, v.garageSel === 'weapon' ? 0.85 + 0.15 * Math.sin(t * 4) : 0); }   // [m6] the bike from its parts' modules
-    if (!kai.dead) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
+    if (on(bike.x, bike.y)) { if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM, v.garageSel); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.gunBase ? { ...v.guns.main, base: v.gunBase } : v.guns.main, t, v.garageSel === 'weapon' ? 0.85 + 0.15 * Math.sin(t * 4) : 0); }   // [m6] the bike from its parts' modules
+    if (!kai.dead && !v.hideKai) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
@@ -535,7 +535,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     const { toS, cam, cssW, cssH, kai, dead, flakes, deaths, tracers, t, night, WIND } = v, s = cam.ppm * FIGM, L = (x0, y0, x1, y1) => { fx.moveTo(x0, y0); fx.lineTo(x1, y1); };
     fx.lineCap = 'round';
     // Kai's tied sleeves and bandana tails: bundles of thin strands that trail with her walk and the wind
-    if (!v.kaiUnder) { const [x, y] = toS(kai.x, kai.y), a = kai.face, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [x + (lx * ca - ly * sa) * s, y + (lx * sa + ly * ca) * s], mv = Math.min(1, Math.hypot(kai.vx, kai.vy) / 3);
+    if (!v.kaiUnder && !v.hideKai) { const [x, y] = toS(kai.x, kai.y), a = kai.face, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [x + (lx * ca - ly * sa) * s, y + (lx * sa + ly * ca) * s], mv = Math.min(1, Math.hypot(kai.vx, kai.vy) / 3);
       const strand = (lx, ly, len, col, k, w) => { fx.strokeStyle = col; fx.lineWidth = w; fx.beginPath(); for (let i = 0; i < k; i++) { const [x0, y0] = P(lx, ly + (i - k / 2) * 0.012), wob = Math.sin(t * 7 + i * 1.7 + lx * 9) * 0.05 * (0.4 + mv); let px = x0, py = y0; fx.moveTo(px, py); for (let j = 1; j <= 4; j++) { const u = j / 4, [qx, qy] = P(lx - len * u, ly + (i - k / 2) * 0.02 * u + wob * u * u * 2); px = qx + WIND.x * u * 3 * (1 - mv); py = qy + WIND.y * u * 3 * (1 - mv); fx.lineTo(px, py); } } fx.stroke(); };
       for (const sd of [-1, 1]) strand(-0.1, sd * 0.17, 0.26 + 0.04 * Math.sin(t * 5 + sd), '#d9a01c', 5, Math.max(1, s * 0.012));
       for (const sd of [-1, 1]) strand(-0.06, sd * 0.03, 0.22, '#e8392f', 4, Math.max(1, s * 0.01)); }

@@ -129,12 +129,12 @@ function start() {
     // no pull-back with the bike's speed for the same reason
     { const want = cam.base; cam.ppm += (want - cam.ppm) * Math.min(1, dt * 6); if (Math.abs(want - cam.ppm) < want * 0.004) cam.ppm = want; }
     const shook = feel.shake(cam, dt);   // [m1] the camera shakes for this frame only
-    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun, garageSel: garageUi.sel });
+    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun, garageSel: garageUi.sel, hideKai: garageUi.isOpen, gearView: garageUi.gearView(), gunBase: garageUi.gunBase });
     fx.clearRect(0, 0, cssW, cssH);
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules
     for (const i of town.dress.live) { if (Math.abs(i.x - cam.x) > 90 || Math.abs(i.y - cam.y) > 120) continue; if (!i.st) i.atom.live.init(i); i.atom.live.step(i, dt, { kai: R.kai, t, night, WIND: { x: 0.731, y: 0.682 }, town }); }
-    try { look.draw(fx, { risk: S, garageSel: garageUi.sel, lightAt, broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 }, drops: S.drops, shots: S.shots, bolts: S.bolts }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
+    try { look.draw(fx, { risk: S, garageSel: garageUi.sel, hideKai: garageUi.isOpen, lightAt, broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 }, drops: S.drops, shots: S.shots, bolts: S.bolts }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
     for (const o of R.dead) if (o.fa !== undefined) faMap.set(o.id, o.fa); if (faMap.size > 4 * S.dead.length + 50) faMap.clear();   // the dead keep facing where they last walked
     dustOf(R.kai, dt); drawPlumes(fx, toS, view.ppm, dt, { x: 0.731, y: 0.682 }, night, cssW, cssH, lightAt);
     throwChaff(R.kai, dt); drawChaff(dt);

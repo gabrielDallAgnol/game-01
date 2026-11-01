@@ -20,6 +20,7 @@ export function createGarage(G) {
   const { R, S, ev, town } = G, K = R.garage;
   S.known = STARTING.slice(); S.stash = []; S.mods = {}; S.gear = {}; S.garageRun = null;
   let uid = 1;
+  const inLotRaw = (L, x, y, m = 0) => { const c = Math.cos(-L.rot), sn = Math.sin(-L.rot), dx = x - L.x, dy = y - L.y, u = c * dx - sn * dy, v = sn * dx + c * dy; return Math.abs(u) < L.w / 2 + m && Math.abs(v) < L.h / 2 + m; };
   // ---------- the garage site: the town's own garage (world/sites.js), the forecourt in front of its roller doors ----------
   { const gs = ((town.W && town.W.sites) || []).find(s => s.id === 'garage');
     if (gs) { const rollers = gs.anchors.filter(a => a.use === 'roller'), mx = rollers.length ? rollers.reduce((q, a) => q + a.x, 0) / rollers.length : gs.x, my = rollers.length ? rollers.reduce((q, a) => q + a.y, 0) / rollers.length : gs.y;
@@ -34,13 +35,15 @@ export function createGarage(G) {
         q.bay = town.blocked(bx, by) ? { x: p.x, y: p.y } : { x: bx, y: by }; q.exit = { x: mx + ux * (K.door + K.exitOut), y: my + uy * (K.door + K.exitOut) }; if (town.blocked(q.exit.x, q.exit.y)) q.exit = { x: p.x, y: p.y }; q.exitAng = Math.atan2(uy, ux); }
       // [m6c] its dressing (play/sites.js), set out in front of the doors; what would land in a wall is left out
       const ox = p.x - mx, oy = p.y - my, ol = Math.hypot(ox, oy) || 1, nx = ox / ol, ny = oy / ol, wx = -ny, wy = nx;
-      // [m6d] the lot: the garage site's own box; machines keep out of it (stepGarage), and a tall lamp stands at each of its
-      // corners so you can see the lot from far away (pulled in from a corner until it stands clear of walls)
-      const B = gs.box || { x: gs.x, y: gs.y, w: gs.size ? gs.size[0] : 30, h: gs.size ? gs.size[1] : 24, rot: gs.rot || 0 }; q.lot = { x: B.x, y: B.y, w: B.w, h: B.h, rot: B.rot || 0 };
+      // [m6d/m6f] the lot: the town's fenced garage lot (town.js) or else the site's box; machines keep out of it (stepGarage);
+      // a tall lamp at each corner so you see it from far away; [m6f] its fence and its one gate (the entrance)
+      const GL = town.garageLot, B = GL ? { x: GL.box.x, y: GL.box.y, w: GL.box.hu * 2, h: GL.box.hv * 2, rot: GL.box.rot } : (gs.box || { x: gs.x, y: gs.y, w: 30, h: 24, rot: gs.rot || 0 });
+      q.lot = { x: B.x, y: B.y, w: B.w, h: B.h, rot: B.rot || 0 }; if (GL) { q.fence = GL.fence; q.gate = GL.gate; }
       q.dress = []; { const c = Math.cos(q.lot.rot), sn = Math.sin(q.lot.rot);
         for (const [su, sv] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) for (let k = 0; k < 8; k++) { const u = su * (q.lot.w / 2 - 1.2 - k * 0.6), v = sv * (q.lot.h / 2 - 1.2 - k * 0.6), x = q.lot.x + c * u - sn * v, y = q.lot.y + sn * u + c * v;
           if (!town.blocked(x, y)) { q.dress.push({ k: 'lotlamp', x, y, a: q.lot.rot }); break; } } }
-      for (const D of SITES.garage.dress || []) { const x = mx + wx * D.u + nx * D.v, y = my + wy * D.u + ny * D.v; if (!town.blocked(x, y)) q.dress.push({ k: D.k, x, y, a: Math.atan2(wy, wx) }); } }
+      if (q.gate) { const g = q.gate; q.entry = { x: g.x + g.nx * K.gateOut, y: g.y + g.ny * K.gateOut }; q.exit = { x: g.x + g.nx * (K.gateOut + K.exitOut), y: g.y + g.ny * (K.gateOut + K.exitOut) }; q.exitAng = g.a; q.inside = { x: g.x - g.nx * K.gateIn, y: g.y - g.ny * K.gateIn }; }
+      for (const D of SITES.garage.dress || []) { const x = mx + wx * D.u + nx * D.v, y = my + wy * D.u + ny * D.v; if (!town.blocked(x, y) && inLotRaw(q.lot, x, y, -0.8)) q.dress.push({ k: D.k, x, y, a: Math.atan2(wy, wx) }); } }
     else { const camp = S.sites[0]; for (const s of ['stash', 'workbench']) if (!camp.services.includes(s)) camp.services.push(s); } }   // a map without a garage: the camp does it
   // ---------- items ----------
   function make(rid) { const r = RECIPES[rid];
@@ -106,21 +109,29 @@ export function createGarage(G) {
       for (let i = S.bolts.length - 1; i >= 0; i--) if (inLot(L, S.bolts[i].x, S.bolts[i].y)) { ev('boltPop', { x: S.bolts[i].x, y: S.bolts[i].y }); S.bolts.splice(i, 1); } } }
   // ---------- the drive-in: the bike rides itself into the bay (always the same angle), you work on it, it rides itself out ----------
   const ease = u => u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2, wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
-  function enterGarage() { const q = atBench(); if (!q || S.garageRun) return no('bench'); if (!q.bay) return no('bench'); const b = S.bike, k = S.kai;
+  // [m6f] through the gate: from where she stands to just outside it, through it, to the bay; out: back through it and away
+  const garage = () => S.sites.find(q => q.bay);
+  const atGate = () => { const q = garage(), k = S.kai; if (!q || !q.entry || k.dead || S.garageRun) return null; return Math.hypot(q.entry.x - k.x, q.entry.y - k.y) < K.gateReach ? q : null; };
+  function run(phase, pts, a1) { const b = S.bike, P = [{ x: b.x, y: b.y }, ...pts], segs = []; let len = 0; for (let i = 1; i < P.length; i++) { const l = Math.hypot(P[i].x - P[i - 1].x, P[i].y - P[i - 1].y); segs.push(l); len += l; }
+    S.garageRun = { phase, t: 0, dur: Math.max(1, len / K.drive), pts: P, segs, len, a0: b.ang, a1 }; }
+  function enterGarage() { const q = atGate() || (S.garageRun ? null : atBench()); if (!q || !q.bay) return no('bench'); const b = S.bike, k = S.kai;
     if (!k.riding) { k.riding = true; ev('mount', {}); } b.fixing = false;
-    S.garageRun = { phase: 'in', t: 0, dur: K.driveIn, x0: b.x, y0: b.y, a0: b.ang, x1: q.bay.x, y1: q.bay.y, a1: K.bayAng }; ev('garageIn', {}); return true; }
-  function leaveGarage() { const r = S.garageRun; if (!r || r.phase !== 'parked') return false; const q = S.sites.find(s2 => s2.bay && Math.hypot(s2.bay.x - r.x1, s2.bay.y - r.y1) < 0.01) || S.sites.find(s2 => s2.bay), b = S.bike;
-    S.garageRun = { phase: 'out', t: 0, dur: K.driveOut, x0: b.x, y0: b.y, a0: b.ang, x1: q.exit.x, y1: q.exit.y, a1: q.exitAng }; ev('garageOut', {}); return true; }
-  function stepRun(dt) { const r = S.garageRun; if (!r || r.phase === 'parked') { if (r) { S.bike.speed = 0; } return; } const b = S.bike, k = S.kai;
-    r.t += dt; const u = Math.min(1, r.t / r.dur), e = ease(u), travel = Math.atan2(r.y1 - r.y0, r.x1 - r.x0), far = Math.hypot(r.x1 - r.x0, r.y1 - r.y0) > 0.5;
-    const px = b.x; b.x = r.x0 + (r.x1 - r.x0) * e; b.y = r.y0 + (r.y1 - r.y0) * e;
-    // it turns to face where it's going, then settles into its final angle over the last part of the ride
-    const head = far ? travel : r.a1, mid = u < 0.25 ? wrapA(r.a0 + wrapA(head - r.a0) * (u / 0.25)) : head, last = Math.max(0, (u - 0.6) / 0.4);
-    b.ang = wrapA(mid + wrapA(r.a1 - mid) * ease(last)); b.speed = Math.min(6, Math.hypot(b.x - px, 0) / Math.max(dt, 1e-6) + 0.5);
-    k.x = b.x; k.y = b.y; k.vx = 0; k.vy = 0; k.face = b.ang;
-    if (u >= 1) { if (r.phase === 'in') { r.phase = 'parked'; b.speed = 0; ev('parked', {}); } else { S.garageRun = null; b.speed = K.rollOut; ev('garageDone', {}); } } }
+    const inside = q.lot && inLotRaw(q.lot, b.x, b.y); run('in', q.gate && !inside ? [q.entry, q.inside, q.bay] : [q.bay], K.bayAng); ev('garageIn', {}); return true; }
+  function leaveGarage() { const r = S.garageRun, q = garage(); if (!r || r.phase !== 'parked' || !q) return false;
+    run('out', q.gate ? [q.inside, q.entry, q.exit] : [q.exit || q.bay], q.exitAng || 0); ev('garageOut', {}); return true; }
+  function stepRun(dt) { const r = S.garageRun; if (!r || r.phase === 'parked') { if (r) S.bike.speed = 0; return; } const b = S.bike, k = S.kai;
+    r.t += dt; const u = Math.min(1, r.t / r.dur), e = ease(u); let d = e * r.len, i = 0; while (i < r.segs.length - 1 && d > r.segs[i]) { d -= r.segs[i]; i++; }
+    const A = r.pts[i], Bp = r.pts[i + 1], f = r.segs[i] ? Math.min(1, d / r.segs[i]) : 1; b.x = A.x + (Bp.x - A.x) * f; b.y = A.y + (Bp.y - A.y) * f;
+    // it faces where it's going (turning smoothly at the bends), then settles into its final angle over the last metres
+    const head = r.segs[i] > 0.3 ? Math.atan2(Bp.y - A.y, Bp.x - A.x) : r.a1, rem = r.len - e * r.len, settle = rem < K.settle ? 1 - rem / K.settle : 0;
+    const want = wrapA(head + wrapA(r.a1 - head) * ease(settle)); b.ang = wrapA(b.ang + wrapA(want - b.ang) * Math.min(1, dt * 10));
+    b.speed = u < 1 ? K.drive * (1 - Math.abs(2 * u - 1) * 0.6) : 0; k.x = b.x; k.y = b.y; k.vx = 0; k.vy = 0; k.face = b.ang;
+    if (u >= 1) { b.ang = r.a1; if (r.phase === 'in') { r.phase = 'parked'; b.speed = 0; ev('parked', {}); } else { S.garageRun = null; b.speed = K.rollOut; ev('garageDone', {}); } } }
+  // the gate opens for the drive-in and out, and for Kai on her way out of the lot; shut otherwise (a closed gate is a wall)
+  function stepGate() { const q = garage(); if (!q || !q.gate) return; const k = S.kai, inside = q.lot && inLotRaw(q.lot, k.x, k.y);
+    const open = !!S.garageRun || (inside && Math.hypot(q.gate.x - k.x, q.gate.y - k.y) < K.gateAuto); if (open !== q.gate.open) { q.gate.open = open; ev(open ? 'gateOpen' : 'gateShut', { x: q.gate.x, y: q.gate.y }); } }
   // ---------- each step: the lot, the dazzle lamp ----------
-  function stepGarage(dt) { keepOut(); stepRun(dt); const k = S.kai, dz = bikeStat('dazzle'); if (!dz || !k.riding || k.dead) return; const b = S.bike, ca = Math.cos(b.ang), sa = Math.sin(b.ang);
+  function stepGarage(dt) { stepGate(); keepOut(); stepRun(dt); const k = S.kai, dz = bikeStat('dazzle'); if (!dz || !k.riding || k.dead) return; const b = S.bike, ca = Math.cos(b.ang), sa = Math.sin(b.ang);
     for (const d of S.dead) { if (d.boss) continue; const dx = d.x - b.x, dy = d.y - b.y, r = Math.hypot(dx, dy); if (r > dz || r < 0.5) continue; if ((dx * ca + dy * sa) / r < 0.88) continue; d.vx *= K.dazzleSlow; d.vy *= K.dazzleSlow; } }
-  Object.assign(G, { isSafe, enterGarage, leaveGarage, learn, build, equipItem, salvageItem, upgrade, socket, bikeStats, bikeStat, gunMult, levelCap, atBench, stepGarage, weaponOf, upCost });
+  Object.assign(G, { isSafe, atGate, enterGarage, leaveGarage, learn, build, equipItem, salvageItem, upgrade, socket, bikeStats, bikeStat, gunMult, levelCap, atBench, stepGarage, weaponOf, upCost });
 }

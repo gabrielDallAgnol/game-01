@@ -58,5 +58,10 @@ test('the drive-in: GARAGE rides the bike into the bay at the same angle every t
   S.bike.ang = 2.2; assert.ok(sim.enterGarage()); const ev = []; for (let i = 0; i < 70; i++) { S.dead.length = 0; sim.step({ x: 1, y: 1, view: 21, fire: true }); ev.push(...sim.drain()); }
   assert.ok(ev.some(e => e.type === 'parked')); assert.strictEqual(S.garageRun.phase, 'parked'); assert.ok(Math.abs(S.bike.ang - ROAM.garage.bayAng) < 1e-6, 'the bay angle');
   assert.ok(Math.hypot(S.bike.x - g.bay.x, S.bike.y - g.bay.y) < 1e-6, 'in the bay'); assert.ok(!ev.some(e => e.type === 'shot'), 'no control while it rides in');
-  assert.ok(sim.leaveGarage()); for (let i = 0; i < 60; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); }
+  assert.ok(sim.leaveGarage()); for (let i = 0; i < 160; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); }
   assert.strictEqual(S.garageRun, null); assert.ok(Math.hypot(S.bike.x - g.exit.x, S.bike.y - g.exit.y) < 3, 'rolled out'); });
+test('the lot is fenced with one gate: shut it is a wall, it opens for the drive-in; GARAGE is at the gate', () => { const { sim, S } = fresh(); const g = S.sites.find(q => q.kind === 'garage'), G = g.gate;
+  assert.ok(G && g.fence.length >= 4, 'a fence and a gate'); assert.ok(town.blocked(G.x, G.y), 'shut: a wall');
+  S.kai.x = S.bike.x = g.entry.x; S.kai.y = S.bike.y = g.entry.y; sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); assert.ok(sim.atGate(), 'GARAGE at the gate');
+  assert.ok(sim.enterGarage()); let parked = false; for (let i = 0; i < 200 && !parked; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21 }); parked = sim.drain().some(e => e.type === 'parked'); if (i === 5) assert.ok(!town.blocked(G.x, G.y), 'open for the drive-in'); }
+  assert.ok(parked, 'parked in the bay'); assert.ok(Math.hypot(S.bike.x - g.bay.x, S.bike.y - g.bay.y) < 1e-6); });
