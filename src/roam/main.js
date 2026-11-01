@@ -73,7 +73,7 @@ function start() {
     const apply = () => { look.setLook({ ...LOOKS[order[li]], grey: 1 }); chip.textContent = 'LOOK · ' + order[li].toUpperCase(); };
     lab.bikeStyle = 'C'; lab.hideKai = true; look.glow.setHome(S.kai.x, S.kai.y);
     const chip = document.createElement('button'); chip.id = 'lookChip';
-    chip.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top) + 54px);right:10px;z-index:30;font:700 11px ui-monospace,monospace;letter-spacing:.08em;color:#f0b44c;background:rgba(10,10,12,.72);border:1px solid #f0b44c55;border-radius:10px;padding:7px 10px';
+    chip.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top) + 88px);right:10px;z-index:30;font:700 11px ui-monospace,monospace;letter-spacing:.08em;color:#f0b44c;background:rgba(10,10,12,.72);border:1px solid #f0b44c55;border-radius:10px;padding:7px 10px';
     chip.addEventListener('click', e => { e.stopPropagation(); li = (li + 1) % order.length; apply(); }); document.body.appendChild(chip); apply();
     setInterval(() => { if (running && !S.kai.riding && !S.kai.dead) input.ride = true; }, 250);   // the robot is the vehicle: no one gets off
   }

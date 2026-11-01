@@ -74,8 +74,9 @@ export function buildPeninsula(seed = 7) {
   // the bridge road: from Wendbridge's east end north-east over the cut and on to the edge; Wend Bridge is broken in the middle
   const bridgeLine = smooth([P(vE.x, vE.y), P(vE.x + 55, vE.y - 60), P(900, 790), P(918, 720), P(950, 660), P(1040, 590), P(1250, 460), P(1500, 335), P(1810, 205)], 2);
   const X = crossing(bridgeLine, cut), DECK = 13, GAP = 4.5;   // the deck: 13 m each way from the middle (over 18 m of water); the gap 9 m wide
-  const END = GAP + 5.6;   // a road's end is drawn round, 5.6 m past its last point: the drawn deck stops at the gap's edge
-  const before = bridgeLine.slice(0, X.i).concat([P(X.x - X.ux * END, X.y - X.uy * END)]), after = [P(X.x + X.ux * END, X.y + X.uy * END)].concat(bridgeLine.slice(X.i));
+  const END = GAP + profileOf({ kind: 'road', w: 7 }).width({ kind: 'road', w: 7 }) / 2;   // a road's end is drawn round, half its drawn width past its last point: the drawn deck stops at the gap's edge
+  const alongX = q => (q.x - X.x) * X.ux + (q.y - X.y) * X.uy;   // where a point is along the road, from the gap's middle
+  const before = bridgeLine.filter(q => alongX(q) < -END - 1).concat([P(X.x - X.ux * END, X.y - X.uy * END)]), after = [P(X.x + X.ux * END, X.y + X.uy * END)].concat(bridgeLine.filter(q => alongX(q) > END + 1));
   road('Wendbridge road', 'road', 7, before, { rounds: 0 }); road('the north road', 'road', 7, after, { rounds: 0 });
   W.decks.push({ name: 'Wend Bridge', a: P(X.x - X.ux * DECK, X.y - X.uy * DECK), b: P(X.x + X.ux * DECK, X.y + X.uy * DECK), half: 5.5, gap: { x: X.x, y: X.y, r: GAP }, broken: true, x: X.x, y: X.y, ux: X.ux, uy: X.uy });
   road('the point lane', 'lane', 4.5, [P(vW.x, vW.y), P(vW.x - 14, vW.y + 50), P(402, 1010), P(418, 1100), P(448, 1185), P(432, 1252), P(412, 1286)]);
