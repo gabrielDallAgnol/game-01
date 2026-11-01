@@ -13,9 +13,10 @@ import { createChem } from './sim/chem.js';
 import { createWorld } from './sim/world.js';
 import { createLoot } from './sim/loot.js';
 import { createAreas } from './sim/areas.js';
+import { createRisk } from './sim/risk.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas];
+const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas, createRisk];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
@@ -52,6 +53,11 @@ export const ROAM = {
   // by flyAcc), banked within grab; a weapon goes in the bag (bag slots) when she passes within take (takeRide on the
   // bike); rare drops scan within scan; scrap left lying scrapLife seconds goes; at most max drops on the ground
   loot: { pull: 14, settle: 0.45, fly0: 3, flyAcc: 40, flyMax: 30, grab: 0.8, take: 1.3, takeRide: 1.9, bag: 12, scan: 9, scrapLife: 90, max: 220 },
+  // [m5] risk: the bike's health; soak: the share of a hit it takes while Kai rides; below low it is worn (top speed x worn),
+  // wrecked it limps (x limp); a crash faster than crashMin m/s into a wall dents it crashDmg per m/s over; a field repair
+  // mends fixRate hp/s, a bank bankFix, one scrap per fixPer hp, only with no machine within safeR; bankR: how close a bank
+  // takes what she carries; cacheR: how close takes the cache back; backHp: the least the bike comes back with after a death
+  risk: { bikeHp: 100, soak: 0.7, low: 0.3, worn: 0.8, limp: 0.55, crashMin: 6, crashDmg: 1.2, fixRate: 8, bankFix: 30, fixPer: 4, safeR: 10, bankR: 7, cacheR: 1.9, backHp: 0.25 },
 };
 
 export function createRoam(town, seed = 1) {
@@ -72,11 +78,11 @@ export function createRoam(town, seed = 1) {
     G.view = Math.min(160, inp.view || 0);
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();
   const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
   const debug = { spawn: (kind, x, y, o) => G.spawn(kind, x, y, o) };   // for tests, labs and screenshots
-  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), equip: id => G.equip(id), salvage: id => G.salvage(id), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), equip: id => G.equip(id), salvage: id => G.salvage(id), repair: () => G.startFix(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }

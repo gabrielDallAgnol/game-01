@@ -9,7 +9,7 @@ export function createVehicle(G) {
     const want = Math.hypot(inp.x, inp.y) > 0.15 ? Math.atan2(inp.y, inp.x) : null;
     if (b.turnLock > 0) b.turnLock -= dt;
     if (want !== null && !(b.turnLock > 0)) { let d = want - b.ang; d = Math.atan2(Math.sin(d), Math.cos(d)); b.ang += Math.max(-1, Math.min(1, d * 2.5)) * R.bike.turn * dt * Math.min(1, 0.3 + b.speed / 6);
-      const throttle = Math.min(1, Math.hypot(inp.x, inp.y)) * (Math.abs(d) > 2.2 ? 0.2 : 1); b.speed = Math.min(R.bike.top * throttle, b.speed + R.bike.accel * dt); }
+      const throttle = Math.min(1, Math.hypot(inp.x, inp.y)) * (Math.abs(d) > 2.2 ? 0.2 : 1); b.speed = Math.min(R.bike.top * throttle * G.bikeTop(), b.speed + R.bike.accel * dt); }   // [m5] a worn or wrecked bike makes less speed
     else b.speed = Math.max(0, b.speed - R.bike.brake * 0.5 * dt * (want === null ? 1 : 0.3));
     const nx = b.x + Math.cos(b.ang) * b.speed * dt, ny = b.y + Math.sin(b.ang) * b.speed * dt;
     // [m3d] a wall turns the bike instead of stopping it: the part of its speed into the wall bounces back (restitution
@@ -19,7 +19,7 @@ export function createVehicle(G) {
       if (!mx && !my) { mx = -Math.cos(b.ang); my = -Math.sin(b.ang); } const ml = Math.hypot(mx, my) || 1; mx /= ml; my /= ml;
       const vx = Math.cos(b.ang) * b.speed, vy = Math.sin(b.ang) * b.speed, into = vx * mx + vy * my;
       if (into < 0) { const tx = vx - into * mx, ty = vy - into * my, ox = tx * R.bike.slide - into * R.bike.bounce * mx, oy = ty * R.bike.slide - into * R.bike.bounce * my;
-        if (-into > 6) ev('crash', { x: b.x, y: b.y }); b.speed = Math.hypot(ox, oy); if (b.speed > 0.05) b.ang = Math.atan2(oy, ox); b.turnLock = R.bike.lock; }
+        if (-into > 6) ev('crash', { x: b.x, y: b.y }); if (-into > R.risk.crashMin) G.hurtBike((-into - R.risk.crashMin) * R.risk.crashDmg, 'crash'); b.speed = Math.hypot(ox, oy); if (b.speed > 0.05) b.ang = Math.atan2(oy, ox); b.turnLock = R.bike.lock; }
       else b.speed *= 0.5;
       if (!blocked(b.x + mx * 0.08, b.y + my * 0.08)) { b.x += mx * 0.08; b.y += my * 0.08; } }
     else { b.x = nx; b.y = ny; }

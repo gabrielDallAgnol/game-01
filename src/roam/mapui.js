@@ -39,17 +39,22 @@ export function createMapUi({ sim, town, ui }) {
     if (focus) { X.save(); X.fillStyle = 'rgba(6,7,9,.55)'; X.beginPath(); X.rect(0, 0, w, h); path(focus); X.fill('evenodd'); X.restore(); }
     for (const a of roots()) { const col = colourOf(a); path(a); X.globalAlpha = a === focus ? 0.06 : 0.12; X.fillStyle = col; X.fill(); X.globalAlpha = 0.9; X.strokeStyle = 'rgba(8,8,10,.8)'; X.lineWidth = 4; X.stroke(); X.strokeStyle = col; X.lineWidth = 1.6; X.setLineDash(a.state === 'clean' ? [] : [6, 4]); X.stroke(); X.setLineDash([]); }
     X.globalAlpha = 1;
-    // walkers, Kai
+    // walkers (Kai and the [m5] markers are drawn last, over the names)
     const eyes = (x, y, r) => { for (const o of [-r * 0.9, r * 0.9]) { X.globalAlpha = 0.4; X.fillStyle = '#ff3a2a'; X.beginPath(); X.arc(x + o, y, r * 2.2, 0, 6.283); X.fill(); X.globalAlpha = 1; X.beginPath(); X.arc(x + o, y, r, 0, 6.283); X.fill(); } };
     for (const d of S.dead) if (d.boss) { const [x, y] = toS(d.x, d.y); eyes(x, y, Math.max(2.4, Math.min(5, view.s * 1.2))); }
-    { const [x, y] = toS(S.kai.x, S.kai.y), a = S.kai.face || 0; X.strokeStyle = 'rgba(8,8,10,.8)'; X.lineWidth = 5; X.beginPath(); X.arc(x, y, 10, 0, 6.283); X.stroke(); X.strokeStyle = '#f0b44c'; X.lineWidth = 2.2; X.beginPath(); X.arc(x, y, 10, 0, 6.283); X.stroke();
-      X.beginPath(); X.moveTo(x + Math.cos(a) * 10, y + Math.sin(a) * 10); X.lineTo(x + Math.cos(a) * 17, y + Math.sin(a) * 17); X.stroke(); X.fillStyle = '#ffd36a'; X.font = '700 12px "IBM Plex Mono", monospace'; X.textAlign = 'center'; X.textBaseline = 'middle'; X.fillText('@', x, y + 0.5); }
     // names: each area big in its colour; when an area is open, its quarters small inside it; labels step aside of each other
     const placed = [], label = (x, y, text, col, px) => { X.font = `700 ${px}px "IBM Plex Mono", monospace`; const tw = X.measureText(text).width + 10, th = px + 8;
       for (let k = 0; k < 10 && placed.some(q => Math.abs(q.x - x) < (q.w + tw) / 2 && Math.abs(q.y - y) < (q.h + th) / 2); k++) y += th; placed.push({ x, y, w: tw, h: th });
       X.fillStyle = 'rgba(8,9,11,.82)'; X.fillRect(x - tw / 2, y - th / 2, tw, th); X.fillStyle = col; X.fillText(text, x, y + 0.5); };
     for (const a of roots()) { const [x, y] = toS(a.x, a.y); if (x < -200 || y < -50 || x > w + 200 || y > h + 50) continue; label(x, y, `${a.name.toUpperCase()} · LV ${a.level}${a.state === 'clean' ? ' · CLEAN' : ''}`, colourOf(a), a === focus ? 14 : 11); }
     if (focus) for (const m of members(focus)) if (m !== focus) { const [x, y] = toS(m.x, m.y); label(x, y, m.name, 'rgba(233,226,207,.75)', 10); }
+    // [m5] the markers last, over the names: banks, the cache, then Kai
+    // [m5] banks (⌂ on an amber plate) and the death cache (◆, pulsing)
+    { const pl = (x, y, ch, a) => { X.globalAlpha = a; X.fillStyle = 'rgba(10,11,13,.9)'; X.beginPath(); X.arc(x, y, 9, 0, 6.283); X.fill(); X.strokeStyle = '#f0b44c'; X.lineWidth = 2; X.stroke(); X.fillStyle = '#ffd36a'; X.font = '700 11px "IBM Plex Mono", monospace'; X.textAlign = 'center'; X.textBaseline = 'middle'; X.fillText(ch, x, y + 0.5); X.globalAlpha = 1; };
+      for (const q of S.banks || []) { const [x, y] = toS(q.x, q.y); pl(x, y, '⌂', 1); }
+      if (S.cache) { const [x, y] = toS(S.cache.x, S.cache.y); pl(x, y, '◆', 0.6 + 0.4 * Math.sin(performance.now() / 250)); } }
+    { const [x, y] = toS(S.kai.x, S.kai.y), a = S.kai.face || 0; X.strokeStyle = 'rgba(8,8,10,.8)'; X.lineWidth = 5; X.beginPath(); X.arc(x, y, 10, 0, 6.283); X.stroke(); X.strokeStyle = '#f0b44c'; X.lineWidth = 2.2; X.beginPath(); X.arc(x, y, 10, 0, 6.283); X.stroke();
+      X.beginPath(); X.moveTo(x + Math.cos(a) * 10, y + Math.sin(a) * 10); X.lineTo(x + Math.cos(a) * 17, y + Math.sin(a) * 17); X.stroke(); X.fillStyle = '#ffd36a'; X.font = '700 12px "IBM Plex Mono", monospace'; X.textAlign = 'center'; X.textBaseline = 'middle'; X.fillText('@', x, y + 0.5); }
   }
   function tick() { raf = 0; const k = 0.22; view.x += (aim.x - view.x) * k; view.y += (aim.y - view.y) * k; view.s *= Math.pow(aim.s / view.s, k); draw();
     if (Math.abs(aim.x - view.x) > 0.3 || Math.abs(aim.y - view.y) > 0.3 || Math.abs(aim.s / view.s - 1) > 0.002) kick(); }

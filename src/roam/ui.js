@@ -48,7 +48,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'j') setFire(false); });
   function keyInput() { if (mover !== null) return; const x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), y = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0); if (x || y) { const r = Math.hypot(x, y); input.x = x / r; input.y = y / r; input.key = true; } else if (input.key) { input.x = input.y = 0; input.key = false; } }
   // ---------- events → words ----------
-  const WORDS = { dusk: ['Dusk. The machines wake hungry.', true], dawn: ['Dawn. The machines slow and power down.', true], down: ['Wrecked. Back at the square in a moment.'], back: ['Back on the bike.'], crash: ['Crash!'], won: ['Every area is clean. Hollowmere breathes.', true] };
+  const WORDS = { dusk: ['Dusk. The machines wake hungry.', true], dawn: ['Dawn. The machines slow and power down.', true], down: ['Down. Back at the garage in a moment.'], back: ['Back on the bike.'], crash: ['Crash!'], won: ['Every area is clean. Hollowmere breathes.', true] };
   // the first time each machine comes for you, a line on what it does (the game teaches by meeting, not a manual)
   const met = new Set(['crawler']);
   function meet() { const k = S.kai; for (const d of S.dead) if (!met.has(d.kind) && d.state === 'chase' && Math.hypot(d.x - k.x, d.y - k.y) < 20 && MACHINES[d.kind]) { met.add(d.kind); toast(`${MACHINES[d.kind].name}: ${MACHINES[d.kind].desc}`); } }
@@ -82,6 +82,10 @@ export function createUi({ canvas, fx, sim, cam, input }) {
       if (!w) { let wd = 1e9; for (const d of S.dead) if (d.boss) { const q = Math.hypot(d.x - k.x, d.y - k.y); if (q < wd) { wd = q; w = d; } } }
       if (w) one(w.x, w.y, '#ff2a1a', `WALKER ${Math.round(Math.hypot(w.x - k.x, w.y - k.y))}m`); }
     if (!k.riding && !k.dead) one(S.bike.x, S.bike.y, '#f0b44c', 'BIKE');
+    // [m5] begin: the death cache, and the nearest bank once she carries a lot or the bike is hurting
+    if (S.cache && !k.dead) one(S.cache.x, S.cache.y, '#ffd36a', `CACHE ${Math.round(Math.hypot(S.cache.x - k.x, S.cache.y - k.y))}m`);
+    if (!k.dead && S.banks && (S.scrap >= 40 || S.bike.hp < S.bike.maxHp * 0.3)) { let q = null, qd = 1e9; for (const p of S.banks) { const d = Math.hypot(p.x - k.x, p.y - k.y); if (d < qd) { qd = d; q = p; } } if (q) one(q.x, q.y, '#f0b44c', `BANK ${Math.round(qd)}m`); }
+    // [m5] end
   }
   return { update, arrows, toast, get paused() { return ui.paused; }, set paused(v) { ui.paused = v; } };
 }

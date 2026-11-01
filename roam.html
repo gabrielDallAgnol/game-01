@@ -88,6 +88,10 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #map .row{display:flex;gap:8px;align-items:center;justify-content:space-between;font:600 11px var(--mono);color:var(--dim)}
 #map .row .x{flex:none;width:44px;height:44px;padding:0;border-radius:12px;font:700 20px var(--mono);background:rgba(255,255,255,.14);color:var(--fg)}#map .row .leg{flex:1;text-align:right}
 #map .row button{border:0;border-radius:9px;padding:9px 14px;font:700 12px var(--mono);cursor:pointer;background:rgba(255,255,255,.12);color:var(--fg)}#map .row button.go{background:var(--amber);color:#1a1206}
+/* [m5] the bike's bar, the repair button */
+#hp .bar.bike{height:5px}#hp .bar.bike i{background:var(--amber)}#hp .bar.bike.low i{background:var(--ember)}#hp .bar.bike.wreck{animation:wreck 1s steps(2) infinite;background:rgba(255,90,58,.35)}@keyframes wreck{50%{opacity:.35}}
+#fix{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(238px + env(safe-area-inset-bottom,0px));width:72px;height:72px;display:grid;place-content:center;gap:1px;border-color:var(--amber);color:var(--amber)}
+#fix small{font:600 10px var(--mono);color:#d8cfb6}#fix.on{background:var(--amber);color:#1a1206}#fix.on small{color:#3a2a10}#fix.poor{opacity:.55}
 #fps{position:fixed;left:max(10px,env(safe-area-inset-left,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font:600 10px var(--mono);color:rgba(242,238,226,.55);pointer-events:none}
 #err{position:fixed;inset:auto 12px 50% 12px;background:#3a0d12;color:#ffd9dd;padding:12px;border-radius:10px}
 </style>
@@ -96,13 +100,13 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 <canvas id="gl" aria-label="Hollowmere, seen from above"></canvas>
 <canvas id="fx" aria-hidden="true"></canvas>
 <div id="hud" aria-live="polite">
-  <div class="chip" id="hp"><span>HP</span><div class="bars"><div class="bar"><i></i></div><div class="bar noise" id="heat" title="Noise: gunfire builds it; when it boils over a pack comes hunting"><i></i></div></div></div>
+  <div class="chip" id="hp"><span>HP</span><div class="bars"><div class="bar"><i></i></div><div class="bar bike" id="bikeHp" title="The bike: it takes most hits while you ride and only scrap mends it"><i></i></div><div class="bar noise" id="heat" title="Noise: gunfire builds it; when it boils over a pack comes hunting"><i></i></div></div></div>
   <div class="chip" id="nests">Clean <b>0/6</b></div>
   <div class="chip" id="clock">☀ 4:00</div>
   <button class="chip" id="kit" aria-label="Loadout: the gun's element, the off-hand enchant, modifiers">KIT</button>
   <button class="chip" id="speed" aria-label="Clock speed: 1x. Tap to make the day pass faster">1×</button>
 </div>
-<div id="loot"><span>⚙ <span id="scrap">0</span></span><span>◆ <span id="chips">0</span></span><button id="bagBtn" aria-label="Open the bag">BAG <span id="bagN">0</span></button><button id="mapBtn" aria-label="World map">MAP</button></div>
+<div id="loot"><span>⚙ <span id="scrap">0</span></span><span>◆ <span id="chips">0</span></span><span title="Banked: safe even if you go down">⌂ <span id="bank">0</span></span><button id="bagBtn" aria-label="Open the bag">BAG <span id="bagN">0</span></button><button id="mapBtn" aria-label="World map">MAP</button></div>
 <div id="area" hidden></div>
 <div id="boss" hidden></div>
 <div id="feed" aria-live="polite"></div>
@@ -112,6 +116,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <button class="rb" id="ride" aria-label="Get on the motorcycle" hidden>RIDE</button>
   <button class="rb go" id="dash" aria-label="Dash" hidden>DASH</button>
 </div>
+<button class="rb fix" id="fix" aria-label="Repair the bike" hidden>REPAIR</button>
 <!-- [m1] the combat pad: the main weapon (hold), two talent abilities, switch form; greyed until they exist. The off-hand is
      an enchant on the gun, set in the loadout (no button) [m2] -->
 <div id="pad">

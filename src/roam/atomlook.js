@@ -26,7 +26,7 @@ export function createAtomLook({ U, town }) {
       puffs.push({ x: mx, y: my, r: big ? 3 : 2.2, d: d2, ch: 2, life: big ? 0.14 : 0.07, t: 0 }); if (big) puffs.push({ x: e.x, y: e.y, r: 1.6, d: d3, ch: 0, life: 2, t: 0, grow: 0.8 }); }
     else if (e.type === 'hit') puffs.push({ x: e.x, y: e.y, r: 1, d: d2, ch: 2, life: 0.05, t: 0 });
     else if (e.type === 'spark') puffs.push({ x: e.x, y: e.y, r: 0.8, d: d3, ch: 0, life: 0.7, t: 0, v: 0.5 }); } }
-  let ox = 0, oy = 0, trailN = 0;
+  let ox = 0, oy = 0, trailN = 0, smokeAcc = 0;
   // put v (0..1) into a channel over a disc (soft edge) or a rotated box, keeping the strongest
   const put = (d, ch, i, j, v) => { if (i < 0 || j < 0 || i >= AN || j >= AN) return; const k = (j * AN + i) * 4 + ch, b = Math.round(Math.min(1, v) * 255); if (b > d[k]) d[k] = b; };
   function disc(d, ch, x, y, r, v, soft = 0.35) { const i0 = Math.floor(x - r - ox), i1 = Math.ceil(x + r - ox), j0 = Math.floor(y - r - oy), j1 = Math.ceil(y + r - oy);
@@ -64,6 +64,12 @@ export function createAtomLook({ U, town }) {
         if ((trailN = (trailN + 1) % 2) === 0) puffs.push({ x: bx, y: by, r: 0.7, d: d3, ch: 0, life: 1.6, t: 0, grow: 1, v: 0.8 }); } }
     // clouds from reactions: scalding steam and fog, thinning as they fade
     for (const c of S.clouds || []) disc(d2, c.kind === 'fog' ? 1 : 0, c.x, c.y, c.r, Math.min(1, c.left / 1.2) * Math.min(1, (c.dur - c.left) / 0.3 + 0.3), 0.6);
+    // [m5] a bank's lamp pools warm light on the ground round it (its reach: ride in to bank); a death cache's pulses; a hurt
+    // bike smokes from its engine, thick and black once wrecked
+    for (const q of S.banks || []) disc(d2, 2, q.x, q.y, q.kind === 'garage' ? 7 : 6, 0.16 + 0.04 * Math.sin(S.t * 1.3), 0.5);
+    if (S.cache) disc(d2, 2, S.cache.x, S.cache.y, 2.2, 0.2 + 0.15 * Math.sin(S.t * 4), 0.6);
+    { const b = S.bike, f = b.maxHp ? b.hp / b.maxHp : 1; if (f < 0.5) { smokeAcc += dt * (f <= 0 ? 9 : f < 0.3 ? 5 : 2);
+      while (smokeAcc >= 1) { smokeAcc -= 1; const bx = b.x - Math.cos(b.ang) * 0.6, by = b.y - Math.sin(b.ang) * 0.6; puffs.push({ x: bx, y: by, r: f <= 0 ? 0.9 : 0.6, d: d3, ch: 0, life: f <= 0 ? 2.6 : 1.6, t: 0, grow: 1.4, v: f <= 0 ? 0.9 : 0.55 }); } } }
     for (let k = puffs.length - 1; k >= 0; k--) { const p = puffs[k]; p.t += dt; if (p.t >= p.life) { puffs.splice(k, 1); continue; } const f = 1 - p.t / p.life;
       disc(p.d, p.ch, p.x, p.y, p.r * (1 + (p.grow || 0) * (1 - f)), f * (p.v || 1), 0.6); }
     if (puffs.length > 200) puffs.splice(0, puffs.length - 200);

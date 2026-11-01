@@ -19,7 +19,7 @@ test('a rolled weapon has its rarity\'s slots and one element at most', () => { 
     assert.ok(w.mods.filter(m => MOD_POOL.find(p => p.id === m).element).length <= 1, w.mods.join()); } });
 test('scrap flies to Kai and is banked; a weapon goes in the bag when she passes over it; equip and salvage from the bag', () => { const sim = createRoam(town, 3), S = sim.state; S.dead.length = 0; const k = S.kai;
   for (let i = 0; i < 5; i++) S.drops.push({ id: 5000 + i, kind: 'scrap', x: k.x + 4 + i, y: k.y, v: 1, t: S.t, fly: 0 });
-  for (let i = 0; i < 60; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); } assert.strictEqual(S.scrap, 5, 'all five flew in');
+  for (let i = 0; i < 60; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); } assert.strictEqual(S.scrap + (S.bank ? S.bank.scrap : 0), 5, 'all five flew in (she starts at the garage: it banks them) [m5]');
   S.drops.push({ id: 6000, kind: 'weapon', x: k.x + 0.5, y: k.y, w: { base: 'launcher', rarity: 'rare', mods: ['double_shot', 'fire'], seed: 1 }, scanned: true, t: S.t });
   sim.step({ x: 0, y: 0, view: 21 }); assert.ok(S.bag.some(b => b.id === 6000), 'picked up into the bag');
   assert.ok(sim.equip(6000)); assert.strictEqual(S.guns.main.base, 'launcher'); assert.deepStrictEqual(S.guns.main.mods, ['double_shot', 'fire']);

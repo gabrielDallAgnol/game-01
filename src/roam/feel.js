@@ -32,6 +32,11 @@ export function createFeel({ S, input, town }) {
       else if (e.type === 'clean') { stop = Math.max(stop, 0.45); shakeAmt = 1; spark(e.x, e.y, Math.random() * 6.28, 30, 9, '#ffd27a', 1.2, 1.6); }
       else if (e.type === 'hurt') shakeAmt = Math.min(1, shakeAmt + 0.45);
       else if (e.type === 'crash') shakeAmt = Math.min(1, shakeAmt + 0.4);
+      // [m5] the wrench on the bike throws glyph sparks with each bit of scrap it spends; a crash dents it in sparks
+      else if (e.type === 'fixTick') spark(e.x, e.y, Math.random() * 6.28, 4, 3, '#ffd27a', 0.25, 0.8);
+      else if (e.type === 'bikeHurt' && e.why === 'crash') spark(e.x, e.y, Math.random() * 6.28, 6, 5, '#e8e4da', 0.3);
+      else if (e.type === 'bikeWreck') { shakeAmt = Math.min(1, shakeAmt + 0.7); spark(e.x, e.y, Math.random() * 6.28, 16, 7, '#ffa04a', 0.6, 1.2); }
+      else if (e.type === 'bank' || e.type === 'cacheBack') spark(S.kai.x, S.kai.y, Math.random() * 6.28, 12, 5, '#ffd27a', 0.6, 1.1);
       else if (e.type === 'nestHit') shakeAmt = Math.min(0.6, shakeAmt + 0.05);
       else if (e.type === 'nestDown') { stop = 0.12; shakeAmt = 1; rings.push({ x: e.x, y: e.y, t: 0, big: true }); }
     }

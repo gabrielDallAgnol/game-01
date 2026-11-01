@@ -13,6 +13,7 @@ import { RARITY, nameOf } from '../play/loot.js';
 import { M, MATCOL } from './dress/mats.js';
 import { gardenLook } from './garden-look.js';
 import { landLook } from './world/land.js';
+import { riskVolumes, riskDraw } from './riskview.js';
 
 export const MAXP = 1024;          // volumes a frame (the dead off screen are left out)
 const RAMP = ' .,:-=+*%#@';
@@ -494,6 +495,8 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     for (const p of v.shots || []) { if (p.del !== 'splash' || !on(p.x, p.y)) continue; const sp = Math.hypot(p.vx, p.vy) || 1, ux = p.vx / sp, uy = p.vy / sp;
       capsule(p.x - ux * 0.55, p.y - uy * 0.55, 0.9, p.x + ux * 0.45, p.y + uy * 0.45, 0.9, 0.15, M.steel); sphere(p.x + ux * 0.5, p.y + uy * 0.5, 0.9, 0.13, M.dark);
       for (let k = 0; k < 4; k++) sphere(p.x - ux * (0.7 + k * 0.28), p.y - uy * (0.7 + k * 0.28), 0.85, 0.12 - k * 0.02, k ? M.crack : M.crackHot, 1 - k * 0.2); }   // its exhaust: lit cells
+    // [m5] banks and the death cache (riskview.js)
+    if (v.risk) riskVolumes(v.risk, K, t, on);
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
     for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;
@@ -599,6 +602,8 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
         const label = d.scanned ? nameOf(d.w) : '?', w = fx.measureText(label).width + 10; fx.globalAlpha = 0.9; fx.fillStyle = 'rgba(8,9,11,.82)'; fx.fillRect(x - w / 2, y - 8, w, 16);
         fx.globalAlpha = 1; fx.fillStyle = d.scanned ? RARITY[d.w.rarity].color : '#e8e4da'; fx.fillText(label, x, y + 0.5); }
       fx.restore(); fx.globalAlpha = 1; }
+    // [m5] the banks' lamps and the cache's light (riskview.js)
+    riskDraw(fx, v);
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
       const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();
