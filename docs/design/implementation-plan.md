@@ -126,6 +126,14 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 
 **Play it:** Do you play more carefully when carrying a lot of scrap? Does going back for the cache feel fair?
 
+**As built (Nov 1, `play/m5-risk`):**
+- **The bike has a body** (`src/roam/sim/risk.js`, 100 health). While Kai rides it takes 70% of every hit; a crash into a wall faster than 6 m/s dents it. Below 30% it runs at 80% speed and smokes from the engine (the atom map's smoke); wrecked it limps at 55% and every hit lands on Kai. It never mends by itself.
+- **Repair costs scrap.** REPAIR (above the pad, showing what a full repair costs) sets Kai working with the wrench: 8 health a second, one scrap per 4 health, only while the bike is stopped and no machine is within 10 m; the stick, a hit or a machine coming close stops her. Glyph sparks and a ratchet with each scrap spent.
+- **Banks:** the garage on the square where Kai starts, and a beacon where each area's walker fell (cleaning an area gives you a bank out there). Riding within 7 m banks everything she carries and mends the bike fast from banked scrap (30 health a second). Drawn as a mast with an amber lamp and a warm pool of light on the ground; far out and on the map, ⌂ on an amber plate.
+- **The death cache:** going down drops the scrap and chips she carried where she fell (a heap of scrap round a pulsing lamp, ◆ on the map, a CACHE arrow). Ride over it to take it back. A second death before that loses the first cache. Weapons in the bag are kept. The bike is towed back to the garage with at least 25% health.
+- **HUD:** the bike's bar under Kai's (amber, ember when low, blinking when wrecked); ⌂ banked scrap beside what she carries; a BANK arrow once she carries 40+ or the bike is low; toasts that teach each rule the first time.
+- Headless (a bot riding loops, 5 min): about 40 scrap a minute, a full repair is 25 scrap; the bot wrecks the bike by hitting walls (a real rider crashes far less).
+
 ## M6. The garage and the vehicle's look · about 1 week
 **Why sixth:** turns loot into a build you care about and can see.
 
