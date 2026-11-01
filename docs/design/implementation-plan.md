@@ -207,9 +207,9 @@ ash until their big machine is **freed** (not destroyed), then it filters the as
 |---|---|---|
 | P1 | The grey world (`?proto=grey`): colour drains where machines hold an area, light keeps its colour; the robot rides alone; the LOOK chip | **Built** (prototype) |
 | P2 | The Point (`?world=point`): the peninsula, the rivers and the cut as walls, Wendbridge, broken Wend Bridge, the garage at the tip, the boss wedged in the bridge (a pinned walker), the Point clean from the start | **Built** (map) |
-| P3 | Freeing a big machine: the freeing chip (a recipe built from chips + scrap at the garage), the link mini-game, the boss turns guardian/filter, the colour sweeps | Next |
-| P4 | Chips rarer; chips spent on the freeing chip and on vehicle upgrades | Next |
-| P5 | Mending Wend Bridge once the boss is free (a mission; the gap closes, the road opens) | Next |
+| P3 | Freeing a big machine: the freeing chip (a recipe built from chips + scrap at the garage), the link mini-game, the boss turns guardian/filter, the colour sweeps | **Built** (Nov 2 night) |
+| P4 | Chips rarer; chips spent on the freeing chip and on vehicle upgrades | **Built**: a machine's own chip, rolled per death, burnt by fire |
+| P5 | Mending Wend Bridge once the boss is free (a mission; the gap closes, the road opens) | **Built**, plus the objective line and the ash seen |
 | P6 | Wendbridge's people: a few small trust missions; the first recipe from a mission (the incremental start) | Later in P |
 | P7 | Colour on every asset (the small details on the separate layer too); the robot's rest pose; cutscenes in the game camera | Later in P |
 

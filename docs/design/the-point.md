@@ -79,15 +79,21 @@ Later, each **season** (chapter) is one ring of the map with its own type of mac
 body (the evolution), and a season ends with the colour reaching a new landmark. Areas further in are more destroyed,
 with fewer survivors; the centre holds the reason for it all.
 
-## 6. What is built (Nov 1)
+## 6. What is built (Nov 1–2)
 
 | Piece | Where |
 |---|---|
-| The grey world: colour drains where machines hold an area, returns when it is cleaned (the existing sweep); light keeps its colour | `src/roam/medium.js` `[grey]`, `?proto=grey` |
-| The robot alone (no rider, can't dismount), the LOOK chip (letters, pixels, fine pixels, dots) | `src/roam/main.js` `[grey]` |
-| The Point: rivers, canal, Wendbridge, broken Wend Bridge, the garage at the tip, farms, works, woods, fields | `src/roam/world/peninsula.js`, `?world=point` |
-| Rivers given as lines are walls; a bridge's deck is cleared except a broken deck's gap | `src/roam/town.js` `[point]` |
-| A home district (clean from the start, no walker); a pinned walker (never moves: the boss in the bridge) | `src/roam/sim/areas.js` |
+| **The base:** the Point in the grey world is what `roam.html` opens now (`?world=region` for Hollowmere, `?proto=none` for the old look) | `src/roam/main.js` |
+| The grey world: colour drains where machines hold an area, returns when it is cleaned (the sweep); light keeps its colour; water keeps some of its sky | `src/roam/medium.js` `[grey]` |
+| The robot alone (no rider, can't dismount), Kai at home by the garage doors (she turns to watch it come in); the LOOK chip | `src/roam/main.js`, `medium.js` `[point]` |
+| The Point: rivers, canal, Wendbridge, broken Wend Bridge, the garage at the tip, farms, works, woods, fields | `src/roam/world/peninsula.js` |
+| Water is a wall for wheels and feet, **not for what flies** (shots and bolts cross it); a bridge deck is road; a broken deck's gap is a shut gate over water | `src/roam/town.js` `[point]` |
+| Water meets its neighbours: a soft bank by grass and fields (mud, stones, rank grass, reeds, shallows, lapping), a stone quay by hard ground, a bridge's shadow on the water | `src/roam/world/land.js` `[shore]` |
+| A home district (clean from the start, no walker); a pinned walker (the boss in the bridge); a free area (its walker can only be freed) | `src/roam/sim/areas.js` |
+| **Freeing:** shot down, the boss's core stops at 15% and lies open (the boss bar: OPEN · FREE IT, an amber call on it). The **freeing chip** (garage BUILD, key items: 40 scrap, 6 chips; Kai knows it from the start). LINK beside FIRE; tap as the closing ring meets it (a pulse every 1.3 s, 0.36 s window), 5 in time; a miss costs one and locks the link 0.6 s; riding away breaks it (the chip is kept). Freed: its brood powers down (they drop what they carry), the area is clean, the colour sweeps from it, its eyes turn amber, ash motes rise off it (it filters), and it climbs out of the gap to a post on the bank | `src/roam/sim/freeing.js`, `freeview.js`, `freeui.js` |
+| **Chips are a machine's own chip:** it comes through a death whole only sometimes (crawler and skitter 8%, hound 12%, spitter 14%, brute 60%); a machine that died burning keeps none (x0.3). Fire costs you chips | `src/play/loot.js`, `src/roam/sim/loot.js` |
+| **Mending Wend Bridge:** while the boss is wedged in it nobody can mend it; once it is free, MEND at the bridge's end with 60 scrap carried; the people of Wendbridge work while Kai guards (14 s; the work waits while she's away); mended, the gate opens and the road north runs on. Drawn: snapped ends (concrete chunks, rebar, rubble), then girders and planks, then rails | `src/roam/sim/bridges.js`, `bridgeview.js`, `bridgeui.js` |
+| **The objective line:** the tutorial chain read from the state (Wendbridge → chips → the freeing chip → free the boss → mend the bridge → the road north) | `src/roam/objui.js` |
+| **The ash, seen:** flakes drift down in dark areas, none in clean ones; the boss breathes ash from its back like a stack | `src/roam/ashview.js`, plume preset `ash` |
 
-Not yet: freeing instead of killing, the freeing chip recipe, chips rarer, mending the bridge, the people and missions,
-cutscenes, the rest pose, colour on the small details.
+Not yet: the people of Wendbridge on screen and their trust missions, the first recipe from a mission (the incremental start), the kids, the robot's rest pose and cutscenes, colour on the small details drawn on the separate layer, the rivers' flow, the first town beyond the bridge.
