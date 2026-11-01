@@ -79,5 +79,5 @@ export function createLook(canvas, town) {
     medium.render({ cam, cssW, cssH, dpr, kai: S.kai, dead: S.dead, deaths: v.falls, bike: S.bike, nests: S.nests, t, night, props: town.dress.volumes, broken: S.broken, drops: S.drops, shots: S.shots, guns: S.guns, bolts: S.bolts, risk: S, gear: v.gearView || S.gear, garageSel: v.garageSel, hideKai: v.hideKai, gunBase: v.gunBase, bikeStyle: v.bikeStyle });
     renderer.render(scene, quadCam);
   }
-  return { render, resize, draw: medium.draw, U, atoms, glow, stamp: (x, y, r) => blasts.push({ x, y, r }) };
+  return { setLook: medium.setLook, render, resize, draw: medium.draw, U, atoms, glow, stamp: (x, y, r) => blasts.push({ x, y, r }) };
 }

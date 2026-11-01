@@ -53,10 +53,20 @@ export function createMedium(o) {
   // drawn at the cell's own pixel size and sampled nearest: a big atlas shrunk without mips loses the letters' strokes
   const atlas = document.createElement('canvas'); let atlasPx = 0;
   const tGlyph = new THREE.CanvasTexture(atlas); tGlyph.minFilter = tGlyph.magFilter = THREE.NearestFilter; tGlyph.generateMipmaps = false;
+  // [lab] the cell's mark can be something other than a letter (Nov 1, Gabriel: could it feel cleaner, more AAA?): 'glyph'
+  // (the letters, today), 'dots' (a halftone dot growing with the light), 'tiles' (a square growing with the light, a mosaic),
+  // 'pixel' (a full square, its strength the light: flat pixel art); and the cell's size in the world (cellW) can shrink
+  // until the cells melt into smooth shading. Set by the design lab (lab.look); the game keeps the letters
+  const look = { style: 'glyph', cellW: CELLW };
+  function setLook(o) { Object.assign(look, o); atlasPx = 0; }
   function paintAtlas(px) {
     if (px === atlasPx) return; atlasPx = px; atlas.width = px * NG; atlas.height = px; const g = atlas.getContext('2d');
     g.clearRect(0, 0, atlas.width, atlas.height); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `700 ${Math.round(px * 1.05)}px "IBM Plex Mono", ui-monospace, Menlo, monospace`;
-    for (let i = 0; i < NG; i++) g.fillText(RAMP[i], i * px + px / 2, px * 0.55);
+    for (let i = 0; i < NG; i++) { const q = i / (NG - 1), cx = i * px + px / 2, cy = px / 2;
+      if (look.style === 'dots') { if (i) { g.beginPath(); g.arc(cx, cy, Math.max(0.6, px * 0.52 * Math.sqrt(q)), 0, 6.283); g.fill(); } }
+      else if (look.style === 'tiles') { if (i) { const w = Math.max(1, px * (0.3 + 0.62 * Math.sqrt(q))); g.fillRect(cx - w / 2, cy - w / 2, w, w); } }
+      else if (look.style === 'pixel') { g.globalAlpha = q; g.fillRect(i * px, 0, px, px); g.globalAlpha = 1; }
+      else g.fillText(RAMP[i], cx, px * 0.55); }
     tGlyph.image = atlas; tGlyph.needsUpdate = true;
   }
 
@@ -470,7 +480,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     const { cam, cssW, cssH, dpr, kai, dead, bike, nests, t, night } = v, mW = cssW / cam.ppm / 2 + 4, mH = cssH / cam.ppm / 2 + 4, on = (x, y) => Math.abs(x - cam.x) < mW && Math.abs(y - cam.y) < mH;
     for (const nst of nests) if (on(nst.x, nst.y)) nestVolumes(nst, t);
     // what moves is drawn snapped to the cell grid: its letters ride with it instead of re-sampling as it slides
-    const sn = q => Math.round(q / CELLW) * CELLW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
+    const sn = q => Math.round(q / look.cellW) * look.cellW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
     if (on(bike.x, bike.y)) { if (v.bikeStyle) { if (v.bikeStyle === 'B') bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM); bikeLookLab(v.bikeStyle, snap(bike), K, t, night, kai.riding, v.gear, FIGM); } else if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM, v.garageSel); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.gunBase ? { ...v.guns.main, base: v.gunBase } : v.guns.main, t, v.garageSel === 'weapon' ? 0.85 + 0.15 * Math.sin(t * 4) : 0); }   // [m6] the bike from its parts' modules
     if (!kai.dead && !v.hideKai) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;
@@ -517,7 +527,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     // the glyph cells have a size in the world (CELLW metres), like the grass: zooming in makes the letters bigger, zooming
     // out smaller, and no cell ever re-samples: each stays on its own patch of world. Below a few pixels a cell's letter
     // fades into its average ink (see the composite), so far away a solid reads as a shaded silhouette, not noise
-    const W = Math.floor(cssW * dpr), H = Math.floor(cssH * dpr), pxm = W / (cssW / cam.ppm), cp = Math.max(1.5, CELLW * pxm), cw = Math.ceil(W / cp) + 1, ch = Math.ceil(H / cp) + 1;
+    const W = Math.floor(cssW * dpr), H = Math.floor(cssH * dpr), pxm = W / (cssW / cam.ppm), cp = Math.max(1.5, look.cellW * pxm), cw = Math.ceil(W / cp) + 1, ch = Math.ceil(H / cp) + 1;
     { const py = H / (cssH / cam.ppm), m = a => ((a % cp) + cp) % cp; U.uCellOff.value.set(m(cam.x * pxm - W / 2), m(-(H / 2 + cam.y * py))); }
     if (!rt || rt.width !== cw || rt.height !== ch) { if (rt) rt.dispose(); rt = new THREE.WebGLRenderTarget(cw, ch, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, type: THREE.UnsignedByteType, depthBuffer: fragDepth }); }
     paintAtlas(Math.max(4, Math.min(18, Math.round(cp)))); cells.set(cw, ch); res.set(W, H); U.uCellPx.value = cp; U.tCells.value = rt.texture;
@@ -631,5 +641,5 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       fx.globalAlpha = 1;
     }
   }
-  return { material, render, draw };
+  return { material, render, draw, setLook };
 }
