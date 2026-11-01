@@ -170,6 +170,13 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - KIT is a test control now (only with `?dev=1`).
 - Headless (a bot riding loops, 10 min): ~400 scrap, ~14 recipe drops (8 common, 4 tuned, 2 rare), a few chips: tuned builds cost scrap only so the early garage is reachable.
 
+**After Gabriel's M6 playtest (Nov 1):**
+- **The bike and what's fitted to it read apart now:** BIKE in the garage is a picture of the bike with its five fitted parts labelled where they sit (gun, engine, frame, lamp, tyres); tap one to see it. Its button says UPGRADE THIS GUN / ENGINE..., with a line that it improves that part, not the bike, and the level goes with the part. The FIRE button names the gun you carry and its level.
+- **Fewer drops:** recipes from crawlers 1.2%, hounds 2.5%, spitters 3%, brutes 20%; no epic except 5% from a walker. (Testing still needs some; the real start is incremental, see M8.)
+- **No bank where a walker falls** (Gabriel: a bank right at the boss doesn't make sense). Banks: the camp and the garage.
+- **Elite machines drop their mod** (`src/play/elites.js`, `src/roam/sim/elites.js`): 3% of machines (+1.2% per area level, x1.5 at night) carry a mod and act it: Quick (runs 45% faster), Twin (hits twice; a twin spitter spits two bolts), Glancing (shots glance off: 55% damage), Burning (the ground catches where it walks), Soaking (leaves water). 2.6x health, bigger eyes, a name plate in ember (BURNING HOUND). Beating one drops that mod (a steel chip with a lit core): carried, at risk, until a bank sends it to the garage. Mod recipes stay buildable too.
+- **Later, recorded:** the garage UI should look like a game, not a file manager (a pass in M10's polish); the incremental start goes into M8.
+
 ## M7. Levels and talents · about 1 week
 | Build | Notes |
 |---|---|
@@ -187,6 +194,7 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 | House sockets | Plate, lamp, vent and sign modules raise a house's care |
 | Rebuild missions | Haul, courier, power line, guard; the main source of XP |
 | Survivors move in | The hub fills up as you clean and rebuild |
+| An incremental start (Gabriel, Nov 1) | At first machines drop only scrap; a mission gives the first recipe and teaches building it; then recipes start dropping, tuned first; no epic early on |
 | The mechanic | A survivor in town who repairs the bike: for scrap at first, free after his mission (Gabriel, Nov 1). Replaces the banks' free repair |
 
 **Play it:** Do you want to go back to town to see what changed? Do missions feel like helping people, or like chores?
@@ -202,7 +210,7 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 **Play it:** Can each form carry the whole game alone? Does switching feel optional, not required?
 
 ## M10. Chapter 1 complete
-The control-node boss, the story hooks (the chip, the 3:00 radio voice), side quests, 3–5 areas, polish, a full playtest.
+The control-node boss, the story hooks (the chip, the 3:00 radio voice), side quests, 3–5 areas, polish (including the garage and panels looking like a game, not a file manager: Gabriel, Nov 1), a full playtest.
 
 ## Later list (not before chapter 1 is fun)
 A portable garage on the truck form (the garage's services on a vehicle), buying a garage to make it home, turrets built for houses as missions; Shock and wind (and their reactions), epic modifier slots, schematics, the Deep Signal endgame, chapter 2, Kai on foot for narrow places and shops.
