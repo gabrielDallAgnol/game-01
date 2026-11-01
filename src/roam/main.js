@@ -13,6 +13,7 @@ import { createRiskUi } from './riskui.js';
 import { createFreeUi } from './freeui.js';
 import { createBridgeUi } from './bridgeui.js';
 import { createObjUi } from './objui.js';
+import { folkOf } from './peopleview.js';
 import { createGarageUi } from './garageui.js';
 import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
 import { createFeel } from './feel.js';
@@ -122,6 +123,7 @@ function start() {
     return Math.min(1.2, l); }
   const shade = (hex, l) => { const n = parseInt(hex.slice(1), 16), f = v => Math.round(Math.min(255, v * l)); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; };
   let curNight = 0;
+  const folk = folkOf(town.buildings, 'village');   // [point] the people of the town by the bridge (render: peopleview.js)
   let ashAcc = 0; const falls = []; let acc = 0, last = performance.now(), t = 0;
   function frame(now) {
     const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw); last = now; t += dt;
@@ -148,7 +150,7 @@ function start() {
     // no pull-back with the bike's speed for the same reason
     { const want = cam.base; cam.ppm += (want - cam.ppm) * Math.min(1, dt * 6); if (Math.abs(want - cam.ppm) < want * 0.004) cam.ppm = want; }
     const shook = feel.shake(cam, dt);   // [m1] the camera shakes for this frame only
-    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun, garageSel: garageUi.sel, hideKai: garageUi.isOpen || !!lab.hideKai, kaiHome: !!lab.hideKai && !garageUi.isOpen, gearView: garageUi.gearView(), gunBase: garageUi.gunBase, bikeStyle: lab.bikeStyle });
+    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun, garageSel: garageUi.sel, hideKai: garageUi.isOpen || !!lab.hideKai, kaiHome: !!lab.hideKai && !garageUi.isOpen, folk, gearView: garageUi.gearView(), gunBase: garageUi.gunBase, bikeStyle: lab.bikeStyle });
     fx.clearRect(0, 0, cssW, cssH);
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules

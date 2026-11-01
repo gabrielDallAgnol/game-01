@@ -20,8 +20,9 @@ import { drawElites } from './elitesview.js';
 import { dressVolumes, dressDraw } from './sitedress.js';
 import { drawGarageSel } from './garageview.js';
 import { drawFreeing } from './freeview.js';
-import { drawAsh } from './ashview.js';
+import { drawAsh, darkAt } from './ashview.js';
 import { bridgeVolumes } from './bridgeview.js';
+import { peopleVolumes } from './peopleview.js';
 
 export const MAXP = 1024;          // volumes a frame (the dead off screen are left out)
 const RAMP = ' .,:-=+*%#@';
@@ -532,7 +533,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       capsule(p.x - ux * 0.55, p.y - uy * 0.55, 0.9, p.x + ux * 0.45, p.y + uy * 0.45, 0.9, 0.15, M.steel); sphere(p.x + ux * 0.5, p.y + uy * 0.5, 0.9, 0.13, M.dark);
       for (let k = 0; k < 4; k++) sphere(p.x - ux * (0.7 + k * 0.28), p.y - uy * (0.7 + k * 0.28), 0.85, 0.12 - k * 0.02, k ? M.crack : M.crackHot, 1 - k * 0.2); }   // its exhaust: lit cells
     // [m5] banks and the death cache (riskview.js)
-    if (v.risk) { riskVolumes(v.risk, K, t, on); dressVolumes(v.risk, K, t, on); bridgeVolumes(v.risk, K, t, on); }   // [point] the bridges   // [m6c] the garage's own props
+    if (v.risk) { riskVolumes(v.risk, K, t, on); dressVolumes(v.risk, K, t, on); bridgeVolumes(v.risk, K, t, on); peopleVolumes(v, K, on, sn); }   // [point] the bridges, the people   // [m6c] the garage's own props
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
     for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;
@@ -576,8 +577,10 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
         for (let j = 1; j <= 6; j++) { const u = j / 6, a = a0 + Math.sin(t * 1.6 + i + u * 3) * 0.5 * u; fx.lineTo(x + Math.cos(a) * len * u, y + Math.sin(a) * len * u); } fx.stroke(); } }
     // the city's soft atoms (wires, washing, smoke) and its little lives (birds, paper), in view
     { const onS = (x, y, m) => { const [X, Y] = toS(x, y); return X > -m && Y > -m && X < cssW + m && Y < cssH + m; };
-      for (const i of v.strands || []) if (onS(i.x, i.y, 300)) { fx.save(); i.atom.strands(fx, i, v); fx.restore(); }
-      for (const i of v.live || []) if (i.st && onS(i.st.x ?? i.x, i.st.y ?? i.y, 60)) { fx.save(); i.atom.live.draw(fx, i, v); fx.restore(); } }
+      // [grey] the overlay's colours follow the grey too: washing, signs, birds in a dark area are drained like the solids
+      const grey = (x, y) => { if (look.grey && darkAt(v.risk, x, y)) fx.filter = 'grayscale(0.85) brightness(0.92)'; };
+      for (const i of v.strands || []) if (onS(i.x, i.y, 300)) { fx.save(); grey(i.x, i.y); i.atom.strands(fx, i, v); fx.restore(); }
+      for (const i of v.live || []) if (i.st && onS(i.st.x ?? i.x, i.st.y ?? i.y, 60)) { fx.save(); grey(i.st.x ?? i.x, i.st.y ?? i.y); i.atom.live.draw(fx, i, v); fx.restore(); } }
     // a fall: the glyphs come apart and drift off as ash
     fx.font = `700 ${Math.max(7, Math.round(0.14 * s))}px "IBM Plex Mono", ui-monospace, monospace`; fx.textAlign = 'center'; fx.textBaseline = 'middle';
     for (const D of deaths) { const k = (t - D.t0) / 2.1; if (k > 1) continue; const [x, y] = toS(D.x, D.y);

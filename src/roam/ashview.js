@@ -3,6 +3,8 @@
 // it). And a big machine to free breathes ash out of its back like a stack (ashPlume, emitted from main.js). Render only:
 // reads S.areaGrid, S.areas, S.dead; each flake is a hash of its 3 m cell and the time (no state).
 const h1 = (a, b) => { let n = Math.imul(a * 374761393 + b * 668265263, 1274126177); n ^= n >>> 13; n = Math.imul(n, 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+// is (x, y) in an area the machines still hold? (the grey's rule, for anything drawn on the overlay: medium.js greys it)
+export function darkAt(S, x, y) { const G0 = S && S.areaGrid; if (!G0) return false; const i = Math.floor(x / G0.cell), j = Math.floor(y / G0.cell); if (i < 0 || j < 0 || i >= G0.gw || j >= G0.gh) return false; const k = G0.ids[j * G0.gw + i]; return k >= 0 && S.areas[k] && S.areas[k].state !== 'clean'; }
 export function drawAsh(fx, v) {
   const S = v.risk; if (!S || !S.areaGrid) return; const { toS, cam, t, cssW, cssH } = v, G0 = S.areaGrid, ppm = cam.ppm;
   const C = ppm < 8 ? 6 : 3, hw = cssW / ppm / 2 + C, hh = cssH / ppm / 2 + C, x0 = Math.floor((cam.x - hw) / C), x1 = Math.ceil((cam.x + hw) / C), y0 = Math.floor((cam.y - hh) / C), y1 = Math.ceil((cam.y + hh) / C);
