@@ -2,6 +2,7 @@
 // beside what she carries (⌂), the REPAIR button while the bike is hurt (it shows what a full repair costs; tap again to
 // stop), and the words for the bike, repairs, banking and the cache. Writes only `input`.
 import { ROAM } from './sim.js';
+import { offers } from '../play/sites.js';
 export function createRiskUi({ sim, toast, input }) {
   const $ = id => document.getElementById(id), S = sim.state, bar = $('bikeHp'), barI = bar.firstElementChild, bankEl = $('bank'), fix = $('fix');
   const per = ROAM.risk.fixPer;
@@ -10,7 +11,7 @@ export function createRiskUi({ sim, toast, input }) {
   let lowAt = -99;
   const NO = { scrap: 'No scrap on you to fix it with.', machines: 'Not with machines this close.', far: 'Get next to the bike.', whole: 'The bike is whole.' };
   const STOP = { moved: 'Repair stopped.', hit: 'Hit! Repair stopped.', machines: 'Machines close: repair stopped.', scrap: 'Out of scrap: repair stopped.' };
-  const sc = (s, c) => `⚙${s}${c ? ' ◆' + c : ''}`;
+  const sc = (s, c, r) => `⚙${s}${c ? ' ◆' + c : ''}${r ? ' and ' + r + ' recipe' + (r > 1 ? 's' : '') : ''}`;
   function words(evs) { for (const e of evs) {
     if (e.type === 'bikeLow' && S.t - lowAt > 20) { lowAt = S.t; toast('The bike is hurting and runs slower. REPAIR when it\'s quiet, or ride to a bank.', true); }
     else if (e.type === 'bikeWreck') toast('The bike is wrecked: it limps, and every hit lands on you.', true);
@@ -18,21 +19,21 @@ export function createRiskUi({ sim, toast, input }) {
     else if (e.type === 'fixStart') once('fix', 'Kai works on the bike: it costs scrap. Moving or a hit stops her.');
     else if (e.type === 'fixStop' && STOP[e.why]) toast(STOP[e.why]);
     else if (e.type === 'fixed') toast(e.at === 'field' ? 'The bike is whole again.' : 'Fixed up at the bank.');
-    else if (e.type === 'bank') { toast(`Banked ${sc(e.scrap, e.chips)}. Safe now.`, true); once('bank', 'What you carry is lost if you go down. Banked scrap is safe.'); }
-    else if (e.type === 'cache') toast(`You dropped ${sc(e.scrap, e.chips)} where you fell. Ride back for it.`, true);
-    else if (e.type === 'cacheBack') toast(`Got it back: ${sc(e.scrap, e.chips)}.`);
-    else if (e.type === 'cacheLost') toast(`Your old cache is gone: ${sc(e.scrap, e.chips)} lost.`);
+    else if (e.type === 'bank') { toast(`Banked ${sc(e.scrap, e.chips, e.recipes)}. Safe now.`, true); once('bank', 'What you carry is lost if you go down. Banked scrap and recipes are safe.'); }
+    else if (e.type === 'cache') toast(`You dropped ${sc(e.scrap, e.chips, e.recipes)} where you fell. Ride back for it.`, true);
+    else if (e.type === 'cacheBack') toast(`Got it back: ${sc(e.scrap, e.chips, e.recipes)}.`);
+    else if (e.type === 'cacheLost') toast(`Your old cache is gone: ${sc(e.scrap, e.chips, e.recipes)} lost.`);
     else if (e.type === 'beacon') toast('Where the walker fell is a beacon now: a bank out here.', true);
     else if (e.type === 'towed') toast('The bike was towed in and patched up.'); }
-    if (S.scrap >= 25 && !S.kai.dead) once('carry', 'Carried scrap is at risk. Bank it at the garage (⌂) on the square.'); }
+    if (S.scrap >= 25 && !S.kai.dead) once('carry', 'Carried scrap is at risk. Bank it at the camp (⌂) on the square or the garage.'); }
   let last = '';
   function update(evs) { words(evs || []);
     const b = S.bike, k = S.kai, f = b.maxHp ? b.hp / b.maxHp : 1, cost = Math.ceil((b.maxHp - b.hp) / per);
-    const near = (S.banks || []).some(q => Math.hypot(q.x - k.x, q.y - k.y) < ROAM.risk.bankR), sig = `${near}|${Math.round(f * 100)}|${S.bank.scrap}|${S.bank.chips}|${b.fixing}|${k.dead > 0}|${S.scrap > 0}|${cost}`;
+    const near = (S.sites || []).some(q => offers(q, 'repair') && Math.hypot(q.x - k.x, q.y - k.y) < ROAM.risk.bankR), sig = `${near}|${Math.round(f * 100)}|${S.bank.scrap}|${S.bank.chips}|${b.fixing}|${k.dead > 0}|${S.scrap > 0}|${cost}`;
     if (sig === last) return; last = sig;
     barI.style.width = `${Math.max(0, f * 100)}%`; bar.classList.toggle('low', f < 0.3 && f > 0); bar.classList.toggle('wreck', f <= 0);
     bankEl.textContent = S.bank.chips ? `${S.bank.scrap}·◆${S.bank.chips}` : S.bank.scrap;
-    const atBank = (S.banks || []).some(q => Math.hypot(q.x - k.x, q.y - k.y) < ROAM.risk.bankR);   // a bank mends it by itself
+    const atBank = (S.sites || []).some(q => offers(q, 'repair') && Math.hypot(q.x - k.x, q.y - k.y) < ROAM.risk.bankR);   // a site with repair mends it by itself
     fix.hidden = !!k.dead || atBank || (f >= 1 && !b.fixing);
     fix.classList.toggle('on', !!b.fixing); fix.classList.toggle('poor', !(S.scrap > 0));
     fix.innerHTML = b.fixing ? 'STOP<small>fixing</small>' : `REPAIR<small>⚙${cost}</small>`;

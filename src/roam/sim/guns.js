@@ -7,8 +7,9 @@ import { buildShot } from '../../play/fire.js';
 export function createGuns(G) {
   const { R, S, ev, dist, town } = G, { blocked } = town, rng = new Rng(hashSeed(G.seed, 'guns'));
   // [m2] the gun carries an element; the off-hand is not a weapon but an enchant: every `every`th shot carries its element
-  // instead (fire gun + water enchant: fire, water, fire... a mix in three pips). Set from the loadout (G.setLoadout).
-  S.guns = { main: { base: 'scatter', mods: [], test: [], el: null, cd: 0, aim: 0, target: -1, n: 0 }, off: { enchant: 'water', every: 2 } };
+  // instead (fire gun + water enchant: fire, water, fire... a mix in three pips). Set from the loadout (G.setLoadout, a test
+  // control). [m6] none by default: the charge mods (fire_charge, water_charge) in a socket do this in play.
+  S.guns = { main: { base: 'scatter', mods: [], test: [], el: null, cd: 0, aim: 0, target: -1, n: 0 }, off: { enchant: null, every: 2 } };
   S.shots = [];
   let sid = 1;
   function targetOf(k, range) { let tgt = null, td = range;
@@ -22,7 +23,9 @@ export function createGuns(G) {
     if (prefer && prefer.kind && inCone(prefer)) return prefer; let best = null, bd = 1e9; for (const d of S.dead) if (inCone(d)) { const q = Math.hypot(d.x - x, d.y - y); if (q < bd) { bd = q; best = d; } } return best; }
   function fire(g, k, inp) {
     const shot = buildShot(WEAPONS[g.base], [...g.mods, ...g.test]), aimIn = inp.aim, off = S.guns.off;
-    g.n++; const el = off.enchant && off.every && g.n % off.every === 0 ? off.enchant : (g.el || shot.element);
+    // [m6] the weapon's level is its damage (the garage's upgrade); a charge mod puts its element on every 2nd shot
+    const lv = G.gunMult ? G.gunMult() : 1; shot.dmg *= lv; if (shot.splash) shot.splash = { ...shot.splash, dmg: shot.splash.dmg * lv };
+    g.n++; const el = shot.charge && g.n % shot.every === 0 ? shot.charge : off.enchant && off.every && g.n % off.every === 0 ? off.enchant : (g.el || shot.element);
     const manual = typeof aimIn === 'number', tgt = manual ? null : targetOf(k, shot.range);
     const ang = manual ? aimIn : tgt ? Math.atan2(tgt.y - k.y, tgt.x - k.x) : k.face;
     g.aim = ang; g.manual = manual; g.target = tgt ? (tgt.kind ? tgt.id : -1) : -1; g.cd = 1 / shot.rate;

@@ -51,7 +51,7 @@ export function createMapUi({ sim, town, ui }) {
     // [m5] the markers last, over the names: banks, the cache, then Kai
     // [m5] banks (⌂ on an amber plate) and the death cache (◆, pulsing)
     { const pl = (x, y, ch, a) => { X.globalAlpha = a; X.fillStyle = 'rgba(10,11,13,.9)'; X.beginPath(); X.arc(x, y, 9, 0, 6.283); X.fill(); X.strokeStyle = '#f0b44c'; X.lineWidth = 2; X.stroke(); X.fillStyle = '#ffd36a'; X.font = '700 11px "IBM Plex Mono", monospace'; X.textAlign = 'center'; X.textBaseline = 'middle'; X.fillText(ch, x, y + 0.5); X.globalAlpha = 1; };
-      for (const q of S.banks || []) { const [x, y] = toS(q.x, q.y); pl(x, y, '⌂', 1); }
+      for (const q of S.sites || []) { const [x, y] = toS(q.x, q.y); pl(x, y, q.kind === 'garage' ? '⚙' : '⌂', 1); }
       if (S.cache) { const [x, y] = toS(S.cache.x, S.cache.y); pl(x, y, '◆', 0.6 + 0.4 * Math.sin(performance.now() / 250)); } }
     { const [x, y] = toS(S.kai.x, S.kai.y), a = S.kai.face || 0; X.strokeStyle = 'rgba(8,8,10,.8)'; X.lineWidth = 5; X.beginPath(); X.arc(x, y, 10, 0, 6.283); X.stroke(); X.strokeStyle = '#f0b44c'; X.lineWidth = 2.2; X.beginPath(); X.arc(x, y, 10, 0, 6.283); X.stroke();
       X.beginPath(); X.moveTo(x + Math.cos(a) * 10, y + Math.sin(a) * 10); X.lineTo(x + Math.cos(a) * 17, y + Math.sin(a) * 17); X.stroke(); X.fillStyle = '#ffd36a'; X.font = '700 12px "IBM Plex Mono", monospace'; X.textAlign = 'center'; X.textBaseline = 'middle'; X.fillText('@', x, y + 0.5); }

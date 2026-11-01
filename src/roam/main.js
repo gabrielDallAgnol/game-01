@@ -10,6 +10,7 @@ import { createSound } from './sound.js';
 import { createAreaUi } from './areaui.js';
 import { createMapUi } from './mapui.js';
 import { createRiskUi } from './riskui.js';
+import { createGarageUi } from './garageui.js';
 import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
 import { createFeel } from './feel.js';
 import { createScars } from './scars.js';
@@ -36,7 +37,7 @@ function start() {
   const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
-  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input });   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
+  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input }); const garageUi = createGarageUi({ sim, ui });   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
   const feel = createFeel({ S, input, town }), scars = createScars({ tiles: town.tiles, town });   // [m2] burnt and soaked ground   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
@@ -138,7 +139,7 @@ function start() {
     throwChaff(R.kai, dt); drawChaff(dt);
     feel.draw(fx, toS, view.ppm, dt, R, lightAt, cssW, cssH);   // [m1] pellets, muzzle flash, sparks, bursts
     shook();
-    ui.arrows(toS, cssW, cssH); ui.update(evs); lootUi.update(evs); areaUi.update(evs); riskUi.update(evs);
+    ui.arrows(toS, cssW, cssH); ui.update(evs); lootUi.update(evs); areaUi.update(evs); riskUi.update(evs); garageUi.update(evs);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

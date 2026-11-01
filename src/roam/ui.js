@@ -20,7 +20,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   holdAim(fireBtn, setFire, 'aim');
   // [m2] the loadout (a test control until the garage): the gun's element, the off-hand's enchant and how often, mods.
   // The game pauses while it is open; changes go through the sim's API (setLoadout)
-  const kitEl = $('loadout'), LO = { base: null, el: '', enchant: 'water', every: 2, mods: [] };
+  const kitEl = $('loadout'), LO = { base: null, el: '', enchant: '', every: 2, mods: [] };   // [m6] no enchant by default: charge mods do it
   const paintKit = () => { for (const g of kitEl.querySelectorAll('.opts')) { const k = g.dataset.k; for (const b of g.children) b.classList.toggle('on', k === 'mods' ? LO.mods.includes(b.dataset.v) : String(LO[k] ?? '') === b.dataset.v); }
     fireBtn.className = 'pb fire el-' + (LO.el || '') + (input.fire ? ' on' : ''); };
   for (const g of kitEl.querySelectorAll('.opts')) for (const b of g.children) b.addEventListener('click', () => { const k = g.dataset.k, v = b.dataset.v;
@@ -28,6 +28,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     sim.setLoadout(LO); paintKit(); });
   press($('kit'), () => { kitEl.hidden = false; ui.paused = true; paintKit(); }); for (const id of ['kitDone', 'kitX']) for (const t of ['pointerdown', 'pointerup', 'touchend', 'click']) $(id).addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); kitEl.hidden = true; ui.paused = false; }, { passive: false });
   const ui = { paused: false }; sim.setLoadout(LO); paintKit();
+  $('kit').hidden = !/[?&]dev=1/.test(location.search);   // [m6] the loadout is a test control now: the garage does this in play
   // the clock speed (a test control): 1x, 10x, 30x; only the day passes faster
   const speedEl = $('speed'), RATES = [1, 10, 30];
   press(speedEl, () => { const r = RATES[(RATES.indexOf(S.clockRate) + 1) % RATES.length]; sim.setClockRate(r); speedEl.textContent = r + '×'; speedEl.classList.toggle('fast', r > 1); speedEl.setAttribute('aria-label', `Clock speed: ${r}x. Tap to change`); });
@@ -84,7 +85,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     if (!k.riding && !k.dead) one(S.bike.x, S.bike.y, '#f0b44c', 'BIKE');
     // [m5] begin: the death cache, and the nearest bank once she carries a lot or the bike is hurting
     if (S.cache && !k.dead) one(S.cache.x, S.cache.y, '#ffd36a', `CACHE ${Math.round(Math.hypot(S.cache.x - k.x, S.cache.y - k.y))}m`);
-    if (!k.dead && S.banks && (S.scrap >= 40 || S.bike.hp < S.bike.maxHp * 0.3)) { let q = null, qd = 1e9; for (const p of S.banks) { const d = Math.hypot(p.x - k.x, p.y - k.y); if (d < qd) { qd = d; q = p; } } if (q) one(q.x, q.y, '#f0b44c', `BANK ${Math.round(qd)}m`); }
+    if (!k.dead && S.sites && (S.scrap >= 40 || (S.carry && S.carry.length) || S.bike.hp < S.bike.maxHp * 0.3)) { let q = null, qd = 1e9; for (const p of S.sites) { const d = Math.hypot(p.x - k.x, p.y - k.y); if (d < qd) { qd = d; q = p; } } if (q) one(q.x, q.y, '#f0b44c', `BANK ${Math.round(qd)}m`); }
     // [m5] end
   }
   return { update, arrows, toast, get paused() { return ui.paused; }, set paused(v) { ui.paused = v; } };
