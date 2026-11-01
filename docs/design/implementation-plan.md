@@ -199,6 +199,23 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **A workbench that grows:** at first the garage can only upgrade; building from recipes needs a station you build first, and a better station lets rarer recipes start to show up.
 - **Garage cosmetics:** things to make the garage's surroundings feel alive, built or bought over time. The map is not very interactive; the garage is, and it should look it.
 
+## P. The Point: the first map and the grey world (Nov 1) · next, before M7
+The direction changed on Nov 1 (docs/design/the-point.md): the robot is the hero, Kai its mechanic; areas are grey with
+ash until their big machine is **freed** (not destroyed), then it filters the ash and the colour comes back for good.
+
+| Step | Build | Status |
+|---|---|---|
+| P1 | The grey world (`?proto=grey`): colour drains where machines hold an area, light keeps its colour; the robot rides alone; the LOOK chip | **Built** (prototype) |
+| P2 | The Point (`?world=point`): the peninsula, the rivers and the cut as walls, Wendbridge, broken Wend Bridge, the garage at the tip, the boss wedged in the bridge (a pinned walker), the Point clean from the start | **Built** (map) |
+| P3 | Freeing a big machine: the freeing chip (a recipe built from chips + scrap at the garage), the link mini-game, the boss turns guardian/filter, the colour sweeps | Next |
+| P4 | Chips rarer; chips spent on the freeing chip and on vehicle upgrades | Next |
+| P5 | Mending Wend Bridge once the boss is free (a mission; the gap closes, the road opens) | Next |
+| P6 | Wendbridge's people: a few small trust missions; the first recipe from a mission (the incremental start) | Later in P |
+| P7 | Colour on every asset (the small details on the separate layer too); the robot's rest pose; cutscenes in the game camera | Later in P |
+
+**Play it:** Does the Point read as a closed, safe place with one way out? Does the grey make you want to bring the
+colour back? Does the boss in the bridge explain itself without words?
+
 ## M7. Levels and talents · about 1 week
 | Build | Notes |
 |---|---|

@@ -228,7 +228,7 @@ export function createMedium(o) {
             col = mix(col, col * vec3(0.94, 1.1, 0.9), cl * ground * 0.55 * (1.0 - uNight));
             col += vec3(1.0, 0.64, 0.3) * (LMc.r * 0.5 + LMc.g * 0.25) * uNight * cl * 0.45; }
           if (uSweep.w > 0.0) { float dd = length(w - uSweep.xy) - uSweep.z, ring = exp(-dd * dd / 30.0) * uSweep.w; col += (col * 1.2 + vec3(1.0, 0.85, 0.55) * 0.35) * ring; } }
-        float gk = uGrey * (1.0 - texture2D(tClean, w / uWorld).r);
+        float gk = uGrey * (1.0 - texture2D(tClean, w / uWorld).r) * (lK > 11.5 && lK < 12.5 ? 0.45 : 1.0);   // water keeps some of its sky: the rivers are walls, they must read
         { float lu = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(mix(vec3(lu), col, 1.0 + 0.5 * uGrey), mix(vec3(lu), vec3(0.32, 0.34, 0.37), 0.25) * vec3(0.9, 0.95, 1.03) * 0.8, clamp(gk, 0.0, 1.0)); }   // a clean area comes back a little richer than before
         vec2 ci = floor((gl_FragCoord.xy + uCellOff) / uCellPx); vec4 A = texture2D(tCells, (ci + 0.5) / uCells);
         float hp = A.a > 0.5 ? (A.a - 0.52) / 0.48 * 8.0 : 0.0, skip = A.a > 0.5 ? 0.8 : 0.25;

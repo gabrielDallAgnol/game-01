@@ -4,6 +4,7 @@
 // are. Everything is in world metres: x east, y south, from (0, 0).
 /* global THREE */
 import { buildRegion } from './world/region.js';
+import { buildPeninsula } from './world/peninsula.js';
 import { profileOf } from './world/streets.js';
 import { roofLook } from './world/sites.js';
 import { landItems, pip } from './world/land.js';
@@ -18,8 +19,9 @@ import { makePlacer } from './dress/place.js';
 import { STORIES } from './dress/stories.js';
 import { ATOMS } from './atoms/index.js';
 
-export function buildTown(seed = 7) {
-  const W = buildRegion(seed);
+// o.world: 'region' (Hollowmere and its land, the default) or 'point' (the Point, the first map: world/peninsula.js)
+export function buildTown(seed = 7, o = {}) {
+  const W = o.world === 'point' ? buildPeninsula(seed) : buildRegion(seed);
   const rigAtom = W.placed.find(p => p.def.tags.includes('camp.rig'));
   const start = { x: W.camp.x, y: W.camp.y };
   const size = { w: W.w, h: W.h };
@@ -74,7 +76,18 @@ export function buildTown(seed = 7) {
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, (gx + 0.5) / GR, (gy + 0.5) / GR, pad)) solid.set(gx, gy, 1); };
   for (const p of buildings) if (p.def.collide !== 'none') mark(p, 0.15);
   // the lake and the ponds are walls too, a metre in from the shore (the reeds and the mud stay walkable); the brook is crossed by the roads' bridges
-  for (const l of W.land || []) { if (l.kind !== 'water' || l.brook) continue; const xs = l.poly.map(q => q.x), ys = l.poly.map(q => q.y);
+  // [point] begin: a river given as lines (its centre and half-width) is walled along them, a metre in from each bank; a
+  // bridge's deck over it is cleared again, all but a broken deck's gap
+  for (const l of W.land || []) { if (l.kind !== 'water' || !l.lines) continue;
+    for (const ln of l.lines) for (let i = 1; i < ln.pts.length; i++) { const a = ln.pts[i - 1], b = ln.pts[i], r = ln.half - 1, dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
+      for (let gy = Math.max(0, Math.floor((Math.min(a.y, b.y) - r) * GR)); gy <= Math.min(GH - 1, Math.ceil((Math.max(a.y, b.y) + r) * GR)); gy++) for (let gx = Math.max(0, Math.floor((Math.min(a.x, b.x) - r) * GR)); gx <= Math.min(GW - 1, Math.ceil((Math.max(a.x, b.x) + r) * GR)); gx++) {
+        const x = (gx + 0.5) / GR, y = (gy + 0.5) / GR, u = Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / L2)); if (Math.hypot(x - a.x - dx * u, y - a.y - dy * u) < r) solid.set(gx, gy, 1); } } }
+  const onDeck = (D, x, y) => { const dx = D.b.x - D.a.x, dy = D.b.y - D.a.y, L2 = dx * dx + dy * dy, u = Math.max(0, Math.min(1, ((x - D.a.x) * dx + (y - D.a.y) * dy) / L2)); return Math.hypot(x - D.a.x - dx * u, y - D.a.y - dy * u) < D.half; };
+  for (const D of W.decks || []) { const r = D.half + 1, x0 = Math.min(D.a.x, D.b.x) - r, x1 = Math.max(D.a.x, D.b.x) + r, y0 = Math.min(D.a.y, D.b.y) - r, y1 = Math.max(D.a.y, D.b.y) + r;
+    for (let gy = Math.floor(y0 * GR); gy <= Math.ceil(y1 * GR); gy++) for (let gx = Math.floor(x0 * GR); gx <= Math.ceil(x1 * GR); gx++) { const x = (gx + 0.5) / GR, y = (gy + 0.5) / GR;
+      if (onDeck(D, x, y) && !(D.gap && Math.hypot(x - D.gap.x, y - D.gap.y) < D.gap.r)) solid.set(gx, gy, 0); } }
+  // [point] end
+  for (const l of W.land || []) { if (l.kind !== 'water' || l.brook || l.lines) continue; const xs = l.poly.map(q => q.x), ys = l.poly.map(q => q.y);
     for (let gy = Math.max(0, Math.floor(Math.min(...ys) * GR)); gy <= Math.min(GH - 1, Math.ceil(Math.max(...ys) * GR)); gy++) for (let gx = Math.max(0, Math.floor(Math.min(...xs) * GR)); gx <= Math.min(GW - 1, Math.ceil(Math.max(...xs) * GR)); gx++) {
       const x = (gx + 0.5) / GR, y = (gy + 0.5) / GR; if (pip(l.poly, x, y) && pip(l.poly, x + 1, y) && pip(l.poly, x - 1, y) && pip(l.poly, x, y + 1) && pip(l.poly, x, y - 1)) solid.set(gx, gy, 1); } }   // a canopy (a gas station's) is ridden under
   // [m6f] gates: a closed gate is a wall, an open one isn't (the sim opens the garage's: sim/garage.js)
@@ -145,6 +158,6 @@ export function buildTown(seed = 7) {
   // [dress] end
   // where on a street: for spawning the dead and parking the bike (a street cell, 1 m grid)
   const streetCells = []; for (let y = 4; y < W.h - 4; y += 2) for (let x = 4; x < W.w - 4; x += 2) if (onStreet(x, y, -0.6) && !blocked(x, y)) streetCells.push(x, y);
-  return { garageLot, gates, W, start, size, tiles, onStreet, gardens, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress, breakables,
+  return { decks: W.decks || [], garageLot, gates, W, start, size, tiles, onStreet, gardens, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress, breakables,
     chars: makeCharmap(W) };   // [world] the world as characters, 2 m a cell (world/charmap.js)
 }

@@ -32,7 +32,7 @@ function skyAt(clock) {
 function start() {
   if (typeof THREE === 'undefined') throw new Error('three.js did not load (no network?)');
   const qs = new URLSearchParams(location.search), seed = +(qs.get('seed') || 1);
-  const town = buildTown(7), sim = createRoam(town, seed), S = sim.state;
+  const town = buildTown(7, { world: qs.get('world') || window.ROAM_WORLD || 'region' }), sim = createRoam(town, seed), S = sim.state;   // [point] ?world=point: the first map
   const glc = $('gl'), fxc = $('fx'), fx = fxc.getContext('2d'), look = createLook(glc, town);
   const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
   const lab = { freeze: false };
