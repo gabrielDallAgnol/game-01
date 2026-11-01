@@ -47,7 +47,16 @@ export function createSound() {
       else if (e.type === 'part') { tone('square', 200, 60, 0.5, 0.3); noise('lowpass', 2500, 200, 0.6, 0.6); }
       else if (e.type === 'rear') tone('sawtooth', 70, 110, 0.7, 0.18);
       else if (e.type === 'clean') [392, 494, 587, 784, 988].forEach((f, i) => tone('triangle', f, f, 1.6, 0.18, i * 0.12));
-      else if (e.type === 'doused') noise('highpass', 3000, 6000, 0.6, 0.18); } }
+      else if (e.type === 'doused') noise('highpass', 3000, 6000, 0.6, 0.18);
+      // [m5] the bike's body, repairs, banking, the cache
+      else if (e.type === 'bikeHurt' && e.why === 'crash') { tone('square', 140, 60, 0.18, 0.18); noise('bandpass', 2400, 900, 0.12, 0.25, 3); }
+      else if (e.type === 'bikeLow') [520, 390].forEach((f, i) => tone('square', f, f, 0.14, 0.1, i * 0.16));
+      else if (e.type === 'bikeWreck') { tone('sawtooth', 160, 40, 0.8, 0.3); noise('lowpass', 1600, 100, 0.7, 0.6); }
+      else if (e.type === 'fixTick') { noise('bandpass', 3200, 2400, 0.04, 0.22, 6); tone('square', 1900, 1500, 0.03, 0.06); }
+      else if (e.type === 'fixed') [660, 880].forEach((f, i) => tone('triangle', f, f, 0.25, 0.16, i * 0.1));
+      else if (e.type === 'bank') [523, 659, 784].forEach((f, i) => tone('triangle', f, f * 1.002, 0.35, 0.18, i * 0.07));
+      else if (e.type === 'cache') [392, 330, 262].forEach((f, i) => tone('triangle', f, f, 0.5, 0.16, i * 0.14));
+      else if (e.type === 'cacheBack') [262, 392, 523].forEach((f, i) => tone('triangle', f, f, 0.3, 0.18, i * 0.08)); } }
   // held and ambient: the thrower's roar (a hiss for water) while firing; crackle by how much burns near Kai
   function frame(S, input) { if (!ac) return; const t = now(), g = S.guns && S.guns.main, el = g && (g.el || (g.mods || []).find(m => m === 'fire' || m === 'water'));
     const on = input.fire && !S.kai.dead && g && g.base === 'thrower', wet = el === 'water';
