@@ -210,8 +210,8 @@ ash until their big machine is **freed** (not destroyed), then it filters the as
 | P3 | Freeing a big machine: the freeing chip (a recipe built from chips + scrap at the garage), the link mini-game, the boss turns guardian/filter, the colour sweeps | **Built** (Nov 2 night) |
 | P4 | Chips rarer; chips spent on the freeing chip and on vehicle upgrades | **Built**: a machine's own chip, rolled per death, burnt by fire |
 | P5 | Mending Wend Bridge once the boss is free (a mission; the gap closes, the road opens) | **Built**, plus the objective line and the ash seen |
-| P6 | Wendbridge's people: a few small trust missions; the first recipe from a mission (the incremental start) | Later in P |
-| P7 | Colour on every asset (the small details on the separate layer too); the robot's rest pose; cutscenes in the game camera | Later in P |
+| P6 | Wendbridge's people: a few small trust missions; the first recipe from a mission (the incremental start) | **Started**: the people are on screen and react (hide, shy, work, wave); no missions yet |
+| P7 | Colour on every asset (the small details on the separate layer too); the robot's rest pose; cutscenes in the game camera | **Started**: the overlay greys too; the opening scene; Kai at home; the ash seen. Rest pose and more scenes later |
 
 **Play it:** Does the Point read as a closed, safe place with one way out? Does the grey make you want to bring the
 colour back? Does the boss in the bridge explain itself without words?
