@@ -186,6 +186,10 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - Machines keep out of the lot: nothing is born on it, one that wanders in is turned back at its edge, they lose interest in Kai while she's on it, and their bolts die at its edge. Her gun stays quiet on the lot too (FIRE dims), so it's a place to bank, repair and build, not a turret.
 - While the garage (or any panel) is open, the screen ignores pinch and drag: the close-up of the bike stays put.
 
+**The drive-in and the glowing part (Nov 1):**
+- **Need for Speed: Most Wanted's garage:** at the front of the garage, GARAGE has the bike ride itself into the bay in front of the doors (no control meanwhile), where it always stands at the same angle; the close-up and the panel open once it's parked. Closing rides it back out to the forecourt, facing away from the doors and rolling, and you have the bike again.
+- **The picked part glows:** instead of a ring, the part's own cells light up in their own colours (the medium's glow) under a soft round glow of the selection yellow, strongest in the middle.
+
 **Later, recorded (Gabriel, Nov 1):**
 - **A workbench that grows:** at first the garage can only upgrade; building from recipes needs a station you build first, and a better station lets rarer recipes start to show up.
 - **Garage cosmetics:** things to make the garage's surroundings feel alive, built or bought over time. The map is not very interactive; the garage is, and it should look it.

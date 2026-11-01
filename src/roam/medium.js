@@ -445,7 +445,8 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
   // it fires (back to the road a moment after), kicks back on every shot and eases home. The scatter gun two stubby
   // barrels, the launcher a fat tube, the thrower a long nozzle with a tank behind Kai
   let gunAim = null, gunKick = 0, gunN = -1, gunT = 0, gunShotT = -9;
-  function gunVolumes(b, g, t) {
+  function gunVolumes(b, g, t, glow = 0) {   // [m6c] glow: the garage has the gun picked
+    const capsule = (x0, y0, z0, x1, y1, z1, r, m) => K.capsule(x0, y0, z0, x1, y1, z1, r, m, glow), sphere = (x, y, z, r, m) => K.sphere(x, y, z, r, m, glow);
     const dt = Math.min(0.1, Math.max(0, t - gunT)); gunT = t; if (gunN >= 0 && g.n > gunN) { gunKick = 1; gunShotT = t; } gunN = g.n; gunKick *= Math.exp(-dt * 16);
     const want = t - gunShotT < 1.2 ? g.aim : b.ang; if (gunAim === null) gunAim = want; let da = ((want - gunAim + Math.PI * 3) % (Math.PI * 2)) - Math.PI; gunAim += da * Math.min(1, dt * 22);
     const S = FIGM * 0.9, ca = Math.cos(b.ang), sa = Math.sin(b.ang), mx = b.x + 0.42 * S * ca, my = b.y + 0.42 * S * sa, z = 0.98 * S, ux = Math.cos(gunAim), uy = Math.sin(gunAim), back = gunKick * 0.12 * S;
@@ -469,7 +470,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     for (const nst of nests) if (on(nst.x, nst.y)) nestVolumes(nst, t);
     // what moves is drawn snapped to the cell grid: its letters ride with it instead of re-sampling as it slides
     const sn = q => Math.round(q / CELLW) * CELLW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
-    if (on(bike.x, bike.y)) { if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.guns.main, t); }   // [m6] the bike from its parts' modules
+    if (on(bike.x, bike.y)) { if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM, v.garageSel); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.guns.main, t, v.garageSel === 'weapon' ? 0.85 + 0.15 * Math.sin(t * 4) : 0); }   // [m6] the bike from its parts' modules
     if (!kai.dead) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)

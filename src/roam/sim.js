@@ -63,8 +63,10 @@ export const ROAM = {
   // [m6] the garage: a weapon's damage +dmgPerLevel per level; items reach capPerLevel x Kai's level (areas cleaned + 1 until
   // M7); an upgrade costs weaponCost (partCost for a part) x its level in banked scrap; salvage gives back salvage of what
   // it cost; a dazzle lamp keeps dazzleSlow of a machine's speed each step it's in the beam; door: how far out from the
-  // garage's roller doors its forecourt (the service spot) is; lotMargin: how far past the lot's edge machines are kept
-  garage: { lotMargin: 1, door: 6, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
+  // garage's roller doors its forecourt (the service spot) is; lotMargin: how far past the lot's edge machines are kept;
+  // [m6e] the drive-in: the bay bay m out from the doors, the bike always at bayAng there; it rides in over driveIn s, out
+  // over driveOut s to exitOut m past the forecourt, and leaves rolling at rollOut m/s
+  garage: { lotMargin: 1, door: 6, bay: 3, bayAng: 0, exitOut: 4, driveIn: 1.6, driveOut: 1.3, rollOut: 3, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
   // [m6b] elites: the chance a machine is one (+perLevel per area level above 1, x night at night), how much tougher, and
   // the trail a burning or soaking one leaves (every trailEvery s, trailR m, trailPower of the element)
   elites: { chance: 0.03, perLevel: 0.012, night: 1.5, hp: 2.6, trailEvery: 1.2, trailR: 1.2, trailPower: 0.5 },
@@ -86,6 +88,7 @@ export function createRoam(town, seed = 1) {
   let popT = 0;
   function step(inp) {
     G.view = Math.min(160, inp.view || 0);
+    if (S.garageRun) inp = { view: inp.view, x: 0, y: 0 };   // [m6e] the bike rides itself in and out of the garage: no control meanwhile
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
     G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp); G.stepGarage(dt); G.stepElites(dt);
@@ -94,5 +97,5 @@ export function createRoam(town, seed = 1) {
   for (let k = 0; k < 6; k++) G.populate();
   const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
   const debug = { spawn: (kind, x, y, o) => G.spawn(kind, x, y, o) };   // for tests, labs and screenshots
-  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), repair: () => G.startFix(), build: id => G.build(id), equipItem: uid => G.equipItem(uid), salvageItem: uid => G.salvageItem(uid), upgrade: slot => G.upgrade(slot), socket: (uid, i, mod) => G.socket(uid, i, mod), levelCap: () => G.levelCap(), upCost: slot => G.upCost(S.gear[slot]), atBench: () => !!G.atBench(), bikeStats: () => G.bikeStats(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), repair: () => G.startFix(), build: id => G.build(id), equipItem: uid => G.equipItem(uid), salvageItem: uid => G.salvageItem(uid), upgrade: slot => G.upgrade(slot), enterGarage: () => G.enterGarage(), leaveGarage: () => G.leaveGarage(), socket: (uid, i, mod) => G.socket(uid, i, mod), levelCap: () => G.levelCap(), upCost: slot => G.upCost(S.gear[slot]), atBench: () => !!G.atBench(), bikeStats: () => G.bikeStats(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }

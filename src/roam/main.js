@@ -129,7 +129,7 @@ function start() {
     // no pull-back with the bike's speed for the same reason
     { const want = cam.base; cam.ppm += (want - cam.ppm) * Math.min(1, dt * 6); if (Math.abs(want - cam.ppm) < want * 0.004) cam.ppm = want; }
     const shook = feel.shake(cam, dt);   // [m1] the camera shakes for this frame only
-    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun });
+    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun, garageSel: garageUi.sel });
     fx.clearRect(0, 0, cssW, cssH);
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules

@@ -54,3 +54,9 @@ test('the garage lot is safe ground: a machine is turned back at its edge and no
   const c = Math.cos(-L.rot), s = Math.sin(-L.rot), u = c * (d.x - L.x) - s * (d.y - L.y), v = s * (d.x - L.x) + c * (d.y - L.y);
   assert.ok(Math.abs(u) >= L.w / 2 || Math.abs(v) >= L.h / 2, 'outside the lot'); assert.notStrictEqual(d.state, 'chase');
   assert.strictEqual(g.dress.filter(q => q.k === 'lotlamp').length, 4, 'a lamp at each corner'); });
+test('the drive-in: GARAGE rides the bike into the bay at the same angle every time, closing rides it out; no control meanwhile', () => { const { sim, S } = fresh(); const g = toGarage(sim, S);
+  S.bike.ang = 2.2; assert.ok(sim.enterGarage()); const ev = []; for (let i = 0; i < 70; i++) { S.dead.length = 0; sim.step({ x: 1, y: 1, view: 21, fire: true }); ev.push(...sim.drain()); }
+  assert.ok(ev.some(e => e.type === 'parked')); assert.strictEqual(S.garageRun.phase, 'parked'); assert.ok(Math.abs(S.bike.ang - ROAM.garage.bayAng) < 1e-6, 'the bay angle');
+  assert.ok(Math.hypot(S.bike.x - g.bay.x, S.bike.y - g.bay.y) < 1e-6, 'in the bay'); assert.ok(!ev.some(e => e.type === 'shot'), 'no control while it rides in');
+  assert.ok(sim.leaveGarage()); for (let i = 0; i < 60; i++) { S.dead.length = 0; sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); }
+  assert.strictEqual(S.garageRun, null); assert.ok(Math.hypot(S.bike.x - g.exit.x, S.bike.y - g.exit.y) < 3, 'rolled out'); });

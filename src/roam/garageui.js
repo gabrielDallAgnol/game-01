@@ -5,6 +5,8 @@
 //   (a second tap confirms; over an old mod, the old one is destroyed). CHANGE opens the stash for that slot.
 // - BUILD: every known recipe by kind, its cost, BUILD (banked scrap and chips).
 // - STASH: built gear waiting: EQUIP or SALVAGE; the mods Kai owns.
+// [m6e] GARAGE has the bike ride itself into the bay in front of the doors (always the same angle, like Need for Speed:
+// Most Wanted's garage); the panel opens once it's parked, and closing it rides the bike back out.
 // The game pauses while it's open. Writes nothing but the API calls.
 import { RECIPES, MOD_NAME, costOf } from '../play/recipes.js';
 import { RARITY } from '../play/loot.js';
@@ -74,15 +76,18 @@ export function createGarageUi({ sim, ui, cam, lab }) {
   let saved = null; const CLOSE = 56;
   const open = () => { panel.hidden = false; ui.paused = true; tab = 'bike'; only = null; pick = null; say(''); paint(); document.body.classList.add('garage-open');
     if (cam && lab) { saved = { base: cam.base, labCam: lab.cam }; cam.base = CLOSE; const b = S.bike; lab.cam = { x: b.x, y: b.y + innerHeight * 0.27 / CLOSE }; } };
-  const close = () => { panel.hidden = true; ui.paused = false; document.body.classList.remove('garage-open'); if (saved) { cam.base = saved.base; lab.cam = saved.labCam; saved = null; } };
-  btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); open(); });
+  const close = () => { panel.hidden = true; ui.paused = false; document.body.classList.remove('garage-open'); if (saved) { cam.base = saved.base; lab.cam = saved.labCam; saved = null; } sim.leaveGarage(); };   // [m6e] it rides itself back out
+  // [m6e] GARAGE asks the bike to ride itself into the bay; the panel opens when it's parked ('parked')
+  const enter = () => { if (!S.garageRun && sim.enterGarage()) btn.hidden = true; };
+  btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); enter(); });
   for (const id of ['garDone', 'garX']) for (const t of ['pointerdown', 'pointerup', 'touchend', 'click']) $(id).addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); close(); }, { passive: false });
-  addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k === 'g' && sim.atBench() && panel.hidden) open(); else if (k === 'escape' && !panel.hidden) close(); });
+  addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k === 'g' && sim.atBench() && panel.hidden) enter(); else if (k === 'escape' && !panel.hidden) close(); });
   let lastAt = null, told = false;
   // [m6b] the FIRE button names the gun you carry (and its level): the button is your gun
   const fire = $('fire'); let lastGun = '';
   function update(evs) { const w = S.gear.weapon, gs = `${w.r}|${w.level}`; if (gs !== lastGun) { lastGun = gs; fire.innerHTML = `FIRE<small>${esc(RECIPES[w.r].name)}${w.level > 1 ? ' · Lv' + w.level : ''}</small>`; }
     fire.classList.toggle('quiet', !!S.guns.main.holstered);   // [m6d] dimmed on the safe lot
-    const at = sim.atBench(); if (at !== lastAt) { lastAt = at; btn.hidden = !at; if (at && !told) { told = true; ui.toast('The garage: build from your recipes, fit parts and mods. Tap GARAGE.', true); } } }
+    for (const e of evs || []) if (e.type === 'parked') open();
+    const at = sim.atBench() && !S.garageRun; if (at !== lastAt) { lastAt = at; btn.hidden = !at; if (at && !told) { told = true; ui.toast('The garage: build from your recipes, fit parts and mods. Tap GARAGE.', true); } } }
   return { update, open, get sel() { return panel.hidden || tab !== 'bike' ? null : sel; } };
 }
