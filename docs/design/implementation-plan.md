@@ -148,6 +148,11 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 
 **Play it:** Do you like looking at your bike? Is salvaging or keeping a part a real decision?
 
+**Built as atoms, so every piece can be reused (Gabriel, Nov 1):**
+- **The garage is a site atom, not a fixed spot.** The map generator places it like any other site (a gas station, a farm): on another map it lands somewhere else and looks different. It has an owner state (for sale, owned) so a later map can let you *buy* a garage and make it home, and a list of **services** it offers: bank, stash, workbench, repair. The walker beacons are the same atom with fewer services (just the bank). A truck form could later carry a **portable garage**: the same services on a vehicle.
+- **Parts are atoms too:** one data table per part kind (slot, tags, what it does, `desc`/`why`), its look a **module** with a socket type (play-atoms §8: `mount`, `plate`, `lamp`, `wheel`, `vent`). The bike declares sockets; so will houses (M8). A weapon part on a house's `mount` socket is a turret guarding the people there; a tyre is the same tyre whether it's on your bike or the one a survivor asked for.
+- **Recipes are one shape for everything:** a list of needs (scrap, chips, a part) with a result. The garage's upgrades use it now; later, missions use the same shape ("bring 40 scrap and a mount to build this house a turret", "build a tyre for the farmer").
+
 ## M7. Levels and talents · about 1 week
 | Build | Notes |
 |---|---|
@@ -183,7 +188,7 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 The control-node boss, the story hooks (the chip, the 3:00 radio voice), side quests, 3–5 areas, polish, a full playtest.
 
 ## Later list (not before chapter 1 is fun)
-Shock and wind (and their reactions), epic modifier slots, schematics, the Deep Signal endgame, chapter 2, Kai on foot for narrow places and shops.
+A portable garage on the truck form (the garage's services on a vehicle), buying a garage to make it home, turrets built for houses as missions; Shock and wind (and their reactions), epic modifier slots, schematics, the Deep Signal endgame, chapter 2, Kai on foot for narrow places and shops.
 
 ## Open decisions
 1. **Build on Roam and freeze V2?** (Proposed: yes.)
