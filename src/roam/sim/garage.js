@@ -14,7 +14,7 @@
 // G.bikeStats(), G.bikeStat(k), G.gunMult(), G.levelCap(), G.atBench(), G.stepGarage(dt).
 import { RECIPES, STARTING, ELEMENT_MODS, costOf } from '../../play/recipes.js';
 import { PARTS, STOCK, PART_SLOTS } from '../../play/parts/bike.js';
-import { offers } from '../../play/sites.js';
+import { SITES, offers } from '../../play/sites.js';
 export const GEAR_SLOTS = ['weapon', ...PART_SLOTS];
 export function createGarage(G) {
   const { R, S, ev, town } = G, K = R.garage;
@@ -27,7 +27,10 @@ export function createGarage(G) {
       const ang = (rollers[0] ? rollers[0].ang : gs.rot || 0) + Math.PI / 2; let p = null;
       for (const sg of [1, -1]) { const nx = Math.cos(ang) * sg, ny = Math.sin(ang) * sg, x = mx + nx * K.door, y = my + ny * K.door; if (!town.blocked(x, y) && town.blocked(mx - nx * 3, my - ny * 3) && !p) p = { x, y }; }
       if (!p) { let bd = 1e9; for (const a of gs.anchors) if (a.kind === 'apron' && a.zone === 'garage' && !town.blocked(a.x, a.y)) { const q = Math.hypot(a.x - mx, a.y - my); if (q < bd) { bd = q; p = a; } } }
-      p = p || { x: gs.x, y: gs.y }; G.addSite('garage', p.x, p.y); }
+      p = p || { x: gs.x, y: gs.y }; const q = G.addSite('garage', p.x, p.y);
+      // [m6c] its dressing (play/sites.js), set out in front of the doors; what would land in a wall is left out
+      const ox = p.x - mx, oy = p.y - my, ol = Math.hypot(ox, oy) || 1, nx = ox / ol, ny = oy / ol, wx = -ny, wy = nx;
+      q.dress = []; for (const D of SITES.garage.dress || []) { const x = mx + wx * D.u + nx * D.v, y = my + wy * D.u + ny * D.v; if (!town.blocked(x, y)) q.dress.push({ k: D.k, x, y, a: Math.atan2(wy, wx) }); } }
     else { const camp = S.sites[0]; for (const s of ['stash', 'workbench']) if (!camp.services.includes(s)) camp.services.push(s); } }   // a map without a garage: the camp does it
   // ---------- items ----------
   function make(rid) { const r = RECIPES[rid];

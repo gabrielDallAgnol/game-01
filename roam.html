@@ -94,8 +94,8 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #fix small{font:600 10px var(--mono);color:#d8cfb6}#fix.on{background:var(--amber);color:#1a1206}#fix.on small{color:#3a2a10}#fix.poor{opacity:.55}
 /* [m6] the garage panel and button */
 #garageBtn{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(238px + env(safe-area-inset-bottom,0px));width:84px;height:84px;font-size:13px}
-#garage{position:fixed;inset:0;z-index:45;display:grid;place-items:center;background:rgba(7,9,12,.78);padding:12px}
-#garage .card{background:rgba(14,15,18,.96);border-radius:14px;padding:14px;width:min(420px,100%);height:min(88vh,760px);display:grid;grid-template-rows:auto auto auto 1fr auto;gap:8px}
+#garage{position:fixed;left:0;right:0;bottom:0;z-index:45;display:grid;place-items:end center;padding:0 10px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(7,9,12,.5) 30%)}
+#garage .card{background:rgba(14,15,18,.96);border-radius:16px;padding:12px 14px;width:min(440px,100%);height:min(60vh,600px);display:grid;grid-template-rows:auto auto auto 1fr auto;gap:8px}
 #garage h2{margin:0;font:400 22px var(--display);letter-spacing:.06em;color:var(--amber);display:flex;align-items:center;gap:8px}#garFunds{flex:1;font:700 12px var(--mono);color:#e9e2cf;letter-spacing:0}
 #garage h2 .x{width:40px;height:40px;border:0;border-radius:10px;font:700 18px var(--mono);background:rgba(255,255,255,.14);color:var(--fg);cursor:pointer}
 #garage .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#garage .tabs button{border:0;border-radius:9px;padding:9px;font:700 12px var(--mono);background:rgba(255,255,255,.1);color:var(--fg);cursor:pointer}#garage .tabs button.on{background:var(--amber);color:#1a1206}
@@ -109,7 +109,8 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #garList .pk button{border:0;border-radius:8px;padding:7px 10px;font:700 11px var(--mono);background:rgba(255,255,255,.12);color:#ece6d6;cursor:pointer}
 #garList .bt{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}#garList button{cursor:pointer}#garList .bt button,#garList .row button{border:0;border-radius:8px;padding:7px 10px;font:700 11px var(--mono);background:rgba(255,255,255,.12);color:#ece6d6;white-space:nowrap}
 #garList button.eq{background:var(--amber);color:#1a1206}#garList button:disabled{opacity:.4}#garList .lnk{border:0;background:none;color:var(--amber);font:700 11px var(--mono);padding:0}
-#garList svg.bike{width:100%;height:auto;display:block}#garList .bikehd{display:flex;justify-content:space-between;align-items:baseline;font:700 12px var(--mono);letter-spacing:.08em;color:var(--amber)}
+#garList .parts{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}#garList .parts button{border:1.5px solid var(--c);border-radius:10px;background:rgba(0,0,0,.3);color:#e9e2cf;padding:7px 2px;display:grid;gap:1px;font:700 10px var(--mono)}#garList .parts button span{font-weight:600;color:var(--dim)}#garList .parts button.on{background:var(--amber);color:#1a1206;border-color:var(--amber)}#garList .parts button.on span{color:#3a2a10}
+body.garage-open #hud,body.garage-open #loot,body.garage-open #area,body.garage-open #pad,body.garage-open #btns,body.garage-open #feed,body.garage-open #boss,body.garage-open #fps,body.garage-open #garageBtn,body.garage-open #fix{display:none!important}#garList .bikehd{display:flex;justify-content:space-between;align-items:baseline;font:700 12px var(--mono);letter-spacing:.08em;color:var(--amber)}
 #garList .it.sel{border-width:2px}#garList .nm.big{font-size:16px}#garList .md.up{font-weight:700;letter-spacing:.08em;color:var(--dim)}#garList .md.st{color:#e9e2cf}#garList .md.note{margin-top:8px;color:#9a988f;font-style:italic}#garList .mod i{font-style:normal;color:var(--dim);font-size:10px}
 .pb.fire{display:grid;place-content:center;gap:2px}.pb.fire small{font:600 8.5px var(--mono);letter-spacing:0;max-width:84px;line-height:1.15;opacity:.85}
 #garDone{justify-self:end;font:700 14px var(--mono);background:var(--amber);color:#1a1206;border:0;border-radius:10px;padding:10px 20px;cursor:pointer}

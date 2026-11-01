@@ -13,7 +13,7 @@ import { PARTS } from '../play/parts/bike.js';
 import { ROAM } from './sim.js';
 const SLOTS = ['weapon', 'engine', 'frame', 'lamp', 'tyres'], SLOTN = { weapon: 'Weapon', engine: 'Engine', frame: 'Frame', lamp: 'Lamp', tyres: 'Tyres' };
 const GROUPS = [['Weapons', r => r.kind === 'weapon'], ['Mods', r => r.kind === 'mod'], ['Engines', r => r.slot === 'engine'], ['Frames', r => r.slot === 'frame'], ['Lamps', r => r.slot === 'lamp'], ['Tyres', r => r.slot === 'tyres']];
-export function createGarageUi({ sim, ui }) {
+export function createGarageUi({ sim, ui, cam, lab }) {
   const $ = id => document.getElementById(id), S = sim.state, panel = $('garage'), list = $('garList'), funds = $('garFunds'), msg = $('garMsg'), btn = $('garageBtn');
   let tab = 'bike', only = null, pick = null;   // pick: { i, mod } a socket being filled (the second tap confirms)
   const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -28,31 +28,21 @@ export function createGarageUi({ sim, ui }) {
     if (slot === 'frame') return `health ${b.hp} · soaks ${Math.round(b.soak * 100)}%`;
     if (slot === 'lamp') return `pulls scrap ${r1(b.pull)} m · reads rares ${r1(b.scan)} m${b.dazzle ? ' · dazzles ' + r1(b.dazzle) + ' m' : ''}`;
     return `turn ${r1(b.turn)} · bounce ${Math.round(b.bounce * 100)}%${b.crashMult < 1 ? ' · crashes ×' + b.crashMult : ''}`; }
-  // [m6b] the bike as a picture (Gabriel: it must be clear what is the bike and what is fitted to it): a top-down bike with
-  // its five fitted parts labelled where they sit; tap one to see it below. Upgrading improves that part, not the bike.
+  // [m6c] the real bike, close up (the camera comes in on it while the garage is open: garageview.js rings the part you
+  // pick); below it a row of its five fitted parts, and the one you pick (Gabriel: the drawn diagram was confusing)
   let sel = 'weapon';
-  const SPOT = { frame: [92, 22, 150, 70], weapon: [212, 22, 236, 60], lamp: [318, 22, 318, 72], tyres: [70, 136, 70, 92], engine: [190, 136, 168, 80] };
-  function bikeSvg() { const cap = sim.levelCap(); let g = '';
-    for (const slot of SLOTS) { const it = S.gear[slot], [lx, ly, px, py] = SPOT[slot], on = slot === sel, c = col(it.rarity);
-      g += `<g data-sel="${slot}" style="cursor:pointer"><line x1="${lx}" y1="${ly + (ly < 80 ? 10 : -10)}" x2="${px}" y2="${py}" stroke="${on ? '#f0b44c' : c}" stroke-width="1.5" stroke-dasharray="${on ? '' : '3 3'}"/>`
-        + `<rect x="${lx - 46}" y="${ly - 12}" width="92" height="24" rx="7" fill="${on ? '#f0b44c' : 'rgba(10,11,13,.92)'}" stroke="${c}" stroke-width="1.5"/>`
-        + `<text x="${lx}" y="${ly + 4}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="700" font-size="11" fill="${on ? '#1a1206' : '#e9e2cf'}">${slot === 'weapon' ? 'GUN' : slot.toUpperCase()} · Lv ${it.level}</text></g>`; }
-    return `<svg viewBox="0 0 360 156" class="bike" role="img" aria-label="Your bike and its fitted parts">
-      <rect x="40" y="70" width="60" height="26" rx="9" fill="#2a2b2e" stroke="#555"/><rect x="262" y="70" width="60" height="26" rx="9" fill="#2a2b2e" stroke="#555"/>
-      <line x1="70" y1="83" x2="292" y2="83" stroke="#8a5a3a" stroke-width="9" stroke-linecap="round"/>
-      <rect x="150" y="70" width="40" height="26" rx="5" fill="#1d1e21" stroke="#666"/><rect x="190" y="72" width="44" height="22" rx="8" fill="#e0a83a"/>
-      <rect x="112" y="74" width="36" height="18" rx="5" fill="#1d1e21"/><line x1="236" y1="58" x2="236" y2="108" stroke="#c8ccd2" stroke-width="4" stroke-linecap="round"/>
-      <circle cx="318" cy="83" r="9" fill="#ffd36a"/><path d="M327 76 L356 66 L356 100 L327 90 Z" fill="rgba(255,211,106,.18)"/>${g}</svg>`; }
+  const LABEL = { weapon: 'GUN', engine: 'ENGINE', frame: 'FRAME', lamp: 'LAMP', tyres: 'TYRES' };
+  function partRow() { return '<div class="parts">' + SLOTS.map(slot => { const it = S.gear[slot]; return `<button data-sel="${slot}" class="${slot === sel ? 'on' : ''}" style="--c:${col(it.rarity)}"><b>${LABEL[slot]}</b><span>Lv ${it.level}</span></button>`; }).join('') + '</div>'; }
   function bikeTab() { const cap = sim.levelCap(), b = sim.bikeStats(), it = S.gear[sel], uc = sim.upCost(sel), n = S.stash.filter(q => q.slot === sel).length, what = sel === 'weapon' ? 'gun' : sel;
-    let h = `<div class="bikehd"><span>YOUR BIKE</span><span class="md">health ${b.hp} · ${Math.round(b.top * 10) / 10} m/s · turn ${Math.round(b.turn * 10) / 10}</span></div>${bikeSvg()}`;
+    let h = `<div class="bikehd"><span>YOUR BIKE</span><span class="md">health ${b.hp} · ${Math.round(b.top * 10) / 10} m/s · turn ${Math.round(b.turn * 10) / 10}</span></div>${partRow()}`;
     h += `<div class="it sel" style="border-color:${col(it.rarity)}"><div class="md up">FITTED ${what.toUpperCase()}</div><div class="hd"><span class="nm big" style="color:${col(it.rarity)}">${esc(nm(it))}</span><span class="lv">Lv ${it.level}/${cap}</span></div>`;
     h += `<div class="md">${esc(RECIPES[it.r].desc)}</div><div class="md st">${statLine(sel, it)}</div>`;
     if (sel === 'weapon') { h += '<div class="sk">' + it.mods.map(m => `<span class="mod in" title="${esc(MODIFIERS[m].desc)}">${MOD_NAME[m]} <i>built in</i></span>`).join('') + it.sockets.map((m, i) => `<button class="mod ${m ? 'full' : 'open'}${pick && pick.i === i ? ' on' : ''}" data-sock="${i}">${m ? MOD_NAME[m] : '+ empty socket'}</button>`).join('') + (it.mods.length + it.sockets.length ? '' : '<span class="md">no mods, no sockets</span>') + '</div>';
       if (pick) { const owned = Object.entries(S.mods).filter(([, c]) => c > 0);
         h += '<div class="pk">' + (owned.length ? owned.map(([m, c]) => `<button data-put="${m}" class="${pick.mod === m ? 'on' : ''}">${pick.mod === m ? 'CONFIRM: ' + MOD_NAME[m] + ' for good' : MOD_NAME[m] + ' ×' + c}</button>`).join('') : '<span class="md">No mods yet: beat an elite machine, or build one in BUILD.</span>') + '</div>';
         if (it.sockets[pick.i]) h += `<div class="md warn">${MOD_NAME[it.sockets[pick.i]]} is in that socket: putting a mod over it destroys it.</div>`; } }
-    h += `<div class="bt"><button data-up="${sel}" ${it.level >= cap || S.bank.scrap < uc ? 'disabled' : ''}>UPGRADE THIS ${what.toUpperCase()} ⚙${uc}</button><button data-chg="${sel}" ${n ? '' : 'disabled'}>SWAP${n ? ' (' + n + ' in stash)' : ''}</button></div>`;
-    h += `<div class="md note">Upgrading makes this ${what} better, not the bike. Swap it and the level goes with it.${it.level >= cap ? ' At the cap: clean more areas to raise it.' : ''}</div></div>`;
+    h += `<div class="bt"><button data-up="${sel}" ${it.level >= cap || S.bank.scrap < uc ? 'disabled' : ''}>UPGRADE ${sel === 'tyres' ? 'THESE' : 'THIS'} ${what.toUpperCase()} ⚙${uc}</button><button data-chg="${sel}" ${n ? '' : 'disabled'}>SWAP${n ? ' (' + n + ' in stash)' : ''}</button></div>`;
+    h += `<div class="md note">Upgrading makes ${sel === 'tyres' ? 'these tyres' : 'this ' + what} better, not the bike. Swap ${sel === 'tyres' ? 'them' : 'it'} and the level goes with ${sel === 'tyres' ? 'them' : 'it'}.${it.level >= cap ? ' At the cap: clean more areas to raise it.' : ''}</div></div>`;
     return h; }
   function buildTab() { let h = '';
     for (const [title, f] of GROUPS) { const rs = S.known.map(id => RECIPES[id]).filter(r => r && f(r)); if (!rs.length) continue; h += `<h3>${title}</h3>`;
@@ -69,9 +59,9 @@ export function createGarageUi({ sim, ui }) {
   function paint() { funds.textContent = `⌂ ⚙${S.bank.scrap} ◆${S.bank.chips}`; for (const b of panel.querySelectorAll('.tabs button')) b.classList.toggle('on', b.dataset.t === tab);
     list.innerHTML = tab === 'bike' ? bikeTab() : tab === 'build' ? buildTab() : stashTab(); }
   const did = (ok, good) => { if (ok) say(good); else { const e = S.events.slice().reverse().find(q => q.type === 'garageNo'); say(NO[e && e.why] || 'Can\'t.', true); } paint(); };
-  panel.addEventListener('pointerdown', e => { const g = e.target.closest && e.target.closest('[data-sel]'); if (g) { sel = g.dataset.sel; pick = null; say(''); paint(); return; }
-    const b = e.target.closest('button'); if (!b || b.disabled) return; const d = b.dataset;
+  panel.addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; const d = b.dataset;
     if (d.t) { tab = d.t; only = null; pick = null; say(''); paint(); return; }
+    if (d.sel) { sel = d.sel; pick = null; say(''); paint(); return; }
     if (d.up) return did(sim.upgrade(d.up), `${nm(S.gear[d.up])} is now level ${S.gear[d.up].level + 1}.`);
     if (d.chg) { tab = 'stash'; only = d.chg; pick = null; paint(); return; }
     if (d.all) { only = null; paint(); return; }
@@ -80,8 +70,11 @@ export function createGarageUi({ sim, ui }) {
     if (d.build) return did(sim.build(d.build), `Built: ${RECIPES[d.build].name}.`);
     if (d.eq) { const it = S.stash.find(q => q.uid === +d.eq); const ok = sim.equipItem(+d.eq); if (ok) { sel = it.slot; tab = 'bike'; } return did(ok, it ? `${nm(it)} fitted to the bike.` : 'Fitted.'); }
     if (d.salv) return did(sim.salvageItem(+d.salv), 'Salvaged.'); });
-  const open = () => { panel.hidden = false; ui.paused = true; tab = 'bike'; only = null; pick = null; say(''); paint(); };
-  const close = () => { panel.hidden = true; ui.paused = false; };
+  // [m6c] the camera comes in on the bike, set in the top of the screen above the sheet; the HUD steps aside
+  let saved = null; const CLOSE = 56;
+  const open = () => { panel.hidden = false; ui.paused = true; tab = 'bike'; only = null; pick = null; say(''); paint(); document.body.classList.add('garage-open');
+    if (cam && lab) { saved = { base: cam.base, labCam: lab.cam }; cam.base = CLOSE; const b = S.bike; lab.cam = { x: b.x, y: b.y + innerHeight * 0.27 / CLOSE }; } };
+  const close = () => { panel.hidden = true; ui.paused = false; document.body.classList.remove('garage-open'); if (saved) { cam.base = saved.base; lab.cam = saved.labCam; saved = null; } };
   btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); open(); });
   for (const id of ['garDone', 'garX']) for (const t of ['pointerdown', 'pointerup', 'touchend', 'click']) $(id).addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); close(); }, { passive: false });
   addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k === 'g' && sim.atBench() && panel.hidden) open(); else if (k === 'escape' && !panel.hidden) close(); });
@@ -90,5 +83,5 @@ export function createGarageUi({ sim, ui }) {
   const fire = $('fire'); let lastGun = '';
   function update(evs) { const w = S.gear.weapon, gs = `${w.r}|${w.level}`; if (gs !== lastGun) { lastGun = gs; fire.innerHTML = `FIRE<small>${esc(RECIPES[w.r].name)}${w.level > 1 ? ' · Lv' + w.level : ''}</small>`; }
     const at = sim.atBench(); if (at !== lastAt) { lastAt = at; btn.hidden = !at; if (at && !told) { told = true; ui.toast('The garage: build from your recipes, fit parts and mods. Tap GARAGE.', true); } } }
-  return { update, open };
+  return { update, open, get sel() { return panel.hidden || tab !== 'bike' ? null : sel; } };
 }

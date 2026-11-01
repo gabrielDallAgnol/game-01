@@ -2,6 +2,9 @@
 // vents, lamp) and each part's module fills its socket (play-atoms §8: one module, many places; a house socket can take
 // the same plate or lamp later). Built from the medium's glyph solids like everything else; a part's accent takes its
 // rarity's paint (common steel, tuned blue, rare yellow, epic red). Without gear it draws the stock bike.
+// [m6c] where each part sits on the bike, in its own frame (forward x, left y, in units of FIGM * 0.9), for the garage's
+// highlight of the selected part (garageview.js)
+export const SOCKETS = { weapon: [[0.42, 0]], engine: [[0.02, 0]], frame: [[-0.05, 0.24], [-0.05, -0.24]], lamp: [[0.72, 0]], tyres: [[0.62, 0], [-0.58, 0]] };
 const TINT = M => ({ common: M.steel, tuned: M.carBlue, rare: M.paint, epic: M.carRed });
 export function bikeLook(b, K, t, night, riding, gear, FIGM) {
   const { sphere, capsule, box, M } = K, S = FIGM * 0.9, a = b.ang, ca = Math.cos(a), sa = Math.sin(a), P = (lx, ly) => [b.x + (lx * ca - ly * sa) * S, b.y + (lx * sa + ly * ca) * S];

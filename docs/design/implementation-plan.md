@@ -177,6 +177,14 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **Elite machines drop their mod** (`src/play/elites.js`, `src/roam/sim/elites.js`): 3% of machines (+1.2% per area level, x1.5 at night) carry a mod and act it: Quick (runs 45% faster), Twin (hits twice; a twin spitter spits two bolts), Glancing (shots glance off: 55% damage), Burning (the ground catches where it walks), Soaking (leaves water). 2.6x health, bigger eyes, a name plate in ember (BURNING HOUND). Beating one drops that mod (a steel chip with a lit core): carried, at risk, until a bank sends it to the garage. Mod recipes stay buildable too.
 - **Later, recorded:** the garage UI should look like a game, not a file manager (a pass in M10's polish); the incremental start goes into M8.
 
+**The garage, looked at again (Nov 1, `play/m6c-garage-look`):**
+- **The real bike, close up:** opening the garage brings the camera in on the bike itself (the game's own render), set in the top of the screen; the panel is a sheet below it. The BIKE tab is a row of its five fitted parts (GUN, ENGINE, FRAME, LAMP, TYRES with their levels); the one you pick is ringed in amber light on the bike (both wheels for tyres, both sides for the frame), and shown below. The drawn diagram is gone. The HUD steps aside while it's open.
+- **It looks like a garage:** the garage site carries its own dressing (`dress` in `src/play/sites.js`, drawn by `src/roam/sitedress.js`), set in front of its doors so it lands right on any map: the open doors' warm light spilling out, a sign board with GARAGE lit on it, work lamps either side pooling warm light, stacks of tyres, oil drums, a car up on a lift, an air line, cones, old oil stains on the ground. No floating label at close range any more.
+
+**Later, recorded (Gabriel, Nov 1):**
+- **A workbench that grows:** at first the garage can only upgrade; building from recipes needs a station you build first, and a better station lets rarer recipes start to show up.
+- **Garage cosmetics:** things to make the garage's surroundings feel alive, built or bought over time. The map is not very interactive; the garage is, and it should look it.
+
 ## M7. Levels and talents · about 1 week
 | Build | Notes |
 |---|---|
@@ -213,7 +221,7 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 The control-node boss, the story hooks (the chip, the 3:00 radio voice), side quests, 3–5 areas, polish (including the garage and panels looking like a game, not a file manager: Gabriel, Nov 1), a full playtest.
 
 ## Later list (not before chapter 1 is fun)
-A portable garage on the truck form (the garage's services on a vehicle), buying a garage to make it home, turrets built for houses as missions; Shock and wind (and their reactions), epic modifier slots, schematics, the Deep Signal endgame, chapter 2, Kai on foot for narrow places and shops.
+A portable garage on the truck form (the garage's services on a vehicle), buying a garage to make it home, a workbench that grows (upgrade only at first; a built station to build recipes; a better one shows rarer recipes), garage cosmetics, turrets built for houses as missions; Shock and wind (and their reactions), epic modifier slots, schematics, the Deep Signal endgame, chapter 2, Kai on foot for narrow places and shops.
 
 ## Open decisions
 1. **Build on Roam and freeze V2?** (Proposed: yes.)

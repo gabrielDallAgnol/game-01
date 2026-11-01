@@ -13,6 +13,12 @@ export const SITES = {
   camp: { id: 'camp', name: 'the camp', services: ['home', 'bank', 'repair'], owner: 'owned',
     desc: 'Your camp on the square: bank here, and come back here if you go down.', why: 'A safe start before the garage is reached.' },
   garage: { id: 'garage', name: 'the garage', services: ['bank', 'repair', 'stash', 'workbench'], owner: 'owned',
+    // [m6c] its dressing, so it reads as the garage by looking, not by a label (Gabriel Nov 1): placed in front of its doors,
+    // u along the wall, v out from it (metres from the doors' middle); a piece that would land in a wall is left out.
+    // Drawn by src/roam/sitedress.js; its lights pool on the ground and its drums stain it (atomlook.js)
+    dress: [{ k: 'doors', u: 0, v: 0.3 }, { k: 'sign', u: 0, v: 0.8 }, { k: 'worklamp', u: -5.5, v: 0.8 }, { k: 'worklamp', u: 5.5, v: 0.8 }, { k: 'bench', u: 3.4, v: 1.1 },
+      { k: 'tyres', u: 7.4, v: 1.6 }, { k: 'tyres', u: 8.4, v: 3.2 }, { k: 'tyres', u: 7, v: 4.4 }, { k: 'drums', u: -7.6, v: 1.8 }, { k: 'lift', u: -4.6, v: 7.5 },
+      { k: 'stain', u: -1.5, v: 4.5 }, { k: 'stain', u: 2.5, v: 6 }, { k: 'stain', u: -7, v: 3.4 }, { k: 'air', u: 9.2, v: 7.5 }, { k: 'cones', u: 1, v: 10.5 }],
     desc: 'The garage: build from your recipes, fit parts and mods, upgrade. Banks and repairs too.', why: 'The hub: loot turns into a bike here.' },
 };
 export const offers = (site, service) => !!(site && (site.services || (SITES[site.kind] || {}).services || []).includes(service));
