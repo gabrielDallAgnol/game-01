@@ -1,6 +1,7 @@
 // [roam] The garage panel (M6): opened with GARAGE when Kai is at a workbench (the town's garage). Three tabs:
-// - BIKE: the five slots (weapon, engine, frame, lamp, tyres), each with its level and UPGRADE (banked scrap, capped by
-//   Kai's level); the weapon's built-in mods and its sockets. Tap an empty socket to put a mod in: it stays for good
+// - BIKE: a picture of the bike with its five fitted parts (gun, engine, frame, lamp, tyres) labelled where they sit; tap
+//   one to see it: its level and UPGRADE THIS <PART> (banked scrap, capped by Kai's level), SWAP; the gun's built-in mods
+//   and its sockets. Tap an empty socket to put a mod in: it stays for good
 //   (a second tap confirms; over an old mod, the old one is destroyed). CHANGE opens the stash for that slot.
 // - BUILD: every known recipe by kind, its cost, BUILD (banked scrap and chips).
 // - STASH: built gear waiting: EQUIP or SALVAGE; the mods Kai owns.
@@ -27,15 +28,31 @@ export function createGarageUi({ sim, ui }) {
     if (slot === 'frame') return `health ${b.hp} · soaks ${Math.round(b.soak * 100)}%`;
     if (slot === 'lamp') return `pulls scrap ${r1(b.pull)} m · reads rares ${r1(b.scan)} m${b.dazzle ? ' · dazzles ' + r1(b.dazzle) + ' m' : ''}`;
     return `turn ${r1(b.turn)} · bounce ${Math.round(b.bounce * 100)}%${b.crashMult < 1 ? ' · crashes ×' + b.crashMult : ''}`; }
-  function bikeTab() { const cap = sim.levelCap(); let h = '';
-    for (const slot of SLOTS) { const it = S.gear[slot], uc = sim.upCost(slot), n = S.stash.filter(q => q.slot === slot).length;
-      h += `<div class="it" style="border-color:${col(it.rarity)}66"><div class="hd"><span class="sl">${SLOTN[slot]}</span><span class="nm" style="color:${col(it.rarity)}">${esc(nm(it))}</span><span class="lv">Lv ${it.level}/${cap}</span></div>`;
-      h += `<div class="md">${statLine(slot, it)}</div>`;
-      if (slot === 'weapon') { h += '<div class="sk">' + it.mods.map(m => `<span class="mod in" title="${esc(MODIFIERS[m].desc)}">${MOD_NAME[m]}</span>`).join('') + it.sockets.map((m, i) => `<button class="mod ${m ? 'full' : 'open'}${pick && pick.i === i ? ' on' : ''}" data-sock="${i}">${m ? MOD_NAME[m] : '+ socket'}</button>`).join('') + (it.mods.length + it.sockets.length ? '' : '<span class="md">no mods, no sockets</span>') + '</div>';
-        if (pick) { const owned = Object.entries(S.mods).filter(([, c]) => c > 0);
-          h += '<div class="pk">' + (owned.length ? owned.map(([m, c]) => `<button data-put="${m}" class="${pick.mod === m ? 'on' : ''}">${pick.mod === m ? 'CONFIRM: ' + MOD_NAME[m] + ' for good' : MOD_NAME[m] + ' ×' + c}</button>`).join('') : '<span class="md">No mods yet: build one in BUILD.</span>') + '</div>';
-          if (it.sockets[pick.i]) h += `<div class="md warn">${MOD_NAME[it.sockets[pick.i]]} is in that socket: putting a mod over it destroys it.</div>`; } }
-      h += `<div class="bt"><button data-up="${slot}" ${it.level >= cap || S.bank.scrap < uc ? 'disabled' : ''}>UPGRADE ⚙${uc}</button><button data-chg="${slot}" ${n ? '' : 'disabled'}>CHANGE${n ? ' (' + n + ')' : ''}</button></div></div>`; }
+  // [m6b] the bike as a picture (Gabriel: it must be clear what is the bike and what is fitted to it): a top-down bike with
+  // its five fitted parts labelled where they sit; tap one to see it below. Upgrading improves that part, not the bike.
+  let sel = 'weapon';
+  const SPOT = { frame: [92, 22, 150, 70], weapon: [212, 22, 236, 60], lamp: [318, 22, 318, 72], tyres: [70, 136, 70, 92], engine: [190, 136, 168, 80] };
+  function bikeSvg() { const cap = sim.levelCap(); let g = '';
+    for (const slot of SLOTS) { const it = S.gear[slot], [lx, ly, px, py] = SPOT[slot], on = slot === sel, c = col(it.rarity);
+      g += `<g data-sel="${slot}" style="cursor:pointer"><line x1="${lx}" y1="${ly + (ly < 80 ? 10 : -10)}" x2="${px}" y2="${py}" stroke="${on ? '#f0b44c' : c}" stroke-width="1.5" stroke-dasharray="${on ? '' : '3 3'}"/>`
+        + `<rect x="${lx - 46}" y="${ly - 12}" width="92" height="24" rx="7" fill="${on ? '#f0b44c' : 'rgba(10,11,13,.92)'}" stroke="${c}" stroke-width="1.5"/>`
+        + `<text x="${lx}" y="${ly + 4}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="700" font-size="11" fill="${on ? '#1a1206' : '#e9e2cf'}">${slot === 'weapon' ? 'GUN' : slot.toUpperCase()} · Lv ${it.level}</text></g>`; }
+    return `<svg viewBox="0 0 360 156" class="bike" role="img" aria-label="Your bike and its fitted parts">
+      <rect x="40" y="70" width="60" height="26" rx="9" fill="#2a2b2e" stroke="#555"/><rect x="262" y="70" width="60" height="26" rx="9" fill="#2a2b2e" stroke="#555"/>
+      <line x1="70" y1="83" x2="292" y2="83" stroke="#8a5a3a" stroke-width="9" stroke-linecap="round"/>
+      <rect x="150" y="70" width="40" height="26" rx="5" fill="#1d1e21" stroke="#666"/><rect x="190" y="72" width="44" height="22" rx="8" fill="#e0a83a"/>
+      <rect x="112" y="74" width="36" height="18" rx="5" fill="#1d1e21"/><line x1="236" y1="58" x2="236" y2="108" stroke="#c8ccd2" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="318" cy="83" r="9" fill="#ffd36a"/><path d="M327 76 L356 66 L356 100 L327 90 Z" fill="rgba(255,211,106,.18)"/>${g}</svg>`; }
+  function bikeTab() { const cap = sim.levelCap(), b = sim.bikeStats(), it = S.gear[sel], uc = sim.upCost(sel), n = S.stash.filter(q => q.slot === sel).length, what = sel === 'weapon' ? 'gun' : sel;
+    let h = `<div class="bikehd"><span>YOUR BIKE</span><span class="md">health ${b.hp} · ${Math.round(b.top * 10) / 10} m/s · turn ${Math.round(b.turn * 10) / 10}</span></div>${bikeSvg()}`;
+    h += `<div class="it sel" style="border-color:${col(it.rarity)}"><div class="md up">FITTED ${what.toUpperCase()}</div><div class="hd"><span class="nm big" style="color:${col(it.rarity)}">${esc(nm(it))}</span><span class="lv">Lv ${it.level}/${cap}</span></div>`;
+    h += `<div class="md">${esc(RECIPES[it.r].desc)}</div><div class="md st">${statLine(sel, it)}</div>`;
+    if (sel === 'weapon') { h += '<div class="sk">' + it.mods.map(m => `<span class="mod in" title="${esc(MODIFIERS[m].desc)}">${MOD_NAME[m]} <i>built in</i></span>`).join('') + it.sockets.map((m, i) => `<button class="mod ${m ? 'full' : 'open'}${pick && pick.i === i ? ' on' : ''}" data-sock="${i}">${m ? MOD_NAME[m] : '+ empty socket'}</button>`).join('') + (it.mods.length + it.sockets.length ? '' : '<span class="md">no mods, no sockets</span>') + '</div>';
+      if (pick) { const owned = Object.entries(S.mods).filter(([, c]) => c > 0);
+        h += '<div class="pk">' + (owned.length ? owned.map(([m, c]) => `<button data-put="${m}" class="${pick.mod === m ? 'on' : ''}">${pick.mod === m ? 'CONFIRM: ' + MOD_NAME[m] + ' for good' : MOD_NAME[m] + ' ×' + c}</button>`).join('') : '<span class="md">No mods yet: beat an elite machine, or build one in BUILD.</span>') + '</div>';
+        if (it.sockets[pick.i]) h += `<div class="md warn">${MOD_NAME[it.sockets[pick.i]]} is in that socket: putting a mod over it destroys it.</div>`; } }
+    h += `<div class="bt"><button data-up="${sel}" ${it.level >= cap || S.bank.scrap < uc ? 'disabled' : ''}>UPGRADE THIS ${what.toUpperCase()} ⚙${uc}</button><button data-chg="${sel}" ${n ? '' : 'disabled'}>SWAP${n ? ' (' + n + ' in stash)' : ''}</button></div>`;
+    h += `<div class="md note">Upgrading makes this ${what} better, not the bike. Swap it and the level goes with it.${it.level >= cap ? ' At the cap: clean more areas to raise it.' : ''}</div></div>`;
     return h; }
   function buildTab() { let h = '';
     for (const [title, f] of GROUPS) { const rs = S.known.map(id => RECIPES[id]).filter(r => r && f(r)); if (!rs.length) continue; h += `<h3>${title}</h3>`;
@@ -52,15 +69,16 @@ export function createGarageUi({ sim, ui }) {
   function paint() { funds.textContent = `⌂ ⚙${S.bank.scrap} ◆${S.bank.chips}`; for (const b of panel.querySelectorAll('.tabs button')) b.classList.toggle('on', b.dataset.t === tab);
     list.innerHTML = tab === 'bike' ? bikeTab() : tab === 'build' ? buildTab() : stashTab(); }
   const did = (ok, good) => { if (ok) say(good); else { const e = S.events.slice().reverse().find(q => q.type === 'garageNo'); say(NO[e && e.why] || 'Can\'t.', true); } paint(); };
-  panel.addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; const d = b.dataset;
+  panel.addEventListener('pointerdown', e => { const g = e.target.closest && e.target.closest('[data-sel]'); if (g) { sel = g.dataset.sel; pick = null; say(''); paint(); return; }
+    const b = e.target.closest('button'); if (!b || b.disabled) return; const d = b.dataset;
     if (d.t) { tab = d.t; only = null; pick = null; say(''); paint(); return; }
-    if (d.up) return did(sim.upgrade(d.up), `${SLOTN[d.up]} upgraded.`);
+    if (d.up) return did(sim.upgrade(d.up), `${nm(S.gear[d.up])} is now level ${S.gear[d.up].level + 1}.`);
     if (d.chg) { tab = 'stash'; only = d.chg; pick = null; paint(); return; }
     if (d.all) { only = null; paint(); return; }
     if (d.sock !== undefined) { pick = pick && pick.i === +d.sock ? null : { i: +d.sock, mod: null }; say(pick ? 'Pick a mod for this socket. It stays there for good.' : ''); paint(); return; }
     if (d.put) { if (pick.mod !== d.put) { pick.mod = d.put; paint(); return; } const ok = sim.socket(S.gear.weapon.uid, pick.i, d.put); pick = null; return did(ok, `${MOD_NAME[d.put]} is in for good.`); }
     if (d.build) return did(sim.build(d.build), `Built: ${RECIPES[d.build].name}.`);
-    if (d.eq) return did(sim.equipItem(+d.eq), 'Fitted.');
+    if (d.eq) { const it = S.stash.find(q => q.uid === +d.eq); const ok = sim.equipItem(+d.eq); if (ok) { sel = it.slot; tab = 'bike'; } return did(ok, it ? `${nm(it)} fitted to the bike.` : 'Fitted.'); }
     if (d.salv) return did(sim.salvageItem(+d.salv), 'Salvaged.'); });
   const open = () => { panel.hidden = false; ui.paused = true; tab = 'bike'; only = null; pick = null; say(''); paint(); };
   const close = () => { panel.hidden = true; ui.paused = false; };
@@ -68,6 +86,9 @@ export function createGarageUi({ sim, ui }) {
   for (const id of ['garDone', 'garX']) for (const t of ['pointerdown', 'pointerup', 'touchend', 'click']) $(id).addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); close(); }, { passive: false });
   addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k === 'g' && sim.atBench() && panel.hidden) open(); else if (k === 'escape' && !panel.hidden) close(); });
   let lastAt = null, told = false;
-  function update(evs) { const at = sim.atBench(); if (at !== lastAt) { lastAt = at; btn.hidden = !at; if (at && !told) { told = true; ui.toast('The garage: build from your recipes, fit parts and mods. Tap GARAGE.', true); } } }
+  // [m6b] the FIRE button names the gun you carry (and its level): the button is your gun
+  const fire = $('fire'); let lastGun = '';
+  function update(evs) { const w = S.gear.weapon, gs = `${w.r}|${w.level}`; if (gs !== lastGun) { lastGun = gs; fire.innerHTML = `FIRE<small>${esc(RECIPES[w.r].name)}${w.level > 1 ? ' · Lv' + w.level : ''}</small>`; }
+    const at = sim.atBench(); if (at !== lastAt) { lastAt = at; btn.hidden = !at; if (at && !told) { told = true; ui.toast('The garage: build from your recipes, fit parts and mods. Tap GARAGE.', true); } } }
   return { update, open };
 }

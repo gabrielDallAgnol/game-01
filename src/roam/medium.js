@@ -15,6 +15,7 @@ import { gardenLook } from './garden-look.js';
 import { landLook } from './world/land.js';
 import { riskVolumes, riskDraw } from './riskview.js';
 import { bikeLook } from './bikelook.js';
+import { drawElites } from './elitesview.js';
 
 export const MAXP = 1024;          // volumes a frame (the dead off screen are left out)
 const RAMP = ' .,:-=+*%#@';
@@ -486,6 +487,8 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       else if (d.kind === 'recipe') { const bob = 0.03 * Math.sin(t * 2 + d.id), ca = Math.cos(a), sa = Math.sin(a);
         capsule(d.x - ca * 0.42, d.y - sa * 0.42, 0.2 + bob, d.x + ca * 0.42, d.y + sa * 0.42, 0.2 + bob, 0.13, M.carCream); box(d.x, d.y, 0.2 + bob, 0.09, 0.15, 0.15, 0.03, a, RMAT[d.w.rarity] || M.steel);
         sphere(d.x + ca * 0.5, d.y + sa * 0.5, 0.24 + bob, 0.07, M.lamp, d.scanned ? 0.9 : 0.3 + 0.3 * Math.sin(t * 7 + d.id)); }
+      // [m6b] an elite's mod: a small steel chip with a lit core, the way the machines' chips are drawn
+      else if (d.kind === 'mod') { const bob = 0.03 * Math.sin(t * 2 + d.id); box(d.x, d.y, 0.14 + bob, 0.26, 0.26, 0.06, 0.08, a, M.steel); sphere(d.x, d.y, 0.22 + bob, 0.09, M.lamp, 0.8 + 0.2 * Math.sin(t * 5 + d.id)); }
       else { const bob = 0.03 * Math.sin(t * 2 + d.id); box(d.x, d.y, 0.26 + bob, 0.5, 0.28, 0.18, 0.06, a, M.dark); box(d.x, d.y, 0.46 + bob, 0.4, 0.19, 0.03, 0.03, a, RMAT[d.w.rarity] || M.steel);
         sphere(d.x + Math.cos(a) * 0.3, d.y + Math.sin(a) * 0.3, 0.52 + bob, 0.07, M.lamp, d.scanned ? 0.9 : 0.3 + 0.3 * Math.sin(t * 7 + d.id)); } }
     // [m3d] a projectile's head is a lit cell like any other light in the town: yours amber (plain), ember (fire), cold blue
@@ -570,7 +573,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
         if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; const K = MACHINES[d.kind], asleep = d.state === 'sleep', hit = t - d.hit < 0.1;
         const glow = (asleep ? 0.25 : 0.85 + 0.15 * Math.sin(t * 6 + d.id)) * (d.aim > 0 || d.windT > 0 ? 1.6 : 1) * (0.75 + 0.35 * night), col = hit ? '#ffffff' : K.color, sep = d.kind === 'brute' ? 2.2 * grow : d.kind === 'walker' ? 4 * grow : 0;
         for (const o of sep ? [-sep, sep] : [0]) { const ex = x - Math.sin(a) * o, ey = y + Math.cos(a) * o;
-          const big = L.big || 1; fx.globalAlpha = 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5 * grow * big, 0, 6.283); fx.fill();   // the halo
+          const big = (L.big || 1) * (d.elite ? 1.5 : 1); fx.globalAlpha = 0.35 * glow; fx.fillStyle = col; fx.beginPath(); fx.arc(ex, ey, 4.5 * grow * big, 0, 6.283); fx.fill();   // the halo
           fx.globalAlpha = Math.min(1, glow); fx.beginPath(); fx.arc(ex, ey, 1.6 * grow * big, 0, 6.283); fx.fill(); } }   // the point
       fx.restore(); fx.globalAlpha = 1; }
     // [m3d] projectiles: the same tiny point of light with a soft neon halo as the machines' eyes, in the shot's hue (amber,
@@ -598,17 +601,17 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
           fx.globalAlpha = 0.85; fx.strokeStyle = '#ffe2a8'; fx.lineWidth = Math.max(2, 2.2 * grow); fx.beginPath(); fx.moveTo(x0, y0); fx.lineTo(x, y); fx.stroke();
           fx.fillStyle = '#fff4dc'; fx.beginPath(); fx.arc(x, y, 2.2 * grow, 0, 6.283); fx.fill(); }
         else { const tw = 0.5 + 0.5 * Math.sin(t * 5 + d.id * 1.7); fx.globalAlpha = 0.35 + 0.5 * tw; fx.fillStyle = '#e9e0c8'; fx.beginPath(); fx.arc(x, y, (1.2 + tw) * grow, 0, 6.283); fx.fill(); } }
-      for (const d of v.drops || []) { if (d.kind !== 'weapon' && d.kind !== 'recipe') continue; const [x, y] = toS(d.x, d.y); if (x < -60 || y < -40 || x > cssW + 60 || y > cssH + 40) continue;
+      for (const d of v.drops || []) { if (d.kind !== 'weapon' && d.kind !== 'recipe' && d.kind !== 'mod') continue; const [x, y] = toS(d.x, d.y); if (x < -60 || y < -40 || x > cssW + 60 || y > cssH + 40) continue;
         const Rr = RARITY[d.w.rarity], col = d.scanned ? Rr.color : '#e8e4da', br = d.scanned ? Rr.glow * (0.8 + 0.2 * Math.sin(t * 2.2 + d.id)) : 0.35 + 0.25 * Math.sin(t * 9 + d.id);
         fx.fillStyle = col; fx.globalAlpha = 0.16 * br; fx.beginPath(); fx.arc(x, y, 11 * grow, 0, 6.283); fx.fill();
         fx.globalAlpha = Math.min(1, br * 1.3); fx.beginPath(); fx.arc(x, y, 1.8 * grow, 0, 6.283); fx.fill(); }
       fx.globalCompositeOperation = 'source-over'; fx.font = '700 11px "IBM Plex Mono", ui-monospace, monospace'; fx.textAlign = 'center'; fx.textBaseline = 'middle';
-      for (const d of v.drops || []) { if (d.kind !== 'weapon' && d.kind !== 'recipe') continue; const [x, y0] = toS(d.x, d.y), y = y0 - 14 * grow - 6; if (x < -120 || y < -20 || x > cssW + 120 || y > cssH + 20) continue;
-        const label = d.scanned ? (d.name ? d.name + ' recipe' : nameOf(d.w)) : '?', w = fx.measureText(label).width + 10; fx.globalAlpha = 0.9; fx.fillStyle = 'rgba(8,9,11,.82)'; fx.fillRect(x - w / 2, y - 8, w, 16);
+      for (const d of v.drops || []) { if (d.kind !== 'weapon' && d.kind !== 'recipe' && d.kind !== 'mod') continue; const [x, y0] = toS(d.x, d.y), y = y0 - 14 * grow - 6; if (x < -120 || y < -20 || x > cssW + 120 || y > cssH + 20) continue;
+        const label = d.scanned ? (d.kind === 'recipe' ? d.name + ' recipe' : d.name || nameOf(d.w)) : '?', w = fx.measureText(label).width + 10; fx.globalAlpha = 0.9; fx.fillStyle = 'rgba(8,9,11,.82)'; fx.fillRect(x - w / 2, y - 8, w, 16);
         fx.globalAlpha = 1; fx.fillStyle = d.scanned ? RARITY[d.w.rarity].color : '#e8e4da'; fx.fillText(label, x, y + 0.5); }
       fx.restore(); fx.globalAlpha = 1; }
-    // [m5] the banks' lamps and the cache's light (riskview.js)
-    riskDraw(fx, v);
+    // [m5] the banks' lamps and the cache's light (riskview.js); [m6b] the elites' names
+    riskDraw(fx, v); drawElites(fx, v);
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
       const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();

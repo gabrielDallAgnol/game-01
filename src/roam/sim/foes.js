@@ -8,7 +8,7 @@ export function createFoes(G) {
   let nid = 1;
   // [m4] a machine is tougher in a higher-level area
   const lvlHp = (x, y) => G.levelAt ? 1 + R.areas.hpPerLevel * (G.levelAt(x, y) - 1) : 1;
-  function spawn(kind, x, y, o = {}) { const K = R.dead[kind], hp0 = K.hp * lvlHp(x, y); const d = { id: nid++, kind, x, y, x0: x, y0: y, vx: 0, vy: 0, hp: hp0, maxHp: hp0, fa: rng.range(0, 6.28), ph: rng.range(0, 6), side: rng.chance(0.5) ? -1 : 1, state: 'wander', wx: x, wy: y, bite: 0, wind: 0, hit: -9, cd: rng.range(0.5, 2), aim: 0, lunge: 0, lungeCd: 0, ...o }; S.dead.push(d); return d; }
+  function spawn(kind, x, y, o = {}) { const K = R.dead[kind], hp0 = K.hp * lvlHp(x, y); const d = { id: nid++, kind, x, y, x0: x, y0: y, vx: 0, vy: 0, hp: hp0, maxHp: hp0, fa: rng.range(0, 6.28), ph: rng.range(0, 6), side: rng.chance(0.5) ? -1 : 1, state: 'wander', wx: x, wy: y, bite: 0, wind: 0, hit: -9, cd: rng.range(0.5, 2), aim: 0, lunge: 0, lungeCd: 0, ...o }; S.dead.push(d); for (const f of G.onSpawn || []) f(d); return d; }   // [m6b] elites.js may make it an elite
   // which machine: by each kind's weight, day or night
   const KINDS = Object.keys(R.dead).filter(k => R.dead[k] && R.dead[k].weight);
   // at most `most` of a kind on Kai's trail at once (a sky full of bolts is noise, not danger)
@@ -33,7 +33,7 @@ export function createFoes(G) {
   function kill(d, src) { const i = S.dead.indexOf(d); if (i < 0) return; S.dead.splice(i, 1); S.kills++; for (const f of G.onDie || []) f(d, src); ev('die', { id: d.id, x: d.x, y: d.y, fa: d.fa, kind: d.kind, src }); }
   // being shot wakes a machine and sets it on you (nothing sits still while you snipe it)
   // and the noise sets the others near it on you too: shooting into a group brings the group
-  function hurtFoe(d, n, src, hx, hy) { if (d.boss) { G.hurtBoss(d, n, src, hx, hy); return; } d.hp -= n; d.hit = S.t; if (d.state !== 'chase') { d.state = 'chase'; for (const o of S.dead) if (o.state !== 'chase' && dist(o, d) < R.dead.alarm) o.state = 'chase'; } if (d.hp <= 0) kill(d, src); }
+  function hurtFoe(d, n, src, hx, hy) { if (d.boss) { G.hurtBoss(d, n, src, hx, hy); return; } if (d.glance && src === 'gun') n *= d.glance; d.hp -= n; d.hit = S.t; if (d.state !== 'chase') { d.state = 'chase'; for (const o of S.dead) if (o.state !== 'chase' && dist(o, d) < R.dead.alarm) o.state = 'chase'; } if (d.hp <= 0) kill(d, src); }
   // steer round walls: try the straight line, then fan out to its side
   // [atoms] they walk round walls and round fire (unless already standing in it: then any way out will do)
   const fireAhead = (d, x, y) => G.hot && !G.hot(d.x, d.y) && G.hot(x, y);
@@ -45,7 +45,7 @@ export function createFoes(G) {
       if (blind && d.state === 'chase') { d.state = 'wander'; d.wx = d.x; d.wy = d.y; d.aim = 0; d.wind = 0; }   // [m2] lost in the steam
       if (d.state === 'sleep') { if (!k.dead && r < (k.riding ? 9 : 5)) d.state = 'chase'; else { d.vx *= 0.8; d.vy *= 0.8; continue; } }
       if (seesKai) d.state = 'chase'; else if (d.state === 'chase' && (r > forget || k.dead)) { d.state = 'wander'; d.wx = d.x; d.wy = d.y; }
-      let gx, gy, sp = K.speed * (S.night ? R.dead.nightSpeed : 1) * (1 - Math.max((d.pips || []).filter(p => p.el === 'water').length * PIPS.water.slow, st.soaked ? STATUSES.soaked.slow : 0, G.onWet && G.onWet(d) ? PIPS.water.slow * 2 : 0));   // [m2] water pips and soaked slow it
+      let gx, gy, sp = K.speed * (d.spd || 1) * (S.night ? R.dead.nightSpeed : 1) * (1 - Math.max((d.pips || []).filter(p => p.el === 'water').length * PIPS.water.slow, st.soaked ? STATUSES.soaked.slow : 0, G.onWet && G.onWet(d) ? PIPS.water.slow * 2 : 0));   // [m2] water pips and soaked slow it
       if (d.state === 'chase' && !k.dead) { gx = k.x; gy = k.y; }
       else { if (Math.hypot(d.wx - d.x, d.wy - d.y) < 1 || rng.chance(dt * 0.1)) {   // they drift: toward where they last heard Kai, more at night
           const toKai = !k.dead && r < 55 && rng.chance(S.night ? 0.75 : 0.45), a = toKai ? Math.atan2(k.y - d.y, k.x - d.x) + rng.range(-0.6, 0.6) : rng.range(0, 6.28), rr = rng.range(4, 12); d.wx = d.x + Math.cos(a) * rr; d.wy = d.y + Math.sin(a) * rr; }
@@ -68,7 +68,7 @@ export function createFoes(G) {
           else if (d.lungeCd <= 0 && r < K.lunge.range && r > reach) { d.lunge = K.lunge.time; d.lungeCd = K.lunge.cd; ev('lunge', { id: d.id }); } }
         if (chasing && r < reach && !fast) { vx = 0; vy = 0;   // in reach: wind up, then bite (a dash gets out of it)
           if (d.wind <= 0 && d.bite <= 0) d.wind = K.windup || R.dead.windup;
-          if (d.wind > 0) { d.wind -= dt; if (d.wind <= 0) { d.bite = R.dead.bite; if (dist(d, k) < reach + 0.4) G.hurtKai(K.dmg); } } }
+          if (d.wind > 0) { d.wind -= dt; if (d.wind <= 0) { d.bite = R.dead.bite; if (dist(d, k) < reach + 0.4) G.hurtKai(K.dmg * (d.dmgMult || 1)); } } }
         else [vx, vy] = steer(d, dx, dy);
       }
       d.bite = Math.max(0, d.bite - dt);

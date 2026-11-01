@@ -2,14 +2,15 @@
 // big ones), chips from the big ones, and now and then a recipe (a brute often, a walker always). Scrap settles for a
 // moment, then flies to Kai on its own from anywhere near. A recipe lies with its name over it in its rarity's colour
 // (Diablo II); ride or walk over it and Kai carries it (at risk until a bank: see risk.js); a rare or better one lies
-// unscanned until the lamp reaches it. A recipe she already knows or carries turns into chips on the spot.
+// unscanned until the lamp reaches it. A recipe she already knows or carries turns into chips on the spot. [m6b] An elite
+// machine's mod is carried the same way, until a bank sends it to the garage.
 // Its own Rng stream. Offers G.stepLoot(dt), G.dropRecipe(x, y, id), G.wield(w), G.lootStat(key).
 import { Rng, hashSeed } from '../../sim/rng.js';
 import { DROPS, RARITY } from '../../play/loot.js';
 import { RECIPES, rollRecipe, dupeChips } from '../../play/recipes.js';
 export function createLoot(G) {
   const { R, S, ev, town } = G, L = R.loot, rng = new Rng(hashSeed(G.seed, 'loot'));
-  S.drops = []; S.carry = []; S.scrap = 0; S.chips = 0;
+  S.drops = []; S.carry = []; S.carryMods = []; S.scrap = 0; S.chips = 0;
   S.guns.main.weapon = { base: S.guns.main.base, rarity: 'common', mods: [], seed: 0 };
   let did = 1;
   // a place near (x, y) that isn't inside a wall
@@ -34,6 +35,7 @@ export function createLoot(G) {
         if (d.fly > 0 || (r < pull && S.t - d.t > L.settle)) { d.fly = Math.min(L.flyMax, (d.fly || L.fly0) + L.flyAcc * dt); const sp = d.fly * dt; d.x += dx / r * Math.min(r, sp); d.y += dy / r * Math.min(r, sp); }
         else if (S.t - d.t > L.scrapLife) S.drops.splice(i, 1); }   // left lying a long time: the town takes it back
       else { if (!d.scanned && r < scan) { d.scanned = true; ev('scan', { id: d.id, x: d.x, y: d.y, rarity: d.w.rarity }); }
+        if (r < take && d.kind === 'mod') { S.drops.splice(i, 1); S.carryMods.push(d.m); ev('lootMod', { m: d.m, x: d.x, y: d.y }); continue; }   // [m6b] an elite's mod
         if (r < take) { S.drops.splice(i, 1); const rr = RECIPES[d.r];
           if ((S.known || []).includes(d.r) || S.carry.includes(d.r)) { const n = dupeChips(rr); S.chips += n; ev('dupe', { r: d.r, chips: n, x: d.x, y: d.y, rarity: rr.rarity }); }
           else { S.carry.push(d.r); ev('loot', { id: d.id, r: d.r, rarity: rr.rarity, x: d.x, y: d.y }); } } } }

@@ -15,9 +15,10 @@ import { createLoot } from './sim/loot.js';
 import { createAreas } from './sim/areas.js';
 import { createRisk } from './sim/risk.js';
 import { createGarage } from './sim/garage.js';
+import { createElites } from './sim/elites.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas, createRisk, createGarage];
+const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas, createRisk, createGarage, createElites];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
@@ -64,6 +65,9 @@ export const ROAM = {
   // it cost; a dazzle lamp keeps dazzleSlow of a machine's speed each step it's in the beam; door: how far out from the
   // garage's roller doors its forecourt (the service spot) is
   garage: { door: 6, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
+  // [m6b] elites: the chance a machine is one (+perLevel per area level above 1, x night at night), how much tougher, and
+  // the trail a burning or soaking one leaves (every trailEvery s, trailR m, trailPower of the element)
+  elites: { chance: 0.03, perLevel: 0.012, night: 1.5, hp: 2.6, trailEvery: 1.2, trailR: 1.2, trailPower: 0.5 },
 };
 
 export function createRoam(town, seed = 1) {
@@ -84,7 +88,7 @@ export function createRoam(town, seed = 1) {
     G.view = Math.min(160, inp.view || 0);
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp); G.stepGarage(dt);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp); G.stepGarage(dt); G.stepElites(dt);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();

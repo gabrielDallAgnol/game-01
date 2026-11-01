@@ -21,17 +21,18 @@ export const MOD_POOL = [
 export const BASE_POOL = [{ id: 'scatter', w: 6 }, { id: 'launcher', w: 2 }, { id: 'thrower', w: 2 }];
 // what each machine leaves: scrap pieces [min, max], the chance of a weapon, and its rarity weights
 // [m6] machines drop recipes, not weapons (Gabriel, Nov 1: gear off a monster is confusing): `recipe` is the chance of
-// one, `rarity` its weights (play/recipes.js rolls which)
+// one, `rarity` its weights (play/recipes.js rolls which). [m6b] fewer, and almost no epics (Gabriel: too much dropping to
+// keep up with); the incremental start (scrap first, the first recipe from a mission) comes with M8
 export const DROPS = {
-  crawler: { scrap: [1, 2], recipe: 0.04, rarity: { common: 70, tuned: 25, rare: 5, epic: 0 },
+  crawler: { scrap: [1, 2], recipe: 0.012, rarity: { common: 80, tuned: 20, rare: 0, epic: 0 },
     desc: 'A crawler: a little scrap.', why: 'The common kill feeds the common currency.' },
-  skitter: { scrap: [1, 2], recipe: 0.04, rarity: { common: 70, tuned: 25, rare: 5, epic: 0 }, desc: 'A skitter: a little scrap.', why: 'Fast and weak: small reward.' },
-  hound: { scrap: [2, 3], recipe: 0.08, rarity: { common: 60, tuned: 30, rare: 9, epic: 1 }, desc: 'A hound: some scrap, now and then a recipe.', why: 'It hunts you: a bit more for the risk.' },
-  spitter: { scrap: [2, 3], recipe: 0.1, rarity: { common: 55, tuned: 32, rare: 11, epic: 2 }, desc: 'A spitter: some scrap, now and then a recipe.', why: 'Ranged and dangerous: worth chasing down.' },
-  brute: { scrap: [4, 6], recipe: 0.6, chips: 1, rarity: { common: 35, tuned: 40, rare: 20, epic: 5 },
+  skitter: { scrap: [1, 2], recipe: 0.012, rarity: { common: 80, tuned: 20, rare: 0, epic: 0 }, desc: 'A skitter: a little scrap.', why: 'Fast and weak: small reward.' },
+  hound: { scrap: [2, 3], recipe: 0.025, rarity: { common: 65, tuned: 30, rare: 5, epic: 0 }, desc: 'A hound: some scrap, now and then a recipe.', why: 'It hunts you: a bit more for the risk.' },
+  spitter: { scrap: [2, 3], recipe: 0.03, rarity: { common: 60, tuned: 32, rare: 8, epic: 0 }, desc: 'A spitter: some scrap, now and then a recipe.', why: 'Ranged and dangerous: worth chasing down.' },
+  brute: { scrap: [4, 6], recipe: 0.2, chips: 1, rarity: { common: 45, tuned: 45, rare: 10, epic: 0 },
     desc: 'A brute: a pile of scrap, a chip, often a recipe.', why: 'The tougher machine is the loot piñata.' },
-  walker: { scrap: [24, 32], recipe: 1, chips: 5, rarity: { common: 0, tuned: 0, rare: 70, epic: 30 },
-    desc: 'A walker: a heap of scrap, chips, and a rare or epic recipe.', why: 'The area boss pays like one: the reward for a clean area.' },
+  walker: { scrap: [24, 32], recipe: 1, chips: 5, rarity: { common: 0, tuned: 60, rare: 35, epic: 5 },
+    desc: 'A walker: a heap of scrap, chips, and a good recipe.', why: 'The area boss pays like one: the reward for a clean area.' },
 };
 const pickW = (rng, list) => { let t = 0; for (const e of list) t += e.w; let r = rng.range(0, t); for (const e of list) { if ((r -= e.w) < 0) return e; } return list[list.length - 1]; };
 export function rollRarity(rng, weights) { return pickW(rng, RARITIES.map(id => ({ id, w: weights[id] || 0 }))).id; }

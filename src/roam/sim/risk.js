@@ -4,7 +4,7 @@
 // - Repair costs scrap: in the field Kai stops and works on it with the wrench (slow, only with no machine near, stopped
 //   by a hit or the stick); at a site with repair it is fixed fast from banked scrap.
 // - Scrap, chips and recipes Kai carries are at risk. Riding into a site that banks (the camp on the square where she starts,
-//   the garage, a beacon where each area's walker fell: play/sites.js) banks them for good; recipes are learned.
+//   the garage: play/sites.js) banks them for good; recipes are learned, mods go to the garage.
 // - Going down drops what she carries (scrap, chips, recipes) as a cache where she fell; ride over it to take it back. A second death before
 //   that loses the first cache.
 // Offers G.hurtBike(n, why), G.bikeTop(), G.startFix(), G.stepRisk(dt, inp). Wraps G.hurtKai (the bike soaks first).
@@ -28,13 +28,11 @@ export function createRisk(G) {
     if (k.riding && b.hp > 0) { const s = Math.min(b.hp, n * (G.bikeStat ? G.bikeStat('soak') : K.soak)); hurtBike(s, 'hit'); n -= s; }
     hurt0(n); if (k.dead) down(); }
   // she went down: what she carried stays where she fell
-  function down() { stopFix(); const rec = (S.carry || []).splice(0); if (!(S.scrap > 0 || S.chips > 0 || rec.length)) return;
+  function down() { stopFix(); const rec = (S.carry || []).splice(0), mods = (S.carryMods || []).splice(0); if (!(S.scrap > 0 || S.chips > 0 || rec.length || mods.length)) return;
     if (S.cache) ev('cacheLost', { scrap: S.cache.scrap, chips: S.cache.chips, recipes: S.cache.recipes.length });
-    S.cache = { x: k.x, y: k.y, scrap: S.scrap, chips: S.chips, recipes: rec, t: S.t }; ev('cache', { x: k.x, y: k.y, scrap: S.scrap, chips: S.chips, recipes: rec.length });
+    S.cache = { x: k.x, y: k.y, scrap: S.scrap, chips: S.chips, recipes: rec, mods, t: S.t }; ev('cache', { x: k.x, y: k.y, scrap: S.scrap, chips: S.chips, recipes: rec.length });
     S.scrap = 0; S.chips = 0; }
-  // a walker's fall becomes a beacon: a bank out in the area it cleaned
-  (G.onDie ||= []).push(d => { if (!d.boss) return; const a = G.areaAt && G.areaAt(d.x, d.y);
-    site('beacon', d.x, d.y, (a ? a.name : 'the') + ' beacon'); ev('beacon', { x: d.x, y: d.y }); });
+  // [m6b] no beacon where a walker falls (Gabriel: a bank right where you beat the boss doesn't make sense)
   const machineNear = r => { for (const d of S.dead) if (d.state === 'chase' || d.boss) { if (Math.hypot(d.x - b.x, d.y - b.y) < r) return true; } return false; };
   const atBank = () => { for (const q of S.sites) if (offers(q, 'bank') && Math.hypot(q.x - k.x, q.y - k.y) < K.bankR) return q; return null; };
   function startFix() {
@@ -53,9 +51,10 @@ export function createRisk(G) {
     wasDead = k.dead > 0; if (k.dead) return;
     if (inp && inp.repair) { inp.repair = false; if (b.fixing) stopFix('stopped'); else startFix(); }
     // the cache: ride or walk over it
-    const c = S.cache; if (c && Math.hypot(c.x - k.x, c.y - k.y) < K.cacheR) { S.scrap += c.scrap; S.chips += c.chips; for (const r of c.recipes || []) if (!S.carry.includes(r)) S.carry.push(r); S.cache = null; ev('cacheBack', { x: c.x, y: c.y, scrap: c.scrap, chips: c.chips, recipes: (c.recipes || []).length }); }
+    const c = S.cache; if (c && Math.hypot(c.x - k.x, c.y - k.y) < K.cacheR) { S.scrap += c.scrap; S.chips += c.chips; for (const r of c.recipes || []) if (!S.carry.includes(r)) S.carry.push(r); for (const m of c.mods || []) S.carryMods.push(m); S.cache = null; ev('cacheBack', { x: c.x, y: c.y, scrap: c.scrap, chips: c.chips, recipes: (c.recipes || []).length }); }
     const q = atBank();
     if (q) {
+      if (S.carryMods.length) { for (const m of S.carryMods) S.mods[m] = (S.mods[m] || 0) + 1; ev('bankMods', { n: S.carryMods.length, mods: S.carryMods.join(',') }); S.carryMods.length = 0; }
       if (S.scrap > 0 || S.chips > 0 || S.carry.length) { ev('bank', { x: q.x, y: q.y, scrap: S.scrap, chips: S.chips, recipes: S.carry.length, kind: q.kind }); S.bank.scrap += S.scrap; S.bank.chips += S.chips; S.scrap = 0; S.chips = 0; if (S.carry.length) G.learn(S.carry.splice(0)); }
       if (b.fixing) stopFix('bank');
       if (offers(q, 'repair') && k.riding && b.hp < b.maxHp && S.bank.scrap > 0) { const was = b.hp; mend(K.bankFix, dt, 'bank'); if (b.hp >= b.maxHp && was < b.maxHp) ev('fixed', { x: b.x, y: b.y, at: q.kind }); }
