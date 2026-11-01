@@ -30,7 +30,13 @@ export function createGarage(G) {
       p = p || { x: gs.x, y: gs.y }; const q = G.addSite('garage', p.x, p.y);
       // [m6c] its dressing (play/sites.js), set out in front of the doors; what would land in a wall is left out
       const ox = p.x - mx, oy = p.y - my, ol = Math.hypot(ox, oy) || 1, nx = ox / ol, ny = oy / ol, wx = -ny, wy = nx;
-      q.dress = []; for (const D of SITES.garage.dress || []) { const x = mx + wx * D.u + nx * D.v, y = my + wy * D.u + ny * D.v; if (!town.blocked(x, y)) q.dress.push({ k: D.k, x, y, a: Math.atan2(wy, wx) }); } }
+      // [m6d] the lot: the garage site's own box; machines keep out of it (stepGarage), and a tall lamp stands at each of its
+      // corners so you can see the lot from far away (pulled in from a corner until it stands clear of walls)
+      const B = gs.box || { x: gs.x, y: gs.y, w: gs.size ? gs.size[0] : 30, h: gs.size ? gs.size[1] : 24, rot: gs.rot || 0 }; q.lot = { x: B.x, y: B.y, w: B.w, h: B.h, rot: B.rot || 0 };
+      q.dress = []; { const c = Math.cos(q.lot.rot), sn = Math.sin(q.lot.rot);
+        for (const [su, sv] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) for (let k = 0; k < 8; k++) { const u = su * (q.lot.w / 2 - 1.2 - k * 0.6), v = sv * (q.lot.h / 2 - 1.2 - k * 0.6), x = q.lot.x + c * u - sn * v, y = q.lot.y + sn * u + c * v;
+          if (!town.blocked(x, y)) { q.dress.push({ k: 'lotlamp', x, y, a: q.lot.rot }); break; } } }
+      for (const D of SITES.garage.dress || []) { const x = mx + wx * D.u + nx * D.v, y = my + wy * D.u + ny * D.v; if (!town.blocked(x, y)) q.dress.push({ k: D.k, x, y, a: Math.atan2(wy, wx) }); } }
     else { const camp = S.sites[0]; for (const s of ['stash', 'workbench']) if (!camp.services.includes(s)) camp.services.push(s); } }   // a map without a garage: the camp does it
   // ---------- items ----------
   function make(rid) { const r = RECIPES[rid];
@@ -84,8 +90,18 @@ export function createGarage(G) {
     const lost = it.sockets[i]; S.mods[mod]--; it.sockets[i] = mod;
     if (it === S.gear.weapon) G.wield(weaponOf(it));
     ev('socketed', { r: it.r, mod, lost: lost || '' }); return true; }
-  // ---------- each step: the dazzle lamp ----------
-  function stepGarage() { const k = S.kai, dz = bikeStat('dazzle'); if (!dz || !k.riding || k.dead) return; const b = S.bike, ca = Math.cos(b.ang), sa = Math.sin(b.ang);
+  // ---------- the lot is safe ground: machines are turned back at its edge, their bolts die at it ----------
+  const lots = () => S.sites.filter(q => q.lot);
+  const inLot = (L, x, y, m = 0) => { const c = Math.cos(-L.rot), sn = Math.sin(-L.rot), dx = x - L.x, dy = y - L.y, u = c * dx - sn * dy, v = sn * dx + c * dy; return Math.abs(u) < L.w / 2 + m && Math.abs(v) < L.h / 2 + m ? [u, v] : null; };
+  const isSafe = (x, y) => lots().some(q => inLot(q.lot, x, y, K.lotMargin));
+  function keepOut() { for (const q of lots()) { const L = q.lot, c = Math.cos(L.rot), sn = Math.sin(L.rot);
+      for (const d of S.dead) { if (d.boss) continue; const p = inLot(L, d.x, d.y, K.lotMargin); if (!p) continue; let [u, v] = p; const eu = L.w / 2 + K.lotMargin - Math.abs(u), evv = L.h / 2 + K.lotMargin - Math.abs(v);
+        if (eu < evv) u = Math.sign(u || 1) * (L.w / 2 + K.lotMargin + 0.05); else v = Math.sign(v || 1) * (L.h / 2 + K.lotMargin + 0.05);
+        const x = L.x + c * u - sn * v, y = L.y + sn * u + c * v; if (!town.blocked(x, y)) { d.x = x; d.y = y; } d.vx = 0; d.vy = 0;
+        if (d.state === 'chase') { d.state = 'wander'; const ox = d.x - L.x, oy = d.y - L.y, ol = Math.hypot(ox, oy) || 1; d.wx = d.x + ox / ol * 12; d.wy = d.y + oy / ol * 12; d.aim = 0; d.wind = 0; } }
+      for (let i = S.bolts.length - 1; i >= 0; i--) if (inLot(L, S.bolts[i].x, S.bolts[i].y)) { ev('boltPop', { x: S.bolts[i].x, y: S.bolts[i].y }); S.bolts.splice(i, 1); } } }
+  // ---------- each step: the lot, the dazzle lamp ----------
+  function stepGarage() { keepOut(); const k = S.kai, dz = bikeStat('dazzle'); if (!dz || !k.riding || k.dead) return; const b = S.bike, ca = Math.cos(b.ang), sa = Math.sin(b.ang);
     for (const d of S.dead) { if (d.boss) continue; const dx = d.x - b.x, dy = d.y - b.y, r = Math.hypot(dx, dy); if (r > dz || r < 0.5) continue; if ((dx * ca + dy * sa) / r < 0.88) continue; d.vx *= K.dazzleSlow; d.vy *= K.dazzleSlow; } }
-  Object.assign(G, { learn, build, equipItem, salvageItem, upgrade, socket, bikeStats, bikeStat, gunMult, levelCap, atBench, stepGarage, weaponOf, upCost });
+  Object.assign(G, { isSafe, learn, build, equipItem, salvageItem, upgrade, socket, bikeStats, bikeStat, gunMult, levelCap, atBench, stepGarage, weaponOf, upCost });
 }

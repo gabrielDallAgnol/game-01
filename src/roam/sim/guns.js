@@ -71,7 +71,10 @@ export function createGuns(G) {
       if (gone) { land(p, lx, ly); S.shots.splice(i, 1); } }
   }
   function stepGuns(dt, inp) {
-    const k = S.kai, g = S.guns.main; g.cd = Math.max(0, g.cd - dt); if (inp.fire && !k.dead && g.cd <= 0) fire(g, k, inp);
+    const k = S.kai, g = S.guns.main; g.cd = Math.max(0, g.cd - dt);
+    // [m6d] the garage's lot is safe ground both ways: no machine comes in, and the gun stays quiet there
+    const safe = !!(G.isSafe && G.isSafe(k.x, k.y)); if (safe !== !!g.holstered) { g.holstered = safe; ev(safe ? 'holster' : 'unholster', {}); }
+    if (inp.fire && !k.dead && g.cd <= 0 && !safe) fire(g, k, inp);
     stepShots(dt);
   }
   // the loadout (a test control for now; later the garage): the gun's element and mods, the off-hand's enchant

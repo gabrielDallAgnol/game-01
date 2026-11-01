@@ -82,6 +82,7 @@ export function createGarageUi({ sim, ui, cam, lab }) {
   // [m6b] the FIRE button names the gun you carry (and its level): the button is your gun
   const fire = $('fire'); let lastGun = '';
   function update(evs) { const w = S.gear.weapon, gs = `${w.r}|${w.level}`; if (gs !== lastGun) { lastGun = gs; fire.innerHTML = `FIRE<small>${esc(RECIPES[w.r].name)}${w.level > 1 ? ' · Lv' + w.level : ''}</small>`; }
+    fire.classList.toggle('quiet', !!S.guns.main.holstered);   // [m6d] dimmed on the safe lot
     const at = sim.atBench(); if (at !== lastAt) { lastAt = at; btn.hidden = !at; if (at && !told) { told = true; ui.toast('The garage: build from your recipes, fit parts and mods. Tap GARAGE.', true); } } }
   return { update, open, get sel() { return panel.hidden || tab !== 'bike' ? null : sel; } };
 }

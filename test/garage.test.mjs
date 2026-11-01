@@ -33,7 +33,9 @@ test('upgrades cost banked scrap and stop at the level cap; the weapon\'s level 
   const cap = sim.levelCap(); assert.strictEqual(cap, ROAM.garage.capPerLevel); for (let i = 0; i < 10; i++) sim.upgrade('weapon');
   assert.strictEqual(S.gear.weapon.level, cap); assert.strictEqual(sim.upgrade('weapon'), false, 'capped');
   // the damage: fire once and read the pellet's damage
-  S.kai.x += 0; S.shots.length = 0; for (let i = 0; i < 3 && !S.shots.length; i++) step(sim, 1, { fire: true, aim: 0 });
+  S.kai.x = S.bike.x = town.start.x + 0.8; S.kai.y = S.bike.y = town.start.y + 6.2; S.shots.length = 0;
+  // (off the garage lot: the gun is quiet there)
+  for (let i = 0; i < 3 && !S.shots.length; i++) step(sim, 1, { fire: true, aim: 0 });
   const p = S.shots[0]; assert.ok(p && Math.abs(p.dmg - 1.4 * (1 + ROAM.garage.dmgPerLevel * (cap - 1))) < 1e-6, p && p.dmg); });
 test('a mod goes into a socket for good; over an old one, the old one is destroyed; one element per weapon', () => { const { sim, S } = fresh(); toGarage(sim, S); S.bank.scrap = 999; S.bank.chips = 99;
   S.known.push('scatter_wide', 'mod_fire', 'mod_water', 'mod_ricochet'); sim.build('scatter_wide'); const w = S.stash.find(q => q.r === 'scatter_wide'); sim.equipItem(w.uid);
@@ -46,3 +48,9 @@ test('a recipe Kai carries goes into the death cache', () => { const { sim, S } 
   for (let r = 60; r < 300 && !far; r += 5) for (let a = 0; a < 6.28 && !far; a += 0.3) { const x = S.kai.x + Math.cos(a) * r, y = S.kai.y + Math.sin(a) * r; if (!town.blocked(x, y) && S.sites.every(q => Math.hypot(q.x - x, q.y - y) > 20)) far = { x, y }; }
   S.kai.x = S.bike.x = far.x; S.kai.y = S.bike.y = far.y; S.carry.push('hose'); S.kai.hp = 1; S.bike.hp = 0; S.bolts.push({ x: S.kai.x, y: S.kai.y, vx: 0, vy: 0, r: 0.4, dmg: 10, life: 1 });
   step(sim, 5); assert.ok(S.kai.dead > 0); assert.deepStrictEqual(S.cache.recipes, ['hose']); assert.strictEqual(S.carry.length, 0); });
+test('the garage lot is safe ground: a machine is turned back at its edge and nothing is born on it', () => { const { sim, S } = fresh(); const g = toGarage(sim, S), L = g.lot;
+  const d = sim.debug.spawn('crawler', g.x + 1.5, g.y); d.state = 'chase';
+  for (let i = 0; i < 30; i++) { sim.step({ x: 0, y: 0, view: 21 }); sim.drain(); }
+  const c = Math.cos(-L.rot), s = Math.sin(-L.rot), u = c * (d.x - L.x) - s * (d.y - L.y), v = s * (d.x - L.x) + c * (d.y - L.y);
+  assert.ok(Math.abs(u) >= L.w / 2 || Math.abs(v) >= L.h / 2, 'outside the lot'); assert.notStrictEqual(d.state, 'chase');
+  assert.strictEqual(g.dress.filter(q => q.k === 'lotlamp').length, 4, 'a lamp at each corner'); });

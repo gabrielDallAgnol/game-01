@@ -24,7 +24,7 @@ export function createFoes(G) {
   function populate() {
     const k = S.kai, cap = R.dead.cap[S.night ? 1 : 0], r0 = Math.max(24, G.view + 8), r1 = Math.max(R.dead.near, r0 + 40), far = Math.max(R.dead.far, r1 + 40);
     let near = 0; for (const d of S.dead) if (dist(d, k) < r1) near++;
-    for (let tries = 0; near < cap && tries < 6; tries++) { const p = streetNear(k.x, k.y, r0, r1); if (!p) break; if (G.isClean && G.isClean(p.x, p.y)) continue;   // [m4] clean stays clean
+    for (let tries = 0; near < cap && tries < 6; tries++) { const p = streetNear(k.x, k.y, r0, r1); if (!p) break; if ((G.isClean && G.isClean(p.x, p.y)) || (G.isSafe && G.isSafe(p.x, p.y))) continue;   // [m4] clean stays clean; [m6d] nothing is born on the garage's lot
       const kind = kindRoll(), K = R.dead[kind], pack = K.pack ? K.pack[0] + rng.int(K.pack[1] - K.pack[0] + 1) : 0;   // skitters come in packs
       const group = pack || (!S.night && rng.chance(0.25) ? 2 + rng.int(4) : 1);   // by day some sleep in little groups
       for (let g = 0; g < group; g++) { const x = p.x + rng.range(-1.5, 1.5), y = p.y + rng.range(-1.5, 1.5); if (!blocked(x, y) && !(G.isClean && G.isClean(x, y))) { spawn(g === 0 || pack ? kind : kindRoll(), x, y, { state: group > 1 && !pack ? 'sleep' : 'wander' }); near++; } } }
@@ -41,10 +41,10 @@ export function createFoes(G) {
   function stepFoes(dt) {
     const k = S.kai, sense0 = R.dead.sense[S.night ? 1 : 0] * (k.riding ? 1.3 : 1);   // the engine is loud
     for (const d of S.dead) { if (d.boss) continue;   // [m4] walkers: areas.js
-      const K = R.dead[d.kind], ai = K.ai || 'melee', r = dist(d, k), sense = sense0 * (K.sense || 1), forget = K.forget || sense * 1.6, st = d.st || {}, blind = !!st.blind, seesKai = !k.dead && !blind && r < sense;
+      const K = R.dead[d.kind], ai = K.ai || 'melee', r = dist(d, k), sense = sense0 * (K.sense || 1), forget = K.forget || sense * 1.6, st = d.st || {}, blind = !!st.blind, kaiSafe = !!(G.isSafe && G.isSafe(k.x, k.y)), seesKai = !k.dead && !blind && !kaiSafe && r < sense;   // [m6d] on the garage's lot she's out of their reach
       if (blind && d.state === 'chase') { d.state = 'wander'; d.wx = d.x; d.wy = d.y; d.aim = 0; d.wind = 0; }   // [m2] lost in the steam
-      if (d.state === 'sleep') { if (!k.dead && r < (k.riding ? 9 : 5)) d.state = 'chase'; else { d.vx *= 0.8; d.vy *= 0.8; continue; } }
-      if (seesKai) d.state = 'chase'; else if (d.state === 'chase' && (r > forget || k.dead)) { d.state = 'wander'; d.wx = d.x; d.wy = d.y; }
+      if (d.state === 'sleep') { if (!k.dead && !kaiSafe && r < (k.riding ? 9 : 5)) d.state = 'chase'; else { d.vx *= 0.8; d.vy *= 0.8; continue; } }
+      if (seesKai) d.state = 'chase'; else if (d.state === 'chase' && (r > forget || k.dead || kaiSafe)) { d.state = 'wander'; d.wx = d.x; d.wy = d.y; }
       let gx, gy, sp = K.speed * (d.spd || 1) * (S.night ? R.dead.nightSpeed : 1) * (1 - Math.max((d.pips || []).filter(p => p.el === 'water').length * PIPS.water.slow, st.soaked ? STATUSES.soaked.slow : 0, G.onWet && G.onWet(d) ? PIPS.water.slow * 2 : 0));   // [m2] water pips and soaked slow it
       if (d.state === 'chase' && !k.dead) { gx = k.x; gy = k.y; }
       else { if (Math.hypot(d.wx - d.x, d.wy - d.y) < 1 || rng.chance(dt * 0.1)) {   // they drift: toward where they last heard Kai, more at night

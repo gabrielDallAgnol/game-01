@@ -23,6 +23,7 @@ export function createRiskUi({ sim, toast, input }) {
     else if (e.type === 'cache') toast(`You dropped ${sc(e.scrap, e.chips, e.recipes)} where you fell. Ride back for it.`, true);
     else if (e.type === 'cacheBack') toast(`Got it back: ${sc(e.scrap, e.chips, e.recipes)}.`);
     else if (e.type === 'cacheLost') toast(`Your old cache is gone: ${sc(e.scrap, e.chips, e.recipes)} lost.`);
+    else if (e.type === 'holster') once('holster', 'The garage lot is safe ground: machines keep out, and your gun stays quiet here.', true);
     else if (e.type === 'towed') toast('The bike was towed in and patched up.'); }
     if (S.scrap >= 25 && !S.kai.dead) once('carry', 'Carried scrap is at risk. Bank it at the camp (⌂) on the square or the garage.'); }
   let last = '';

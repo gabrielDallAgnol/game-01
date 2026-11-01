@@ -181,6 +181,11 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **The real bike, close up:** opening the garage brings the camera in on the bike itself (the game's own render), set in the top of the screen; the panel is a sheet below it. The BIKE tab is a row of its five fitted parts (GUN, ENGINE, FRAME, LAMP, TYRES with their levels); the one you pick is ringed in amber light on the bike (both wheels for tyres, both sides for the frame), and shown below. The drawn diagram is gone. The HUD steps aside while it's open.
 - **It looks like a garage:** the garage site carries its own dressing (`dress` in `src/play/sites.js`, drawn by `src/roam/sitedress.js`), set in front of its doors so it lands right on any map: the open doors' warm light spilling out, a sign board with GARAGE lit on it, work lamps either side pooling warm light, stacks of tyres, oil drums, a car up on a lift, an air line, cones, old oil stains on the ground. No floating label at close range any more.
 
+**The garage lot is safe ground (Nov 1, `play/m6d-garage-safe`):**
+- A tall amber lamp at each corner of the garage's lot (the site's own box), a wide halo at every zoom and a pool of light on the ground, so the lot shows from far away.
+- Machines keep out of the lot: nothing is born on it, one that wanders in is turned back at its edge, they lose interest in Kai while she's on it, and their bolts die at its edge. Her gun stays quiet on the lot too (FIRE dims), so it's a place to bank, repair and build, not a turret.
+- While the garage (or any panel) is open, the screen ignores pinch and drag: the close-up of the bike stays put.
+
 **Later, recorded (Gabriel, Nov 1):**
 - **A workbench that grows:** at first the garage can only upgrade; building from recipes needs a station you build first, and a better station lets rarer recipes start to show up.
 - **Garage cosmetics:** things to make the garage's surroundings feel alive, built or bought over time. The map is not very interactive; the garage is, and it should look it.

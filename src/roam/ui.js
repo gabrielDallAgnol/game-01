@@ -35,7 +35,8 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   // ---------- the stick, pinch, wheel ----------
   const pts = new Map(); let mover = null, pinch0 = 0;
   const zoom = k => { cam.base = Math.max(4, Math.min(40, cam.base * k)); };   // the base zoom: the bike's speed pulls back from it, it never fights a pinch
-  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY });
+  canvas.addEventListener('pointerdown', e => { if (ui.paused) return;   // [m6d] a panel is open (the garage holds its close-up): no stick, no pinch
+    canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY });
     if (pts.size === 2) { mover = null; input.x = input.y = 0; stick.hidden = true; const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); return; }
     mover = e.pointerId; stick.hidden = false; stick.style.left = e.clientX + 'px'; stick.style.top = e.clientY + 'px'; stick.firstElementChild.style.transform = ''; });
   canvas.addEventListener('pointermove', e => { const p = pts.get(e.pointerId); if (!p) return; p.x = e.clientX; p.y = e.clientY;
@@ -43,7 +44,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     if (e.pointerId === mover) { const ox = p.x - p.x0, oy = p.y - p.y0, r = Math.hypot(ox, oy); if (r > 6) { const k = Math.min(1, r / 50); input.x = ox / r * k; input.y = oy / r * k; } else input.x = input.y = 0; stick.firstElementChild.style.transform = `translate(${ox / Math.max(r, 1) * Math.min(r, 36)}px, ${oy / Math.max(r, 1) * Math.min(r, 36)}px)`; } });
   const up = e => { pts.delete(e.pointerId); if (e.pointerId === mover) { mover = null; input.x = input.y = 0; stick.hidden = true; } if (pts.size < 2) pinch0 = 0; };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
-  canvas.addEventListener('wheel', e => { e.preventDefault(); zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); if (ui.paused) return; zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
   const keys = {};
   addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'e') input.ride = true; if (k === ' ' || k === 'j') { if (S.kai.riding) setFire(true); else input.dash = true; e.preventDefault(); } if (k === '+' || k === '=') zoom(1.2); if (k === '-') zoom(0.83); if (k === 't') speedEl.dispatchEvent(new PointerEvent('pointerdown')); });
   addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'j') setFire(false); });

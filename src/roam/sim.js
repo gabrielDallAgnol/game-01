@@ -63,8 +63,8 @@ export const ROAM = {
   // [m6] the garage: a weapon's damage +dmgPerLevel per level; items reach capPerLevel x Kai's level (areas cleaned + 1 until
   // M7); an upgrade costs weaponCost (partCost for a part) x its level in banked scrap; salvage gives back salvage of what
   // it cost; a dazzle lamp keeps dazzleSlow of a machine's speed each step it's in the beam; door: how far out from the
-  // garage's roller doors its forecourt (the service spot) is
-  garage: { door: 6, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
+  // garage's roller doors its forecourt (the service spot) is; lotMargin: how far past the lot's edge machines are kept
+  garage: { lotMargin: 1, door: 6, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
   // [m6b] elites: the chance a machine is one (+perLevel per area level above 1, x night at night), how much tougher, and
   // the trail a burning or soaking one leaves (every trailEvery s, trailR m, trailPower of the element)
   elites: { chance: 0.03, perLevel: 0.012, night: 1.5, hp: 2.6, trailEvery: 1.2, trailR: 1.2, trailPower: 0.5 },
