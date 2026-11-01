@@ -122,6 +122,10 @@ export function buildPeninsula(seed = 7) {
     if (SITES[site.id] && SITES[site.id].build) SITES[site.id].build(site, ctx); else standIn(site, ctx);
     site.buildings = W.placed.slice(ids0).filter(p => p.def.kind === 'building');
     if (site.nest && site.buildings.length) { const b = site.buildings.slice().sort((a, q) => q.w * q.h - a.w * a.h)[0]; b.def = { ...b.def, tags: [...b.def.tags, 'nestable'] }; } }
+  // Kai's slipway: hard standing from her garage's lot down to the nearest river bank (where the water meets it, a stone quay)
+  if (home) { let best = null; for (const a of arms) for (let i = 1; i < a.pts.length; i++) { const p = a.pts[i], d = Math.hypot(p.x - home.x, p.y - home.y); if (!best || d < best.d) best = { d, p, half: a.half }; }
+    if (best && best.d < 110) { const ux = (best.p.x - home.x) / best.d, uy = (best.p.y - home.y) / best.d, far = best.d - best.half + 0.6, near = 6, w = 9, px = -uy, py = ux;
+      const q = (s2, o) => P(home.x + ux * s2 + px * o, home.y + uy * s2 + py * o); W.land.push({ kind: 'lot', poly: [q(near, -w), q(far, -w), q(far, w), q(near, w)], name: 'the slipway', site: 'garage' }); } }
   // you start up the lane from the garage, on the road (the camp's bank stands there)
   { const s = sOf('the point lane', home ? home.x : J.x, home ? home.y : J.y), a = along(pl.pts, Math.max(10, s - 26)); W.camp = P(a.x, a.y); }
 
