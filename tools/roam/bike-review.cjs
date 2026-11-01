@@ -20,7 +20,7 @@ const ROWS = [
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const p = await b.newPage({ viewport: { width: 340, height: 220 }, deviceScaleFactor: 2 });   // a small window: swiftshader renders about a frame a second
+  const p = await b.newPage({ viewport: { width: 440, height: 240 }, deviceScaleFactor: 2 });   // a small window: swiftshader renders about a frame a second
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.route('**/three.min.js', r => r.fulfill({ body: fs.readFileSync(process.env.THREE_LOCAL || '/tmp/three/build/three.min.js'), contentType: 'text/javascript' }));
   await p.route('**/fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
@@ -32,9 +32,10 @@ const ROWS = [
   for (const [title, note, vars] of ROWS) { html.push(`<section><h2>${title}</h2><p>${note}</p><div class="row">`);
     for (const [name, v] of vars) { const base = await p.evaluate(v => { const S = window.__roam.S, stock = { engine: 'engine_stock', frame: 'frame_stock', lamp: 'lamp_stock', tyres: 'tyres_stock' };
         for (const k of Object.keys(stock)) S.gear[k] = v[k] || { slot: k, part: stock[k], rarity: 'common' }; S.guns.main.base = v.gun || 'scatter'; S.guns.main.n = 0; return true; }, v);
-      const shots = []; for (const [zoom, hide, w, h, tag] of [[72, true, 300, 170, 'close'], [22, false, 150, 90, 'play']]) {
+      const shots = []; for (const [zoom, hide, w, h, tag] of [[58, true, 400, 190, 'close'], [22, false, 160, 90, 'play']]) {
+        const f0 = `${String(n).padStart(2, '0')}-${tag}.png`; if (fs.existsSync(path.join(OUT, f0))) { shots.push([f0, tag]); continue; }   // resumable: a crash loses nothing done
         await p.evaluate(([zoom, hide]) => { const r = window.__roam; r.cam.base = zoom; r.cam.ppm = zoom; r.lab.hideKai = hide; }, [zoom, hide]); await p.waitForTimeout(1800);
-        const f = `${String(n).padStart(2, '0')}-${tag}.png`; await p.screenshot({ path: path.join(OUT, f), clip: { x: 170 - w / 2, y: 110 - h / 2, width: w, height: h } }); shots.push([f, tag]); }
+        const f = `${String(n).padStart(2, '0')}-${tag}.png`; await p.screenshot({ path: path.join(OUT, f), clip: { x: 220 - w / 2, y: 120 - h / 2, width: w, height: h } }); shots.push([f, tag]); }
       html.push(`<figure><img src="${shots[0][0]}" alt="${title}: ${name}, close up"><img class="play" src="${shots[1][0]}" alt="${title}: ${name}, riding zoom"><figcaption>${name}</figcaption></figure>`); n++; void base; }
     html.push('</div></section>'); }
   fs.writeFileSync(path.join(OUT, 'index.html'), `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hollowmere bike review</title>
