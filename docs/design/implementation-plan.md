@@ -159,6 +159,16 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **Mods and sockets, like WoW gems:** "off-hand" is renamed **mods**. A mod (fire, water, ricochet, double shot...) is its own item, built from its own recipe. A weapon's recipe gives it some mods built in and some empty **sockets** you fill at the garage; some recipes have everything built in, others are mostly sockets.
 - **Where damage comes from (proposed, to confirm):** the recipe decides what a gun *does* (its kind, built-in mods, sockets), never its damage. Damage comes from the weapon's **level**, raised with scrap at the garage (the main scrap sink) and capped by Kai's level (M7). So an early recipe never turns into junk, and the number of recipes stays small: each is a different behaviour, not a bigger number.
 
+**As built (Nov 1, `play/m6-garage`):**
+- **Recipes:** machines drop recipes (`src/play/recipes.js`: 12 weapons, 7 mods, 16 parts); brutes often, walkers always (rare or epic). A recipe on the ground is a rolled sheet in a tube with its rarity's paint and a lamp, its name over it in that colour. Kai carries it (BOOK shows carried and known) until a site banks it; then it's known for good. A known one turns into chips on pickup. Going down puts carried recipes in the death cache.
+- **Sites are atoms** (`src/play/sites.js`): the camp (home, bank, repair), the garage (bank, repair, stash, workbench) on the forecourt of the town's own garage site (`world/sites.js` lays one out on every map; on seed 7 it's in the strip, 260 m south of the camp), beacons (bank only now). A map with no garage gives the camp the workbench.
+- **The garage panel** (GARAGE at the forecourt, or G): BIKE shows the five slots with their stats, level and UPGRADE; the weapon's built-in mods and sockets. BUILD lists known recipes with their cost (common 15 scrap, tuned 40, rare 90 + 2 chips, epic 160 + 5; mods cheaper). STASH holds built gear (EQUIP, SALVAGE for 40% back) and your mods.
+- **Mods in sockets are permanent:** tap an empty socket, pick a mod, confirm "for good". Socketing over an old mod destroys it. One element per weapon. The old off-hand enchant is now two mods (fire charge, water charge); the gun has none by default.
+- **Levels:** a weapon's level is its damage (+10% a level); a part's level raises its main stats (engine speed, frame health, lamp reach, tyre grip). Upgrades cost banked scrap (weapon 6 x level, part 4 x level) and stop at 3 x Kai's level (areas cleaned + 1 until M7).
+- **Parts change the bike** (`src/play/parts/bike.js`) and its look (`src/roam/bikelook.js`, a module per part on the bike's sockets, accents in the rarity's paint): torque, racer and charger engines; plated, light and bull-bar frames (the bull-bar rams brutes); twin, scanner and dazzle lamps (the dazzle slows machines in the beam); grip tyres, bouncers (bigger wall bounce, half crash damage), knobblies (props don't slow you).
+- KIT is a test control now (only with `?dev=1`).
+- Headless (a bot riding loops, 10 min): ~400 scrap, ~14 recipe drops (8 common, 4 tuned, 2 rare), a few chips: tuned builds cost scrap only so the early garage is reachable.
+
 ## M7. Levels and talents · about 1 week
 | Build | Notes |
 |---|---|
