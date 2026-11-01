@@ -31,3 +31,13 @@ test('the boss in the bridge can only be freed: shot down it lies open; a chip a
   assert.strictEqual(S.guardians.length, 1); assert.ok(!S.dead.includes(d)); assert.strictEqual(S.keys.link, 0);
   assert.ok(!S.dead.some(q => q.mother === d.id), 'its brood powered down'); assert.ok(S.areas.every(a => a.state === 'clean'));
 });
+test('Wend Bridge: shut while the boss is wedged in it; once it is free, 60 carried scrap and Kai guarding the work open the road', () => {
+  const sim = createRoam(town, 3), S = sim.state, b = S.bridges[0], gate = town.gates.find(g => g.deck === b.name); gate.open = false;
+  assert.ok(B(b.x, b.y) && !town.wall(b.x, b.y), 'the gap stops wheels, not shots');
+  S.kai.x = S.bike.x = b.a.x; S.kai.y = S.bike.y = b.a.y; S.scrap = 100; sim.step({ x: 0, y: 0 });
+  assert.ok(!sim.canMend(), 'the boss is wedged in it');
+  const d = S.dead.find(q => q.boss); S.dead.splice(S.dead.indexOf(d), 1);
+  assert.ok(sim.canMend()); assert.ok(sim.mend()); assert.strictEqual(S.scrap, 40);
+  for (let i = 0; i < 30 * 20; i++) { S.kai.hp = 1e6; S.kai.x = S.bike.x = b.a.x; S.kai.y = S.bike.y = b.a.y; sim.step({ x: 0, y: 0 }); }
+  assert.strictEqual(b.state, 'mended'); assert.ok(!B(b.x, b.y), 'the road runs on'); gate.open = false;
+});

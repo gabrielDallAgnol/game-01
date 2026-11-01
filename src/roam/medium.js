@@ -20,6 +20,7 @@ import { drawElites } from './elitesview.js';
 import { dressVolumes, dressDraw } from './sitedress.js';
 import { drawGarageSel } from './garageview.js';
 import { drawFreeing } from './freeview.js';
+import { bridgeVolumes } from './bridgeview.js';
 
 export const MAXP = 1024;          // volumes a frame (the dead off screen are left out)
 const RAMP = ' .,:-=+*%#@';
@@ -527,7 +528,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
       capsule(p.x - ux * 0.55, p.y - uy * 0.55, 0.9, p.x + ux * 0.45, p.y + uy * 0.45, 0.9, 0.15, M.steel); sphere(p.x + ux * 0.5, p.y + uy * 0.5, 0.9, 0.13, M.dark);
       for (let k = 0; k < 4; k++) sphere(p.x - ux * (0.7 + k * 0.28), p.y - uy * (0.7 + k * 0.28), 0.85, 0.12 - k * 0.02, k ? M.crack : M.crackHot, 1 - k * 0.2); }   // its exhaust: lit cells
     // [m5] banks and the death cache (riskview.js)
-    if (v.risk) { riskVolumes(v.risk, K, t, on); dressVolumes(v.risk, K, t, on); }   // [m6c] the garage's own props
+    if (v.risk) { riskVolumes(v.risk, K, t, on); dressVolumes(v.risk, K, t, on); bridgeVolumes(v.risk, K, t, on); }   // [point] the bridges   // [m6c] the garage's own props
     // the city's solid atoms in view, last (if the frame's volumes run out, a lamp goes before a dead)
     for (const i of v.props || []) if (on(i.x, i.y)) { if (v.broken && v.broken.has(i.id)) wreck(i); else i.atom.volumes(i, K, t, v); }
     tPrim.needsUpdate = true; U.uPN.value = n;

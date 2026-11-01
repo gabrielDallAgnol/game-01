@@ -85,16 +85,19 @@ export function buildTown(seed = 7, o = {}) {
   const onDeck = (D, x, y) => { const dx = D.b.x - D.a.x, dy = D.b.y - D.a.y, L2 = dx * dx + dy * dy, u = Math.max(0, Math.min(1, ((x - D.a.x) * dx + (y - D.a.y) * dy) / L2)); return Math.hypot(x - D.a.x - dx * u, y - D.a.y - dy * u) < D.half; };
   for (const D of W.decks || []) { const r = D.half + 1, x0 = Math.min(D.a.x, D.b.x) - r, x1 = Math.max(D.a.x, D.b.x) + r, y0 = Math.min(D.a.y, D.b.y) - r, y1 = Math.max(D.a.y, D.b.y) + r;
     for (let gy = Math.floor(y0 * GR); gy <= Math.ceil(y1 * GR); gy++) for (let gx = Math.floor(x0 * GR); gx <= Math.ceil(x1 * GR); gx++) { const x = (gx + 0.5) / GR, y = (gy + 0.5) / GR;
-      if (onDeck(D, x, y) && !(D.gap && Math.hypot(x - D.gap.x, y - D.gap.y) < D.gap.r)) solid.set(gx, gy, 0); } }
+      if (onDeck(D, x, y)) solid.set(gx, gy, 0); } }
+  // a broken deck's gap is a gate over water: shut, nothing on foot or wheels crosses (what flies does); mended, it opens (sim/bridges.js)
+  const gapGates = (W.decks || []).filter(D => D.gap).map(D => ({ x: D.gap.x, y: D.gap.y, a: Math.atan2(D.uy, D.ux), w: 2 * D.half + 2, d: D.gap.r, open: false, water: true, deck: D.name }));
   // [point] end
   for (const l of W.land || []) { if (l.kind !== 'water' || l.brook || l.lines) continue; const xs = l.poly.map(q => q.x), ys = l.poly.map(q => q.y);
     for (let gy = Math.max(0, Math.floor(Math.min(...ys) * GR)); gy <= Math.min(GH - 1, Math.ceil(Math.max(...ys) * GR)); gy++) for (let gx = Math.max(0, Math.floor(Math.min(...xs) * GR)); gx <= Math.min(GW - 1, Math.ceil(Math.max(...xs) * GR)); gx++) {
       const x = (gx + 0.5) / GR, y = (gy + 0.5) / GR; if (pip(l.poly, x, y) && pip(l.poly, x + 1, y) && pip(l.poly, x - 1, y) && pip(l.poly, x, y + 1) && pip(l.poly, x, y - 1)) solid.set(gx, gy, 2); } }   // a canopy (a gas station's) is ridden under
   // [m6f] gates: a closed gate is a wall, an open one isn't (the sim opens the garage's: sim/garage.js)
-  const gates = [], inGate = (g, x, y) => { const c = Math.cos(-g.a), sn = Math.sin(-g.a), dx = x - g.x, dy = y - g.y, u = c * dx - sn * dy, v = sn * dx + c * dy; return Math.abs(u) < 0.5 && Math.abs(v) < g.w / 2; };
+  const gates = [], inGate = (g, x, y) => { const c = Math.cos(-g.a), sn = Math.sin(-g.a), dx = x - g.x, dy = y - g.y, u = c * dx - sn * dy, v = sn * dx + c * dy; return Math.abs(u) < (g.d || 0.5) && Math.abs(v) < g.w / 2; };
+  gates.push(...gapGates);
   const blocked = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); if (gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid.get(gx, gy) >= 1) return true; for (const g of gates) if (!g.open && inGate(g, x, y)) return true; return false; };
   // [point] water (2 in the grid) stops feet and wheels but not what flies: shots and bolts cross it (wall: only walls stop them)
-  const wall = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); if (gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid.get(gx, gy) === 1) return true; for (const g of gates) if (!g.open && inGate(g, x, y)) return true; return false; };
+  const wall = (x, y) => { if (x < 2 || y < 2 || x > W.w - 2 || y > W.h - 2) return true; const gx = Math.floor(x * GR), gy = Math.floor(y * GR); if (gx < 0 || gy < 0 || gx >= GW || gy >= GH || solid.get(gx, gy) === 1) return true; for (const g of gates) if (!g.open && !g.water && inGate(g, x, y)) return true; return false; };
   // [m6f] the garage's lot: the town's garage site, cleared of its parked cars and clutter (only its fixtures stay: the roller
   // doors, the ramp), fenced all round, the fence kept off the roads, with one gate on the side nearest the road
   const garageLot = fenceGarage();

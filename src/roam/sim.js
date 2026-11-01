@@ -17,9 +17,10 @@ import { createRisk } from './sim/risk.js';
 import { createGarage } from './sim/garage.js';
 import { createElites } from './sim/elites.js';
 import { createFreeing } from './sim/freeing.js';
+import { createBridges } from './sim/bridges.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas, createRisk, createGarage, createElites, createFreeing];
+const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas, createRisk, createGarage, createElites, createFreeing, createBridges];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
@@ -76,6 +77,8 @@ export const ROAM = {
   // [point] freeing a big machine (sim/freeing.js): its core stops at floor (of its health); within linkR of its edge Kai
   // links with a freeing chip; its pulse comes every pulse s, a tap within window s of one lands; need landed taps free
   // it; a miss costs one and locks the link for lock s. Freed, it walks to its post at guardSpeed m/s
+  // [point] mending a broken bridge (sim/bridges.js): scrap carried to its end, the work's time (s), how near Kai must stay
+  bridges: { scrap: 60, time: 14, reach: 9, near: 22 },
   free: { floor: 0.15, linkR: 12, body: 6, pulse: 1.3, window: 0.36, need: 5, lock: 0.6, guardSpeed: 2.4 },
 };
 
@@ -98,11 +101,11 @@ export function createRoam(town, seed = 1) {
     if (S.garageRun) inp = { view: inp.view, x: 0, y: 0 };   // [m6e] the bike rides itself in and out of the garage: no control meanwhile
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp); G.stepGarage(dt); G.stepElites(dt); G.stepFreeing(dt, inp);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp); G.stepGarage(dt); G.stepElites(dt); G.stepFreeing(dt, inp); G.stepBridges(dt);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();
   const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
   const debug = { spawn: (kind, x, y, o) => G.spawn(kind, x, y, o) };   // for tests, labs and screenshots
-  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), repair: () => G.startFix(), build: id => G.build(id), equipItem: uid => G.equipItem(uid), salvageItem: uid => G.salvageItem(uid), upgrade: slot => G.upgrade(slot), enterGarage: () => G.enterGarage(), leaveGarage: () => G.leaveGarage(), socket: (uid, i, mod) => G.socket(uid, i, mod), levelCap: () => G.levelCap(), upCost: slot => G.upCost(S.gear[slot]), atBench: () => !!G.atBench(), atGate: () => !!G.atGate(), canLink: () => G.canLink(), bikeStats: () => G.bikeStats(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), repair: () => G.startFix(), build: id => G.build(id), equipItem: uid => G.equipItem(uid), salvageItem: uid => G.salvageItem(uid), upgrade: slot => G.upgrade(slot), enterGarage: () => G.enterGarage(), leaveGarage: () => G.leaveGarage(), socket: (uid, i, mod) => G.socket(uid, i, mod), levelCap: () => G.levelCap(), upCost: slot => G.upCost(S.gear[slot]), atBench: () => !!G.atBench(), atGate: () => !!G.atGate(), canLink: () => G.canLink(), canMend: () => G.canMend(), mend: () => G.mend(), bikeStats: () => G.bikeStats(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }
