@@ -133,6 +133,7 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **The death cache:** going down drops the scrap and chips she carried where she fell (a heap of scrap round a pulsing lamp, ◆ on the map, a CACHE arrow). Ride over it to take it back. A second death before that loses the first cache. Weapons in the bag are kept. The bike is towed back to the garage with at least 25% health.
 - **HUD:** the bike's bar under Kai's (amber, ember when low, blinking when wrecked); ⌂ banked scrap beside what she carries; a BANK arrow once she carries 40+ or the bike is low; toasts that teach each rule the first time.
 - Headless (a bot riding loops, 5 min): about 40 scrap a minute, a full repair is 25 scrap; the bot wrecks the bike by hitting walls (a real rider crashes far less).
+- **Repairs stay as they are until everything is in place, then get earned (Gabriel, Nov 1):** fixing the bike yourself becomes a talent or perk (M7), not something Kai can do from the start; repairs at the garage come from a **mechanic** in town (M8): at first he charges scrap, and after you do his mission he repairs for free. Until those exist, the free-for-all repairs stay so the game is playable.
 
 ## M6. The garage and the vehicle's look · about 1 week
 **Why sixth:** turns loot into a build you care about and can see.
@@ -153,6 +154,7 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 | Levels and XP | Kills for now (quests come in M8); a quadratic curve; kill XP drops against much weaker machines |
 | Base kit | The bike's two abilities (drift strike, nitro) arrive by about level 6 |
 | Talent tree | The bike's tree as behaviour data; the level-up card; respec at the garage |
+| Field repair as a perk | Kai can't repair the bike herself until she takes it (Gabriel, Nov 1); later ranks make it faster or cheaper |
 
 **Play it:** Does a level-up feel earned? Does the first talent change how you play?
 
@@ -163,6 +165,7 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 | House sockets | Plate, lamp, vent and sign modules raise a house's care |
 | Rebuild missions | Haul, courier, power line, guard; the main source of XP |
 | Survivors move in | The hub fills up as you clean and rebuild |
+| The mechanic | A survivor in town who repairs the bike: for scrap at first, free after his mission (Gabriel, Nov 1). Replaces the banks' free repair |
 
 **Play it:** Do you want to go back to town to see what changed? Do missions feel like helping people, or like chores?
 
