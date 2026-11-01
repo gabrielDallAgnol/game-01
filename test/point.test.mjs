@@ -41,3 +41,8 @@ test('Wend Bridge: shut while the boss is wedged in it; once it is free, 60 carr
   for (let i = 0; i < 30 * 20; i++) { S.kai.hp = 1e6; S.kai.x = S.bike.x = b.a.x; S.kai.y = S.bike.y = b.a.y; sim.step({ x: 0, y: 0 }); }
   assert.strictEqual(b.state, 'mended'); assert.ok(!B(b.x, b.y), 'the road runs on'); gate.open = false;
 });
+test('the chain has no gaps: banked chips build a freeing chip at the Point\'s garage', () => {
+  const sim = createRoam(town, 4), S = sim.state, q = S.sites.find(o => o.bay);
+  assert.ok(q, 'the Point has its garage'); S.kai.x = S.bike.x = q.x; S.kai.y = S.bike.y = q.y;
+  S.bank.chips = 6; S.bank.scrap = 40; assert.ok(sim.build('link_chip')); assert.strictEqual(S.keys.link, 1); assert.strictEqual(S.bank.chips, 0);
+});
