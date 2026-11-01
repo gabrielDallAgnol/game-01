@@ -14,7 +14,7 @@ import { createFreeUi } from './freeui.js';
 import { createBridgeUi } from './bridgeui.js';
 import { createObjUi } from './objui.js';
 import { folkOf } from './peopleview.js';
-import { createIntroUi } from './introui.js';
+import { createIntroUi, playScene, FREED, MENDED } from './introui.js';
 import { createGarageUi } from './garageui.js';
 import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
 import { createFeel } from './feel.js';
@@ -164,6 +164,7 @@ function start() {
     throwChaff(R.kai, dt); drawChaff(dt);
     feel.draw(fx, toS, view.ppm, dt, R, lightAt, cssW, cssH);   // [m1] pellets, muzzle flash, sparks, bursts
     shook();
+    for (const e of evs) { if (e.type === 'freed') playScene({ ui, lab, cam, lines: FREED, at: { x: e.x, y: e.y }, zoom: 9 }); else if (e.type === 'mended') playScene({ ui, lab, cam, lines: MENDED, at: { x: e.x, y: e.y }, zoom: 11 }); }   // [point] the big moments
     ui.arrows(toS, cssW, cssH); ui.update(evs); lootUi.update(evs); areaUi.update(evs); riskUi.update(evs); garageUi.update(evs); freeUi.update(evs); bridgeUi.update(evs); objUi.update(evs);
     requestAnimationFrame(frame);
   }
