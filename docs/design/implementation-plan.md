@@ -153,6 +153,12 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - **Parts are atoms too:** one data table per part kind (slot, tags, what it does, `desc`/`why`), its look a **module** with a socket type (play-atoms §8: `mount`, `plate`, `lamp`, `wheel`, `vent`). The bike declares sockets; so will houses (M8). A weapon part on a house's `mount` socket is a turret guarding the people there; a tyre is the same tyre whether it's on your bike or the one a survivor asked for.
 - **Recipes are one shape for everything:** a list of needs (scrap, chips, a part) with a result. The garage's upgrades use it now; later, missions use the same shape ("bring 40 scrap and a mount to build this house a turret", "build a tyre for the farmer").
 
+**Recipes, not weapon drops (Gabriel, Nov 1):** machines drop scrap, chips and **recipes**, not weapons or parts (finding gear on monsters is confusing). Recipes also come from traders and as mission rewards. Everything is built, fitted and upgraded **in the garage**.
+- A recipe is **learned forever** for now (Gabriel worries about how many there'll be late in the game; revisit then). A recipe you already know turns into chips. On the ground it keeps its rarity's coloured name, so a rare recipe is still a jackpot.
+- Recipes Kai carries are **at risk until banked**: going down drops them into the death cache with her scrap.
+- **Mods and sockets, like WoW gems:** "off-hand" is renamed **mods**. A mod (fire, water, ricochet, double shot...) is its own item, built from its own recipe. A weapon's recipe gives it some mods built in and some empty **sockets** you fill at the garage; some recipes have everything built in, others are mostly sockets.
+- **Where damage comes from (proposed, to confirm):** the recipe decides what a gun *does* (its kind, built-in mods, sockets), never its damage. Damage comes from the weapon's **level**, raised with scrap at the garage (the main scrap sink) and capped by Kai's level (M7). So an early recipe never turns into junk, and the number of recipes stays small: each is a different behaviour, not a bigger number.
+
 ## M7. Levels and talents · about 1 week
 | Build | Notes |
 |---|---|
