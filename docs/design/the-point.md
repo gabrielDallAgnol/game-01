@@ -97,6 +97,8 @@ with fewer survivors; the centre holds the reason for it all.
 | **The ash, seen:** flakes drift down in dark areas, none in clean ones; the boss breathes ash from its back like a stack | `src/roam/ashview.js`, plume preset `ash` |
 | **The people of Wendbridge:** hidden while the boss holds the town; out at their doors once it is free but shy (they step back in when the robot comes close); hi-vis workers at the bridge while it is mended; after it stands they trust the robot and wave | `src/roam/peopleview.js` |
 | The overlay's colours (washing, signs, birds) go grey in dark areas too | `medium.js` `[grey]` |
+| **Scenes for the big moments:** freeing the boss (it breathes the ash in now; it climbed out, the bridge can be mended) and the bridge standing (the road north) | `src/roam/introui.js` `playScene` |
+| Kai's slipway: hard standing from the garage down to the river (a stone quay beside the soft banks) | `peninsula.js` |
 | **The opening:** black bars, the camera on Kai's garage and the robot, Kai's lines and the robot's light answers (once per browser; `?intro=1` shows it again); the start card tells the story | `src/roam/introui.js`, `roam.html` |
 
-Not yet: trust missions with the people (they are on screen, but don't ask anything yet), the first recipe from a mission (the incremental start), the kids, the robot's rest pose, cutscenes beyond the opening, the rivers' flow, the first town beyond the bridge.
+Not yet: trust missions with the people (they are on screen, but don't ask anything yet), the first recipe from a mission (the incremental start), the kids, the robot's rest pose, the rivers' flow, the first town beyond the bridge.
