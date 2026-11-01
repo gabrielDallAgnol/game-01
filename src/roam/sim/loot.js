@@ -1,5 +1,5 @@
 // [roam] Loot (M3): what dies leaves things on the ground. Scrap pieces from every machine (more from the big ones),
-// now and then a weapon (a brute often, a nest always, with chips). Scrap settles for a moment, then flies to Kai on its
+// now and then a weapon (a brute often, a walker always, with chips). Scrap settles for a moment, then flies to Kai on its
 // own from anywhere near and is banked (the reward you watch arrive). A weapon lies with its name over it in its rarity's
 // colour (Diablo II); ride or walk over it and it goes in the bag. A rare or better one lies unscanned until the lamp
 // reaches it. From the bag: equip (your old weapon goes in the bag) or salvage for scrap (and chips if rare).
@@ -19,7 +19,6 @@ export function createLoot(G) {
     if (D.chips) { S.chips += D.chips; ev('chips', { n: D.chips, x, y }); }
     if (rng.chance(D.weapon)) dropWeapon(x, y, rollWeapon(rng, D.rarity)); }
   (G.onDie ||= []).push(d => roll(d.kind, d.x, d.y));
-  (G.onNestDown ||= []).push(n => roll('nest', n.x, n.y));
   // the weapon in hand changes: the gun takes its base and modifiers
   function wield(w) { const g = S.guns.main; g.weapon = w; g.base = w.base; g.mods = w.mods.slice(); g.cd = 0; ev('equip', { base: w.base, rarity: w.rarity, mods: w.mods.join(',') }); }
   const inBag = id => S.bag.findIndex(b => b.id === id);

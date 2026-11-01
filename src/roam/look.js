@@ -5,6 +5,7 @@
 import { HEAD, GROUND, DIST, NS } from './ground.js';
 import { createMedium } from './medium.js';
 import { createAtomLook } from './atomlook.js';
+import { createGlowUp } from './glowup.js';
 
 export function createLook(canvas, town) {
   const { tiles, size } = town, WIN = tiles.WIN, T = n => tiles.byName[n].tex;
@@ -23,7 +24,8 @@ export function createLook(canvas, town) {
     uTime: { value: 0 }, uPpm: { value: 20 }, uGrid: { value: 20 },  uSun: { value: new THREE.Vector4(-0.6, -0.8, 1.8, 0) }, uHead: { value: new THREE.Vector4() }, uNight: { value: 0 }, uKai: { value: new THREE.Vector2() },
     uA: { value: stampA }, uB: { value: stampB }, uN: { value: 0 }, uDecayPush: { value: 0 }, uDecayPress: { value: 0 }, uDecayFlat: { value: 0 },
   };
-  const atoms = createAtomLook({ U, town });   // [atoms-look] the atom world's state as maps the ground shader reads
+  const atoms = createAtomLook({ U, town });
+  const glow = createGlowUp({ U, town });   // [m4] clean areas come back to life   // [atoms-look] the atom world's state as maps the ground shader reads
   const mat = frag => new THREE.ShaderMaterial({ uniforms: U, vertexShader: VERT, fragmentShader: HEAD + frag, depthTest: false, depthWrite: false });
   const medium = createMedium({ renderer, U, mat, VERT, quadGeo, quadCam, ASH3F: GROUND });
   const scene = new THREE.Scene(), quad = new THREE.Mesh(quadGeo, medium.material); quad.frustumCulled = false; scene.add(quad);
@@ -73,9 +75,9 @@ export function createLook(canvas, town) {
     stream(cam, S.kai.vx, S.kai.vy);
     { const b = S.bike, a = b.ang, f = 0.72 * 0.9 * 2.6; U.uHead.value.set(b.x + Math.cos(a) * f, b.y + Math.sin(a) * f, a, S.kai.riding ? 0.25 + 0.75 * night : 0); }
     U.uCam.value.set(cam.x, cam.y); U.uView.value.set(cssW / cam.ppm, cssH / cam.ppm); U.uPpm.value = cam.ppm * dpr; U.uTime.value = t; U.uNight.value = night; U.uKai.value.set(S.kai.x, S.kai.y);
-    stepDist(v.dt, S, v.falls, cam, cssW, cssH); atoms.update(S, cam, v.dt);
+    stepDist(v.dt, S, v.falls, cam, cssW, cssH); atoms.update(S, cam, v.dt); glow.update(S, t);
     medium.render({ cam, cssW, cssH, dpr, kai: S.kai, dead: S.dead, deaths: v.falls, bike: S.bike, nests: S.nests, t, night, props: town.dress.volumes, broken: S.broken, drops: S.drops, shots: S.shots, guns: S.guns, bolts: S.bolts });
     renderer.render(scene, quadCam);
   }
-  return { render, resize, draw: medium.draw, U, atoms, stamp: (x, y, r) => blasts.push({ x, y, r }) };
+  return { render, resize, draw: medium.draw, U, atoms, glow, stamp: (x, y, r) => blasts.push({ x, y, r }) };
 }

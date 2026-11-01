@@ -96,6 +96,25 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 
 **Play it:** Do you see the walker and want to go after it? Is farming its spawns first a real choice? Does the glow-up feel like a reward?
 
+**As built (Oct 31, `play/m4-areas`):**
+- **Areas are the town's own districts** (`src/roam/sim/areas.js`). A district with fewer than 25 street points (the park, the transmitter field, the barn quarter...) joins its nearest big neighbour, so seed 7 has six areas: the old town (level 1), south end (1), east end (1), the strip (2), the estate (4), Ashford Hollow (6). Level: one per 260 m from Kai's start; machines in an area have +30% health per level above 1.
+- **The walker** (`MACHINES.walker`): a giant on four long legs, about twice a brute's size, drawn in the glyph medium with its four armour plates on its back and two red chip eyes (the biggest pair on the far map). It walks between points on its area's streets, drops a crawler every 9 s (5 at night, at most 8 alive), plants a new nest every 150 s (at most 2). Within 22 m it turns on Kai; in reach it rears (0.8 s, its eyes flare) and stomps (20 damage, throws her, flattens the grass, kicks up dust). Shots break its plates first (26 health each, more per level), then its bare, glowing core (takes 1.4x). It drops 24–32 scrap, 5 chips and a rare or epic weapon.
+- **Clean stays clean:** when the walker dies its nests go dark and nothing is born in the area again (not the town's spawner, not its nests, not the hunting packs, which now come from outside).
+- **The glow-up** (`src/roam/glowup.js`): a freeze and a ring of light sweeping out from where the walker fell, spreading the change; a clean area's grass greens by day, and at night its windows and street lamps light the ground warmly. A rising chord.
+- **HUD:** the area under the counters ("THE OLD TOWN · LV 1 · DARK", ember while dark, gold when clean), a toast when Kai rides in, a red WALKER arrow with the distance, toasts for plates breaking and for the clean moment.
+- Fix found on the way: a rocket's blast is measured to a machine's body edge, not its centre (a walker's centre is metres inside it).
+
+**After Gabriel's M4 feedback (Oct 31): a world map, and a Horizon Zero Dawn walker**
+- **The world map** (MAP, beside BAG): every area from the town's own district shapes, the streets as fine lines, live nests (♥), walkers as pairs of red eyes, Kai's @. Each area's name and fill take the colour of how hard it is for Kai now: grey clean, green at or under her level, yellow one or two above, red three or more (her level is cleaned areas + 1 until M7). TOWN / ALL zoom. The game pauses while it's open.
+- **A bigger walker:** drawn 2.6x (body radius 6 m), its stomp reaches 8.5 m and hits for 22.
+- **Its defence system, from Horizon Zero Dawn:** two weapon pods on its shoulders take aim (their lights flare, 0.7 s) and fire a three-bolt volley each every 3.2 s within 34 m; shoot a pod off and its volleys stop. A fuel tank on its back blows up on the walker itself: a plate off, 30% of its core, fire all round it (and Kai if she's close). Then the plates, then the core. In a fight it broods every 3 s, up to 14, a mix of crawlers, skitters, spitters and hounds, dropped around its feet.
+- **Reading it (Horizon's Focus):** within 30 m Kai's lamp tags its parts on screen (POD, TANK, PLATES n / CORE, each with a health tick; × when broken). **The boss bar** at the top during a fight: its name and area, four plate segments, the core.
+- Headless fight (a bot circling at 16 m, Kai taking damage): the scatter gun kills it in about 90 s with 2 downs; the launcher in about 160 s with 4 (its seeking rockets lock onto the brood).
+
+**The map, World of Warcraft style, and no more nests (Oct 31)**
+- **The map is painted from the real world:** one pixel per 2 m cell of the world's own record (grass, wheat, barley, rape, plough, pasture, woods, the mere, roads, pavements, yards, roofs with darker edges), in muted map colours. Area borders are dashed in their difficulty colour (solid once clean), names on dark plates. It opens on the area Kai is in (the land outside it dims, its quarters are named small inside it); WORLD shows everything; tap an area to open it; drag to pan, pinch or wheel to zoom; M opens and Esc closes it on a keyboard. Close now works on a phone: every panel button reacts on pointerdown, like the game's other buttons (a click could be eaten by the game's own touch handling).
+- **Nests are gone** (Gabriel: they don't make sense next to walkers). The walkers are each area's only source of machines; the win is every area clean; the HUD chip reads "Clean 0/6"; the walker arrow replaces the nest arrow.
+
 ## M5. Risk and repair · 2–3 evenings
 **Why fifth:** without a cost to dying, loot and fights lose tension.
 

@@ -19,6 +19,7 @@ export function createAtomLook({ U, town }) {
   const puffs = [];   // short-lived: a blast's flash, the steam off a fire put out
   function events(evs) { for (const e of evs) {
     if (e.type === 'blast') puffs.push({ x: e.x, y: e.y, r: e.r * 1.6, d: d2, ch: 2, life: 0.35, t: 0 }, { x: e.x, y: e.y, r: e.r * 1.1, d: d3, ch: 0, life: 4, t: 0, grow: 1.2 });
+    else if (e.type === 'stomp') puffs.push({ x: e.x, y: e.y, r: e.r * 1.2, d: d3, ch: 0, life: 1.8, t: 0, grow: 1.4, v: 0.7 });
     else if (e.type === 'doused') puffs.push({ x: e.x, y: e.y, r: 2.2, d: d2, ch: 0, life: 2.6, t: 0, grow: 0.5 });
     // the guns: a muzzle lights the ground for a blink (a rocket's longer), a hit lights the machine
     else if (e.type === 'shot' && e.base !== 'thrower') { const mx = e.x + Math.cos(e.ang) * 1.3, my = e.y + Math.sin(e.ang) * 1.3, big = e.base === 'launcher';

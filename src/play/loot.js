@@ -28,6 +28,8 @@ export const DROPS = {
   spitter: { scrap: [2, 3], weapon: 0.1, rarity: { common: 55, tuned: 32, rare: 11, epic: 2 }, desc: 'A spitter: some scrap, now and then a weapon.', why: 'Ranged and dangerous: worth chasing down.' },
   brute: { scrap: [4, 6], weapon: 0.6, rarity: { common: 35, tuned: 40, rare: 20, epic: 5 },
     desc: 'A brute: a pile of scrap, often a weapon.', why: 'The tougher machine is the loot piñata (M3: weapon drops from tougher machines).' },
+  walker: { scrap: [24, 32], weapon: 1, chips: 5, rarity: { common: 0, tuned: 0, rare: 70, epic: 30 },
+    desc: 'A walker: a heap of scrap, chips, and a rare or epic weapon.', why: 'The area boss pays like one: the reward for a clean area.' },
   nest: { scrap: [8, 12], weapon: 1, chips: 2, rarity: { common: 0, tuned: 50, rare: 38, epic: 12 },
     desc: 'A nest: chips, and always a weapon (tuned or better).', why: 'Effort eventually wins: the big targets guarantee something good.' },
 };
