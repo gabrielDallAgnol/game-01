@@ -20,6 +20,7 @@ import { drawElites } from './elitesview.js';
 import { dressVolumes, dressDraw } from './sitedress.js';
 import { drawGarageSel } from './garageview.js';
 import { drawFreeing } from './freeview.js';
+import { drawAsh } from './ashview.js';
 import { bridgeVolumes } from './bridgeview.js';
 
 export const MAXP = 1024;          // volumes a frame (the dead off screen are left out)
@@ -491,6 +492,9 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     const sn = q => Math.round(q / look.cellW) * look.cellW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
     U.uMe.value.set(bike.x, bike.y);
     if (on(bike.x, bike.y)) { if (v.bikeStyle) { if (v.bikeStyle === 'B') bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM); bikeLookLab(v.bikeStyle, snap(bike), K, t, night, kai.riding, v.gear, FIGM); } else if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM, v.garageSel); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.gunBase ? { ...v.guns.main, base: v.gunBase } : v.guns.main, t, v.garageSel === 'weapon' ? 0.85 + 0.15 * Math.sin(t * 4) : 0); }   // [m6] the bike from its parts' modules
+    // [point] Kai at home: the robot rides alone; she works at the garage, by its doors, and turns to watch it come in
+    if (v.kaiHome && v.risk) { const q = (v.risk.sites || []).find(o => o.bay); if (q && q.exitAng !== undefined) { const oa = q.exitAng, px = -Math.sin(oa), py = Math.cos(oa), hx = q.bay.x + px * 4.2 - Math.cos(oa) * 2, hy = q.bay.y + py * 4.2 - Math.sin(oa) * 2;
+      if (on(hx, hy)) { const db = Math.hypot(bike.x - hx, bike.y - hy); kaiVolumes({ ...kai, x: sn(hx), y: sn(hy), vx: 0, vy: 0, swing: 0, riding: false, dash: 0, face: db < 28 ? Math.atan2(bike.y - hy, bike.x - hx) : oa }, t); } } }
     if (!kai.dead && !v.hideKai) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
@@ -635,7 +639,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
         fx.globalAlpha = 1; fx.fillStyle = d.scanned ? RARITY[d.w.rarity].color : '#e8e4da'; fx.fillText(label, x, y + 0.5); }
       fx.restore(); fx.globalAlpha = 1; }
     // [m5] the banks' lamps and the cache's light (riskview.js); [m6b] the elites' names
-    riskDraw(fx, v); dressDraw(fx, v); drawElites(fx, v); drawFreeing(fx, v); drawGarageSel(fx, v, FIGM);
+    riskDraw(fx, v); dressDraw(fx, v); drawElites(fx, v); drawFreeing(fx, v); drawAsh(fx, v); drawGarageSel(fx, v, FIGM);
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
       const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();
