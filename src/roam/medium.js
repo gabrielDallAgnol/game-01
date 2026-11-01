@@ -15,6 +15,7 @@ import { gardenLook } from './garden-look.js';
 import { landLook } from './world/land.js';
 import { riskVolumes, riskDraw } from './riskview.js';
 import { bikeLook } from './bikelook.js';
+import { bikeLookLab } from './bikelook-lab.js';
 import { drawElites } from './elitesview.js';
 import { dressVolumes, dressDraw } from './sitedress.js';
 import { drawGarageSel } from './garageview.js';
@@ -470,7 +471,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     for (const nst of nests) if (on(nst.x, nst.y)) nestVolumes(nst, t);
     // what moves is drawn snapped to the cell grid: its letters ride with it instead of re-sampling as it slides
     const sn = q => Math.round(q / CELLW) * CELLW, snap = o => ({ ...o, x: sn(o.x), y: sn(o.y) });
-    if (on(bike.x, bike.y)) { if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM, v.garageSel); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.gunBase ? { ...v.guns.main, base: v.gunBase } : v.guns.main, t, v.garageSel === 'weapon' ? 0.85 + 0.15 * Math.sin(t * 4) : 0); }   // [m6] the bike from its parts' modules
+    if (on(bike.x, bike.y)) { if (v.bikeStyle) { if (v.bikeStyle === 'B') bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM); bikeLookLab(v.bikeStyle, snap(bike), K, t, night, kai.riding, v.gear, FIGM); } else if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM, v.garageSel); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.gunBase ? { ...v.guns.main, base: v.gunBase } : v.guns.main, t, v.garageSel === 'weapon' ? 0.85 + 0.15 * Math.sin(t * 4) : 0); }   // [m6] the bike from its parts' modules
     if (!kai.dead && !v.hideKai) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)
