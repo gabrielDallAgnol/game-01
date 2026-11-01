@@ -68,7 +68,7 @@ export const ROAM = {
   // gateOut m outside the gate, through it, gateIn m inside, to the bay (turning to bayAng over the last settle m); out the
   // same way to exitOut m past the entry, leaving at rollOut m/s. GARAGE shows within gateReach of the entry; the gate opens
   // by itself for Kai inside the lot within gateAuto of it
-  garage: { lotMargin: 1, door: 6, bay: 3, bayAng: 0, exitOut: 5, rollOut: 3, gateOut: 3, gateIn: 3, gateReach: 6, gateAuto: 9, drive: 7, settle: 4, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
+  garage: { lotMargin: 1, door: 6, bay: 6.5, bayAng: 0, exitOut: 5, rollOut: 3, gateOut: 3, gateIn: 3, gateReach: 6, gateAuto: 9, drive: 7, settle: 4, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
   // [m6b] elites: the chance a machine is one (+perLevel per area level above 1, x night at night), how much tougher, and
   // the trail a burning or soaking one leaves (every trailEvery s, trailR m, trailPower of the element)
   elites: { chance: 0.03, perLevel: 0.012, night: 1.5, hp: 2.6, trailEvery: 1.2, trailR: 1.2, trailPower: 0.5 },
