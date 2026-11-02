@@ -1,68 +1,108 @@
-// [roam] Chapter 1's missions, the rules (data: src/play/missions.js). Only where the world has a chapter (the Point).
-// S.mission = { i, t, prog, need, ... } is the step on now; each step's goal is checked from the state, its reward applied
-// when it's done, then the next starts. Cause and consequence, step to step: the scrap opens Kai's bench (recipes start
-// to drop); Tomas saved gives a turret at the garage; the loud test calls the machines to the Point (the turret helps);
-// the coil from the pump works lets Kai build the freeing chip; the boss freed and the bridge mended open the mods.
-// Also: S.recipesLocked (no recipe drops until the bench is open) and S.modsLocked (no elites, no mod recipes until the
-// chapter's end) for sim/loot.js and sim/elites.js. S.turrets: the defenders' turrets (they shoot the nearest machine).
-// Events: missionStart, missionStep, missionDone, chapterDone, turretShot.
-import { CHAPTER1 } from '../../play/missions.js';
+// [roam] Chapter 1's quests, the rules (data: src/play/missions.js). Only on the Point (W.chapter 'point').
+// Several at once, as in WoW: the story's chain comes by radio as soon as its step before is done; side quests wait at
+// their giver ("!" over them: S.quests.offers) until you take them (accept), and some are handed in to the giver in person
+// ("?" once the goal is met). S.quests = { active: [{ id, t, prog, need, at, met, … }], done: [ids], offers: [ids] };
+// S.mission is the one the HUD follows (the chain's current step, else the first active).
+// Cause and consequence: the scrap opens Kai's bench; Tomas's house saved gives two turrets (his door, Kai's); his
+// workshop's scrubber turns his row green; the loud test calls the machines to the Point; the coil teaches the freeing
+// chip; Reyes's barn pays chips; Ines's medicine opens a repair spot at her door; wrecks salvaged harden the turrets.
+// Also: S.recipesLocked, S.modsLocked (for loot.js, elites.js), S.turrets (they shoot the nearest machine), S.wrecks
+// (salvage: stop by one a moment), S.questItems (things lying about for a quest), packs asleep in the fields.
+import { QUESTS, QUEST } from '../../play/missions.js';
 import { Rng, hashSeed } from '../../sim/rng.js';
 export function createMissions(G) {
   const { R, S, ev, town } = G, W = town.W, M = R.missions;
-  S.turrets = []; S.mission = null; S.carryItems = [];
-  if (W.chapter !== 'point') return Object.assign(G, { stepMissions() {} });
-  const C = CHAPTER1, P = W.world, rng = new Rng(hashSeed(G.seed, 'missions'));
-  S.recipesLocked = true; S.modsLocked = true;
+  S.turrets = []; S.mission = null; S.carryItems = []; S.quests = { active: [], done: [], offers: [] }; S.wrecks = []; S.questItems = [];
+  if (W.chapter !== 'point') return Object.assign(G, { stepMissions() {}, accept() { return false; } });
+  const P = W.world, rng = new Rng(hashSeed(G.seed, 'missions'));
+  S.recipesLocked = true; S.modsLocked = true; S.salvaged = 0; S.turretMult = 1;   // (scalars only on the Point: the golden runs hash the state's scalars)
   const home = () => S.sites.find(q => q.bay) || S.sites[0];
-  const atBank = () => S.sites.some(q => Math.hypot(q.x - S.kai.x, q.y - S.kai.y) < R.risk.bankR);
+  const kaiAt = () => { const q = S.sites.find(o => o.bay); if (!q || q.exitAng === undefined) return q ? { x: q.x, y: q.y } : null; const oa = q.exitAng; return { x: q.bay.x - Math.sin(oa) * 4.2 - Math.cos(oa) * 2, y: q.bay.y + Math.cos(oa) * 4.2 - Math.sin(oa) * 2 }; };
+  const giverAt = g => g === 'KAI' ? kaiAt() : g === 'MILA' ? (k => k && { x: k.x - 2.4, y: k.y + 1.2 })(kaiAt()) : P[g.toLowerCase()] || null;
+  const atBank = () => S.sites.some(q => q.services.includes('bank') && Math.hypot(q.x - S.kai.x, q.y - S.kai.y) < R.risk.bankR);
   const lot = () => town.garageLot && town.garageLot.box;
   const inLot = (x, y) => { const L = lot(); if (!L) return false; const c = Math.cos(-L.rot), s = Math.sin(-L.rot), dx = x - L.x, dy = y - L.y; return Math.abs(c * dx - s * dy) < L.hu && Math.abs(s * dx + c * dy) < L.hv; };
-  const ring = (x, y, r0, r1, k) => { for (let t = 0; t < 12; t++) { const a = rng.range(0, 6.283), r = rng.range(r0, r1), px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (!town.blocked(px, py)) return [px, py]; } return [x + r0, y]; };
-  function begin(i) { const st = C[i]; if (!st) { S.mission = null; ev('chapterDone', {}); return; }
-    S.mission = { i, id: st.id, t: 0, prog: 0, need: 0, wave: 0 }; ev('missionStart', { i, id: st.id, title: st.title, say: st.start, giver: st.giver }); }
-  function finish() { const st = C[S.mission.i], r = st.reward || {};
+  const ring = (x, y, r0, r1) => { for (let t = 0; t < 12; t++) { const a = rng.range(0, 6.283), r = rng.range(r0, r1), px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (!town.blocked(px, py)) return [px, py]; } return [x + r0, y]; };
+  const spawnAt = (kind, x, y, tag, state = 'wander') => G.spawn(kind, x, y, { state, mission: tag, nest: -1 });   // nest: kept when far (populate thins the rest)
+  // the wrecks to salvage, and the little packs asleep out in the fields (the open ground isn't empty)
+  for (const w of P.wrecks || []) { const [x, y] = town.blocked(w.x, w.y) ? ring(w.x, w.y, 2, 8) : [w.x, w.y]; S.wrecks.push({ x, y, done: false, prog: 0, a: rng.range(0, 6.28) }); }
+  for (const p of P.packs || []) for (let i = 0; i < 3; i++) { const [x, y] = ring(p.x, p.y, 1, 6); spawnAt(i === 2 && rng.chance(0.4) ? 'hound' : 'crawler', x, y, 'pack', 'sleep'); }
+  const has = id => S.quests.done.includes(id), on = id => S.quests.active.find(q => q.id === id);
+  const ready = st => st.after.every(has) && !has(st.id) && !on(st.id);
+  function start(st) { const q = { id: st.id, t: 0, prog: 0, need: 0, wave: 0, base: S.salvaged }; S.quests.active.push(q); ev('missionStart', { i: QUESTS.indexOf(st), id: st.id, title: st.title, say: st.start, giver: st.giver, main: !!st.main });
+    if (st.goal.type === 'collect') (P[st.goal.what] || []).forEach((p, k) => { const [x, y] = town.blocked(p.x, p.y) ? ring(p.x, p.y, 1, 6) : [p.x, p.y]; S.questItems.push({ q: st.id, x, y, taken: false, k }); });
+    if (st.goal.type === 'kill') { const at = P[st.goal.at]; if (at) for (const kind of st.goal.kinds) { const [x, y] = ring(at.x, at.y, 6, 16); spawnAt(kind, x, y, st.id, 'sleep'); } }
+    if (st.goal.type === 'fetch') { const at = P[st.goal.at]; if (at) { q.item = { x: at.x, y: at.y, taken: false, what: st.goal.item }; for (const kind of st.goal.guard || []) { const [x, y] = ring(at.x, at.y, 4, 12); spawnAt(kind, x, y, st.id); } } }
+    return q; }
+  function accept(id) { const st = QUEST[id]; if (!st || st.main || !ready(st)) return false; const at = giverAt(st.giver); if (!at || Math.hypot(at.x - S.kai.x, at.y - S.kai.y) > M.talkR) return false; start(st); return true; }
+  function finish(q) { const st = QUEST[q.id], r = st.reward || {}, g = st.goal;
+    if (g.type === 'bank') S.bank.scrap -= g.scrap;
+    if (g.type === 'fetch') S.carryItems = S.carryItems.filter(x => x !== g.item);
     if (r.recipes) S.recipesLocked = false;
     if (r.recipe && G.learn) G.learn([r.recipe]);
     if (r.learn && G.learn) G.learn([r.learn]);
-    if (r.turret) { const q = home(), L = lot(); const at = L ? { x: L.x + Math.cos(L.rot) * (L.hu - 2) - Math.sin(L.rot) * (L.hv - 2), y: L.y + Math.sin(L.rot) * (L.hu - 2) + Math.cos(L.rot) * (L.hv - 2) } : { x: q.x + 4, y: q.y };
-      S.turrets.push({ who: r.turret, x: at.x, y: at.y, cd: 0, fa: 0 }); }
+    for (const w of r.turrets || []) { let at; if (w === 'garage') { const L = lot(), hm = home(); at = L ? { x: L.x + Math.cos(L.rot) * (L.hu - 2) - Math.sin(L.rot) * (L.hv - 2), y: L.y + Math.sin(L.rot) * (L.hu - 2) + Math.cos(L.rot) * (L.hv - 2) } : { x: hm.x + 4, y: hm.y }; }
+      else { const p = P[w]; if (!p) continue; const [x, y] = ring(p.x, p.y, 3, 5); at = { x, y }; } S.turrets.push({ who: w, x: at.x, y: at.y, cd: 0, fa: 0 }); }
     if (r.mods) S.modsLocked = false;
-    if (r.clean) { const a = S.areas.find(o => o.id === r.clean), at = P.scrubber || home(); if (a) G.cleanArea(a, at.x, at.y); }
-    ev('missionDone', { i: S.mission.i, id: st.id, title: st.title, say: st.done, reward: r }); begin(S.mission.i + 1); }
-  function spawnAt(kind, x, y, tag, state = 'wander') { const d = G.spawn(kind, x, y, { state, mission: tag }); return d; }
-  // where the step wants you now (the HUD's arrow and marker read S.mission.at): null when the goal is "fight anywhere"
-  function targetOf(m, st, g) { const k = S.kai, q = home(), B = (S.bridges || [])[0];
-    if (g.type === 'bank') return S.scrap + S.bank.scrap >= g.scrap ? { x: q.x, y: q.y, label: 'KAI' } : null;
+    if (r.clean) { const a = S.areas.find(o => o.id === r.clean), at = P[g.at] || P.scrubber || home(); if (a) G.cleanArea(a, at.x, at.y); }
+    if (r.scrap) S.bank.scrap += r.scrap; if (r.chips) S.bank.chips += r.chips;
+    if (r.repair && P[r.repair] && G.addSite) G.addSite('clinic', P[r.repair].x, P[r.repair].y);
+    if (r.turretDmg) S.turretMult *= r.turretDmg;
+    S.quests.active.splice(S.quests.active.indexOf(q), 1); S.quests.done.push(q.id); S.questItems = S.questItems.filter(o => o.q !== q.id);
+    ev('missionDone', { i: QUESTS.indexOf(st), id: st.id, title: st.title, say: st.done, reward: r, giver: st.giver, main: !!st.main });
+    if (st.main && !QUESTS.some(o => o.main && !has(o.id))) ev('chapterDone', {}); }
+  // where a quest wants you now (the HUD's markers read q.at): null when its goal is "fight anywhere"
+  function targetOf(q, st) { const g = st.goal, hm = home(), B = (S.bridges || [])[0], give = () => { const a = giverAt(st.giver); return a && { x: a.x, y: a.y, label: st.giver }; };
+    if (q.met && st.turnIn) return give();
+    if (g.type === 'bank') return S.scrap + S.bank.scrap >= g.scrap ? { x: hm.x, y: hm.y, label: 'KAI' } : null;
     if (g.type === 'protect') return P[g.who] ? { x: P[g.who].x, y: P[g.who].y, label: 'TOMAS' } : null;
-    if (g.type === 'hold') return g.at && P[g.at] ? { x: P[g.at].x, y: P[g.at].y, label: 'SCRUBBER' } : { x: q.x, y: q.y, label: 'HOLD' };
-    if (g.type === 'fetch') return S.carryItems.includes(g.item) ? { x: q.x, y: q.y, label: 'HOME' } : m.item ? { x: m.item.x, y: m.item.y, label: 'COIL' } : P[g.at] ? { x: P[g.at].x, y: P[g.at].y, label: 'COIL' } : null;
-    if (g.type === 'key') return S.chips + S.bank.chips >= g.chips ? { x: q.x, y: q.y, label: 'GARAGE' } : null;
+    if (g.type === 'hold') return g.at && P[g.at] ? { x: P[g.at].x, y: P[g.at].y, label: 'SCRUBBER' } : { x: hm.x, y: hm.y, label: 'HOLD' };
+    if (g.type === 'fetch') return S.carryItems.includes(g.item) ? (g.handIn ? give() : { x: hm.x, y: hm.y, label: 'HOME' }) : q.item ? { x: q.item.x, y: q.item.y, label: g.item === 'coil' ? 'COIL' : 'VAN' } : null;
+    if (g.type === 'collect') { const k = S.kai; let b = null, bd = 1e9; for (const o of S.questItems) if (o.q === q.id && !o.taken) { const d = Math.hypot(o.x - k.x, o.y - k.y); if (d < bd) { bd = d; b = o; } } return b ? { x: b.x, y: b.y, label: 'TOY' } : null; }
+    if (g.type === 'kill') return P[g.at] ? { x: P[g.at].x, y: P[g.at].y, label: 'BARN' } : null;
+    if (g.type === 'salvage') { const k = S.kai; let b = null, bd = 1e9; for (const w of S.wrecks) if (!w.done) { const d = Math.hypot(w.x - k.x, w.y - k.y); if (d < bd) { bd = d; b = w; } } return b ? { x: b.x, y: b.y, label: 'WRECK' } : null; }
+    if (g.type === 'key') return S.chips + S.bank.chips >= g.chips ? { x: hm.x, y: hm.y, label: 'GARAGE' } : null;
     if (g.type === 'freed') { const d = S.dead.find(o => o.boss && o.free); return d ? { x: d.x, y: d.y, label: 'BIG ONE' } : null; }
     if (g.type === 'mended') return B && (S.scrap >= R.bridges.scrap || B.state === 'mending') ? { x: B.a.x, y: B.a.y, label: 'BRIDGE' } : null;
     return null; }
-  function stepMissions(dt) { const m = S.mission, k = S.kai; stepTurrets(dt); if (!m) return; const st = C[m.i], g = st.goal; m.t += dt; m.at = targetOf(m, st, g);
-    if (g.type === 'bank') { m.need = g.scrap; m.prog = Math.min(g.scrap, S.bank.scrap); if (S.bank.scrap >= g.scrap) { S.bank.scrap -= g.scrap; finish(); } }
-    else if (g.type === 'protect') { const at = P[g.who]; if (!at) return finish();
-      if (!m.wave && Math.hypot(k.x - at.x, k.y - at.y) < g.near) { m.wave = 1; m.left = g.time; for (let i = 0; i < g.wave; i++) { const [x, y] = ring(at.x, at.y, 5, 11); spawnAt(i % 3 === 2 ? 'hound' : 'crawler', x, y, st.id); } ev('missionStep', { id: st.id, what: 'wave', x: at.x, y: at.y }); }
-      if (m.wave) { const left = S.dead.filter(d => d.mission === st.id).length; m.prog = left; m.need = g.wave; m.left -= dt;
-        if (!left) finish(); else if (m.left <= 0) { for (const d of S.dead.slice()) if (d.mission === st.id) { S.dead.splice(S.dead.indexOf(d), 1); } m.wave = 0; ev('missionStep', { id: st.id, what: 'failed' }); } } }
-    else if (g.type === 'hold') { const q = g.at ? P[g.at] : home(), near = !k.dead && Math.hypot(k.x - q.x, k.y - q.y) < g.r && (g.at || !inLot(k.x, k.y)); m.need = g.time;
-      if (m.prog === 0 && !m.started) { m.started = true; m.held = 0; m.next = 2; }
-      if (near) m.held += dt; m.prog = Math.max(0, Math.ceil(g.time - m.held));
-      m.next -= dt; if (m.next <= 0 && m.held < g.time) { m.next = g.every; const n = 3 + Math.floor(m.held / 20); for (let i = 0; i < n; i++) { const [x, y] = ring(q.x, q.y, g.at ? 30 : 55, g.at ? 45 : 75); spawnAt(i === n - 1 && m.held > 30 ? 'spitter' : i % 2 ? 'hound' : 'crawler', x, y, st.id, 'chase'); } ev('missionStep', { id: st.id, what: 'wave' }); }
-      if (m.held >= g.time) finish(); }
-    else if (g.type === 'fetch') { const at = P[g.at]; if (!at) return finish();
-      if (!m.placed) { m.placed = true; m.item = { x: at.x, y: at.y, taken: false }; S.missionItem = m.item; for (const kind of g.guard || []) { const [x, y] = ring(at.x, at.y, 4, 12); spawnAt(kind, x, y, st.id); } }
-      if (!m.item.taken && !k.dead && Math.hypot(k.x - at.x, k.y - at.y) < 2.6) { m.item.taken = true; S.carryItems.push(g.item); ev('missionStep', { id: st.id, what: 'taken', item: g.item }); }
-      if (m.item.taken && k.dead) { S.carryItems = S.carryItems.filter(x => x !== g.item); m.item.taken = false; m.item.x = k.x; m.item.y = k.y; ev('missionStep', { id: st.id, what: 'dropped' }); }   // lost where she fell: go back for it
-      if (m.item.taken && atBank()) { S.carryItems = S.carryItems.filter(x => x !== g.item); S.missionItem = null; finish(); } }
-    else if (g.type === 'key') { m.need = g.chips; m.prog = Math.min(g.chips, S.chips + S.bank.chips); if ((S.keys[g.key] || 0) > 0) finish(); }
-    else if (g.type === 'freed') { if ((S.guardians || []).length) finish(); }
-    else if (g.type === 'mended') { m.prog = S.scrap; if ((S.bridges || []).some(b => b.state === 'mended')) finish(); } }
-  // a defender's turret: a welded gun on a post at the lot's corner; it shoots the nearest machine in reach
+  function stepQuest(q, dt) { const st = QUEST[q.id], g = st.goal, k = S.kai; q.t += dt;
+    if (q.met) { if (st.turnIn) { const a = giverAt(st.giver); if (a && !k.dead && Math.hypot(a.x - k.x, a.y - k.y) < M.talkR) finish(q); } else finish(q); return; }
+    const met = () => { q.met = true; if (!st.turnIn) finish(q); else ev('missionStep', { id: st.id, what: 'met' }); };
+    if (g.type === 'bank') { q.need = g.scrap; q.prog = Math.min(g.scrap, S.bank.scrap); if (S.bank.scrap >= g.scrap) met(); }
+    else if (g.type === 'protect') { const at = P[g.who]; if (!at) return met();
+      if (!q.wave && Math.hypot(k.x - at.x, k.y - at.y) < g.near) { q.wave = 1; q.left = g.time; for (let i = 0; i < g.wave; i++) { const [x, y] = ring(at.x, at.y, 5, 11); spawnAt(i % 3 === 2 ? 'hound' : 'crawler', x, y, st.id); } ev('missionStep', { id: st.id, what: 'wave', x: at.x, y: at.y }); }
+      if (q.wave) { const left = S.dead.filter(d => d.mission === st.id).length; q.prog = left; q.need = g.wave; q.left -= dt;
+        if (!left) met(); else if (q.left <= 0) { for (const d of S.dead.slice()) if (d.mission === st.id) S.dead.splice(S.dead.indexOf(d), 1); q.wave = 0; ev('missionStep', { id: st.id, what: 'failed' }); } } }
+    else if (g.type === 'hold') { const c = g.at ? P[g.at] : home(), near = !k.dead && Math.hypot(k.x - c.x, k.y - c.y) < g.r && (g.at || !inLot(k.x, k.y)); q.need = g.time;
+      if (!q.started) { q.started = true; q.held = 0; q.next = 2; }
+      if (near) q.held += dt; q.prog = Math.max(0, Math.ceil(g.time - q.held));
+      if (q.held > 0 || near) { q.next -= dt; if (q.next <= 0 && q.held < g.time) { q.next = g.every; const n = 3 + Math.floor(q.held / 20); for (let i = 0; i < n; i++) { const [x, y] = ring(c.x, c.y, g.at ? 30 : 55, g.at ? 45 : 75); spawnAt(i === n - 1 && q.held > 30 ? 'spitter' : i % 2 ? 'hound' : 'crawler', x, y, st.id, 'chase'); } ev('missionStep', { id: st.id, what: 'wave' }); } }
+      if (q.held >= g.time) met(); }
+    else if (g.type === 'fetch') { const it = q.item; if (!it) return met();
+      if (!it.taken && !k.dead && Math.hypot(k.x - it.x, k.y - it.y) < 2.8) { it.taken = true; S.carryItems.push(g.item); ev('missionStep', { id: st.id, what: 'taken', item: g.item }); }
+      if (it.taken && k.dead && S.carryItems.includes(g.item)) { S.carryItems = S.carryItems.filter(x => x !== g.item); it.taken = false; it.x = k.x; it.y = k.y; ev('missionStep', { id: st.id, what: 'dropped' }); }   // lost where she fell: go back for it
+      if (it.taken && S.carryItems.includes(g.item) && (g.handIn || atBank())) met(); }
+    else if (g.type === 'collect') { for (const o of S.questItems) if (o.q === q.id && !o.taken && !k.dead && Math.hypot(k.x - o.x, k.y - o.y) < 2.8) { o.taken = true; ev('missionStep', { id: st.id, what: 'found', x: o.x, y: o.y }); }
+      q.need = g.n; q.prog = S.questItems.filter(o => o.q === q.id && o.taken).length; if (q.prog >= g.n) met(); }
+    else if (g.type === 'kill') { const left = S.dead.filter(d => d.mission === st.id).length; q.need = g.kinds.length; q.prog = left; if (!left) met(); }
+    else if (g.type === 'salvage') { q.need = g.n; q.prog = Math.min(g.n, S.salvaged - q.base); if (q.prog >= g.n) met(); }
+    else if (g.type === 'key') { q.need = g.chips; q.prog = Math.min(g.chips, S.chips + S.bank.chips); if ((S.keys[g.key] || 0) > 0) met(); }
+    else if (g.type === 'freed') { if ((S.guardians || []).length) met(); }
+    else if (g.type === 'mended') { q.prog = S.scrap; if ((S.bridges || []).some(b => b.state === 'mended')) met(); } }
+  // a wreck: stop by it (slow, within reach) a moment and the robot strips it: scrap, sometimes a chip
+  function stepWrecks(dt) { const k = S.kai, slow = !k.riding || Math.abs(S.bike.speed) < M.salvageSpeed;
+    for (const w of S.wrecks) { if (w.done) continue; const near = !k.dead && slow && Math.hypot(w.x - k.x, w.y - k.y) < M.salvageR; w.prog = near ? w.prog + dt : Math.max(0, w.prog - dt);
+      if (w.prog >= M.salvageTime) { w.done = true; const n = 4 + rng.int(4); S.scrap += n; const chip = rng.chance(0.15); if (chip) S.chips++; S.salvaged++; ev('salvaged', { x: w.x, y: w.y, scrap: n, chip }); } } }
   function stepTurrets(dt) { for (const T of S.turrets) { T.cd -= dt; if (T.cd > 0) continue; let best = null, bd = M.turretR; for (const d of S.dead) { if (d.boss) continue; const q = Math.hypot(d.x - T.x, d.y - T.y); if (q < bd) { bd = q; best = d; } }
-    if (!best) { T.cd = 0.3; continue; } T.cd = M.turretEvery; T.fa = Math.atan2(best.y - T.y, best.x - T.x); T.shot = { x: best.x, y: best.y, t: S.t }; ev('turretShot', { x: T.x, y: T.y, tx: best.x, ty: best.y }); G.hurtFoe(best, M.turretDmg, 'turret', best.x, best.y); } }
-  begin(0);
-  Object.assign(G, { stepMissions });
+    if (!best) { T.cd = 0.3; continue; } T.cd = M.turretEvery; T.fa = Math.atan2(best.y - T.y, best.x - T.x); T.shot = { x: best.x, y: best.y, t: S.t }; ev('turretShot', { x: T.x, y: T.y, tx: best.x, ty: best.y }); G.hurtFoe(best, M.turretDmg * S.turretMult, 'turret', best.x, best.y); } }
+  function stepMissions(dt) { stepTurrets(dt); stepWrecks(dt);
+    for (const st of QUESTS) if (st.main && ready(st)) start(st);
+    for (const q of S.quests.active.slice()) stepQuest(q, dt);
+    for (const st of QUESTS) if (st.main && ready(st)) start(st);   // the next in the chain comes at once
+    for (const q of S.quests.active) q.at = targetOf(q, QUEST[q.id]);
+    S.quests.offers = QUESTS.filter(st => !st.main && ready(st)).map(st => st.id);
+    S.mission = S.quests.active.find(q => QUEST[q.id].main) || S.quests.active[0] || null;
+    if (S.mission) S.mission.i = QUESTS.indexOf(QUEST[S.mission.id]); }
+  stepMissions(0);
+  Object.assign(G, { stepMissions, accept, giverAt });
 }

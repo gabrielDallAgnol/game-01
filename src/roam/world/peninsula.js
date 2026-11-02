@@ -158,10 +158,11 @@ export function buildPeninsula(seed = 7) {
   const penin = [P(300, 440), P(430, 515), P(650, 575), P(1000, 815), P(1235, 1095), P(1345, 1262), P(1408, 1398), P(1180, 1365), P(980, 1395), P(800, 1378), P(620, 1355), P(450, 1368), P(345, 1312), P(318, 1180), P(345, 1000), P(316, 820), P(284, 640)];
   { const X0 = W.decks[0], d = district('wendbridge', 'village', 'Wendbridge', penin, P(X0.x, X0.y)); d.pin = P(X0.x, X0.y); d.level = 1; d.free = true; fillPoly(d, penin); fillPoly(d, obbPoly({ x: X0.x, y: X0.y, w: 40, h: 40, rot: 0 })); }
   for (const l of [canal, rivers]) for (const ln of l.lines) for (let i = 1; i < ln.pts.length; i++) { const a = ln.pts[i - 1], b = ln.pts[i], dR = D.find(q => q.id === 'river'); dput(dR, (x, y) => polyDist(x, y, [a, b]) < ln.half + 2 && Math.hypot(x - W.decks[0].x, y - W.decks[0].y) > 26, ...bb([a, b], ln.half + 2)); }
-  // the Lume side: the peninsula's south strip (the pump works, Lume Farm, the lane's south end). No walker of its own;
-  // it turns clean when the pump works' scrubber runs again (a chapter 1 mission): the colour before the boss
-  { const lume = [P(338, 1070), P(560, 1060), P(760, 1100), P(1000, 1160), P(1200, 1235), P(1345, 1262), P(1408, 1398), P(1180, 1365), P(980, 1395), P(800, 1378), P(620, 1355), P(450, 1368), P(345, 1312), P(318, 1180)];
-    const d = district('lumeside', 'village', 'the Lume side', lume, works ? P(works.x, works.y) : null); d.keep = true; d.level = 1; fillPoly(d, lume); }
+  // Tomas's row: the houses round the welder's, at the town's lane end. No walker of its own; it turns clean when his
+  // workshop's old scrubber runs again (a chapter 1 mission): the first colour, where the first friend lives
+  { const th = W.placed.filter(p => p.district === 'village' && p.def.kind === 'building' && p.door).sort((a, b) => Math.hypot(a.door.x - vW.x, a.door.y - vW.y) - Math.hypot(b.door.x - vW.x, b.door.y - vW.y))[0];
+    if (th) { const c = th.door, ring = Array.from({ length: 14 }, (_, k) => P(c.x + Math.cos(k / 14 * 6.283) * 62, c.y + Math.sin(k / 14 * 6.283) * 62));
+      const d = district('tomasrow', 'village', 'Tomas\'s row', ring, P(c.x, c.y)); d.keep = true; d.level = 1; fillPoly(d, ring); } }
   for (const l of [canal, rivers]) for (const ln of l.lines) for (let i = 1; i < ln.pts.length; i++) { const a = ln.pts[i - 1], b = ln.pts[i], dR = D.find(q => q.id === 'river'); dput(dR, (x, y) => polyDist(x, y, [a, b]) < ln.half + 2, ...bb([a, b], ln.half + 2)); }
   if (home) { const poly = obbPoly({ ...home.box, w: home.box.w + 70, h: home.box.h + 60 }); fillPoly(district('point', 'home', 'the Point', poly, P(home.x, home.y)), poly); D[D.length - 1].home = true; }
   W.districts = D;
@@ -171,8 +172,21 @@ export function buildPeninsula(seed = 7) {
   const doorOf = p => p.door || { x: p.x, y: p.y + p.h / 2 + 1.5 };
   const vh = W.placed.filter(p => p.district === 'village' && p.def.kind === 'building' && p.door).sort((a, b) => Math.hypot(a.door.x - vW.x, a.door.y - vW.y) - Math.hypot(b.door.x - vW.x, b.door.y - vW.y))[0];
   const wb = works && works.buildings.length ? works.buildings.slice().sort((a, q) => q.w * q.h - a.w * a.h)[0] : null;
+  // [quests] the people who ask for help, and what lies about: Reyes at Lume Farm's door, Ines at a door in the town's middle,
+  // Jonah's five toy cars dropped across the fields as they ran, wrecks along the lanes and in the fields (salvage), and
+  // little packs of machines asleep out in the fields (the open ground isn't empty)
+  const lf = farms.find(f => f.name === 'Lume Farm'), lfb = lf && lf.buildings.length ? lf.buildings.slice().sort((a, q) => q.w * q.h - a.w * a.h)[0] : null;
+  const vc = P(VX + VW / 2, VY + VH / 2), ih = W.placed.filter(p => p.district === 'village' && p.def.kind === 'building' && p.door && p !== vh).sort((a, b) => Math.hypot(a.door.x - vc.x, a.door.y - vc.y) - Math.hypot(b.door.x - vc.x, b.door.y - vc.y))[0];
+  const inPen = q => inPoly(q.x, q.y, penin) && claim.at(q.x, q.y) !== CLAIM.water && claim.at(q.x, q.y) !== CLAIM.hard;
+  const fieldPts = fields.map(f => P(f.poly.reduce((a, q) => a + q.x, 0) / 4, f.poly.reduce((a, q) => a + q.y, 0) / 4)).filter(inPen);
+  const toys = fieldPts.slice().sort((a, b) => hash(seed, a.x, a.y, 61) - hash(seed, b.x, b.y, 61)).slice(0, 5).map((q, k) => P(q.x + (hash(seed, k, 1, 62) - 0.5) * 30, q.y + (hash(seed, k, 2, 62) - 0.5) * 30));
+  const packs = fieldPts.slice().sort((a, b) => hash(seed, a.x, a.y, 63) - hash(seed, b.x, b.y, 63)).slice(0, 7);
+  const wrecks = []; for (const name of ['the point lane', 'Lume lane', 'cut lane']) { const r = byName[name], L = len(r.pts); for (let s2 = 40; s2 < L - 20; s2 += 110) { const a = along(r.pts, s2), side = hash(seed, s2, 7, 64) < 0.5 ? -1 : 1; wrecks.push(P(a.x - a.ty * side * 9, a.y + a.tx * side * 9)); } }
+  for (const q of fieldPts.slice(0, 6)) wrecks.push(P(q.x + 12, q.y - 8));
+  const vanAt = (() => { const r = byName['cut lane'], a = along(r.pts, len(r.pts) * 0.55); return P(a.x + a.ty * 7, a.y - a.tx * 7); })();
   W.chapter = 'point';
-  W.world = { ...POINT, roads: byName, claim, home, farms, works, trees: trees.length, fields: fields.length, tomas: vh ? { ...doorOf(vh), uid: vh.uid } : null, coil: wb ? doorOf(wb) : null, scrubber: works ? (() => { const ap = (works.anchors || []).filter(a => a.kind === 'apron'); const a = ap[Math.floor(ap.length / 2)]; return a ? { x: a.x, y: a.y } : { x: works.x, y: works.y }; })() : null };
+  const scrub = vh ? (() => { const d = doorOf(vh), ox = d.x - vh.x, oy = d.y - vh.y, L = Math.hypot(ox, oy) || 1; return P(d.x + ox / L * 4 - oy / L * 6, d.y + oy / L * 4 + ox / L * 6); })() : null;
+  W.world = { scrubber: scrub, ...POINT, roads: byName, claim, home, farms, works, trees: trees.length, fields: fields.length, tomas: vh ? { ...doorOf(vh), uid: vh.uid } : null, reyes: lfb ? doorOf(lfb) : null, ines: ih ? doorOf(ih) : null, toys, packs, wrecks, van: vanAt, coil: wb ? doorOf(wb) : null, scrubberWorks: works ? (() => { const ap = (works.anchors || []).filter(a => a.kind === 'apron'); const a = ap[Math.floor(ap.length / 2)]; return a ? { x: a.x, y: a.y } : { x: works.x, y: works.y }; })() : null };
   W.nav = null; W.occ = null;
   return W;
 }

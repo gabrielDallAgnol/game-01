@@ -26,7 +26,7 @@ body.scene #hud,body.scene #loot,body.scene #area,body.scene #obj,body.scene #pa
   let readyKey = '', lastI = -1;
   const queue = []; let cur = null, radioT = 0, banT = 0, banQ = [], scene = null;
   const kaiAt = () => { const q = S.sites.find(o => o.bay); if (!q || q.exitAng === undefined) return null; const oa = q.exitAng; return { x: q.bay.x - Math.sin(oa) * 4.2 - Math.cos(oa) * 2, y: q.bay.y + Math.cos(oa) * 4.2 - Math.sin(oa) * 2 }; };
-  const whereIs = who => who === 'KAI' ? kaiAt() : who === 'TOMAS' ? W.tomas : null;
+  const whereIs = who => who === 'KAI' ? kaiAt() : sim.giverAt(who);
   // "NAME: text" lines (a line without a name is the mission's giver's)
   const lines = (text, giver) => text ? text.split(/\s(?=[A-Z]{3,}:)/).map(t => { const m = /^([A-Z]{3,}):\s*(.*)$/.exec(t.trim()); return m ? [m[1], m[2]] : [giver, t.trim()]; }) : [];
   // [story] the colour coming back, shown: the camera pulls far out over where it starts and holds while the sweep runs
@@ -35,7 +35,7 @@ body.scene #hud,body.scene #loot,body.scene #area,body.scene #obj,body.scene #pa
     if (e.type === 'clean' && e.x !== undefined) queue.push({ sweep: { x: e.x, y: e.y } });
     else if (e.type === 'freed') freed = e; else if (e.type === 'mended') mended = e;
     if (e.type === 'missionDone') { const st = CHAPTER1[e.i]; for (const [who, say] of lines(e.say, st.giver)) queue.push({ who, say }); queue.push({ banner: ['✓ ' + st.title.toUpperCase(), 'done', ''] }); }
-    else if (e.type === 'missionStart') { const st = CHAPTER1[e.i]; for (const [who, say] of lines(e.say, e.giver)) queue.push({ who, say }); queue.push({ banner: ['NEW', st.title.toUpperCase(), st.line.replace(/\{n\}.*$/, '').replace(/[:.]\s*$/, '')] }); } }
+    else if (e.type === 'missionStart') { const st = CHAPTER1[e.i]; if (e.main) for (const [who, say] of lines(e.say, e.giver)) queue.push({ who, say }); queue.push({ banner: ['NEW', st.title.toUpperCase(), st.line.replace(/\{n\}.*$/, '').replace(/[:.]\s*$/, '')] }); } }
     if (freed) { const done = queue.findIndex(q => q.sweep); queue.splice(done + 1, 0, ...FREED.map(([who, say]) => ({ who, say, radio: true }))); }
     if (mended) for (const [who, say] of MENDED) queue.push({ who, say, radio: true }); }
   function next() { cur = queue.shift() || null; if (!cur) { endScene(); if (after) { const f = after; after = null; f(); } return; }

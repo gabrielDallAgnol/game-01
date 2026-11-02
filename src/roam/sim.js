@@ -81,7 +81,7 @@ export const ROAM = {
   // [point] mending a broken bridge (sim/bridges.js): scrap carried to its end, the work's time (s), how near Kai must stay
   bridges: { scrap: 60, time: 14, reach: 9, near: 22 },
   // [missions] a defender's turret (sim/missions.js): reach (m), a shot every turretEvery s, its damage
-  missions: { turretR: 18, turretEvery: 0.55, turretDmg: 2.2 },
+  missions: { turretR: 18, turretEvery: 0.55, turretDmg: 2.2, talkR: 10, salvageR: 4, salvageSpeed: 2.5, salvageTime: 2.2 },
   free: { floor: 0.15, linkR: 12, body: 6, pulse: 1.3, window: 0.36, need: 5, lock: 0.6, guardSpeed: 2.4 },
 };
 
@@ -110,5 +110,5 @@ export function createRoam(town, seed = 1) {
   for (let k = 0; k < 6; k++) G.populate();
   const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
   const debug = { spawn: (kind, x, y, o) => G.spawn(kind, x, y, o) };   // for tests, labs and screenshots
-  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), repair: () => G.startFix(), build: id => G.build(id), equipItem: uid => G.equipItem(uid), salvageItem: uid => G.salvageItem(uid), upgrade: slot => G.upgrade(slot), enterGarage: () => G.enterGarage(), leaveGarage: () => G.leaveGarage(), socket: (uid, i, mod) => G.socket(uid, i, mod), levelCap: () => G.levelCap(), upCost: slot => G.upCost(S.gear[slot]), atBench: () => !!G.atBench(), atGate: () => !!G.atGate(), canLink: () => G.canLink(), canMend: () => G.canMend(), mend: () => G.mend(), bikeStats: () => G.bikeStats(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), repair: () => G.startFix(), build: id => G.build(id), equipItem: uid => G.equipItem(uid), salvageItem: uid => G.salvageItem(uid), upgrade: slot => G.upgrade(slot), enterGarage: () => G.enterGarage(), leaveGarage: () => G.leaveGarage(), socket: (uid, i, mod) => G.socket(uid, i, mod), levelCap: () => G.levelCap(), upCost: slot => G.upCost(S.gear[slot]), atBench: () => !!G.atBench(), atGate: () => !!G.atGate(), canLink: () => G.canLink(), canMend: () => G.canMend(), accept: id => G.accept(id), giverAt: g => G.giverAt ? G.giverAt(g) : null, mend: () => G.mend(), bikeStats: () => G.bikeStats(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }

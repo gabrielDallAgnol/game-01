@@ -10,6 +10,8 @@
 //   workbench  build from recipes, fit parts and mods, upgrade (the garage panel)
 // Every entry: desc (what the player reads) and why (what the designer meant).
 export const SITES = {
+  // [quests] Ines's door: she mends the robot once you've brought her the medicine (a side quest's reward)
+  clinic: { id: 'clinic', name: 'Ines\'s door', services: ['repair'], owner: 'owned', desc: 'Ines, the nurse: she mends the robot too.', why: 'A side quest that changes the map: a place to repair in Wendbridge.' },
   camp: { id: 'camp', name: 'the camp', services: ['home', 'bank', 'repair'], owner: 'owned',
     desc: 'Your camp on the square: bank here, and come back here if you go down.', why: 'A safe start before the garage is reached.' },
   garage: { id: 'garage', name: 'the garage', services: ['bank', 'repair', 'stash', 'workbench'], owner: 'owned',

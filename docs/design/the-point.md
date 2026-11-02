@@ -65,20 +65,31 @@ cannot cross water (it shorts them out), and neither can you, except over a brid
 | Also on it | The point lane (town → garage), Lume Farm, Cut Farm, the pump works, two woods, fields. |
 | Beyond the water | Fields, woods and the road on to the edge (the first town comes later). Machines walk there; you see them across the water. |
 
-### Chapter 1, a chain of missions [built, Nov 2]
+### Chapter 1: quests, WoW-style [built, Nov 2]
 
-Gabriel (Nov 2): build it up step by step, each step connected to the one before. Data: `src/play/missions.js`; rules:
-`src/roam/sim/missions.js`. The line under the area shows the step on now; the giver's words come as toasts.
+Several at once. The story's chain comes by radio; side quests wait at people with a gold **!** over them (ride up:
+an offer card, ACCEPT or LATER), and some are handed back in person (**?** over them). Data `src/play/missions.js`, rules
+`src/roam/sim/missions.js`, UI `questui.js`, `objui.js` (the tracked quest, then up to three more).
 
-| # | Mission | What you do | What it causes |
+| Chain | Giver | What | What it causes |
 |---|---|---|---|
-| 1 | Scrap for the bench | Bring Kai 30 scrap (bank it at the Point) | Kai can open a chip; **recipes start to drop** (none before: she can't read them yet) |
-| 2 | The welder | Ride to Tomas's door in Wendbridge (a lamp swinging); clear the 6 machines at it before they break in (60 s, or they come back) | Tomas trusts the robot: he gives the **launcher recipe** and welds **a turret** at the garage lot's corner |
-| 3 | The loud chip | Kai's test chip screams: hold the Point for 60 s, near the garage but out of the safe lot, while waves come (the turret helps) | It works but leaks: Kai needs a **shield coil** |
-| 4 | The pump works | Take the coil from the big shed (a brute and four others guard it) and bank it at the Point; going down drops it where you fell | Kai **learns the freeing chip** |
-| 5 | The freeing chip | Six chips (burnt ones are lost) and 40 scrap at the garage | You carry the chip |
-| 6 | The big one | Free the boss in Wend Bridge | The colour comes back; it climbs out of the gap |
-| 7 | Wend Bridge | Carry 60 scrap to its end, guard the workers | The road opens, and **mods open** (elites and mod recipes appear only now) |
+| Scrap for the bench | Kai | bank 30 scrap | recipes start to drop; Mila's quest appears |
+| The welder's house | Kai | protect Tomas's house (6 machines, 60 s) | two turrets: his door and Kai's; the launcher recipe; Reyes's and Ines's quests appear |
+| The scrubber in the workshop | Tomas | hold by his workshop 40 s | **Tomas's row turns green** (the first colour, where the first friend lives) |
+| The loud chip | Kai | hold the Point 50 s | Kai needs a shield coil |
+| The pump works | Kai | fetch the coil | Kai learns the freeing chip |
+| The freeing chip, the big one, Wend Bridge | Kai | as before | the colour, the road, mods |
+
+| Side quest | Giver | What | Reward |
+|---|---|---|---|
+| Jonah's cars | Mila (by Kai) | find 5 toy cars across the fields | 15 scrap; the kids trust the robot (Kai's talk changes) |
+| Reyes's barn | Reyes (Lume Farm) | clear the 5 machines in his barn | 2 chips, 10 scrap |
+| The pharmacy van | Ines (Wendbridge) | fetch the medicine box from the crashed van on the cut lane | **a repair spot at her door** |
+| Steel for the turrets | Tomas | salvage 3 wrecks | the turrets hit harder |
+
+**The open ground has things in it:** wrecks along the lanes and in the fields (stop by one a moment: scrap, sometimes a
+chip), little packs of machines asleep in the fields, the toy cars. **Machines are ~25% bigger** and the camera starts
+further out (16 px/m).
 
 **How a mission begins and ends (Nov 2):** near the one who speaks (Kai at her garage, Tomas at his door) a scene: thin
 bars, the camera eases onto both, a speech bubble over their head types out while they wave, the robot answers in light;

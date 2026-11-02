@@ -10,11 +10,12 @@ export function createObjUi({ sim, toast }) {
   if (main < 0) { el.hidden = true; return { update() {} }; }
   const hasChapter = !!S.mission;
   // [missions] with a chapter, the line is the mission's: its objective with its count; a giver's words come as toasts
-  function missionLine() { const m = S.mission; if (!m) return 'The road north is open. Beyond the cut: the first town (next chapter).'; const st = CHAPTER1[m.i];
-    { const r = readyOf(S, st); if (r) return `✓ Got ${r.what.toLowerCase()}. ${r.then}`; }
-    if (st.goal.type === 'protect' && !m.wave) return 'Ride to Tomas\'s door in Wendbridge: the first house off the lane, a lamp swinging.';
-    if (st.goal.type === 'fetch' && S.carryItems && S.carryItems.length) return 'Bring the shield coil home: bank it at the Point. If you go down, it drops where you fell.';
-    return `${m.i + 1}/${CHAPTER1.length} · ${st.title.toUpperCase()}: ` + st.line.replace('{n}', m.prog).replace('{need}', m.need); }
+  function one(q) { const st = CHAPTER1.find(o => o.id === q.id), r = readyOf(S, st);
+    if (r) return `✓ ${st.title}: ${r.then}`;
+    if (st.goal.type === 'protect' && !q.wave) return `${st.title}: ride to Tomas's door in Wendbridge (a lamp swinging).`;
+    return `${st.title}: ` + st.line.replace('{n}', q.prog).replace('{need}', q.need); }
+  function missionLine() { const A = (S.quests && S.quests.active) || []; if (!A.length) return S.quests && S.quests.offers.length ? 'Someone in Wendbridge has a "!" for you.' : 'The road north is open. Beyond the cut: the first town (next chapter).';
+    const m = S.mission, rest = A.filter(q => q !== m).slice(0, 3); return [one(m)].concat(rest.map(q => '· ' + one(q))).join('\n'); }
   function line() { if (hasChapter) return missionLine(); const chips = S.chips + (S.bank ? S.bank.chips : 0), need = 6, b = (S.bridges || [])[0], freed = (S.guardians || []).length > 0;
     if (S.inArea === main) seenTown = true;
     if (b && b.state === 'mended') return 'The road north is open. Beyond the cut: the first town (next chapter).';
@@ -30,6 +31,6 @@ export function createObjUi({ sim, toast }) {
       if (e.type === 'missionStep' && e.what === 'failed') toast('They broke in. Tomas held the door, barely. Go back for him.', true);
       else if (e.type === 'missionStep' && e.what === 'taken') toast('The shield coil. Heavy: bring it home.', true);
       else if (e.type === 'missionStep' && e.what === 'dropped') toast('The coil fell where you went down. Go back for it.'); }
-    const l = line(); if (l !== last) { last = l; el.textContent = l; el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 400 }); } }
+    const l = line(); if (l !== last) { last = l; el.textContent = l; el.style.whiteSpace = 'pre-line'; el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 400 }); } }
   return { update };
 }

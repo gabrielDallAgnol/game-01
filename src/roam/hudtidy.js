@@ -5,7 +5,7 @@
 // Then the mission's own aids: an amber arrow at the screen's edge with the distance to where the step wants you, a
 // pulsing ring and label on the spot once it's on screen, and a red ▼ over each machine the step needs killed.
 // UI only: reads the state, toggles elements, draws on the overlay.
-const ICON = { KAI: '⌂', HOME: '⌂', GARAGE: '⌂', TOMAS: '!', HOLD: '◎', SCRUBBER: '✱', COIL: '◉', 'BIG ONE': '☗', BRIDGE: '≡' };
+const ICON = { KAI: '⌂', HOME: '⌂', GARAGE: '⌂', TOMAS: '☺', MILA: '☺', REYES: '☺', INES: '☺', HOLD: '◎', SCRUBBER: '✱', COIL: '◉', VAN: '✚', TOY: '▣', BARN: '⌂', WRECK: '⚙', 'BIG ONE': '☗', BRIDGE: '≡' };
 export function createHudTidy({ sim, fx }) {
   const S = sim.state, $ = id => document.getElementById(id), dev = /[?&]dev=1/.test(location.search), chapter = !!S.mission;
   let lastArea = -2, areaT = 0;
@@ -24,7 +24,8 @@ export function createHudTidy({ sim, fx }) {
   // the mission's aids on the overlay (after the world, before the HUD's own arrows)
   function draw(toS, cssW, cssH, t, edgeArrow) {
     const m = S.mission;
-    for (const d of S.dead) { if (!d.mission || (m && d.mission !== m.id)) continue; const [x, y] = toS(d.x, d.y); if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; const b = Math.sin(t * 6) * 2.5, yy = y - 26 + b;
+    const act = new Set(((S.quests && S.quests.active) || []).map(q => q.id));
+    for (const d of S.dead) { if (!d.mission || !act.has(d.mission)) continue; const [x, y] = toS(d.x, d.y); if (x < -20 || y < -20 || x > cssW + 20 || y > cssH + 20) continue; const b = Math.sin(t * 6) * 2.5, yy = y - 26 + b;
       fx.fillStyle = '#ff3a2a'; fx.strokeStyle = 'rgba(8,8,10,.85)'; fx.lineWidth = 3; fx.beginPath(); fx.moveTo(x - 7, yy - 6); fx.lineTo(x + 7, yy - 6); fx.lineTo(x, yy + 4); fx.closePath(); fx.stroke(); fx.fill(); }
     if (!m || !m.at) return; const [sx, sy] = toS(m.at.x, m.at.y), k = S.kai, [kx, ky] = toS(k.x, k.y), dist = Math.round(Math.hypot(m.at.x - k.x, m.at.y - k.y)), icon = ICON[m.at.label] || '●';
     const AMB = '#ffc35a', top = 172, bottom = cssH - 210, left = 26, right = cssW - 26, onScreen = sx > left && sx < right && sy > top && sy < bottom;
