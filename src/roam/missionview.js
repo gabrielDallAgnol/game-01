@@ -12,7 +12,10 @@ export function missionVolumes(v, K, on, sn) {
       if (active) { const sw = Math.sin(t * 4) * 0.8, f = face(tm.x, tm.y); sphere(tm.x + Math.cos(f + 1.2) * 1.4, tm.y + Math.sin(f + 1.2) * 1.4, 3.6 + sw * 0.3, 0.22, M.lamp, 1); } }
     for (const [who, coat, hair] of [['reyes', 'carGreen', 'hair'], ['ines', 'carCream', 'rust']]) { const p = P[who]; if (p && on(p.x, p.y)) drawPerson(K, t, sn(p.x), sn(p.y), face(p.x, p.y), coat, v.talk === who.toUpperCase() ? 1 : 0, 0, false, hair); }
     const q = (S.sites || []).find(o => o.bay); if (q && q.exitAng !== undefined) { const oa = q.exitAng, mx = q.bay.x - Math.sin(oa) * 4.2 - Math.cos(oa) * 2 - 2.4, my = q.bay.y + Math.cos(oa) * 4.2 - Math.sin(oa) * 2 + 1.2;
-      if (on(mx, my) && v.kaiHome) drawPerson(K, t, sn(mx), sn(my), face(mx, my), 'carRed', v.talk === 'MILA' || near(mx, my, 14) ? 1 : 0, 0, false, 'hair', 0.62); } }
+      if (on(mx, my) && v.kaiHome) drawPerson(K, t, sn(mx), sn(my), face(mx, my), 'carRed', v.talk === 'MILA' || near(mx, my, 14) ? 1 : 0, 0, false, 'hair', 0.62);
+      // [story] Jonah, once his cars are home: out beside his sister, his dad's yellow tow truck at his feet, and he waves
+      if (Q.done.includes('toys') && on(mx, my) && v.kaiHome) { const jx = mx - 1.6, jy = my + 1.1; drawPerson(K, t, sn(jx), sn(jy), face(jx, jy), 'carBlue', near(jx, jy, 18) ? 1 : 0, 0, false, 'hair', 0.5);
+        box(jx + 0.9, jy + 0.6, 0.12, 0.28, 0.14, 0.1, 0.04, 0.4, M.cone); } } }
   // what lies about: Jonah's toy cars (while you look for them), the quest items (the coil, the medicine box), the wrecks
   for (const o of S.questItems || []) { if (o.taken || !on(o.x, o.y)) continue; const a = o.k * 1.3; box(o.x, o.y, 0.12, 0.28, 0.14, 0.1, 0.05, a, [M.carRed, M.carBlue, M.carGreen, M.paint, M.carCream][o.k % 5]); sphere(o.x, o.y, 0.35, 0.08, M.lamp, 0.6 + 0.4 * Math.sin(t * 6 + o.k)); }
   for (const qq of Q.active) { const it = qq.item; if (!it || it.taken || !on(it.x, it.y)) continue;
