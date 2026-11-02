@@ -10,7 +10,8 @@ import { CHAPTER1 } from '../play/missions.js';
 const ROBOT = ['▪ ▫ ▪', '▪▪', '▫ ▪', '▪ ▪ ▪', '▪'];
 export function createStoryUi({ sim, ui, lab, cam, town }) {
   const S = sim.state, W = town.W.world || {};
-  const css = document.createElement('style'); css.textContent = `#sbars i{position:fixed;left:0;right:0;height:0;background:#000;z-index:55;transition:height .45s ease}#sbars i.t{top:0}#sbars i.b{bottom:0}#sbars.on i{height:9vh}
+  const css = document.createElement('style'); css.textContent = `#sbars i{position:fixed;left:0;right:0;height:0;background:#000;z-index:55;transition:height .45s ease}#sbars i.t{top:0}#sbars i.b{bottom:0}#sbars.on i{height:6vh}
+body.scene #hud,body.scene #loot,body.scene #area,body.scene #obj,body.scene #pad,body.scene #toasts,body.scene #boss,body.scene #linkBtn,body.scene #mendBtn,body.scene #garageBtn,body.scene #fix{visibility:hidden}
 #stap{position:fixed;inset:0;z-index:56;display:none}#stap.on{display:block}
 #sradio{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translate(-50%,-140%);width:min(420px,calc(100vw - 24px));background:rgba(8,9,11,.9);border:1px solid #f0b44c55;border-radius:12px;padding:8px 12px;font:500 13px/1.4 ui-monospace,monospace;color:#e9e2cf;z-index:57;transition:transform .35s ease}
 #sradio.on{transform:translate(-50%,0)}#sradio b{color:#f0b44c;font-size:10px;letter-spacing:.14em;display:block}
@@ -29,14 +30,14 @@ export function createStoryUi({ sim, ui, lab, cam, town }) {
   function events(evs) { for (const e of evs || []) {
     if (e.type === 'missionDone') { const st = CHAPTER1[e.i]; for (const [who, say] of lines(e.say, st.giver)) queue.push({ who, say }); queue.push({ banner: ['✓ ' + st.title.toUpperCase(), 'done', ''] }); }
     else if (e.type === 'missionStart') { const st = CHAPTER1[e.i]; for (const [who, say] of lines(e.say, e.giver)) queue.push({ who, say }); queue.push({ banner: ['NEW', st.title.toUpperCase(), st.line.replace(/\{n\}.*$/, '').replace(/[:.]\s*$/, '')] }); } } }
-  function next() { cur = queue.shift() || null; if (!cur) { endScene(); return; }
+  function next() { cur = queue.shift() || null; if (!cur) { endScene(); if (after) { const f = after; after = null; f(); } return; }
     if (cur.banner) { endScene(); banQ.push(cur.banner); cur = null; next(); return; }
     const at = whereIs(cur.who), k = S.kai, near = at && Math.hypot(at.x - k.x, at.y - k.y) < 45;
     if (near) { startScene(at); cur.mode = 'scene'; cur.t0 = performance.now(); cur.reply = Math.random() < 0.5; }
     else { endScene(); cur.mode = 'radio'; cur.t0 = performance.now(); radio.innerHTML = `<b>${cur.who} · RADIO</b><span></span>`; radio.classList.add('on'); radioT = 2.2 + cur.say.length * 0.045; } }
-  function startScene(at) { if (!scene) { scene = { z0: cam.ppm, b0: cam.base }; bars.classList.add('on'); tap.classList.add('on'); ui.paused = true; }
+  function startScene(at) { if (!scene) { scene = { z0: cam.ppm, b0: cam.base }; bars.classList.add('on'); tap.classList.add('on'); document.body.classList.add('scene'); ui.paused = true; }
     const b = S.bike; lab.cam = { x: (at.x + b.x) / 2, y: (at.y + b.y) / 2 }; const d = Math.hypot(at.x - b.x, at.y - b.y); cam.base = cam.ppm = Math.max(10, Math.min(22, innerWidth / (d + 16))); }
-  function endScene() { if (!scene) return; bars.classList.remove('on'); tap.classList.remove('on'); lab.cam = null; cam.ppm = scene.z0; cam.base = scene.b0; ui.paused = false; scene = null; }
+  function endScene() { if (!scene) return; bars.classList.remove('on'); tap.classList.remove('on'); document.body.classList.remove('scene'); lab.cam = null; cam.ppm = scene.z0; cam.base = scene.b0; ui.paused = false; scene = null; }
   tap.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (!cur || cur.mode !== 'scene') return; const shown = (performance.now() - cur.t0) / 28;
     if (shown < cur.say.length) { cur.t0 = -1e9; return; } if (cur.reply && !cur.replied) { cur.replied = true; cur.t1 = performance.now(); return; } next(); });
   radio.addEventListener('pointerdown', () => { if (cur && cur.mode === 'radio') { radio.classList.remove('on'); next(); } });
@@ -59,7 +60,7 @@ export function createStoryUi({ sim, ui, lab, cam, town }) {
     if (cur.replied) { const [rx, ry] = toS(S.bike.x, S.bike.y); bubble(fx, rx, ry - 30, ROBOT[(cur.say.length) % ROBOT.length], '#ffc35a88', true); }
     fx.restore(); }
   // a conversation: lines said now (talking to Kai), played like a mission's words
-  function say(list) { for (const [who, line] of list) queue.push({ who, say: line }); }
+  let after = null; function say(list, then) { for (const [who, line] of list) queue.push({ who, say: line }); after = then || null; }
   const kaiNear = r => { const a = kaiAt(); return !!a && Math.hypot(a.x - S.bike.x, a.y - S.bike.y) < r; };
   return { say, kaiNear, get busy() { return !!cur || queue.length > 0; }, events, update, draw, get talk() { return cur && cur.mode === 'scene' ? cur.who : null; } };
 }

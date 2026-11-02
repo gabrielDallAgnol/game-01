@@ -18,3 +18,10 @@ export function missionVolumes(v, K, on, sn) {
 export function drawMissions(fx, v) { const S = v.risk; if (!S || !S.turrets) return; const { toS } = v;
   for (const T of S.turrets) { if (!T.shot || S.t - T.shot.t > 0.09) continue; const [x0, y0] = toS(T.x + Math.cos(T.fa) * 1.6, T.y + Math.sin(T.fa) * 1.6 - 1.1), [x1, y1] = toS(T.shot.x, T.shot.y);
     fx.strokeStyle = 'rgba(255,200,110,.9)'; fx.lineWidth = 2; fx.beginPath(); fx.moveTo(x0, y0); fx.lineTo(x1, y1); fx.stroke(); } }
+// the pump works' scrubber: a tall stack with a fan housing on top; dead while the Lume side is grey, its fan turning and a
+// lamp lit once it runs (and the air it cleans rising off it). Render only: reads the area's state.
+export function scrubberVolumes(v, K, on) { const S = v.risk, P = v.chapter; if (!S || !P || !P.scrubber || !on(P.scrubber.x, P.scrubber.y)) return; const { sphere, capsule, box, M } = K, { x, y } = P.scrubber, t = v.t;
+  const a = S.areas.find(o => o.id === 'lumeside'), runs = a && a.state === 'clean', m = S.mission, spin = m && m.id === 'scrubber' && m.held > 0 ? m.held / 40 : runs ? 1 : 0;
+  box(x, y, 0.3, 1.6, 1.6, 0.3, 0.1, 0.4, M.dark); capsule(x, y, 0.5, x, y, 6.5, 0.9, M.rust); box(x, y, 7.0, 1.4, 1.4, 0.5, 0.2, 0.4, M.steel);
+  const ang = t * 6 * spin; for (let i = 0; i < 3; i++) { const b = ang + i * 2.094; capsule(x, y, 7.6, x + Math.cos(b) * 1.2, y + Math.sin(b) * 1.2, 7.6, 0.12, M.steel); }
+  sphere(x + 1.5, y, 6.0, 0.18, spin > 0 ? M.lamp : M.dark, spin > 0 ? 0.6 + 0.4 * spin : 0); }

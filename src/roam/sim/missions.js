@@ -28,13 +28,14 @@ export function createMissions(G) {
     if (r.turret) { const q = home(), L = lot(); const at = L ? { x: L.x + Math.cos(L.rot) * (L.hu - 2) - Math.sin(L.rot) * (L.hv - 2), y: L.y + Math.sin(L.rot) * (L.hu - 2) + Math.cos(L.rot) * (L.hv - 2) } : { x: q.x + 4, y: q.y };
       S.turrets.push({ who: r.turret, x: at.x, y: at.y, cd: 0, fa: 0 }); }
     if (r.mods) S.modsLocked = false;
+    if (r.clean) { const a = S.areas.find(o => o.id === r.clean), at = P.scrubber || home(); if (a) G.cleanArea(a, at.x, at.y); }
     ev('missionDone', { i: S.mission.i, id: st.id, title: st.title, say: st.done, reward: r }); begin(S.mission.i + 1); }
   function spawnAt(kind, x, y, tag, state = 'wander') { const d = G.spawn(kind, x, y, { state, mission: tag }); return d; }
   // where the step wants you now (the HUD's arrow and marker read S.mission.at): null when the goal is "fight anywhere"
   function targetOf(m, st, g) { const k = S.kai, q = home(), B = (S.bridges || [])[0];
     if (g.type === 'bank') return S.scrap + S.bank.scrap >= g.scrap ? { x: q.x, y: q.y, label: 'KAI' } : null;
     if (g.type === 'protect') return P[g.who] ? { x: P[g.who].x, y: P[g.who].y, label: 'TOMAS' } : null;
-    if (g.type === 'hold') return { x: q.x, y: q.y, label: 'HOLD' };
+    if (g.type === 'hold') return g.at && P[g.at] ? { x: P[g.at].x, y: P[g.at].y, label: 'SCRUBBER' } : { x: q.x, y: q.y, label: 'HOLD' };
     if (g.type === 'fetch') return S.carryItems.includes(g.item) ? { x: q.x, y: q.y, label: 'HOME' } : m.item ? { x: m.item.x, y: m.item.y, label: 'COIL' } : P[g.at] ? { x: P[g.at].x, y: P[g.at].y, label: 'COIL' } : null;
     if (g.type === 'key') return S.chips + S.bank.chips >= g.chips ? { x: q.x, y: q.y, label: 'GARAGE' } : null;
     if (g.type === 'freed') { const d = S.dead.find(o => o.boss && o.free); return d ? { x: d.x, y: d.y, label: 'BIG ONE' } : null; }
@@ -46,10 +47,10 @@ export function createMissions(G) {
       if (!m.wave && Math.hypot(k.x - at.x, k.y - at.y) < g.near) { m.wave = 1; m.left = g.time; for (let i = 0; i < g.wave; i++) { const [x, y] = ring(at.x, at.y, 5, 11); spawnAt(i % 3 === 2 ? 'hound' : 'crawler', x, y, st.id); } ev('missionStep', { id: st.id, what: 'wave', x: at.x, y: at.y }); }
       if (m.wave) { const left = S.dead.filter(d => d.mission === st.id).length; m.prog = left; m.need = g.wave; m.left -= dt;
         if (!left) finish(); else if (m.left <= 0) { for (const d of S.dead.slice()) if (d.mission === st.id) { S.dead.splice(S.dead.indexOf(d), 1); } m.wave = 0; ev('missionStep', { id: st.id, what: 'failed' }); } } }
-    else if (g.type === 'hold') { const q = home(), near = !k.dead && Math.hypot(k.x - q.x, k.y - q.y) < g.r && !inLot(k.x, k.y); m.need = g.time;
+    else if (g.type === 'hold') { const q = g.at ? P[g.at] : home(), near = !k.dead && Math.hypot(k.x - q.x, k.y - q.y) < g.r && (g.at || !inLot(k.x, k.y)); m.need = g.time;
       if (m.prog === 0 && !m.started) { m.started = true; m.held = 0; m.next = 2; }
       if (near) m.held += dt; m.prog = Math.max(0, Math.ceil(g.time - m.held));
-      m.next -= dt; if (m.next <= 0 && m.held < g.time) { m.next = g.every; const n = 3 + Math.floor(m.held / 20); for (let i = 0; i < n; i++) { const [x, y] = ring(q.x, q.y, 55, 75); spawnAt(i === n - 1 && m.held > 30 ? 'spitter' : i % 2 ? 'hound' : 'crawler', x, y, st.id, 'chase'); } ev('missionStep', { id: st.id, what: 'wave' }); }
+      m.next -= dt; if (m.next <= 0 && m.held < g.time) { m.next = g.every; const n = 3 + Math.floor(m.held / 20); for (let i = 0; i < n; i++) { const [x, y] = ring(q.x, q.y, g.at ? 30 : 55, g.at ? 45 : 75); spawnAt(i === n - 1 && m.held > 30 ? 'spitter' : i % 2 ? 'hound' : 'crawler', x, y, st.id, 'chase'); } ev('missionStep', { id: st.id, what: 'wave' }); }
       if (m.held >= g.time) finish(); }
     else if (g.type === 'fetch') { const at = P[g.at]; if (!at) return finish();
       if (!m.placed) { m.placed = true; m.item = { x: at.x, y: at.y, taken: false }; S.missionItem = m.item; for (const kind of g.guard || []) { const [x, y] = ring(at.x, at.y, 4, 12); spawnAt(kind, x, y, st.id); } }

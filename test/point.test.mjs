@@ -29,7 +29,7 @@ test('the boss in the bridge can only be freed: shot down it lies open; a chip a
   S.keys.link = 1; inp.link = true; sim.step(inp); assert.ok(S.link);
   for (let k = 0; k < 30 * 30 && S.link; k++) { const L = S.link, ph = L.t % F; if (Math.min(ph, F - ph) < 0.04 && L.lock <= 0) inp.link = true; S.kai.hp = 1e6; sim.step(inp); }
   assert.strictEqual(S.guardians.length, 1); assert.ok(!S.dead.includes(d)); assert.strictEqual(S.keys.link, 0);
-  assert.ok(!S.dead.some(q => q.mother === d.id), 'its brood powered down'); assert.ok(S.areas.every(a => a.state === 'clean'));
+  assert.ok(!S.dead.some(q => q.mother === d.id), 'its brood powered down'); assert.ok(S.areas.find(a => a.pin).state === 'clean');
 });
 test('Wend Bridge: shut while the boss is wedged in it; once it is free, 60 carried scrap and Kai guarding the work open the road', () => {
   const sim = createRoam(town, 3), S = sim.state, b = S.bridges[0], gate = town.gates.find(g => g.deck === b.name); gate.open = false;
@@ -54,7 +54,8 @@ test('chapter 1 is a chain: scrap opens the bench, Tomas saved gives a turret, t
   for (const d of S.dead.slice()) if (d.mission === 'tomas') { sim.state.dead.splice(S.dead.indexOf(d), 1); } step(2);
   assert.strictEqual(S.mission.id, 'test'); assert.strictEqual(S.turrets.length, 1); assert.ok(S.known.includes('launcher'));
   const q = S.sites.find(o => o.bay), L = town.garageLot.box; S.kai.x = S.bike.x = L.x + Math.cos(L.rot) * (L.hu + 8); S.kai.y = S.bike.y = L.y + Math.sin(L.rot) * (L.hu + 8);
-  step(30 * 62); assert.strictEqual(S.mission.id, 'coil', 'held the Point');
+  step(30 * 62); assert.strictEqual(S.mission.id, 'scrubber', 'held the Point');
+  S.kai.x = S.bike.x = P.scrubber.x + 3; S.kai.y = S.bike.y = P.scrubber.y; step(30 * 42); assert.strictEqual(S.mission.id, 'coil', 'the scrubber runs'); assert.strictEqual(S.areas.find(a => a.id === 'lumeside').state, 'clean');
   S.kai.x = S.bike.x = P.coil.x; S.kai.y = S.bike.y = P.coil.y; step(2); assert.ok(S.carryItems.includes('coil'));
   S.kai.x = S.bike.x = q.x; S.kai.y = S.bike.y = q.y; step(2); assert.strictEqual(S.mission.id, 'chip'); assert.ok(S.known.includes('link_chip'));
 });

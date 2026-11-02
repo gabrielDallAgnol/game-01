@@ -13,7 +13,7 @@ export function createAreas(G) {
   const skip = new Set(['country', 'fields', 'bypass', 'lake', 'woods']);
   const list = (W.districts || []).filter(d => !skip.has(d.kind) && d.poly);
   const k0 = town.start;
-  S.areas = list.map((d, i) => { const at = d.at || centroid(d.poly); return { i, id: d.id, name: d.name, x: at.x, y: at.y, level: d.level || 1 + Math.floor(Math.hypot(at.x - k0.x, at.y - k0.y) / A.levelEvery), state: d.home ? 'clean' : 'dark', walker: -1, spawnT: 0, ...(d.home ? { home: true } : {}), ...(d.pin ? { pin: d.pin } : {}), ...(d.free ? { free: true } : {}) }; });
+  S.areas = list.map((d, i) => { const at = d.at || centroid(d.poly); return { i, id: d.id, name: d.name, x: at.x, y: at.y, level: d.level || 1 + Math.floor(Math.hypot(at.x - k0.x, at.y - k0.y) / A.levelEvery), state: d.home ? 'clean' : 'dark', walker: -1, spawnT: 0, ...(d.home ? { home: true } : {}), ...(d.pin ? { pin: d.pin } : {}), ...(d.free ? { free: true } : {}), ...(d.keep ? { keep: true } : {}) }; });
   // [point] a district may be home (clean from the start, no walker) or pin its walker (it sits there and never walks: the
   // first boss, wedged in the broken bridge); neither ever joins a neighbour
   function centroid(P) { let x = 0, y = 0; for (const p of P) { x += p.x; y += p.y; } return { x: x / P.length, y: y / P.length }; }
@@ -29,12 +29,13 @@ export function createAreas(G) {
   for (const st of W.streets || []) for (const p of st.pts || []) { const a = areaAt(p.x, p.y); if (a && !blocked(p.x, p.y)) pts[a.i].push(p); }
   // a district too small to carry its own walker (the park, the transmitter field...) joins its nearest big neighbour:
   // one walker, one state, one name for both
-  const big = S.areas.filter(a => !a.home && (pts[a.i].length >= A.minPts || a.pin));
-  for (const a of S.areas) if (pts[a.i].length < A.minPts && !a.home && !a.pin && big.length) { let b = big[0], bd = 1e9; for (const c of big) { const q = Math.hypot(c.x - a.x, c.y - a.y); if (q < bd) { bd = q; b = c; } } a.root = b.i; pts[b.i].push(...pts[a.i]); }
+  const big = S.areas.filter(a => !a.home && !a.keep && (pts[a.i].length >= A.minPts || a.pin));
+  for (const a of S.areas) if (pts[a.i].length < A.minPts && !a.home && !a.pin && !a.keep && big.length) { let b = big[0], bd = 1e9; for (const c of big) { const q = Math.hypot(c.x - a.x, c.y - a.y); if (q < bd) { bd = q; b = c; } } a.root = b.i; pts[b.i].push(...pts[a.i]); }
   for (let k = 0; k < grid.length; k++) if (grid[k] >= 0 && S.areas[grid[k]].root !== undefined) grid[k] = S.areas[grid[k]].root;
   S.areas.forEach(a => { if (a.root !== undefined) a.joined = S.areas[a.root].id; });
   // the walkers, one per area that has streets to walk; it starts at a point far from Kai's start
-  for (const a of S.areas) { const P = pts[a.i]; if (a.home || a.root !== undefined || (P.length < 2 && !a.pin)) continue; let p = a.pin || P[0], pd = -1; if (!a.pin) for (let k = 0; k < 6; k++) { const q = P[rng.int(P.length)], d = Math.hypot(q.x - k0.x, q.y - k0.y); if (d > pd) { pd = d; p = q; } }
+  // [point] a kept area has no walker: a mission cleans it
+  for (const a of S.areas) { const P = pts[a.i]; if (a.home || a.keep || a.root !== undefined || (P.length < 2 && !a.pin)) continue; let p = a.pin || P[0], pd = -1; if (!a.pin) for (let k = 0; k < 6; k++) { const q = P[rng.int(P.length)], d = Math.hypot(q.x - k0.x, q.y - k0.y); if (d > pd) { pd = d; p = q; } }
     const d = G.spawn('walker', p.x, p.y, { boss: true, area: a.i, state: 'patrol', plates: R.dead.walker.plates, plate: R.dead.walker.plateHp, wx: p.x, wy: p.y, stompT: 0, windT: 0 });
     const lv = 1 + A.hpPerLevel * (a.level - 1); d.hp = d.maxHp = R.dead.walker.hp * lv; d.plateMax = d.plate = R.dead.walker.plateHp * lv; a.walker = d.id;
     // its parts, in its own frame (metres: forward, left), each with its health: the pods and the tank

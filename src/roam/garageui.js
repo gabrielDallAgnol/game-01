@@ -81,7 +81,7 @@ export function createGarageUi({ sim, ui, cam, lab }) {
   let saved = null; const CLOSE = 56;
   const open = () => { panel.hidden = false; ui.paused = true; ui.zoomOnly = true; tab = 'bike'; only = null; pick = null; prev = null; say(''); paint(); document.body.classList.add('garage-open');
     if (cam && lab) { saved = { base: cam.base, labCam: lab.cam }; cam.base = CLOSE; const b = S.bike; lab.cam = { x: b.x, y: b.y + innerHeight * 0.27 / CLOSE }; } };
-  const close = () => { panel.hidden = true; ui.paused = false; ui.zoomOnly = false; prev = null; document.body.classList.remove('garage-open'); if (saved) { cam.base = saved.base; lab.cam = saved.labCam; saved = null; } sim.leaveGarage(); };   // [m6e] it rides itself back out
+  const close = () => { panel.hidden = true; ui.paused = false; ui.zoomOnly = false; prev = null; document.body.classList.remove('garage-open'); if (saved) { cam.base = saved.base; lab.cam = saved.labCam; saved = null; } if (hooks.back) hooks.back(); else sim.leaveGarage(); };   // [m6e] it rides itself back out; [hub] or back to the garage's open space
   // [m6e] GARAGE asks the bike to ride itself into the bay; the panel opens when it's parked ('parked')
   const enter = () => { if (!S.garageRun && sim.enterGarage()) btn.hidden = true; };
   btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); enter(); });
@@ -92,10 +92,11 @@ export function createGarageUi({ sim, ui, cam, lab }) {
   const fire = $('fire'); let lastGun = '';
   function update(evs) { const w = S.gear.weapon, gs = `${w.r}|${w.level}`; if (gs !== lastGun) { lastGun = gs; fire.innerHTML = `FIRE<small>${esc(RECIPES[w.r].name)}${w.level > 1 ? ' · Lv' + w.level : ''}</small>`; }
     fire.classList.toggle('quiet', !!S.guns.main.holstered);   // [m6d] dimmed on the safe lot
-    for (const e of evs || []) if (e.type === 'parked') open();
+    for (const e of evs || []) if (e.type === 'parked') { if (hooks.parked) hooks.parked(); else open(); }   // [hub] the garage's open space first, when there is one
     if (!panel.hidden && lab && saved) { const b = S.bike; lab.cam = { x: b.x, y: b.y + innerHeight * 0.27 / Math.max(10, cam.ppm) }; }   // the bike stays in the top of the screen at any zoom
     const at = sim.atGate() && !S.garageRun; if (at !== lastAt) { lastAt = at; btn.hidden = !at; if (at && !told) { told = true; ui.toast('The garage gate. Tap GARAGE and the bike rides in.', true); } } }
   // what the renderer needs: the picked slot, whether Kai is hidden (the close-up is just the bike), and the gear as tried on
   const gearView = () => prev && !panel.hidden ? { ...S.gear, [prev.slot]: prev } : S.gear;
-  return { update, open, get sel() { return panel.hidden || tab !== 'bike' ? null : sel; }, get isOpen() { return !panel.hidden; }, gearView, get gunBase() { return prev && !panel.hidden && prev.slot === 'weapon' ? prev.base : null; } };
+  const hooks = {};   // [hub] set by garagehub.js: parked (instead of opening the workbench), back (closing it)
+  return { hooks, update, open, get sel() { return panel.hidden || tab !== 'bike' ? null : sel; }, get isOpen() { return !panel.hidden; }, gearView, get gunBase() { return prev && !panel.hidden && prev.slot === 'weapon' ? prev.base : null; } };
 }

@@ -4,7 +4,7 @@
 // goal types: bank (scrap banked at a site), protect (clear a wave round someone before time runs out), hold (stay near
 // home, out of the lot, while waves come: time), fetch (pick an item up at a place and bank it), key (build a key item),
 // freed (free the area's big machine), mended (mend the bridge).
-// rewards: recipes (machines' recipes start to drop: Kai can read them now), recipe (one recipe), learn (a recipe), turret
+// goal hold: `at` a named place (else home); rewards: clean (an area turns clean: the colour comes back), recipes (machines' recipes start to drop: Kai can read them now), recipe (one recipe), learn (a recipe), turret
 // (a defender's turret at the garage), mods (elites and mod recipes appear: the late game's toys).
 export const CHAPTER1 = [
   { id: 'scrap', title: 'Scrap for the bench', giver: 'KAI',
@@ -19,11 +19,16 @@ export const CHAPTER1 = [
     desc: 'A person in the grey town, saved: the first human who trusts the robot.', why: 'Protecting someone gives you a defender for the next fight: the chain\'s first payoff.' },
   { id: 'test', title: 'The loud chip', giver: 'KAI',
     start: 'I\'ve wired a chip to my bench. It works... and it screams. Every machine on the Point can hear it. Hold them off while it runs.',
-    line: 'Hold the Point while Kai\'s chip runs: stay near the garage, out of the lot. {n}s left', done: 'It held. But it leaks: the signal needs a shield coil. The pump works has big ones.',
+    line: 'Hold the Point while Kai\'s chip runs: stay near the garage, out of the lot. {n}s left', done: 'It held. But it leaks: the signal needs a shield coil. The pump works will have one.',
     goal: { type: 'hold', time: 60, r: 70, every: 7 }, reward: {},
     desc: 'Kai\'s test calls the machines to the Point: a defence with Tomas\'s turret.', why: 'Noise has a cause; the turret you earned proves itself.' },
+  { id: 'scrubber', title: 'The scrubber', giver: 'KAI',
+    start: 'The pump works, down Lume lane, has an old scrubber tower: it washed the air when the works ran. Start it, and keep them off it while it spins up.',
+    line: 'Restart the scrubber at the pump works: stay by it while it spins up. {n}s left', done: 'Look at that: green, all down the Lume side! And the scrubber runs on shield coils. There\'s a spare in the big shed.',
+    goal: { type: 'hold', at: 'scrubber', time: 40, r: 14, every: 6 }, reward: { clean: 'lumeside' },
+    desc: 'A machine of the old world, restarted: the first colour comes back before the boss.', why: 'The reward you\'re fighting for, felt halfway: the Lume side turns green.' },
   { id: 'coil', title: 'The pump works', giver: 'KAI',
-    start: 'The pump works, down Lume lane. A shield coil from the big shed. Something big guards it.',
+    start: 'The spare shield coil, in the big shed. Something big guards it.',
     line: 'Take a shield coil from the pump works and bank it at the Point', done: 'That\'s the one. Now I can build a chip that wakes them, not just screams. Bring me six of their chips.',
     goal: { type: 'fetch', item: 'coil', at: 'coil', guard: ['brute', 'crawler', 'crawler', 'crawler', 'hound'] }, reward: { learn: 'link_chip' },
     desc: 'A part from a nearby place, fetched and carried home at risk.', why: 'The freeing chip is built from a real part with a real reason.' },
