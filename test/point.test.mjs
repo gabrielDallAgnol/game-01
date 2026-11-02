@@ -61,3 +61,13 @@ test('chapter 1: the chain and the people: scrap opens the bench, Tomas\'s house
   // the night run by fast to first light, the dawn said
   const C = 240 + 120; S.clock = Math.floor(S.clock / C) * C + 250; step(1); assert.ok(S.night); sim.skipClock(C - 250 + 1); assert.ok(!S.night);
 });
+
+test('missions can be lost: left alone, the machines break Tomas\'s door; the quest waits, and riding back starts it again', () => {
+  const sim = createRoam(town, 6), S = sim.state, P = W.world, at = p => { S.kai.x = S.bike.x = p.x; S.kai.y = S.bike.y = p.y; };
+  S.bank.scrap = 30; sim.step({ x: 0, y: 0 }); at({ x: P.tomas.x + 20, y: P.tomas.y }); sim.step({ x: 0, y: 0 });
+  const q = S.quests.active.find(o => o.id === 'tomas'); assert.ok(q.wave && q.hp === 100, 'the wave comes for his door');
+  at({ x: P.tomas.x + 70, y: P.tomas.y }); let failed = false;
+  for (let i = 0; i < 30 * 120 && !failed; i++) { S.kai.hp = 1e6; sim.step({ x: 0, y: 0 }); failed = q.fails > 0; }
+  assert.ok(failed, 'the door broke'); assert.strictEqual(S.mission.id, 'tomas'); assert.ok(!S.dead.some(d => d.mission === 'tomas'));
+  at({ x: P.tomas.x + 20, y: P.tomas.y }); sim.step({ x: 0, y: 0 }); assert.ok(q.wave, 'again');
+});

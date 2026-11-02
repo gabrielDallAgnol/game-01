@@ -15,7 +15,7 @@ export const QUESTS = [
     goal: { type: 'bank', scrap: 30 }, reward: { recipes: true }, desc: 'The first errand.', why: 'Teaches fighting and banking; opens the bench.' },
   { id: 'tomas', main: true, title: 'The welder\'s house', giver: 'KAI', after: ['scrap'],
     start: 'Someone\'s signalling from Wendbridge: a lamp at the first house off the lane. Tomas, the welder. Machines are at his door.',
-    line: 'Protect Tomas\'s house: clear the machines at his door. {n} left', done: 'TOMAS: You\'re one of them... and you saved my house. I\'ll weld you a turret. Two: one for my door, one for Kai\'s.',
+    line: 'They\'re coming for Tomas\'s door: stop them before it breaks. {n} left', done: 'TOMAS: You\'re one of them... and you saved my house. I\'ll weld you a turret. Two: one for my door, one for Kai\'s.',
     goal: { type: 'protect', who: 'tomas', wave: 6, time: 60, near: 45 }, reward: { recipe: 'launcher', turrets: ['tomas', 'garage'] },
     desc: 'The first human who trusts the robot.', why: 'Protecting someone gives you defenders: his house and Kai\'s are guarded from now on.' },
   { id: 'scrubber', main: true, title: 'The scrubber in the workshop', giver: 'TOMAS', after: ['tomas'],

@@ -16,7 +16,7 @@ body.scene #qTalk,body.hub #qTalk{display:none}`;
   document.head.appendChild(css);
   const talk = document.createElement('button'); talk.id = 'qTalk'; document.body.appendChild(talk);
   const card = document.createElement('div'); card.id = 'qOffer'; document.body.appendChild(card);
-  let near = null, asking = null, still = 0; const later = new Set(), heard = new Set();
+  let near = null, asking = null, still = 0; const later = new Set(), heard = new Set(), lastHp = new Map();
   const hideCard = () => { card.classList.remove('on'); asking = null; };
   // the ask, after the words: what, what it's worth, take it or not now
   function ask(id) { const st = QUEST[id]; asking = id; const what = st.line.replace(/\s*\{n\}.*$/, '').replace(/[:.]\s*$/, ''), w = worth(st.reward || {});
@@ -41,6 +41,11 @@ body.scene #qTalk,body.hub #qTalk{display:none}`;
     if (near && !asking) { still = Math.abs(S.bike.speed) < 1.2 && pd < 7 ? still + dt : 0; if (still > 0.7 && !heard.has(near)) converse(near); } }
   // the "!" and "?" over people, and "?" at the edge while they're off screen
   function draw(toS, cssW, cssH, t, edge) { const marks = new Map();
+    // what a quest guards (a door, a machine): its hp over it, amber, red under a third, shaking while they're at it
+    for (const q of (S.quests && S.quests.active) || []) { if (q.hp === undefined) continue; const [x, y] = toS(q.sx, q.sy); if (x < -40 || y < -40 || x > cssW + 40 || y > cssH + 40) continue;
+      const u = Math.max(0, q.hp) / 100, hit = (lastHp.get(q.id) ?? q.hp) > q.hp, j = hit ? Math.sin(t * 60) * 1.5 : 0; lastHp.set(q.id, q.hp); const w = 54, bx = x - w / 2 + j, by = y - 30;
+      fx.save(); fx.fillStyle = 'rgba(8,9,11,.85)'; fx.fillRect(bx - 2, by - 2, w + 4, 9); fx.fillStyle = u < 0.34 ? '#ff5a3a' : '#f0b44c'; fx.fillRect(bx, by, w * u, 5);
+      fx.font = '700 9px ui-monospace,monospace'; fx.textAlign = 'center'; fx.fillStyle = '#e9e2cf'; fx.fillText(q.id === 'tomas' ? 'DOOR' : q.id === 'scrubber' ? 'SCRUBBER' : 'GARAGE', x, by - 4); fx.restore(); }
     for (const id of (S.quests && S.quests.offers) || []) marks.set(QUEST[id].giver, marks.get(QUEST[id].giver) === '?' ? '?' : '!');
     for (const q of (S.quests && S.quests.active) || []) if (q.met && QUEST[q.id].turnIn) marks.set(QUEST[q.id].giver, '?');
     for (const [g, m] of marks) { const at = sim.giverAt(g); if (!at) continue; const [x, y] = toS(at.x, at.y);

@@ -47,7 +47,10 @@ export function createFoes(G) {
       if (d.state === 'sleep') { if (!k.dead && !kaiSafe && r < (k.riding ? 9 : 5)) d.state = 'chase'; else { d.vx *= 0.8; d.vy *= 0.8; continue; } }
       if (seesKai) d.state = 'chase'; else if (d.state === 'chase' && (r > forget || k.dead || kaiSafe)) { d.state = 'wander'; d.wx = d.x; d.wy = d.y; }
       let gx, gy, sp = K.speed * (d.spd || 1) * (S.night ? R.dead.nightSpeed : 1) * (1 - Math.max((d.pips || []).filter(p => p.el === 'water').length * PIPS.water.slow, st.soaked ? STATUSES.soaked.slow : 0, G.onWet && G.onWet(d) ? PIPS.water.slow * 2 : 0));   // [m2] water pips and soaked slow it
-      if (d.state === 'chase' && !k.dead) { gx = k.x; gy = k.y; if (K.lead && k.riding && r > 6) { const lt = Math.min(K.lead * 2, r / Math.max(1, K.speed) * K.lead); gx += k.vx * lt; gy += k.vy * lt; } }   // [vehicle] a hound runs to where you'll be
+      // [missions] a siege: sent at a door or a machine (d.siege), it goes for that unless the robot is right on it
+      const sieging = d.siege && (k.dead || r > 8);
+      if (sieging) { gx = d.siege.x; gy = d.siege.y; if (Math.hypot(gx - d.x, gy - d.y) < 1.8) { gx = d.x; gy = d.y; } }
+      else if (d.state === 'chase' && !k.dead) { gx = k.x; gy = k.y; if (K.lead && k.riding && r > 6) { const lt = Math.min(K.lead * 2, r / Math.max(1, K.speed) * K.lead); gx += k.vx * lt; gy += k.vy * lt; } }   // [vehicle] a hound runs to where you'll be
       else { if (Math.hypot(d.wx - d.x, d.wy - d.y) < 1 || rng.chance(dt * 0.1)) {   // they drift: toward where they last heard Kai, more at night
           const toKai = !k.dead && r < 55 && rng.chance(S.night ? 0.75 : 0.45), a = toKai ? Math.atan2(k.y - d.y, k.x - d.x) + rng.range(-0.6, 0.6) : rng.range(0, 6.28), rr = rng.range(4, 12); d.wx = d.x + Math.cos(a) * rr; d.wy = d.y + Math.sin(a) * rr; }
         gx = d.wx; gy = d.wy; sp *= S.night ? 0.6 : 0.4; }

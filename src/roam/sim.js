@@ -81,7 +81,9 @@ export const ROAM = {
   // [point] mending a broken bridge (sim/bridges.js): scrap carried to its end, the work's time (s), how near Kai must stay
   bridges: { scrap: 60, time: 14, reach: 9, near: 22 },
   // [missions] a defender's turret (sim/missions.js): reach (m), a shot every turretEvery s, its damage
-  missions: { turretR: 18, turretEvery: 0.55, turretDmg: 2.2, talkR: 10, salvageR: 4, salvageSpeed: 2.5, salvageTime: 2.2 },
+  missions: { turretR: 18, turretEvery: 0.55, turretDmg: 2.2, talkR: 10, salvageR: 4, salvageSpeed: 2.5, salvageTime: 2.2,
+    // [missions] what they batter (Tomas's door, the scrubber, Kai's garage): hp, each machine at it per second, what a break costs a hold (s), the most sent at once
+    siegeHp: 100, siegeDps: 2.2, siegeR: 2.6, holdLoss: 15, holdCap: 12 },
   free: { floor: 0.15, linkR: 12, body: 6, pulse: 1.3, window: 0.36, need: 5, lock: 0.6, guardSpeed: 2.4 },
 };
 

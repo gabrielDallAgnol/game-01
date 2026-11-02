@@ -23,7 +23,7 @@ export function createMissions(G) {
   const lot = () => town.garageLot && town.garageLot.box;
   const inLot = (x, y) => { const L = lot(); if (!L) return false; const c = Math.cos(-L.rot), s = Math.sin(-L.rot), dx = x - L.x, dy = y - L.y; return Math.abs(c * dx - s * dy) < L.hu && Math.abs(s * dx + c * dy) < L.hv; };
   const ring = (x, y, r0, r1) => { for (let t = 0; t < 12; t++) { const a = rng.range(0, 6.283), r = rng.range(r0, r1), px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (!town.blocked(px, py)) return [px, py]; } return [x + r0, y]; };
-  const spawnAt = (kind, x, y, tag, state = 'wander') => G.spawn(kind, x, y, { state, mission: tag, nest: -1 });   // nest: kept when far (populate thins the rest)
+  const spawnAt = (kind, x, y, tag, state = 'wander', siege) => G.spawn(kind, x, y, siege ? { state, mission: tag, nest: -1, siege } : { state, mission: tag, nest: -1 });   // nest: kept when far (populate thins the rest)
   // the wrecks to salvage, and the little packs asleep out in the fields (the open ground isn't empty)
   for (const w of P.wrecks || []) { const [x, y] = town.blocked(w.x, w.y) ? ring(w.x, w.y, 2, 8) : [w.x, w.y]; S.wrecks.push({ x, y, done: false, prog: 0, a: rng.range(0, 6.28) }); }
   for (const p of P.packs || []) for (let i = 0; i < 3; i++) { const [x, y] = ring(p.x, p.y, 1, 6); spawnAt(i === 2 && rng.chance(0.4) ? 'hound' : 'crawler', x, y, 'pack', 'sleep'); }
@@ -65,18 +65,24 @@ export function createMissions(G) {
     if (g.type === 'freed') { const d = S.dead.find(o => o.boss && o.free); return d ? { x: d.x, y: d.y, label: 'BIG ONE' } : null; }
     if (g.type === 'mended') return B && (S.scrap >= R.bridges.scrap || B.state === 'mending') ? { x: B.a.x, y: B.a.y, label: 'BRIDGE' } : null;
     return null; }
+  // machines at the thing a quest guards wear it down (true while it's under siege); a cry at 75/50/25%
+  function batter(q, st, dt) { if (q.hp === undefined) return false; let n = 0; for (const d of S.dead) if (d.mission === st.id && d.siege && Math.hypot(d.x - q.sx, d.y - q.sy) < M.siegeR) n++;
+    if (!n) return false; const h0 = q.hp; q.hp -= n * M.siegeDps * dt; for (const m of [75, 50, 25]) if (h0 > m && q.hp <= m) ev('missionStep', { id: st.id, what: 'battered', hp: m, x: q.sx, y: q.sy }); return true; }
   function stepQuest(q, dt) { const st = QUEST[q.id], g = st.goal, k = S.kai; q.t += dt;
     if (q.met) { if (st.turnIn) { const a = giverAt(st.giver); if (a && !k.dead && Math.hypot(a.x - k.x, a.y - k.y) < M.talkR) finish(q); } else finish(q); return; }
     const met = () => { q.met = true; if (!st.turnIn) finish(q); else ev('missionStep', { id: st.id, what: 'met' }); };
     if (g.type === 'bank') { q.need = g.scrap; q.prog = Math.min(g.scrap, S.bank.scrap); if (S.bank.scrap >= g.scrap) met(); }
     else if (g.type === 'protect') { const at = P[g.who]; if (!at) return met();
-      if (!q.wave && Math.hypot(k.x - at.x, k.y - at.y) < g.near) { q.wave = 1; q.left = g.time; for (let i = 0; i < g.wave; i++) { const [x, y] = ring(at.x, at.y, 5, 11); spawnAt(i % 3 === 2 ? 'hound' : 'crawler', x, y, st.id); } ev('missionStep', { id: st.id, what: 'wave', x: at.x, y: at.y }); }
-      if (q.wave) { const left = S.dead.filter(d => d.mission === st.id).length; q.prog = left; q.need = g.wave; q.left -= dt;
-        if (!left) met(); else if (q.left <= 0) { for (const d of S.dead.slice()) if (d.mission === st.id) S.dead.splice(S.dead.indexOf(d), 1); q.wave = 0; ev('missionStep', { id: st.id, what: 'failed' }); } } }
+      // they come out of the fields for his door (it has hp: the stake you can see); if it breaks, he's hurt and they scatter: come back and try again
+      if (!q.wave && Math.hypot(k.x - at.x, k.y - at.y) < g.near) { q.wave = 1; q.hp = M.siegeHp; q.sx = at.x; q.sy = at.y; for (let i = 0; i < g.wave; i++) { const [x, y] = ring(at.x, at.y, 22, 34); spawnAt(i % 3 === 2 ? 'hound' : 'crawler', x, y, st.id, 'chase', { x: at.x, y: at.y }); } ev('missionStep', { id: st.id, what: 'wave', x: at.x, y: at.y }); }
+      if (q.wave) { const left = S.dead.filter(d => d.mission === st.id).length; q.prog = left; q.need = g.wave; batter(q, st, dt);
+        if (!left) met(); else if (q.hp <= 0) { for (const d of S.dead.slice()) if (d.mission === st.id) S.dead.splice(S.dead.indexOf(d), 1); q.wave = 0; q.hp = undefined; q.fails = (q.fails || 0) + 1; ev('missionStep', { id: st.id, what: 'failed', x: at.x, y: at.y }); } } }
     else if (g.type === 'hold') { const c = g.at ? P[g.at] : home(), near = !k.dead && Math.hypot(k.x - c.x, k.y - c.y) < g.r && (g.at || !inLot(k.x, k.y)); q.need = g.time;
-      if (!q.started) { q.started = true; q.held = 0; q.next = 2; }
+      if (!q.started) { q.started = true; q.held = 0; q.next = 2; q.hp = M.siegeHp; q.sx = c.x; q.sy = c.y; }
+      // what they come for (the scrubber, Kai's garage) has hp: broken, it costs the hold some seconds and it's set going again
+      if (batter(q, st, dt) && q.hp <= 0) { q.held = Math.max(0, q.held - M.holdLoss); q.hp = M.siegeHp; q.fails = (q.fails || 0) + 1; ev('missionStep', { id: st.id, what: 'broken', x: c.x, y: c.y }); }
       if (near) q.held += dt; q.prog = Math.max(0, Math.ceil(g.time - q.held));
-      if (q.held > 0 || near) { q.next -= dt; if (q.next <= 0 && q.held < g.time) { q.next = g.every; const n = 3 + Math.floor(q.held / 20); for (let i = 0; i < n; i++) { const [x, y] = ring(c.x, c.y, g.at ? 30 : 55, g.at ? 45 : 75); spawnAt(i === n - 1 && q.held > 30 ? 'spitter' : i % 2 ? 'hound' : 'crawler', x, y, st.id, 'chase'); } ev('missionStep', { id: st.id, what: 'wave' }); } }
+      if (q.held > 0 || near) { q.next -= dt; if (q.next <= 0 && q.held < g.time && S.dead.filter(d => d.mission === st.id).length < M.holdCap) { q.next = g.every; const n = 3 + Math.floor(q.held / 20); for (let i = 0; i < n; i++) { const [x, y] = ring(c.x, c.y, g.at ? 30 : 55, g.at ? 45 : 75); { const kind = i === n - 1 && q.held > 30 ? 'spitter' : i % 2 ? 'hound' : 'crawler'; spawnAt(kind, x, y, st.id, 'chase', kind === 'spitter' ? null : { x: c.x, y: c.y }); } } ev('missionStep', { id: st.id, what: 'wave' }); } }
       if (q.held >= g.time) met(); }
     else if (g.type === 'fetch') { const it = q.item; if (!it) return met();
       if (!it.taken && !k.dead && Math.hypot(k.x - it.x, k.y - it.y) < 2.8) { it.taken = true; S.carryItems.push(g.item); ev('missionStep', { id: st.id, what: 'taken', item: g.item }); }
