@@ -3,7 +3,8 @@
 // - near the one who speaks (Kai at her garage, Tomas at his door), a scene: thin bars slide in, the camera eases onto
 //   both of you, a speech bubble rises over their head and types out; the speaker waves; the robot answers in its eye's
 //   light (a bubble of glyph marks over it). Tap to go on. The rules wait meanwhile.
-// - far from them, Kai's voice on the radio: a small card at the top that types out and goes by itself.
+// - far from them, Kai's voice on the radio: a small card low in the middle (clear of the HP bar and the thumbs) that
+//   types out and goes by itself.
 // - between missions, a banner: "✓ <title>, done", then "NEW · <title>" with its objective.
 // UI only: it reads the events and the state, holds the camera (lab.cam) and pauses (ui.paused); never writes the state.
 import { CHAPTER1, QUEST, readyOf } from '../play/missions.js';
@@ -15,8 +16,8 @@ export function createStoryUi({ sim, ui, lab, cam, town }) {
   const css = document.createElement('style'); css.textContent = `#sbars i{position:fixed;left:0;right:0;height:0;background:#000;z-index:55;transition:height .45s ease}#sbars i.t{top:0}#sbars i.b{bottom:0}#sbars.on i{height:6vh}
 body.scene #hud,body.scene #loot,body.scene #area,body.scene #obj,body.scene #pad,body.scene #toasts,body.scene #boss,body.scene #linkBtn,body.scene #mendBtn,body.scene #garageBtn,body.scene #fix{visibility:hidden}
 #stap{position:fixed;inset:0;z-index:56;display:none}#stap.on{display:block}
-#sradio{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translate(-50%,-140%);width:min(420px,calc(100vw - 24px));background:rgba(8,9,11,.9);border:1px solid #f0b44c55;border-radius:12px;padding:8px 12px;font:500 13px/1.4 ui-monospace,monospace;color:#e9e2cf;z-index:57;transition:transform .35s ease}
-#sradio.on{transform:translate(-50%,0)}#sradio b{color:#f0b44c;font-size:10px;letter-spacing:.14em;display:block}
+#sradio{position:fixed;left:50%;bottom:calc(128px + env(safe-area-inset-bottom,0px));transform:translate(-50%,40px);opacity:0;pointer-events:none;width:min(400px,calc(100vw - 32px));background:rgba(8,9,11,.9);border:1px solid #f0b44c55;border-radius:12px;padding:8px 12px;font:500 13px/1.4 ui-monospace,monospace;color:#e9e2cf;z-index:57;transition:transform .35s ease,opacity .35s}
+#sradio.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}#sradio b{color:#f0b44c;font-size:10px;letter-spacing:.14em;display:block}
 #sban{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.9);opacity:0;z-index:58;text-align:center;pointer-events:none;transition:opacity .35s,transform .35s;font:700 13px ui-monospace,monospace;letter-spacing:.12em;color:#ffd36a;text-shadow:0 2px 0 #000}
 #sban.on{opacity:1;transform:translate(-50%,-50%) scale(1)}#sban big{display:block;font-size:22px;letter-spacing:.06em;color:#fff;margin:4px 0}#sban small{display:block;font:500 12px ui-monospace,monospace;letter-spacing:0;color:#e9e2cf;max-width:300px;margin:6px auto 0}`;
   document.head.appendChild(css);

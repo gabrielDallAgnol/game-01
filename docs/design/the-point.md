@@ -94,6 +94,36 @@ keeps rising while the camera is out (`sim.skipClock`, `storyui.js`). Data `src/
 | The pharmacy van | Ines (Wendbridge) | fetch the medicine box from the crashed van on the cut lane | **a repair spot at her door** |
 | Steel for the turrets | Tomas | salvage 3 wrecks | the turrets hit harder |
 
+**Missions can be lost, and you see the stake (Nov 2 night).** A protect or hold quest's machines are sent at what it
+guards (`d.siege` in foes.js: they go for it unless the robot is right on them): Tomas's door, the scrubber, the garage's
+gate. Each has hp, drawn over it (shaking while hit) and in the objective. The door broken: the wave scatters, Tomas is hurt,
+ride back to try again. The scrubber or the gate broken: 15 s of the hold lost. A fetch's item drops where you fall.
+Cries at 75/50/25%.
+
+**Quests talk as they go (the quest writer).** `beats` in each quest's data, on the radio at its moments: the wave, halfway,
+battered 50/25%, broken, failed, the item taken or dropped, each toy car found, each wreck salvaged. Reyes and Ines speak
+through Kai (only Kai and Tomas have radios). The radio card sits low in the middle, clear of the HP bar and the thumbs.
+
+**Mission review (quest writer lens, Nov 2 night): what each one does, and what would make it better (Later)**
+
+| Quest | The stake you can see | What it says as it goes | Later |
+|---|---|---|---|
+| Scrap for the bench | the bench opens | halfway: Mila wants to know if it hurts them | the first scrap from a wreck, taught by Kai on the radio |
+| The welder's house | Tomas's door hp; lose it and he's hurt | the wave, 3 left, the hinges going, the failure | Tomas at his window, waving the lamp until you come |
+| The scrubber | its hp; broken costs 15 s | turning, halfway, the fan kicked loose | the scrubber's hum audible; the row greening during the hold |
+| The loud chip | the garage gate | Mila sent upstairs, the turret earning its keep | a choice: hold here, or lead them away to Tomas's turret |
+| The pump works | the coil drops where you fall | don't stop for anything | carrying it slows the bike (real weight) |
+| The freeing chip | chips burn in fire | three chips: keep the fire off | Kai shows the chip on the bench (a scene) |
+| Jonah's cars | Mila's face | each car named (the red racer, the ambulance, Dad's tow truck) | Jonah himself comes out to the door at the hand-in |
+| Reyes's barn | his fence | Reyes hears it from his porch (through Kai) | free the spitter instead of killing it: Reyes keeps it as a guard dog (a cheap choice) |
+| The pharmacy van | the box (glass) | Ines: ride like it | the box breaks if you crash hard with it |
+| Steel for the turrets | turrets bite harder | each wreck rings | the turrets look heavier after |
+
+**The open ground (Nov 2 night):** two power lines cross the land, billboards by the lanes, and in the grass between the
+fields: machine husks and stomp craters toward the bridge, the flight toward the Point (tipped carts, suitcases, a bicycle,
+camps from the first night, a school bus), rocks and dead trees (`atoms/wilds.js`, `world/wilds.js`). Big ones are solid.
+The wrecks are solid too, and Kai can be talked to from outside her garage (TALK · KAI when you slow by her doors).
+
 **The open ground has things in it:** wrecks along the lanes and in the fields (stop by one a moment: scrap, sometimes a
 chip), little packs of machines asleep in the fields, the toy cars. **Machines are ~25% bigger** and the camera starts
 further out (16 px/m).
