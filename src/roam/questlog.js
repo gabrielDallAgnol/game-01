@@ -25,6 +25,8 @@ export function createQuestLog({ sim, ui, story }) {
     box.innerHTML = h; }
   const open = () => { if (document.body.classList.contains('scene')) return; fill(); pane.classList.add('on'); ui.paused = true; }, close = () => { pane.classList.remove('on'); ui.paused = false; };
   btn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); open(); });
+  // the objective box opens the log too (it's the thing your eye is on)
+  { const obj = document.getElementById('obj'); if (obj) { obj.style.pointerEvents = 'auto'; obj.addEventListener('pointerdown', e => { if (!S.quests || !S.quests.active.length) return; e.preventDefault(); e.stopPropagation(); open(); }); } }
   pane.addEventListener('pointerdown', e => { e.stopPropagation(); const b = e.target.closest('button');
     if (!b) { if (e.target === pane) close(); return; } e.preventDefault(); if (b.dataset.x) { close(); return; }
     if (b.dataset.id) { sim.track(b.dataset.id); close(); story.banner('FOLLOWING', QUEST[b.dataset.id].title.toUpperCase(), 'Its marker and arrow lead now.'); } });

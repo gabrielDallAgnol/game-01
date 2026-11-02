@@ -81,11 +81,11 @@ export function createMissions(G) {
       if (q.wave) { const left = S.dead.filter(d => d.mission === st.id).length; q.prog = left; q.need = g.wave; batter(q, st, dt);
         if (!left) met(); else if (q.hp <= 0) { for (const d of S.dead.slice()) if (d.mission === st.id) S.dead.splice(S.dead.indexOf(d), 1); q.wave = 0; q.hp = undefined; q.fails = (q.fails || 0) + 1; ev('missionStep', { id: st.id, what: 'failed', x: at.x, y: at.y }); } } }
     else if (g.type === 'hold') { const c = g.at ? P[g.at] : home(), near = !k.dead && Math.hypot(k.x - c.x, k.y - c.y) < g.r && (g.at || !inLot(k.x, k.y)); q.need = g.time;
-      if (!q.started) { q.started = true; q.held = 0; q.next = 2; q.hp = M.siegeHp; q.sx = c.x; q.sy = c.y; }
+      if (!q.started) { const gt = town.garageLot && town.garageLot.gate, door = g.at ? c : gt ? { x: gt.x, y: gt.y } : c; q.started = true; q.held = 0; q.next = 2; q.hp = M.siegeHp; q.sx = door.x; q.sy = door.y; }   // at home they come for the garage's gate
       // what they come for (the scrubber, Kai's garage) has hp: broken, it costs the hold some seconds and it's set going again
       if (batter(q, st, dt) && q.hp <= 0) { q.held = Math.max(0, q.held - M.holdLoss); q.hp = M.siegeHp; q.fails = (q.fails || 0) + 1; ev('missionStep', { id: st.id, what: 'broken', x: c.x, y: c.y }); }
       if (near) q.held += dt; q.prog = Math.max(0, Math.ceil(g.time - q.held));
-      if (q.held > 0 || near) { q.next -= dt; if (q.next <= 0 && q.held < g.time && S.dead.filter(d => d.mission === st.id).length < M.holdCap) { q.next = g.every; const n = 3 + Math.floor(q.held / 20); for (let i = 0; i < n; i++) { const [x, y] = ring(c.x, c.y, g.at ? 30 : 55, g.at ? 45 : 75); { const kind = i === n - 1 && q.held > 30 ? 'spitter' : i % 2 ? 'hound' : 'crawler'; spawnAt(kind, x, y, st.id, 'chase', kind === 'spitter' ? null : { x: c.x, y: c.y }); } } ev('missionStep', { id: st.id, what: 'wave' }); } }
+      if (q.held > 0 || near) { q.next -= dt; if (q.next <= 0 && q.held < g.time && S.dead.filter(d => d.mission === st.id).length < M.holdCap) { q.next = g.every; const n = 3 + Math.floor(q.held / 20); for (let i = 0; i < n; i++) { const [x, y] = ring(c.x, c.y, g.at ? 30 : 55, g.at ? 45 : 75); { const kind = i === n - 1 && q.held > 30 ? 'spitter' : i % 2 ? 'hound' : 'crawler'; spawnAt(kind, x, y, st.id, 'chase', kind === 'spitter' ? null : { x: q.sx, y: q.sy }); } } ev('missionStep', { id: st.id, what: 'wave' }); } }
       if (q.held >= g.time) met(); }
     else if (g.type === 'fetch') { const it = q.item; if (!it) return met();
       if (!it.taken && !k.dead && Math.hypot(k.x - it.x, k.y - it.y) < 2.8) { it.taken = true; S.carryItems.push(g.item); ev('missionStep', { id: st.id, what: 'taken', item: g.item }); }

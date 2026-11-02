@@ -50,7 +50,7 @@ body.scene #qTalk,body.hub #qTalk{display:none}`;
     for (const q of (S.quests && S.quests.active) || []) { if (q.hp === undefined) continue; const [x, y] = toS(q.sx, q.sy); if (x < -40 || y < -40 || x > cssW + 40 || y > cssH + 40) continue;
       const u = Math.max(0, q.hp) / 100, hit = (lastHp.get(q.id) ?? q.hp) > q.hp, j = hit ? Math.sin(t * 60) * 1.5 : 0; lastHp.set(q.id, q.hp); const w = 54, bx = x - w / 2 + j, by = y - 30;
       fx.save(); fx.fillStyle = 'rgba(8,9,11,.85)'; fx.fillRect(bx - 2, by - 2, w + 4, 9); fx.fillStyle = u < 0.34 ? '#ff5a3a' : '#f0b44c'; fx.fillRect(bx, by, w * u, 5);
-      fx.font = '700 9px ui-monospace,monospace'; fx.textAlign = 'center'; fx.fillStyle = '#e9e2cf'; fx.fillText(q.id === 'tomas' ? 'DOOR' : q.id === 'scrubber' ? 'SCRUBBER' : 'GARAGE', x, by - 4); fx.restore(); }
+      fx.font = '700 9px ui-monospace,monospace'; fx.textAlign = 'center'; fx.fillStyle = '#e9e2cf'; fx.fillText(q.id === 'tomas' ? 'DOOR' : q.id === 'scrubber' ? 'SCRUBBER' : 'GARAGE GATE', x, by - 4); fx.restore(); }
     for (const id of (S.quests && S.quests.offers) || []) marks.set(QUEST[id].giver, marks.get(QUEST[id].giver) === '?' ? '?' : '!');
     for (const q of (S.quests && S.quests.active) || []) if (q.met && QUEST[q.id].turnIn) marks.set(QUEST[q.id].giver, '?');
     for (const [g, m] of marks) { const at = sim.giverAt(g); if (!at) continue; const [x, y] = toS(at.x, at.y);
