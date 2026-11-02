@@ -76,12 +76,12 @@ and who still has a "!"; tap one to **follow** it (`sim.track(id)`): the HUD mar
 map shows it as a big gold pin (the others small, givers "!"). Done, the story leads again. **Colour comes in the sun:**
 a colour sweep at night or dusk first runs the night by fast (2.4 s, "the night goes by") to first light, and the morning
 keeps rising while the camera is out (`sim.skipClock`, `storyui.js`). Data `src/play/missions.js`, rules
-`src/roam/sim/missions.js`, UI `questui.js`, `objui.js` (the tracked quest, then up to three more).
+`src/roam/sim/missions.js`, UI `questui.js`, `questlog.js`, `objui.js` (only the followed quest: in full for 10 s, then a short line).
 
 | Chain | Giver | What | What it causes |
 |---|---|---|---|
 | Scrap for the bench | Kai | bank 30 scrap | recipes start to drop; Mila's quest appears |
-| The welder's house | Kai | protect Tomas's house (6 machines, 60 s) | two turrets: his door and Kai's; the launcher recipe; Reyes's and Ines's quests appear |
+| The welder's house | Kai | protect Tomas's door (6 machines go for it; it has hp) | two turrets: his door and Kai's; the launcher recipe; Reyes's and Ines's quests appear |
 | The scrubber in the workshop | Tomas | hold by his workshop 40 s | **Tomas's row turns green** (the first colour, where the first friend lives) |
 | The loud chip | Kai | hold the Point 50 s | Kai needs a shield coil |
 | The pump works | Kai | fetch the coil | Kai learns the freeing chip |
@@ -112,11 +112,11 @@ through Kai (only Kai and Tomas have radios). The radio card sits low in the mid
 | The welder's house | Tomas's door hp; lose it and he's hurt | the wave, 3 left, the hinges going, the failure | Tomas at his window, waving the lamp until you come |
 | The scrubber | its hp; broken costs 15 s | turning, halfway, the fan kicked loose | the scrubber's hum audible; the row greening during the hold |
 | The loud chip | the garage gate | Mila sent upstairs, the turret earning its keep | a choice: hold here, or lead them away to Tomas's turret |
-| The pump works | the coil drops where you fall | don't stop for anything | carrying it slows the bike (real weight) |
+| The pump works | the coil drops where you fall | don't stop for anything | **done:** the bike makes 78% speed with it |
 | The freeing chip | chips burn in fire | three chips: keep the fire off | Kai shows the chip on the bench (a scene) |
-| Jonah's cars | Mila's face | each car named (the red racer, the ambulance, Dad's tow truck) | Jonah himself comes out to the door at the hand-in |
+| Jonah's cars | Mila's face | each car named (the red racer, the ambulance, Dad's tow truck) | **done:** Jonah comes out beside Mila after, Dad's truck at his feet, and waves |
 | Reyes's barn | his fence | Reyes hears it from his porch (through Kai) | free the spitter instead of killing it: Reyes keeps it as a guard dog (a cheap choice) |
-| The pharmacy van | the box (glass) | Ines: ride like it | the box breaks if you crash hard with it |
+| The pharmacy van | the box (glass) | Ines: ride like it | **done:** a hard crash breaks it; one more in the van |
 | Steel for the turrets | turrets bite harder | each wreck rings | the turrets look heavier after |
 
 **The open ground (Nov 2 night):** two power lines cross the land, billboards by the lanes, and in the grass between the
@@ -130,7 +130,7 @@ further out (16 px/m).
 
 **How a mission begins and ends (Nov 2):** near the one who speaks (Kai at her garage, Tomas at his door) a scene: thin
 bars, the camera eases onto both, a speech bubble over their head types out while they wave, the robot answers in light;
-tap to go on. Far away, Kai on the radio (a small card at the top). Between missions a banner: "✓ title, done", then
+tap to go on. Far away, Kai on the radio (a small card low in the middle). Between missions a banner: "✓ title, done", then
 "NEW · title" and its objective (`src/roam/storyui.js`).
 
 **Talking to Kai (Nov 2):** TALK by her garage opens what the robot can ask: why it's green here and grey out there, how
@@ -169,4 +169,4 @@ with fewer survivors; the centre holds the reason for it all.
 | Kai's slipway: hard standing from the garage down to the river (a stone quay beside the soft banks) | `peninsula.js` |
 | **The opening:** black bars, the camera on Kai's garage and the robot, Kai's lines and the robot's light answers (once per browser; `?intro=1` shows it again); the start card tells the story | `src/roam/introui.js`, `roam.html` |
 
-Not yet: trust missions with the people (they are on screen, but don't ask anything yet), the first recipe from a mission (the incremental start), the kids, the robot's rest pose, the rivers' flow, the first town beyond the bridge.
+Not yet: the robot's rest pose, the rivers' flow, the first town beyond the bridge, the Later column of the mission review (§5).
