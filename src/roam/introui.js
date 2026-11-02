@@ -39,5 +39,5 @@ export function createIntroUi({ sim, ui, lab, cam, qs }) {
   return { active: true };
 }
 // the big moments' lines
-export const FREED = [['ROBOT', '▪ ▫ ▪ ▫'], ['KAI', '...It stopped. It\'s just standing there. Look at the colour coming back.'], ['KAI', 'It\'s breathing the ash in now, not out. And it climbed out of the bridge. We can mend it.']];
-export const MENDED = [['KAI', 'Wend Bridge. I never thought I\'d see a truck cross it again.'], ['ROBOT', '▪▪'], ['KAI', 'The road north goes to the first town. Whatever is grey out there, it\'s grey for a reason. Go find it.']];
+export const FREED = [['ROBOT', '▪ ▫ ▪'], ['KAI', 'It\'s flashing your light. The same three you flashed the night you stopped.'], ['KAI', 'It didn\'t fall into the bridge. It tore it down. To keep the others out of Wendbridge.'], ['KAI', 'It\'s been guarding us all along. Now it breathes the ash in, not out. Look at the colour.']];
+export const MENDED = [['KAI', 'Wend Bridge stands. ...Wait. On the far side. A yellow hook. That\'s our second truck.'], ['KAI', 'Brenner Recovery, number two. The cab\'s empty. No blood. He got out.'], ['ROBOT', '▪ ▪ ▫'], ['KAI', 'The radio. Again. My name, and "the works, north". Go. Find him.']];

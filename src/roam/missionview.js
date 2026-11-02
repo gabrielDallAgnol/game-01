@@ -39,3 +39,10 @@ export function scrubberVolumes(v, K, on) { const S = v.risk, P = v.chapter; if 
   box(x, y, 0.3, 1.6, 1.6, 0.3, 0.1, 0.4, M.dark); capsule(x, y, 0.5, x, y, 6.5, 0.9, M.rust); box(x, y, 7.0, 1.4, 1.4, 0.5, 0.2, 0.4, M.steel);
   const ang = t * 6 * spin; for (let i = 0; i < 3; i++) { const b = ang + i * 2.094; capsule(x, y, 7.6, x + Math.cos(b) * 1.2, y + Math.sin(b) * 1.2, 7.6, 0.12, M.steel); }
   sphere(x + 1.5, y, 6.0, 0.18, spin > 0 ? M.lamp : M.dark, spin > 0 ? 0.6 + 0.4 * spin : 0); }
+// [story] Brenner Recovery's second truck, on the far side of Wend Bridge: a yellow tow truck with its crane and hook,
+// nosed into the verge. Seen across the gap all chapter (a setup you can't reach); the bridge mended, its cab is empty.
+export function truckVolumes(v, K, on) { const S = v.risk, B = S && (S.bridges || [])[0]; if (!B) return; const { capsule, box, sphere, M } = K;
+  const x = B.b.x + B.ux * 16 - B.uy * 9, y = B.b.y + B.uy * 16 + B.ux * 9; if (!on(x, y)) return; const a = Math.atan2(B.uy, B.ux) + 0.5, c = Math.cos(a), s = Math.sin(a);
+  box(x, y, 0.7, 2.6, 1.15, 0.55, 0.15, a, M.truck); box(x + c * 2.0, y + s * 2.0, 1.4, 0.8, 1.05, 0.6, 0.15, a, M.truck); box(x + c * 2.35, y + s * 2.35, 1.5, 0.12, 0.9, 0.35, 0.05, a, M.glass);
+  capsule(x - c * 0.5, y - s * 0.5, 1.3, x - c * 2.9, y - s * 2.9, 2.6, 0.14, M.steel); capsule(x - c * 2.9, y - s * 2.9, 2.6, x - c * 3.0, y - s * 3.0, 1.0, 0.03, M.dark); sphere(x - c * 3.0, y - s * 3.0, 0.95, 0.16, M.paint);
+  for (const e of [-1, 1]) for (const f of [-1.6, 1.8]) sphere(x + c * f - s * 1.1 * e, y + s * f + c * 1.1 * e, 0.4, 0.4, M.rubber); }

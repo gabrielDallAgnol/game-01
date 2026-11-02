@@ -11,7 +11,7 @@
 export const QUESTS = [
   { id: 'scrap', main: true, title: 'Scrap for the bench', giver: 'KAI', after: [],
     start: 'I want to open one of their chips and see what\'s in it. My bench is bare: bring me scrap, 30 will do.',
-    line: 'Bring Kai 30 scrap: bank it at the garage. ⚙ {n}/{need}', done: 'Good. Now I can take one apart. And I can read what they carry, too: keep any recipe you find.',
+    line: 'Bring Kai 30 scrap: bank it at the garage. ⚙ {n}/{need}', done: 'Good. Now I can take one apart. I can read what they carry, too: keep any recipe you find. ...Mila says thank you. She wants to name you.',
     goal: { type: 'bank', scrap: 30 }, reward: { recipes: true }, desc: 'The first errand.', why: 'Teaches fighting and banking; opens the bench.' },
   { id: 'tomas', main: true, title: 'The welder\'s house', giver: 'KAI', after: ['scrap'],
     start: 'Someone\'s signalling from Wendbridge: a lamp at the first house off the lane. Tomas, the welder. Machines are at his door.',
@@ -25,7 +25,7 @@ export const QUESTS = [
     desc: 'The first colour, at the first friend\'s house.', why: 'The reward you fight for, felt early: Tomas\'s row turns green, guarded by his turret.' },
   { id: 'test', main: true, title: 'The loud chip', giver: 'KAI', after: ['scrubber'],
     start: 'I\'ve wired a chip to my bench. It works... and it screams. Every machine on the Point can hear it. Hold them off while it runs: Tomas\'s turret will help.',
-    line: 'Hold the Point while Kai\'s chip runs: stay near the garage, out of the lot. {n}s left', done: 'It held. But it leaks: the signal needs a shield coil, like Tomas\'s scrubber. The pump works has spares.',
+    line: 'Hold the Point while Kai\'s chip runs: stay near the garage, out of the lot. {n}s left', done: 'It held. But it leaks: it needs a shield coil, like Tomas\'s scrubber. ...And under the noise, the radio said my name. Probably nothing.',
     goal: { type: 'hold', time: 50, r: 70, every: 7 }, reward: {}, desc: 'A defence with your turret.', why: 'Noise has a cause; the turret you earned proves itself.' },
   { id: 'coil', main: true, title: 'The pump works', giver: 'KAI', after: ['test'],
     start: 'The pump works, down Lume lane. A shield coil from the big shed. Something big guards it.',
@@ -47,23 +47,29 @@ export const QUESTS = [
   // ---------- side quests: people getting to know the robot ----------
   { id: 'toys', title: 'Jonah\'s cars', giver: 'MILA', after: ['scrap'], turnIn: true,
     start: 'MILA: Jonah dropped his toy cars when we ran, all across the fields. Five. He won\'t say it, but he cries for them.',
-    line: 'Find Jonah\'s toy cars in the fields: {n}/{need}. Bring them to Mila.', done: 'MILA: All five! Jonah, look! ...He said thank you. To you. He never says thank you.',
+    line: 'Find Jonah\'s toy cars in the fields: {n}/{need}. Bring them to Mila.', done: 'MILA: All five! Jonah, look! ...He said thank you. To you. He says the yellow tow truck is Dad\'s.',
     goal: { type: 'collect', what: 'toys', n: 5 }, reward: { scrap: 15 }, desc: 'A child\'s errand across the open fields.', why: 'Gives the empty fields a reason; the kids start to trust the robot.' },
   { id: 'barn', title: 'Reyes\'s barn', giver: 'REYES', after: ['tomas'], turnIn: true,
     start: 'REYES: You\'re the machine that saved Tomas? Then save my barn. Five of them sleep in it. My cows are gone; I want my barn.',
-    line: 'Clear the machines in Reyes\'s barn: {n} left. Then tell Reyes.', done: 'REYES: Quiet at last. Here: chips I pulled off the ones that died on my fence. You\'ll know what to do with them.',
+    line: 'Clear the machines in Reyes\'s barn: {n} left. Then tell Reyes.', done: 'REYES: Quiet at last. Here, chips off the ones on my fence. Funny thing: the big one\'s brood never crosses the bridge road. They just stand there. Like guards.',
     goal: { type: 'kill', at: 'reyes', kinds: ['crawler', 'crawler', 'hound', 'crawler', 'spitter'] }, reward: { chips: 2, scrap: 10 },
     desc: 'A farmer\'s barn back.', why: 'A fight with a reward that feeds the main chain (chips).' },
   { id: 'medicine', title: 'The pharmacy van', giver: 'INES', after: ['tomas'], turnIn: true,
     start: 'INES: The pharmacy van went off the cut lane that night. If the medicine box is still in it... bring it to me?',
-    line: 'Bring the medicine box from the crashed van on the cut lane to Ines.', done: 'INES: Insulin, antibiotics... you\'ve no idea. Come by when you\'re hurt: I fix people, I can fix you.',
+    line: 'Bring the medicine box from the crashed van on the cut lane to Ines.', done: 'INES: Insulin, antibiotics... Come by when you\'re hurt: I can fix you too. And that night? I saw the big one walk into the bridge. On purpose.',
     goal: { type: 'fetch', item: 'medicine', at: 'van', handIn: true, guard: ['crawler', 'crawler', 'hound'] }, reward: { repair: 'ines' },
     desc: 'A nurse helped, and a place to mend.', why: 'The reward changes the map: a repair spot in Wendbridge.' },
   { id: 'wrecks', title: 'Steel for the turrets', giver: 'TOMAS', after: ['scrubber'], turnIn: true,
     start: 'TOMAS: My turrets could bite harder with better steel. The wrecks along the lanes have it: salvage three.',
-    line: 'Salvage wrecks (stop by one a moment): {n}/{need}. Then see Tomas.', done: 'TOMAS: Good steel. Your turrets hit harder now: both of them.',
+    line: 'Salvage wrecks (stop by one a moment): {n}/{need}. Then see Tomas.', done: 'TOMAS: Good steel: your turrets bite harder now. One thing bothers me. I saw the bridge deck from the bank. It wasn\'t broken. It was cut.',
     goal: { type: 'salvage', n: 3 }, reward: { turretDmg: 1.5 }, desc: 'The wrecks in the way become steel.', why: 'Travel has stops worth making.' },
 ];
+// [story] The twist of chapter 1 (the quest writer, Nov 2): the big one didn't fall into Wend Bridge. It stopped, like the
+// robot did, and tore the deck down itself so the machines from the north couldn't reach Wendbridge; its brood stands
+// guard. Set up across the side quests (Reyes: they stand like guards; Ines: it walked in on purpose; Tomas: the deck was
+// cut), paid off when it's freed (it flashes the robot's own first light). And a hook for chapter 2, set up by the toys
+// (Dad's yellow tow truck) and the loud chip (the radio said Kai's name), paid off when the bridge stands: Brenner
+// Recovery's second truck on the far side, its cab empty, and the radio again.
 export const QUEST = Object.fromEntries(QUESTS.map(q => [q.id, q]));
 export const CHAPTER1 = QUESTS;   // (older code reads it by index)
 // when a quest's gathering is done and only the trip back is left (the HUD says so loudly): null if it isn't like that
