@@ -6,7 +6,7 @@
 // - far from them, Kai's voice on the radio: a small card at the top that types out and goes by itself.
 // - between missions, a banner: "✓ <title>, done", then "NEW · <title>" with its objective.
 // UI only: it reads the events and the state, holds the camera (lab.cam) and pauses (ui.paused); never writes the state.
-import { CHAPTER1, readyOf } from '../play/missions.js';
+import { CHAPTER1, QUEST, readyOf } from '../play/missions.js';
 import { FREED, MENDED } from './introui.js';
 import { ROAM } from './sim.js';
 const ROBOT = ['▪ ▫ ▪', '▪▪', '▫ ▪', '▪ ▪ ▪', '▪'];
@@ -35,10 +35,19 @@ body.scene #hud,body.scene #loot,body.scene #area,body.scene #obj,body.scene #pa
   function events(evs) { let freed = null, mended = null; for (const e of evs || []) {
     if (e.type === 'clean' && e.x !== undefined) queue.push({ sweep: { x: e.x, y: e.y } });
     else if (e.type === 'freed') freed = e; else if (e.type === 'mended') mended = e;
+    // [beats] the givers as it goes (the quest writer, Nov 2): a line on the radio at a quest's moments (src/play/missions.js beats)
+    if (e.type === 'missionStep' || e.type === 'salvaged') beat(e);
     if (e.type === 'missionDone') { const st = CHAPTER1[e.i]; for (const [who, say] of lines(e.say, st.giver)) queue.push({ who, say }); queue.push({ banner: ['✓ ' + st.title.toUpperCase(), 'done', ''] }); }
     else if (e.type === 'missionStart') { const st = CHAPTER1[e.i]; if (e.main) for (const [who, say] of lines(e.say, e.giver)) queue.push({ who, say }); queue.push({ banner: ['NEW', st.title.toUpperCase(), st.line.replace(/\{n\}.*$/, '').replace(/[:.]\s*$/, '')] }); } }
     if (freed) { const done = queue.findIndex(q => q.sweep); queue.splice(done + 1, 0, ...FREED.map(([who, say]) => ({ who, say, radio: true }))); }
     if (mended) for (const [who, say] of MENDED) queue.push({ who, say, radio: true }); }
+  const said = new Set(), ONCE = /^(wave|half|met|taken|found\d|salvaged\d)$/; let beatT = 0;
+  function beat(e) { let id = e.id, key = e.what;
+    if (e.type === 'salvaged') { const q = (S.quests.active || []).find(o => QUEST[o.id].goal.type === 'salvage'); if (!q) return; id = q.id; key = 'salvaged' + (S.salvaged - q.base); }
+    else if (key === 'found') key = 'found' + e.n; else if (key === 'battered') key = 'battered' + e.hp;
+    const st = QUEST[id], text = st && st.beats && st.beats[key]; if (!text) return;
+    const k = id + ':' + key; if (ONCE.test(key)) { if (said.has(k)) return; said.add(k); } else { if (performance.now() - beatT < 5000) return; }
+    beatT = performance.now(); for (const [who, say] of lines(text, st.giver)) queue.push({ who, say, radio: true }); }
   function next() { cur = queue.shift() || null; if (!cur) { endScene(); if (after) { const f = after; after = null; f(); } return; }
     if (cur.banner) { endScene(); banQ.push(cur.banner); cur = null; next(); return; }
     if (cur.sweep) { startScene(null); cur.t = 0; cur.from = { x: lab.cam ? lab.cam.x : cam.x, y: lab.cam ? lab.cam.y : cam.y, z: cam.ppm };

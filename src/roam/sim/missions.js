@@ -65,6 +65,9 @@ export function createMissions(G) {
     if (g.type === 'freed') { const d = S.dead.find(o => o.boss && o.free); return d ? { x: d.x, y: d.y, label: 'BIG ONE' } : null; }
     if (g.type === 'mended') return B && (S.scrap >= R.bridges.scrap || B.state === 'mending') ? { x: B.a.x, y: B.a.y, label: 'BRIDGE' } : null;
     return null; }
+  // halfway there (a beat for the givers to say): counted up (bank, collect, salvage, key) or down (protect, kill, hold)
+  function halfway(q, st) { if (q.half || !q.need) return; const down = ['protect', 'kill', 'hold'].includes(st.goal.type), f = down ? 1 - q.prog / q.need : q.prog / q.need;
+    if (f >= 0.5 && (st.goal.type !== 'protect' || q.wave)) { q.half = true; ev('missionStep', { id: st.id, what: 'half' }); } }
   // machines at the thing a quest guards wear it down (true while it's under siege); a cry at 75/50/25%
   function batter(q, st, dt) { if (q.hp === undefined) return false; let n = 0; for (const d of S.dead) if (d.mission === st.id && d.siege && Math.hypot(d.x - q.sx, d.y - q.sy) < M.siegeR) n++;
     if (!n) return false; const h0 = q.hp; q.hp -= n * M.siegeDps * dt; for (const m of [75, 50, 25]) if (h0 > m && q.hp <= m) ev('missionStep', { id: st.id, what: 'battered', hp: m, x: q.sx, y: q.sy }); return true; }
@@ -88,7 +91,7 @@ export function createMissions(G) {
       if (!it.taken && !k.dead && Math.hypot(k.x - it.x, k.y - it.y) < 2.8) { it.taken = true; S.carryItems.push(g.item); ev('missionStep', { id: st.id, what: 'taken', item: g.item }); }
       if (it.taken && k.dead && S.carryItems.includes(g.item)) { S.carryItems = S.carryItems.filter(x => x !== g.item); it.taken = false; it.x = k.x; it.y = k.y; ev('missionStep', { id: st.id, what: 'dropped' }); }   // lost where she fell: go back for it
       if (it.taken && S.carryItems.includes(g.item) && (g.handIn || atBank())) met(); }
-    else if (g.type === 'collect') { for (const o of S.questItems) if (o.q === q.id && !o.taken && !k.dead && Math.hypot(k.x - o.x, k.y - o.y) < 2.8) { o.taken = true; ev('missionStep', { id: st.id, what: 'found', x: o.x, y: o.y }); }
+    else if (g.type === 'collect') { for (const o of S.questItems) if (o.q === q.id && !o.taken && !k.dead && Math.hypot(k.x - o.x, k.y - o.y) < 2.8) { o.taken = true; ev('missionStep', { id: st.id, what: 'found', n: S.questItems.filter(o2 => o2.q === q.id && o2.taken).length, x: o.x, y: o.y }); }
       q.need = g.n; q.prog = S.questItems.filter(o => o.q === q.id && o.taken).length; if (q.prog >= g.n) met(); }
     else if (g.type === 'kill') { const left = S.dead.filter(d => d.mission === st.id).length; q.need = g.kinds.length; q.prog = left; if (!left) met(); }
     else if (g.type === 'salvage') { q.need = g.n; q.prog = Math.min(g.n, S.salvaged - q.base); if (q.prog >= g.n) met(); }
@@ -103,7 +106,7 @@ export function createMissions(G) {
     if (!best) { T.cd = 0.3; continue; } T.cd = M.turretEvery; T.fa = Math.atan2(best.y - T.y, best.x - T.x); T.shot = { x: best.x, y: best.y, t: S.t }; ev('turretShot', { x: T.x, y: T.y, tx: best.x, ty: best.y }); G.hurtFoe(best, M.turretDmg * S.turretMult, 'turret', best.x, best.y); } }
   function stepMissions(dt) { stepTurrets(dt); stepWrecks(dt);
     for (const st of QUESTS) if (st.main && ready(st)) start(st);
-    for (const q of S.quests.active.slice()) stepQuest(q, dt);
+    for (const q of S.quests.active.slice()) { stepQuest(q, dt); if (S.quests.active.includes(q) && !q.met) halfway(q, QUEST[q.id]); }
     for (const st of QUESTS) if (st.main && ready(st)) start(st);   // the next in the chain comes at once
     for (const q of S.quests.active) q.at = targetOf(q, QUEST[q.id]);
     S.quests.offers = QUESTS.filter(st => !st.main && ready(st)).map(st => st.id);
