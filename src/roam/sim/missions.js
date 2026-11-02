@@ -30,7 +30,17 @@ export function createMissions(G) {
     if (r.mods) S.modsLocked = false;
     ev('missionDone', { i: S.mission.i, id: st.id, title: st.title, say: st.done, reward: r }); begin(S.mission.i + 1); }
   function spawnAt(kind, x, y, tag, state = 'wander') { const d = G.spawn(kind, x, y, { state, mission: tag }); return d; }
-  function stepMissions(dt) { const m = S.mission, k = S.kai; stepTurrets(dt); if (!m) return; const st = C[m.i], g = st.goal; m.t += dt;
+  // where the step wants you now (the HUD's arrow and marker read S.mission.at): null when the goal is "fight anywhere"
+  function targetOf(m, st, g) { const k = S.kai, q = home(), B = (S.bridges || [])[0];
+    if (g.type === 'bank') return S.scrap + S.bank.scrap >= g.scrap ? { x: q.x, y: q.y, label: 'KAI' } : null;
+    if (g.type === 'protect') return P[g.who] ? { x: P[g.who].x, y: P[g.who].y, label: 'TOMAS' } : null;
+    if (g.type === 'hold') return { x: q.x, y: q.y, label: 'HOLD' };
+    if (g.type === 'fetch') return S.carryItems.includes(g.item) ? { x: q.x, y: q.y, label: 'HOME' } : m.item ? { x: m.item.x, y: m.item.y, label: 'COIL' } : P[g.at] ? { x: P[g.at].x, y: P[g.at].y, label: 'COIL' } : null;
+    if (g.type === 'key') return S.chips + S.bank.chips >= g.chips ? { x: q.x, y: q.y, label: 'GARAGE' } : null;
+    if (g.type === 'freed') { const d = S.dead.find(o => o.boss && o.free); return d ? { x: d.x, y: d.y, label: 'BIG ONE' } : null; }
+    if (g.type === 'mended') return B && (S.scrap >= R.bridges.scrap || B.state === 'mending') ? { x: B.a.x, y: B.a.y, label: 'BRIDGE' } : null;
+    return null; }
+  function stepMissions(dt) { const m = S.mission, k = S.kai; stepTurrets(dt); if (!m) return; const st = C[m.i], g = st.goal; m.t += dt; m.at = targetOf(m, st, g);
     if (g.type === 'bank') { m.need = g.scrap; m.prog = Math.min(g.scrap, S.bank.scrap); if (S.bank.scrap >= g.scrap) { S.bank.scrap -= g.scrap; finish(); } }
     else if (g.type === 'protect') { const at = P[g.who]; if (!at) return finish();
       if (!m.wave && Math.hypot(k.x - at.x, k.y - at.y) < g.near) { m.wave = 1; m.left = g.time; for (let i = 0; i < g.wave; i++) { const [x, y] = ring(at.x, at.y, 5, 11); spawnAt(i % 3 === 2 ? 'hound' : 'crawler', x, y, st.id); } ev('missionStep', { id: st.id, what: 'wave', x: at.x, y: at.y }); }

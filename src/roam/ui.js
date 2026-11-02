@@ -73,7 +73,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
       dashBtn.hidden = k.riding; dashBtn.disabled = k.dashCd > 0; }
   }
   /** arrows at the screen's edge: the walker (red) and the bike when Kai is off it and it is out of view */
-  function arrows(toS, cssW, cssH) {
+  function arrows(toS, cssW, cssH, tidy) {
     const k = S.kai;
     const one = (x, y, col, label) => { const [sx, sy] = toS(x, y), m = 30; if (sx > m && sy > 70 && sx < cssW - m && sy < cssH - 260) return;   // [m1] clear of the combat pad
       const cx = cssW / 2, cy = cssH / 2, a = Math.atan2(sy - cy, sx - cx), t = Math.min(Math.abs((cssW / 2 - m) / (Math.cos(a) || 1e-6)), Math.abs((cssH / 2 - (Math.sin(a) > 0 ? 250 : 90)) / (Math.sin(a) || 1e-6))), ex = cx + Math.cos(a) * t, ey = cy + Math.sin(a) * t;
@@ -82,7 +82,8 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     // [m4] the walker: the one of the area she's in (if it's still dark), else the nearest dark area's
     { const here = S.inArea >= 0 ? S.areas[S.inArea] : null; let w = here && here.walker >= 0 ? S.dead.find(d => d.id === here.walker) : null;
       if (!w) { let wd = 1e9; for (const d of S.dead) if (d.boss) { const q = Math.hypot(d.x - k.x, d.y - k.y); if (q < wd) { wd = q; w = d; } } }
-      if (w) one(w.x, w.y, '#ff2a1a', `WALKER ${Math.round(Math.hypot(w.x - k.x, w.y - k.y))}m`); }
+      if (w && (!tidy || tidy.walkerOk())) one(w.x, w.y, '#ff2a1a', `WALKER ${Math.round(Math.hypot(w.x - k.x, w.y - k.y))}m`); }
+    if (tidy) tidy.edge = one;   // [tidy] the mission's arrow uses the same edge arrow
     if (!k.riding && !k.dead) one(S.bike.x, S.bike.y, '#f0b44c', 'BIKE');
     // [m5] begin: the death cache, and the nearest bank once she carries a lot or the bike is hurting
     if (S.cache && !k.dead) one(S.cache.x, S.cache.y, '#ffd36a', `CACHE ${Math.round(Math.hypot(S.cache.x - k.x, S.cache.y - k.y))}m`);

@@ -13,6 +13,7 @@ import { createRiskUi } from './riskui.js';
 import { createFreeUi } from './freeui.js';
 import { createBridgeUi } from './bridgeui.js';
 import { createObjUi } from './objui.js';
+import { createHudTidy } from './hudtidy.js';
 import { folkOf } from './peopleview.js';
 import { createIntroUi, playScene, FREED, MENDED } from './introui.js';
 import { createGarageUi } from './garageui.js';
@@ -43,7 +44,7 @@ function start() {
   const lab = { freeze: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
-  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); const freeUi = createFreeUi({ sim, toast: ui.toast, input }); const bridgeUi = createBridgeUi({ sim, toast: ui.toast }); const objUi = createObjUi({ sim, toast: ui.toast }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input }); const garageUi = createGarageUi({ sim, ui, cam, lab });   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
+  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); const freeUi = createFreeUi({ sim, toast: ui.toast, input }); const bridgeUi = createBridgeUi({ sim, toast: ui.toast }); const objUi = createObjUi({ sim, toast: ui.toast }); const tidy = createHudTidy({ sim, fx }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input }); const garageUi = createGarageUi({ sim, ui, cam, lab });   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
   const feel = createFeel({ S, input, town }), scars = createScars({ tiles: town.tiles, town });   // [m2] burnt and soaked ground   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
@@ -165,7 +166,7 @@ function start() {
     feel.draw(fx, toS, view.ppm, dt, R, lightAt, cssW, cssH);   // [m1] pellets, muzzle flash, sparks, bursts
     shook();
     for (const e of evs) { if (e.type === 'freed') playScene({ ui, lab, cam, lines: FREED, at: { x: e.x, y: e.y }, zoom: 9 }); else if (e.type === 'mended') playScene({ ui, lab, cam, lines: MENDED, at: { x: e.x, y: e.y }, zoom: 11 }); }   // [point] the big moments
-    ui.arrows(toS, cssW, cssH); ui.update(evs); lootUi.update(evs); areaUi.update(evs); riskUi.update(evs); garageUi.update(evs); freeUi.update(evs); bridgeUi.update(evs); objUi.update(evs);
+    ui.arrows(toS, cssW, cssH, tidy); tidy.update(dt); if (tidy.edge) tidy.draw(toS, cssW, cssH, t, tidy.edge); ui.update(evs); lootUi.update(evs); areaUi.update(evs); riskUi.update(evs); garageUi.update(evs); freeUi.update(evs); bridgeUi.update(evs); objUi.update(evs);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
