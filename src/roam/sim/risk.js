@@ -21,7 +21,7 @@ export function createRisk(G) {
     ev('bikeHurt', { n, why: why || 'hit', x: b.x, y: b.y });
     if (b.hp <= 0) ev('bikeWreck', { x: b.x, y: b.y }); else if (f0 >= K.low && b.hp / b.maxHp < K.low) ev('bikeLow', { x: b.x, y: b.y }); }
   // the top speed the bike can make now: worn below K.low, limping when wrecked
-  const bikeTop = () => b.hp <= 0 ? K.limp : b.hp / b.maxHp < K.low ? K.worn : 1;
+  const bikeTop = () => (b.hp <= 0 ? K.limp : b.hp / b.maxHp < K.low ? K.worn : 1) * (S.carryItems && S.carryItems.includes('coil') ? 0.78 : 1);   // [missions] a shield coil is heavy
   // the bike soaks a share of every hit while she rides it and it still has a body
   const hurt0 = G.hurtKai;
   function hurtKai(n) { if (k.dead || k.dash > 0) return;

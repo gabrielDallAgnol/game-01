@@ -71,3 +71,12 @@ test('missions can be lost: left alone, the machines break Tomas\'s door; the qu
   assert.ok(failed, 'the door broke'); assert.strictEqual(S.mission.id, 'tomas'); assert.ok(!S.dead.some(d => d.mission === 'tomas'));
   at({ x: P.tomas.x + 20, y: P.tomas.y }); sim.step({ x: 0, y: 0 }); assert.ok(q.wave, 'again');
 });
+
+test('real weight: the medicine box breaks in a hard crash (one more in the van); the coil slows the bike', () => {
+  const sim = createRoam(town, 6), S = sim.state, P = W.world, at = p => { S.kai.x = S.bike.x = p.x; S.kai.y = S.bike.y = p.y; };
+  S.quests.done.push('scrap', 'tomas'); sim.step({ x: 0, y: 0 }); at(P.ines); assert.ok(sim.accept('medicine'));
+  const q = S.quests.active.find(o => o.id === 'medicine'); at(q.item); sim.step({ x: 0, y: 0 }); assert.ok(S.carryItems.includes('medicine'));
+  /* a hard crash: ride it into a wall */ let wx = null, wy = null; for (let r = 4; r < 400 && wx === null; r += 2) for (let a = 0; a < 6.28 && wx === null; a += 0.3) { const x = q.item.x + Math.cos(a) * r, y = q.item.y + Math.sin(a) * r; if (!town.blocked(x, y) && !town.blocked(x + 1, y) && town.blocked(x + 3, y)) { wx = x; wy = y; } }
+  S.kai.x = S.bike.x = wx; S.kai.y = S.bike.y = wy; S.bike.ang = 0; S.bike.speed = 14; S.kai.riding = true; for (let i = 0; i < 20 && S.carryItems.includes('medicine'); i++) { S.kai.hp = 1e6; sim.step({ x: 1, y: 0 }); }
+  assert.ok(!S.carryItems.includes('medicine') && !q.item.taken, 'broken; back at the van');
+});

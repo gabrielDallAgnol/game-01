@@ -72,6 +72,8 @@ export function createMissions(G) {
   function batter(q, st, dt) { if (q.hp === undefined) return false; let n = 0; for (const d of S.dead) if (d.mission === st.id && d.siege && Math.hypot(d.x - q.sx, d.y - q.sy) < M.siegeR) n++;
     if (!n) return false; const h0 = q.hp; q.hp -= n * M.siegeDps * dt; for (const m of [75, 50, 25]) if (h0 > m && q.hp <= m) ev('missionStep', { id: st.id, what: 'battered', hp: m, x: q.sx, y: q.sy }); return true; }
   function stepQuest(q, dt) { const st = QUEST[q.id], g = st.goal, k = S.kai; q.t += dt;
+    // fragile (the medicine's glass): a hard crash breaks it; there's one more in the van
+    if (g.fragile && q.item && q.item.taken && S.carryItems.includes(g.item) && G.lastCrash === S.t) { const at = P[g.at], it = q.item; S.carryItems = S.carryItems.filter(x => x !== g.item); it.taken = false; q.met = false; it.x = at.x; it.y = at.y; ev('missionStep', { id: st.id, what: 'broke' }); }
     if (q.met) { if (st.turnIn) { const a = giverAt(st.giver); if (a && !k.dead && Math.hypot(a.x - k.x, a.y - k.y) < M.talkR) finish(q); } else finish(q); return; }
     const met = () => { q.met = true; if (!st.turnIn) finish(q); else ev('missionStep', { id: st.id, what: 'met' }); };
     if (g.type === 'bank') { q.need = g.scrap; q.prog = Math.min(g.scrap, S.bank.scrap); if (S.bank.scrap >= g.scrap) met(); }

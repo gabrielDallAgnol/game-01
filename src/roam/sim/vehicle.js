@@ -19,7 +19,7 @@ export function createVehicle(G) {
       if (!mx && !my) { mx = -Math.cos(b.ang); my = -Math.sin(b.ang); } const ml = Math.hypot(mx, my) || 1; mx /= ml; my /= ml;
       const vx = Math.cos(b.ang) * b.speed, vy = Math.sin(b.ang) * b.speed, into = vx * mx + vy * my;
       if (into < 0) { const tx = vx - into * mx, ty = vy - into * my, ox = tx * B.slide - into * B.bounce * mx, oy = ty * B.slide - into * B.bounce * my;
-        if (-into > 6) ev('crash', { x: b.x, y: b.y }); if (-into > R.risk.crashMin) G.hurtBike((-into - R.risk.crashMin) * R.risk.crashDmg * B.crashMult, 'crash'); b.speed = Math.hypot(ox, oy); if (b.speed > 0.05) b.ang = Math.atan2(oy, ox); b.turnLock = B.lock; }
+        if (-into > 6) { ev('crash', { x: b.x, y: b.y }); G.lastCrash = S.t; } if (-into > R.risk.crashMin) G.hurtBike((-into - R.risk.crashMin) * R.risk.crashDmg * B.crashMult, 'crash'); b.speed = Math.hypot(ox, oy); if (b.speed > 0.05) b.ang = Math.atan2(oy, ox); b.turnLock = B.lock; }
       else b.speed *= 0.5;
       if (!blocked(b.x + mx * 0.08, b.y + my * 0.08)) { b.x += mx * 0.08; b.y += my * 0.08; } }
     else { b.x = nx; b.y = ny; }

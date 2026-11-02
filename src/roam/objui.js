@@ -43,6 +43,7 @@ export function createObjUi({ sim, toast }) {
       else if (e.type === 'missionStep' && e.what === 'battered') toast(`${e.id === 'tomas' ? 'Tomas\'s door' : e.id === 'scrubber' ? 'The scrubber' : 'Kai\'s gate'}: ${e.hp}% left. Get them off it!`, e.hp <= 25);
       else if (e.type === 'missionStep' && e.what === 'broken') toast(e.id === 'scrubber' ? 'They knocked the scrubber off. Tomas kicks it going again: 15 s lost.' : 'They forced the garage gate. Kai props it shut: 15 s lost.', true);
       else if (e.type === 'missionStep' && e.what === 'taken') toast('The shield coil. Heavy: bring it home.', true);
+      else if (e.type === 'missionStep' && e.what === 'broke') toast('The box broke in the crash. There\'s one more in the van.', true);
       else if (e.type === 'missionStep' && e.what === 'dropped') toast('The coil fell where you went down. Go back for it.'); }
     const l = line(); if (l !== last) { last = l; el.textContent = l; el.style.whiteSpace = 'pre-line'; el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 400 }); } }
   return { update };

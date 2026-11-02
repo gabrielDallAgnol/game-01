@@ -3,7 +3,7 @@
 // soon as `after` is done) or a side quest (its giver shows "!" when it's available and "?" when you can hand it in),
 // after (quests that must be done first), start, line ({n}/{need} filled in), done, goal, reward, turnIn (hand it in
 // to the giver in person), desc, why, ask (how, said when you take it), beats (lines on the radio as it goes: wave,
-// half, met, taken, dropped, broken, failed, battered50/25, found<n>, salvaged<n>) }.
+// half, met, taken, dropped, broke, broken, failed, battered50/25, found<n>, salvaged<n>) }.
 // goals: bank (scrap banked), protect (clear a wave at someone's door in time), hold (stay by a place, out of the safe lot,
 // while waves come), fetch (take an item at a place, bank it or hand it in), collect (pick up n things lying about),
 // kill (the n machines it sets at a place), salvage (n wrecks salvaged), key (build a key item), freed, mended.
@@ -35,7 +35,7 @@ export const QUESTS = [
   { id: 'coil', main: true, title: 'The pump works', giver: 'KAI', after: ['test'],
     beats: { taken: 'You\'ve got it? Don\'t stop. Don\'t stop for anything.', dropped: 'It fell where you fell. It\'s still out there. Go back for it.' },
     start: 'The pump works, down Lume lane. A shield coil from the big shed. Something big guards it.',
-    line: 'Take a shield coil from the pump works and bank it at the garage', done: 'That\'s the one. Now I can build a chip that wakes them, not just screams. Bring me six of their chips.',
+    line: 'Take a shield coil from the pump works and bank it at the garage (heavy: the bike is slower with it)', done: 'That\'s the one. Now I can build a chip that wakes them, not just screams. Bring me six of their chips.',
     goal: { type: 'fetch', item: 'coil', at: 'coil', guard: ['brute', 'crawler', 'crawler', 'crawler', 'hound'] }, reward: { learn: 'link_chip' },
     desc: 'A part from a nearby place, carried home at risk.', why: 'The freeing chip is built from a real part.' },
   { id: 'chip', main: true, title: 'The freeing chip', giver: 'KAI', after: ['coil'],
@@ -66,11 +66,11 @@ export const QUESTS = [
     goal: { type: 'kill', at: 'reyes', kinds: ['crawler', 'crawler', 'hound', 'crawler', 'spitter'] }, reward: { chips: 2, scrap: 10 },
     desc: 'A farmer\'s barn back.', why: 'A fight with a reward that feeds the main chain (chips).' },
   { id: 'medicine', title: 'The pharmacy van', giver: 'INES', after: ['tomas'], turnIn: true,
-    beats: { taken: 'KAI: Ines says mind the bottles. They\'re glass. Ride like it.', dropped: 'KAI: The box is lying out there where you went down. Ines needs it.' },
+    beats: { taken: 'KAI: Ines says mind the bottles. They\'re glass. Ride like it.', dropped: 'KAI: The box is lying out there where you went down. Ines needs it.', broke: 'KAI: Ines heard the glass go over the radio. There\'s one more box in the van. Gently, this time.' },
     ask: 'A white van on its side, down the cut lane. Machines sniff round it. The box is red. Don\'t drop it.',
     start: 'INES: The pharmacy van went off the cut lane that night. If the medicine box is still in it... bring it to me?',
-    line: 'Bring the medicine box from the crashed van on the cut lane to Ines.', done: 'INES: Insulin, antibiotics... Come by when you\'re hurt: I can fix you too. And that night? I saw the big one walk into the bridge. On purpose.',
-    goal: { type: 'fetch', item: 'medicine', at: 'van', handIn: true, guard: ['crawler', 'crawler', 'hound'] }, reward: { repair: 'ines' },
+    line: 'Bring the medicine box from the crashed van on the cut lane to Ines. Glass: don\'t crash.', done: 'INES: Insulin, antibiotics... Come by when you\'re hurt: I can fix you too. And that night? I saw the big one walk into the bridge. On purpose.',
+    goal: { type: 'fetch', item: 'medicine', at: 'van', handIn: true, fragile: true, guard: ['crawler', 'crawler', 'hound'] }, reward: { repair: 'ines' },
     desc: 'A nurse helped, and a place to mend.', why: 'The reward changes the map: a repair spot in Wendbridge.' },
   { id: 'wrecks', title: 'Steel for the turrets', giver: 'TOMAS', after: ['scrubber'], turnIn: true,
     beats: { salvaged1: 'TOMAS: That\'s the steel. Hear how it rings? Two more like that.', salvaged3: 'TOMAS: That\'s enough steel. Bring it round.' },
