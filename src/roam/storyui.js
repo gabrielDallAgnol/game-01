@@ -8,6 +8,7 @@
 // UI only: it reads the events and the state, holds the camera (lab.cam) and pauses (ui.paused); never writes the state.
 import { CHAPTER1, readyOf } from '../play/missions.js';
 import { FREED, MENDED } from './introui.js';
+import { ROAM } from './sim.js';
 const ROBOT = ['▪ ▫ ▪', '▪▪', '▫ ▪', '▪ ▪ ▪', '▪'];
 export function createStoryUi({ sim, ui, lab, cam, town }) {
   const S = sim.state, W = town.W.world || {};
@@ -40,7 +41,9 @@ body.scene #hud,body.scene #loot,body.scene #area,body.scene #obj,body.scene #pa
     if (mended) for (const [who, say] of MENDED) queue.push({ who, say, radio: true }); }
   function next() { cur = queue.shift() || null; if (!cur) { endScene(); if (after) { const f = after; after = null; f(); } return; }
     if (cur.banner) { endScene(); banQ.push(cur.banner); cur = null; next(); return; }
-    if (cur.sweep) { startScene(null); cur.mode = 'sweep'; cur.t = 0; cur.from = { x: lab.cam ? lab.cam.x : cam.x, y: lab.cam ? lab.cam.y : cam.y, z: cam.ppm }; return; }
+    if (cur.sweep) { startScene(null); cur.t = 0; cur.from = { x: lab.cam ? lab.cam.x : cam.x, y: lab.cam ? lab.cam.y : cam.y, z: cam.ppm };
+      // [dawn] colour should come back in the sun (Gabriel, Nov 2): at night or dusk the night runs by fast first, to first light
+      const D = ROAM.day, C = D + ROAM.night, c = S.clock % C; cur.toDawn = c > D - 18 ? C - c + 6 : 0; cur.mode = cur.toDawn ? 'dawn' : 'sweep'; return; }
     const at = whereIs(cur.who), k = S.kai, near = !cur.radio && at && Math.hypot(at.x - k.x, at.y - k.y) < 45;
     if (near) { startScene(at); cur.mode = 'scene'; cur.t0 = performance.now(); cur.reply = Math.random() < 0.5; }
     else { endScene(); cur.mode = 'radio'; cur.t0 = performance.now(); radio.innerHTML = `<b>${cur.who === 'ROBOT' ? 'THE ROBOT' : cur.who + ' · RADIO'}</b><span></span>`; radio.classList.add('on'); radioT = 2.2 + cur.say.length * 0.045; } }
@@ -52,17 +55,21 @@ body.scene #hud,body.scene #loot,body.scene #area,body.scene #obj,body.scene #pa
   radio.addEventListener('pointerdown', () => { if (cur && cur.mode === 'radio') { radio.classList.remove('on'); next(); } });
   // the sweep shot: 1.6 s out (eased), hold while the colour runs out from the spot, 1.2 s back to the robot
   const ease = u => u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2, OUT = 1.6, HOLD = 5.2, BACK = 1.2, WIDE = 2.4;
-  function stepSweep(dt) { const c = cur; c.t += dt; const b = S.bike, f = c.from, sx = c.sweep.x, sy = c.sweep.y;
+  function stepSweep(dt) { const c = cur; c.t += dt; if (c.morning && c.t < OUT + HOLD) sim.skipClock(dt * 2.6); const b = S.bike, f = c.from, sx = c.sweep.x, sy = c.sweep.y;
     if (c.t < OUT) { const u = ease(c.t / OUT); lab.cam = { x: f.x + (sx - f.x) * u, y: f.y + (sy - f.y) * u }; cam.base = cam.ppm = f.z + (WIDE - f.z) * u; }
     else if (c.t < OUT + HOLD) { lab.cam = { x: sx, y: sy }; cam.base = cam.ppm = WIDE * (1 - 0.06 * (c.t - OUT) / HOLD); }
     else if (c.t < OUT + HOLD + BACK) { const u = ease((c.t - OUT - HOLD) / BACK), z0 = WIDE * 0.94; lab.cam = { x: sx + (b.x - sx) * u, y: sy + (b.y - sy) * u }; cam.base = cam.ppm = z0 + (scene.z0 - z0) * u; }
     else next(); }
+  // [dawn] 2.4 s of night going by (eased: fast in the middle), then the sweep; through the sweep the morning keeps rising
+  const DAWN = 2.4; function stepDawn(dt) { const c = cur, u0 = ease(Math.min(1, c.t / DAWN)); c.t += dt; const u1 = ease(Math.min(1, c.t / DAWN));
+    sim.skipClock(c.toDawn * (u1 - u0)); if (c.t >= DAWN) { c.mode = 'sweep'; c.t = 0; c.morning = true; } }
   function update(dt) {
     const st0 = document.getElementById('start'); if ((st0 && !st0.hidden) || document.getElementById('intro')) return;   // not over the start card or the opening
     // the gathering's done: say so, loudly, once per step
     if ((S.mission ? S.mission.i : -1) !== lastI) { lastI = S.mission ? S.mission.i : -1; banQ = banQ.filter(q => q[1] !== 'GO BACK'); }   // a step done at once: no stale 'go back'
     if (S.mission) { const r = readyOf(S, CHAPTER1[S.mission.i]), key = r ? S.mission.i + r.what : ''; if (key && key !== readyKey) banQ.push(['✓ GOT ' + r.what, 'GO BACK', r.then]); readyKey = key; }
     if (!cur && queue.length && !banT) next();
+    if (cur && cur.mode === 'dawn') { stepDawn(dt); return; }
     if (cur && cur.mode === 'sweep') { stepSweep(dt); return; }
     if (cur && cur.mode === 'radio') { const n = Math.min(cur.say.length, Math.floor((performance.now() - cur.t0) / 28)); radio.querySelector('span').textContent = cur.say.slice(0, n); if ((radioT -= dt) <= 0) { radio.classList.remove('on'); next(); } }
     if (banT > 0) { if ((banT -= dt) <= 0) { ban.classList.remove('on'); banT = 0; } }
@@ -74,7 +81,8 @@ body.scene #hud,body.scene #loot,body.scene #area,body.scene #obj,body.scene #pa
     fx.fillStyle = 'rgba(10,11,13,.92)'; fx.strokeStyle = col; fx.lineWidth = 1.5; fx.beginPath(); fx.roundRect ? fx.roundRect(bx, by, w, h, 10) : fx.rect(bx, by, w, h); fx.fill(); fx.stroke();
     fx.beginPath(); fx.moveTo(x - 7, by + h - 0.5); fx.lineTo(x, by + h + 10); fx.lineTo(x + 7, by + h - 0.5); fx.closePath(); fx.fill();
     fx.fillStyle = robot ? '#ffc35a' : '#e9e2cf'; fx.textAlign = 'left'; fx.textBaseline = 'top'; rows.forEach((r, i) => fx.fillText(r, bx + 10, by + 7 + i * lh)); }
-  function draw(fx, toS) { if (!cur || cur.mode !== 'scene') return; const at = whereIs(cur.who); if (!at) return; const [x, y] = toS(at.x, at.y), n = Math.min(cur.say.length, Math.floor((performance.now() - cur.t0) / 28));
+  function draw(fx, toS) { if (cur && cur.mode === 'dawn') { const a = Math.min(1, cur.t / 0.4, (DAWN - cur.t) / 0.4); fx.save(); fx.globalAlpha = Math.max(0, a); fx.font = '700 13px ui-monospace,monospace'; fx.textAlign = 'center'; fx.fillStyle = '#ffd36a'; fx.fillText('· THE NIGHT GOES BY ·', innerWidth / 2, innerHeight * 0.3); fx.restore(); return; }
+    if (!cur || cur.mode !== 'scene') return; const at = whereIs(cur.who); if (!at) return; const [x, y] = toS(at.x, at.y), n = Math.min(cur.say.length, Math.floor((performance.now() - cur.t0) / 28));
     fx.save(); fx.font = '700 10px ui-monospace,monospace'; bubble(fx, x, y - 44, cur.say.slice(0, n) || ' ', '#f0b44c88', false);
     fx.fillStyle = '#f0b44c'; fx.textAlign = 'center'; fx.font = '700 10px ui-monospace,monospace'; fx.fillText(cur.who, x, y - 30);
     if (cur.replied) { const [rx, ry] = toS(S.bike.x, S.bike.y); bubble(fx, rx, ry - 30, ROBOT[(cur.say.length) % ROBOT.length], '#ffc35a88', true); }

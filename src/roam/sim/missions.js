@@ -101,8 +101,11 @@ export function createMissions(G) {
     for (const st of QUESTS) if (st.main && ready(st)) start(st);   // the next in the chain comes at once
     for (const q of S.quests.active) q.at = targetOf(q, QUEST[q.id]);
     S.quests.offers = QUESTS.filter(st => !st.main && ready(st)).map(st => st.id);
-    S.mission = S.quests.active.find(q => QUEST[q.id].main) || S.quests.active[0] || null;
+    // the one you chose to follow (the quest log), else the main chain, else the first
+    S.mission = S.quests.active.find(q => q.id === S.quests.track) || S.quests.active.find(q => QUEST[q.id].main) || S.quests.active[0] || null;
     if (S.mission) S.mission.i = QUESTS.indexOf(QUEST[S.mission.id]); }
+  // [questlog] follow one quest: its marker leads; done or unknown, the main chain leads again
+  const track = id => { S.quests.track = S.quests.active.some(q => q.id === id) ? id : null; stepMissions(0); };
   stepMissions(0);
-  Object.assign(G, { stepMissions, accept, giverAt });
+  Object.assign(G, { stepMissions, accept, giverAt, track });
 }

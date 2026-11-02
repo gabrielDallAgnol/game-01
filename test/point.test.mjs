@@ -55,4 +55,9 @@ test('chapter 1: the chain and the people: scrap opens the bench, Tomas\'s house
   at({ x: P.scrubber.x + 2, y: P.scrubber.y }); step(30 * 42); assert.strictEqual(S.areas.find(a => a.id === 'tomasrow').state, 'clean'); assert.strictEqual(S.mission.id, 'test');
   at(P.ines); assert.ok(sim.accept('medicine')); assert.ok(S.quests.active.some(q => q.id === 'medicine'), 'two quests at once');
   const w = S.wrecks[0]; at(w); S.bike.speed = 0; const s0 = S.salvaged; step(30 * 3); assert.strictEqual(S.salvaged, s0 + 1, 'a wreck salvaged');
+  // the quest log: follow a side quest, its marker leads; an unknown id gives the lead back to the story
+  sim.track('medicine'); assert.strictEqual(S.mission.id, 'medicine'); step(1); assert.strictEqual(S.mission.id, 'medicine', 'still followed');
+  sim.track('nope'); assert.strictEqual(S.mission.id, 'test');
+  // the night run by fast to first light, the dawn said
+  const C = 240 + 120; S.clock = Math.floor(S.clock / C) * C + 250; step(1); assert.ok(S.night); sim.skipClock(C - 250 + 1); assert.ok(!S.night);
 });

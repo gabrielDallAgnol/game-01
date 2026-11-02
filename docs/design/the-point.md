@@ -67,8 +67,15 @@ cannot cross water (it shorts them out), and neither can you, except over a brid
 
 ### Chapter 1: quests, WoW-style [built, Nov 2]
 
-Several at once. The story's chain comes by radio; side quests wait at people with a gold **!** over them (ride up:
-an offer card, ACCEPT or LATER), and some are handed back in person (**?** over them). Data `src/play/missions.js`, rules
+Several at once. The story's chain comes by radio; side quests wait at people with a gold **!** over them, and some are
+handed back in person (**?** over them). **Taking one is a conversation (Nov 2):** ride up and a TALK button rises (or
+stop beside them a moment); they say what they want and how (the quest's `start` and `ask` lines, a scene with the robot
+answering in light), then the ask card: what, what it's worth, TAKE IT or NOT NOW. Heard once; after that straight to
+the card. **The quest log (Nov 2):** a QUESTS tab under the objective lists what you've taken (where it stands, how far)
+and who still has a "!"; tap one to **follow** it (`sim.track(id)`): the HUD marker and arrow lead to it, and the world
+map shows it as a big gold pin (the others small, givers "!"). Done, the story leads again. **Colour comes in the sun:**
+a colour sweep at night or dusk first runs the night by fast (2.4 s, "the night goes by") to first light, and the morning
+keeps rising while the camera is out (`sim.skipClock`, `storyui.js`). Data `src/play/missions.js`, rules
 `src/roam/sim/missions.js`, UI `questui.js`, `objui.js` (the tracked quest, then up to three more).
 
 | Chain | Giver | What | What it causes |
