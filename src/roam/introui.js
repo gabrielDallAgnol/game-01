@@ -39,5 +39,5 @@ export function createIntroUi({ sim, ui, lab, cam, qs }) {
   return { active: true };
 }
 // the big moments' lines
-export const FREED = [['ROBOT', '▪ ▫ ▪ ▫'], ['KAI', '(on the radio) ...It stopped. It\'s just standing there. Look at the colour coming back.'], ['KAI', 'It\'s breathing the ash in now, not out. And it climbed out of the bridge. We can mend it.']];
-export const MENDED = [['KAI', '(on the radio) Wend Bridge. I never thought I\'d see a truck cross it again.'], ['ROBOT', '▪▪'], ['KAI', 'The road north goes to the first town. Whatever is grey out there, it\'s grey for a reason. Go find it.']];
+export const FREED = [['ROBOT', '▪ ▫ ▪ ▫'], ['KAI', '...It stopped. It\'s just standing there. Look at the colour coming back.'], ['KAI', 'It\'s breathing the ash in now, not out. And it climbed out of the bridge. We can mend it.']];
+export const MENDED = [['KAI', 'Wend Bridge. I never thought I\'d see a truck cross it again.'], ['ROBOT', '▪▪'], ['KAI', 'The road north goes to the first town. Whatever is grey out there, it\'s grey for a reason. Go find it.']];

@@ -1,7 +1,7 @@
 // [roam] The objective (the Point's tutorial chain, docs/design/the-point.md §5): one line under the area chip saying what
 // to do next, read from the state (no script): ride to Wendbridge → gather chips (machines' own; fire burns them) → build
 // a freeing chip at the garage → free the big machine in Wend Bridge → mend the bridge → the road north. Writes nothing.
-import { CHAPTER1 } from '../play/missions.js';
+import { CHAPTER1, readyOf } from '../play/missions.js';
 export function createObjUi({ sim, toast }) {
   const S = sim.state, el = document.createElement('div'); el.id = 'obj';
   el.style.cssText = 'position:fixed;left:max(12px,env(safe-area-inset-left,0px));top:calc(116px + env(safe-area-inset-top,0px));max-width:min(300px,calc(100vw - 24px));font:700 11px ui-monospace,monospace;letter-spacing:.03em;line-height:1.35;padding:5px 9px;border-radius:8px;background:rgba(10,11,13,.78);color:#e9e2cf;border-left:3px solid #f0b44c;pointer-events:none;z-index:9';
@@ -11,6 +11,7 @@ export function createObjUi({ sim, toast }) {
   const hasChapter = !!S.mission;
   // [missions] with a chapter, the line is the mission's: its objective with its count; a giver's words come as toasts
   function missionLine() { const m = S.mission; if (!m) return 'The road north is open. Beyond the cut: the first town (next chapter).'; const st = CHAPTER1[m.i];
+    { const r = readyOf(S, st); if (r) return `✓ Got ${r.what.toLowerCase()}. ${r.then}`; }
     if (st.goal.type === 'protect' && !m.wave) return 'Ride to Tomas\'s door in Wendbridge: the first house off the lane, a lamp swinging.';
     if (st.goal.type === 'fetch' && S.carryItems && S.carryItems.length) return 'Bring the shield coil home: bank it at the Point. If you go down, it drops where you fell.';
     return `${m.i + 1}/${CHAPTER1.length} · ${st.title.toUpperCase()}: ` + st.line.replace('{n}', m.prog).replace('{need}', m.need); }
@@ -24,6 +25,7 @@ export function createObjUi({ sim, toast }) {
     if (!seenTown) return 'Ride up the point lane to Wendbridge. The grey starts where the Point ends.';
     return `Gather chips from machines: ◆ ${chips}/${need}. Their chips burn if they die burning.`; }
   function update(evs) {
+    if (hasChapter) { const r = S.mission && readyOf(S, CHAPTER1[S.mission.i]); el.style.borderLeftColor = r ? '#8fd16a' : '#f0b44c'; el.style.color = r ? '#d8f5c4' : '#e9e2cf'; }
     for (const e of evs || []) {
       if (e.type === 'missionStep' && e.what === 'failed') toast('They broke in. Tomas held the door, barely. Go back for him.', true);
       else if (e.type === 'missionStep' && e.what === 'taken') toast('The shield coil. Heavy: bring it home.', true);

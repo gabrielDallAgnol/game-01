@@ -48,3 +48,11 @@ export const CHAPTER1 = [
     goal: { type: 'mended' }, reward: { mods: true },
     desc: 'The bridge mended with the town\'s help.', why: 'The chapter ends with the way out, and the next toys (mods) open.' },
 ];
+
+// when a step's gathering is done and only the trip back is left (the HUD says so loudly): null if the step isn't like that
+export function readyOf(S, st) { const g = st.goal;
+  if (g.type === 'bank') return S.scrap + S.bank.scrap >= g.scrap ? { what: `${g.scrap} SCRAP`, then: 'Ride back to Kai\'s garage and bank it.' } : null;
+  if (g.type === 'key') return S.chips + S.bank.chips >= g.chips && !(S.keys && S.keys[g.key]) ? { what: `${g.chips} CHIPS`, then: 'Ride back to the garage: BUILD THE FREEING CHIP.' } : null;
+  if (g.type === 'fetch') return (S.carryItems || []).includes(g.item) ? { what: 'THE SHIELD COIL', then: 'Bring it home to Kai\'s garage.' } : null;
+  if (g.type === 'mended') return S.scrap >= 60 && !(S.bridges || []).some(b => b.state !== 'broken') ? { what: '60 SCRAP', then: 'Take it to the end of Wend Bridge.' } : null;
+  return null; }
