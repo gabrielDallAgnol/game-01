@@ -11,6 +11,7 @@ import { landItems, pip } from './world/land.js';
 import { makeCharmap } from './world/charmap.js';
 import { sparseGrid } from './world/sparse.js';
 import { pointInObb } from '../engine/geom.js';
+import { layoutWilds } from './world/wilds.js';
 import { layoutGardens } from './gardens.js';
 import { createTiles } from './tiles.js';
 import { makeCare } from './dress/care.js';
@@ -165,6 +166,12 @@ export function buildTown(seed = 7, o = {}) {
   // what the bike smashes instead of crashing into (small props: benches, bins, lamps, cones, barriers)
   const breakables = dress.list.filter(i => i.atom.breakable).map(i => ({ id: i.id, x: i.x, y: i.y, r: i.atom.collide ? Math.max(i.atom.collide.w, i.atom.collide.h) / 2 : 0.5 }));
   // [dress] end
+  // [wilds] begin: the open ground's things on the Point (world/wilds.js): solid where they're big, their marks into the
+  // decal map, drawn with the dress (volumes, the pylons' wires on the overlay)
+  if (W.chapter === 'point') { const wl = layoutWilds({ W, blocked, onStreet, slots, buildings, trees, care });
+    for (const i of wl) { const c = i.atom.collide; if (c) mark({ x: i.x, y: i.y, rot: i.ang, w: c.w, h: c.h }, 0); if (i.atom.paint) item('decal', 90000, i.x, i.y, 16, X => { X.globalCompositeOperation = 'lighter'; i.atom.paint(X, i); }); }
+    dress.volumes.push(...wl.filter(i => i.atom.volumes)); dress.strands.push(...wl.filter(i => i.atom.strands)); dress.wilds = wl; }
+  // [wilds] end
   // where on a street: for spawning the dead and parking the bike (a street cell, 1 m grid)
   const streetCells = []; for (let y = 4; y < W.h - 4; y += 2) for (let x = 4; x < W.w - 4; x += 2) if (onStreet(x, y, -0.6) && !blocked(x, y)) streetCells.push(x, y);
   return { wall, decks: W.decks || [], garageLot, gates, W, start, size, tiles, onStreet, gardens, blocked, streetCells, nests, buildings, trees, cars, care, slots, flags, dress, breakables,
