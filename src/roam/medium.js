@@ -384,12 +384,13 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
   // [m1] the machines: one family (a steel shell on six scuttling legs, a chip eye that burns red when it hunts), each kind
   // its own build. Crawler: low and plain. Skitter: small, rust, quick legs. Hound: long and lean, legs long, a dorsal
   // fin. Spitter: a dome with a barrel; its eye flares white-hot while it aims. Brute: big, dark armour plates, thick legs.
+  // [scale] the machines drawn ~25% bigger (Gabriel, Nov 2: they read better with the camera further out)
   const MLOOK = {
-    crawler: { S: 0.95, hz: 0.2, shell: [0.2, 0.14, 0.07], legL: 0.27, legR: 0.022, spine: 'rust' },
-    skitter: { S: 0.78, hz: 0.18, shell: [0.17, 0.11, 0.06], legL: 0.3, legR: 0.026, spine: 'rust', shellM: 'rust', quick: 2.4 },
-    hound: { S: 1.05, hz: 0.26, shell: [0.3, 0.1, 0.07], legL: 0.34, legR: 0.024, spine: 'dark', fin: true },
-    spitter: { S: 1.0, hz: 0.24, shell: [0.17, 0.17, 0.1], legL: 0.25, legR: 0.024, spine: 'paint', barrel: true },
-    brute: { S: 1.7, hz: 0.24, shell: [0.24, 0.17, 0.1], legL: 0.3, legR: 0.04, spine: 'dark', shellM: 'dark', plates: true, slow: 0.6 },
+    crawler: { S: 1.2, hz: 0.2, shell: [0.2, 0.14, 0.07], legL: 0.27, legR: 0.022, spine: 'rust' },
+    skitter: { S: 1.0, hz: 0.18, shell: [0.17, 0.11, 0.06], legL: 0.3, legR: 0.026, spine: 'rust', shellM: 'rust', quick: 2.4 },
+    hound: { S: 1.3, hz: 0.26, shell: [0.3, 0.1, 0.07], legL: 0.34, legR: 0.024, spine: 'dark', fin: true },
+    spitter: { S: 1.25, hz: 0.24, shell: [0.17, 0.17, 0.1], legL: 0.25, legR: 0.024, spine: 'paint', barrel: true },
+    brute: { S: 2.05, hz: 0.24, shell: [0.24, 0.17, 0.1], legL: 0.3, legR: 0.04, spine: 'dark', shellM: 'dark', plates: true, slow: 0.6 },
     walker: { S: 2.6, shell: [0.86, 0.3, 0.2], big: 3 },   // [m4] drawn by walkerVolumes; this places its eyes
   };
   function machineVolumes(d, t, awake, kind) {

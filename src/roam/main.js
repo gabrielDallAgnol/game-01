@@ -45,7 +45,7 @@ function start() {
   const glc = $('gl'), fxc = $('fx'), fx = fxc.getContext('2d'), look = createLook(glc, town);
   const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
   const lab = { freeze: false };
-  const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
+  const cam = { x: S.kai.x, y: S.kai.y, ppm: 16, base: 16 };   // [scale] further out by default: the fight needs room to read
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
   const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); const freeUi = createFreeUi({ sim, toast: ui.toast, input }); const bridgeUi = createBridgeUi({ sim, toast: ui.toast }); const objUi = createObjUi({ sim, toast: ui.toast }); const tidy = createHudTidy({ sim, fx }); const story = createStoryUi({ sim, ui, lab, cam, town }); const talk = createTalkUi({ sim, story }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input }); const garageUi = createGarageUi({ sim, ui, cam, lab }); createGarageHub({ sim, ui, lab, cam, garageUi, talk });   // [hub] the garage's open space   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
   const feel = createFeel({ S, input, town }), scars = createScars({ tiles: town.tiles, town });   // [m2] burnt and soaked ground   // [m1]

@@ -41,7 +41,7 @@ export const ROAM = {
     // [m4b] its defences: pods (podHp each) fire a volley every volleyEvery s within volleyR after podWindup; the tank (tankHp)
     // blows for tankBite of its core; in a fight it broods every spawnFight s up to broodFight; partSlop: how near a part a hit counts
     podHp: 30, tankHp: 16, volleyEvery: 3.2, volleyR: 34, podWindup: 0.7, boltSpeed: 9, boltDmg: 7, tankBite: 0.3, spawnFight: 3, broodFight: 14, partSlop: 1.2 },
-  body: { walker: 6, crawler: 0.75, skitter: 0.6, hound: 0.8, spitter: 0.75, brute: 1.25 },
+  body: { walker: 6, crawler: 0.92, skitter: 0.73, hound: 0.98, spitter: 0.92, brute: 1.52 },
   // the machines (code id `dead` kept from the Roam prototype; caps 42/75 > 24/46 after Gabriel's playtest: too crowded): the crawler is M1's one machine
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)
     bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [24, 46], alarm: 14, catchUp: 1.2, near: 70, far: 110 },
