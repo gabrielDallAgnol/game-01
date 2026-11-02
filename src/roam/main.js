@@ -43,7 +43,7 @@ function start() {
   const lab = { freeze: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
-  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); const freeUi = createFreeUi({ sim, toast: ui.toast, input }); const bridgeUi = createBridgeUi({ sim, toast: ui.toast }); const objUi = createObjUi({ sim }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input }); const garageUi = createGarageUi({ sim, ui, cam, lab });   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
+  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); const freeUi = createFreeUi({ sim, toast: ui.toast, input }); const bridgeUi = createBridgeUi({ sim, toast: ui.toast }); const objUi = createObjUi({ sim, toast: ui.toast }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input }); const garageUi = createGarageUi({ sim, ui, cam, lab });   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
   const feel = createFeel({ S, input, town }), scars = createScars({ tiles: town.tiles, town });   // [m2] burnt and soaked ground   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;

@@ -8,7 +8,8 @@ import { MOD_NAME } from '../../play/recipes.js';
 export function createElites(G) {
   const { R, S, ev, town } = G, E = R.elites, rng = new Rng(hashSeed(G.seed, 'elites'));
   let did = 900000;   // drop ids of their own (never meet loot's)
-  (G.onSpawn ||= []).push(d => { if (d.boss) return; const lv = G.levelAt ? G.levelAt(d.x, d.y) : 1, p = (E.chance + E.perLevel * (lv - 1)) * (S.night ? E.night : 1);
+  // [missions] elites carry mods: none until the chapter opens them (S.modsLocked)
+  (G.onSpawn ||= []).push(d => { if (d.boss || S.modsLocked) return; const lv = G.levelAt ? G.levelAt(d.x, d.y) : 1, p = (E.chance + E.perLevel * (lv - 1)) * (S.night ? E.night : 1);
     if (!rng.chance(p)) return; const id = ELITE_IDS[rng.int(ELITE_IDS.length)], X = ELITES[id];
     d.elite = id; d.hp *= E.hp; d.maxHp *= E.hp; if (X.spd) d.spd = X.spd; if (X.dmgMult) d.dmgMult = X.dmgMult; if (X.twin) d.twin = true; if (X.glance) d.glance = X.glance; d.trailT = 0; });
   (G.onDie ||= []).push(d => { if (!d.elite) return; const X = ELITES[d.elite];

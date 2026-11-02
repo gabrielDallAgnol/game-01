@@ -50,9 +50,9 @@ export const recipeName = id => (RECIPES[id] ? RECIPES[id].name : id) + ' recipe
 export const dupeChips = r => ({ common: 1, tuned: 1, rare: 2, epic: 3 })[r.rarity];
 // a recipe drop: a rarity by the machine's weights, then any recipe of that rarity (not the starting ones). If none has
 // that rarity the next rarer one down is used
-export function rollRecipe(rng, weights) {
+export function rollRecipe(rng, weights, keep = null) {
   let rarity = rollRarity(rng, weights);
-  for (let i = RARITIES.indexOf(rarity); i >= 0; i--) { const pool = LIST.filter(r => r.rarity === RARITIES[i] && !STARTING.includes(r.id)); if (pool.length) return pool[Math.floor(rng.range(0, pool.length)) % pool.length].id; }
+  for (let i = RARITIES.indexOf(rarity); i >= 0; i--) { const pool = LIST.filter(r => r.rarity === RARITIES[i] && !STARTING.includes(r.id) && (!keep || keep(r))); if (pool.length) return pool[Math.floor(rng.range(0, pool.length)) % pool.length].id; }
   return LIST[0].id;
 }
 export { RARITY };

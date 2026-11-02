@@ -19,7 +19,7 @@ export function createLoot(G) {
   function dropRecipe(x, y, r) { const [px, py] = spot(x, y, 1.2), rr = RECIPES[r]; const d = { id: did++, kind: 'recipe', r, x: px, y: py, w: { rarity: rr.rarity }, name: rr.name, scanned: RARITY[rr.rarity].scanned, t: S.t }; S.drops.push(d); ev('drop', { id: d.id, x: px, y: py, rarity: rr.rarity }); return d; }
   function roll(table, x, y) { const D = DROPS[table]; if (!D) return; dropScrap(x, y, Math.floor(rng.range(D.scrap[0], D.scrap[1] + 1)));
     if (D.chips) { S.chips += D.chips; ev('chips', { n: D.chips, x, y }); }
-    if (rng.chance(D.recipe)) dropRecipe(x, y, rollRecipe(rng, D.rarity)); }
+    if (!S.recipesLocked && rng.chance(D.recipe)) dropRecipe(x, y, rollRecipe(rng, D.rarity, S.modsLocked ? r => r.kind !== 'mod' : null)); }   // [missions] none until Kai's bench is open; no mods until late
   // [point] a machine's own chip: it comes through whole only sometimes, and burns with it if it died burning
   function rollChip(d) { const D = DROPS[d.kind]; if (!D || !D.chip) return; const burnt = (d.pips || []).some(p => p.el === 'fire') || !!(d.st && d.st.blaze);
     if (rng.chance(D.chip * (burnt ? chipBurnt : 1))) { S.chips += 1; ev('chips', { n: 1, x: d.x, y: d.y }); } else if (burnt && rng.chance(0.25)) ev('chipBurnt', { x: d.x, y: d.y }); }

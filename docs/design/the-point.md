@@ -65,15 +65,23 @@ cannot cross water (it shorts them out), and neither can you, except over a brid
 | Also on it | The point lane (town → garage), Lume Farm, Cut Farm, the pump works, two woods, fields. |
 | Beyond the water | Fields, woods and the road on to the edge (the first town comes later). Machines walk there; you see them across the water. |
 
-### The tutorial chain (to build)
+### Chapter 1, a chain of missions [built, Nov 2]
 
-1. Wake at the Point (home, in colour). The robot and Kai; the first garage.
-2. Ride out: the grey begins at the edge of the Point. Small machines; scrap and the first chips.
-3. Wendbridge: meet the people; small missions earn their trust (and the first recipe from a mission, per the incremental
-   start in the plan).
-4. Kai builds the first freeing chip (chips + scrap).
-5. Wend Bridge: clear the boss's guards, free the boss. It starts filtering; the colour sweeps over the peninsula.
-6. With the boss free and the town on your side, mend Wend Bridge. The world opens toward the first town.
+Gabriel (Nov 2): build it up step by step, each step connected to the one before. Data: `src/play/missions.js`; rules:
+`src/roam/sim/missions.js`. The line under the area shows the step on now; the giver's words come as toasts.
+
+| # | Mission | What you do | What it causes |
+|---|---|---|---|
+| 1 | Scrap for the bench | Bring Kai 30 scrap (bank it at the Point) | Kai can open a chip; **recipes start to drop** (none before: she can't read them yet) |
+| 2 | The welder | Ride to Tomas's door in Wendbridge (a lamp swinging); clear the 6 machines at it before they break in (60 s, or they come back) | Tomas trusts the robot: he gives the **launcher recipe** and welds **a turret** at the garage lot's corner |
+| 3 | The loud chip | Kai's test chip screams: hold the Point for 60 s, near the garage but out of the safe lot, while waves come (the turret helps) | It works but leaks: Kai needs a **shield coil** |
+| 4 | The pump works | Take the coil from the big shed (a brute and four others guard it) and bank it at the Point; going down drops it where you fell | Kai **learns the freeing chip** |
+| 5 | The freeing chip | Six chips (burnt ones are lost) and 40 scrap at the garage | You carry the chip |
+| 6 | The big one | Free the boss in Wend Bridge | The colour comes back; it climbs out of the gap |
+| 7 | Wend Bridge | Carry 60 scrap to its end, guard the workers | The road opens, and **mods open** (elites and mod recipes appear only now) |
+
+Also (Gabriel, Nov 2): **mods come late** (no elites, no mod recipes during chapter 1, so you never hold mods with no
+socket to use them in); **the starting gear is not in BUILD** (you own it already).
 
 Later, each **season** (chapter) is one ring of the map with its own type of machine: beating that type unlocks its
 body (the evolution), and a season ends with the colour reaching a new landmark. Areas further in are more destroyed,

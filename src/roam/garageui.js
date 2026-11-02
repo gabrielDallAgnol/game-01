@@ -9,7 +9,7 @@
 // [m6e] GARAGE has the bike ride itself into the bay in front of the doors (always the same angle, like Need for Speed:
 // Most Wanted's garage); the panel opens once it's parked, and closing it rides the bike back out.
 // The game pauses while it's open. Writes nothing but the API calls.
-import { RECIPES, MOD_NAME, costOf } from '../play/recipes.js';
+import { STARTING, RECIPES, MOD_NAME, costOf } from '../play/recipes.js';
 import { RARITY } from '../play/loot.js';
 import { MODIFIERS } from '../play/modifiers.js';
 import { PARTS } from '../play/parts/bike.js';
@@ -51,7 +51,7 @@ export function createGarageUi({ sim, ui, cam, lab }) {
     h += `<div class="md note">Upgrading makes ${sel === 'tyres' ? 'these tyres' : 'this ' + what} better, not the bike. Swap ${sel === 'tyres' ? 'them' : 'it'} and the level goes with ${sel === 'tyres' ? 'them' : 'it'}.${it.level >= cap ? ' At the cap: clean more areas to raise it.' : ''}</div></div>`;
     return h; }
   function buildTab() { let h = '';
-    for (const [title, f] of GROUPS) { const rs = S.known.map(id => RECIPES[id]).filter(r => r && f(r)); if (!rs.length) continue; h += `<h3>${title}</h3>`;
+    for (const [title, f] of GROUPS) { const rs = S.known.filter(id => !STARTING.includes(id)).map(id => RECIPES[id]).filter(r => r && f(r));   // the gear you started with is yours already: not in BUILD if (!rs.length) continue; h += `<h3>${title}</h3>`;
       for (const r of rs) { const c = costOf(r), have = r.kind === 'mod' ? S.mods[r.mod] || 0 : r.kind === 'key' ? (S.keys || {})[r.key] || 0 : 0;
         h += `<div class="it row" style="border-color:${col(r.rarity)}55"><div><div class="nm" style="color:${col(r.rarity)}">${esc(r.name)}${have ? ' <span class="md">×' + have + '</span>' : ''}</div><div class="md">${esc(r.kind === 'weapon' ? weaponLine(r) : r.desc)}</div></div><button class="eq" data-build="${r.id}" ${can(c) ? '' : 'disabled'}>BUILD ${cost(c)}</button></div>`; } }
     return h + `<p class="md">${S.known.length} recipes known. Find more on machines; bank them to learn them.</p>`; }

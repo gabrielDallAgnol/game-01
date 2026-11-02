@@ -18,9 +18,10 @@ import { createGarage } from './sim/garage.js';
 import { createElites } from './sim/elites.js';
 import { createFreeing } from './sim/freeing.js';
 import { createBridges } from './sim/bridges.js';
+import { createMissions } from './sim/missions.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas, createRisk, createGarage, createElites, createFreeing, createBridges];
+const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas, createRisk, createGarage, createElites, createFreeing, createBridges, createMissions];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
@@ -79,6 +80,8 @@ export const ROAM = {
   // it; a miss costs one and locks the link for lock s. Freed, it walks to its post at guardSpeed m/s
   // [point] mending a broken bridge (sim/bridges.js): scrap carried to its end, the work's time (s), how near Kai must stay
   bridges: { scrap: 60, time: 14, reach: 9, near: 22 },
+  // [missions] a defender's turret (sim/missions.js): reach (m), a shot every turretEvery s, its damage
+  missions: { turretR: 18, turretEvery: 0.55, turretDmg: 2.2 },
   free: { floor: 0.15, linkR: 12, body: 6, pulse: 1.3, window: 0.36, need: 5, lock: 0.6, guardSpeed: 2.4 },
 };
 
@@ -101,7 +104,7 @@ export function createRoam(town, seed = 1) {
     if (S.garageRun) inp = { view: inp.view, x: 0, y: 0 };   // [m6e] the bike rides itself in and out of the garage: no control meanwhile
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp); G.stepGarage(dt); G.stepElites(dt); G.stepFreeing(dt, inp); G.stepBridges(dt);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp); G.stepGarage(dt); G.stepElites(dt); G.stepFreeing(dt, inp); G.stepBridges(dt); G.stepMissions(dt);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();

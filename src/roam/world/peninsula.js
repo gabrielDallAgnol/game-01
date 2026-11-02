@@ -161,7 +161,13 @@ export function buildPeninsula(seed = 7) {
   if (home) { const poly = obbPoly({ ...home.box, w: home.box.w + 70, h: home.box.h + 60 }); fillPoly(district('point', 'home', 'the Point', poly, P(home.x, home.y)), poly); D[D.length - 1].home = true; }
   W.districts = D;
   W.districtAt = (x, y) => { const i = Math.floor(x / G), j = Math.floor(y / G); if (i < 0 || j < 0 || i >= claim.nx || j >= claim.ny) return country; return D[dmap[j * claim.nx + i] - 1] || country; };
-  W.world = { ...POINT, roads: byName, claim, home, farms, works, trees: trees.length, fields: fields.length };
+  // [missions] where chapter 1's people and things are (src/play/missions.js): Tomas the welder at the town's first door
+  // off the point lane; the shield coil inside the pump works' big shed, by its door
+  const doorOf = p => p.door || { x: p.x, y: p.y + p.h / 2 + 1.5 };
+  const vh = W.placed.filter(p => p.district === 'village' && p.def.kind === 'building' && p.door).sort((a, b) => Math.hypot(a.door.x - vW.x, a.door.y - vW.y) - Math.hypot(b.door.x - vW.x, b.door.y - vW.y))[0];
+  const wb = works && works.buildings.length ? works.buildings.slice().sort((a, q) => q.w * q.h - a.w * a.h)[0] : null;
+  W.chapter = 'point';
+  W.world = { ...POINT, roads: byName, claim, home, farms, works, trees: trees.length, fields: fields.length, tomas: vh ? { ...doorOf(vh), uid: vh.uid } : null, coil: wb ? doorOf(wb) : null };
   W.nav = null; W.occ = null;
   return W;
 }

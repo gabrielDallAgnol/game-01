@@ -21,7 +21,7 @@ test('home is clean, the peninsula is one area held by one walker wedged in the 
 });
 test('the boss in the bridge can only be freed: shot down it lies open; a chip and five taps in time free it, its brood powers down, the area is clean', () => {
   const sim = createRoam(town, 2), S = sim.state, d = S.dead.find(q => q.boss), F = 1.3;
-  assert.ok(S.known.includes('link_chip'));
+  assert.ok(!S.known.includes('link_chip'), 'the chapter teaches it later'); S.known.push('link_chip');
   d.plates = 0; d.hp = 1; S.kai.x = S.bike.x = d.x - 14; S.kai.y = S.bike.y = d.y; S.kai.riding = true;
   for (let i = 0; i < 30 * 60 && !d.weak; i++) { S.kai.hp = 1e6; sim.step({ x: 0, y: 0, fire: true }); }
   assert.ok(d.weak && S.dead.includes(d) && d.hp > 0, 'it lies open, not destroyed');
@@ -44,5 +44,17 @@ test('Wend Bridge: shut while the boss is wedged in it; once it is free, 60 carr
 test('the chain has no gaps: banked chips build a freeing chip at the Point\'s garage', () => {
   const sim = createRoam(town, 4), S = sim.state, q = S.sites.find(o => o.bay);
   assert.ok(q, 'the Point has its garage'); S.kai.x = S.bike.x = q.x; S.kai.y = S.bike.y = q.y;
-  S.bank.chips = 6; S.bank.scrap = 40; assert.ok(sim.build('link_chip')); assert.strictEqual(S.keys.link, 1); assert.strictEqual(S.bank.chips, 0);
+  S.known.push('link_chip'); S.bank.chips = 6; S.bank.scrap = 40; assert.ok(sim.build('link_chip')); assert.strictEqual(S.keys.link, 1); assert.strictEqual(S.bank.chips, 0);
+});
+test('chapter 1 is a chain: scrap opens the bench, Tomas saved gives a turret, the loud test holds, the coil teaches the freeing chip', () => {
+  const sim = createRoam(town, 6), S = sim.state, P = W.world, step = n => { for (let i = 0; i < n; i++) { S.kai.hp = 1e6; sim.step({ x: 0, y: 0, fire: true }); } };
+  assert.strictEqual(S.mission.id, 'scrap'); assert.ok(S.recipesLocked && S.modsLocked);
+  S.bank.scrap = 30; step(1); assert.strictEqual(S.mission.id, 'tomas'); assert.ok(!S.recipesLocked); assert.strictEqual(S.bank.scrap, 0);
+  S.kai.x = S.bike.x = P.tomas.x; S.kai.y = S.bike.y = P.tomas.y; S.kai.riding = true; step(1);
+  for (const d of S.dead.slice()) if (d.mission === 'tomas') { sim.state.dead.splice(S.dead.indexOf(d), 1); } step(2);
+  assert.strictEqual(S.mission.id, 'test'); assert.strictEqual(S.turrets.length, 1); assert.ok(S.known.includes('launcher'));
+  const q = S.sites.find(o => o.bay), L = town.garageLot.box; S.kai.x = S.bike.x = L.x + Math.cos(L.rot) * (L.hu + 8); S.kai.y = S.bike.y = L.y + Math.sin(L.rot) * (L.hu + 8);
+  step(30 * 62); assert.strictEqual(S.mission.id, 'coil', 'held the Point');
+  S.kai.x = S.bike.x = P.coil.x; S.kai.y = S.bike.y = P.coil.y; step(2); assert.ok(S.carryItems.includes('coil'));
+  S.kai.x = S.bike.x = q.x; S.kai.y = S.bike.y = q.y; step(2); assert.strictEqual(S.mission.id, 'chip'); assert.ok(S.known.includes('link_chip'));
 });
