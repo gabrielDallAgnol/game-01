@@ -16,7 +16,7 @@ import { landLook } from './world/land.js';
 import { riskVolumes, riskDraw } from './riskview.js';
 import { bikeLook } from './bikelook.js';
 import { bikeLookLab } from './bikelook-lab.js';
-import { drawElites } from './elitesview.js';
+import { drawElites, drawCharges } from './elitesview.js';
 import { dressVolumes, dressDraw } from './sitedress.js';
 import { drawGarageSel } from './garageview.js';
 import { drawFreeing } from './freeview.js';
@@ -643,7 +643,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
         fx.globalAlpha = 1; fx.fillStyle = d.scanned ? RARITY[d.w.rarity].color : '#e8e4da'; fx.fillText(label, x, y + 0.5); }
       fx.restore(); fx.globalAlpha = 1; }
     // [m5] the banks' lamps and the cache's light (riskview.js); [m6b] the elites' names
-    riskDraw(fx, v); dressDraw(fx, v); drawElites(fx, v); drawFreeing(fx, v); drawAsh(fx, v); drawMissions(fx, v); drawGarageSel(fx, v, FIGM);
+    riskDraw(fx, v); dressDraw(fx, v); drawCharges(fx, v); drawElites(fx, v); drawFreeing(fx, v); drawAsh(fx, v); drawMissions(fx, v); drawGarageSel(fx, v, FIGM);
     if (far > 0.01) {
       const { nests = [], bike = null } = v, onS = (x, y) => x > -30 && y > -30 && x < cssW + 30 && y < cssH + 30;
       const plate = (x, y, r, ring, ch, col, px, a) => { fx.globalAlpha = a; fx.fillStyle = 'rgba(10,11,13,.86)'; fx.beginPath(); fx.arc(x, y, r, 0, 7); fx.fill(); fx.strokeStyle = ring; fx.lineWidth = 2; fx.stroke();

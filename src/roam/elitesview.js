@@ -11,3 +11,12 @@ export function drawElites(fx, v) {
     const f = Math.max(0, d.hp / d.maxHp); fx.fillStyle = '#ff3a2a'; fx.fillRect(x - w / 2, y + 7, w * f, 2); }
   fx.restore(); fx.globalAlpha = 1;
 }
+// [vehicle] a brute's charge, warned: while it winds up, a red stripe on the ground along its line (14 m, its width),
+// flashing faster as it's about to go; while it rams, a fading streak behind it. Render only: reads d.cw, d.ct, d.cx, d.cy.
+export function drawCharges(fx, v) { const { toS, cam, dead, t } = v, ppm = cam.ppm;
+  for (const d of dead) { if (!(d.cw > 0) && !(d.ct > 0)) continue; const [x0, y0] = toS(d.x, d.y), L = d.cw > 0 ? 14 : 3, [x1, y1] = toS(d.x + d.cx * L, d.y + d.cy * L), w = 1.7 * 2 * ppm;
+    fx.save(); fx.lineCap = 'round';
+    if (d.cw > 0) { const k = 1 - d.cw, flash = 0.35 + 0.35 * (Math.sin(t * (8 + k * 22)) * 0.5 + 0.5); fx.strokeStyle = `rgba(255,58,42,${flash * 0.55})`; fx.lineWidth = w; fx.beginPath(); fx.moveTo(x0, y0); fx.lineTo(x1, y1); fx.stroke();
+      fx.strokeStyle = `rgba(255,120,90,${flash})`; fx.lineWidth = 2; fx.setLineDash([6, 6]); fx.beginPath(); fx.moveTo(x0, y0); fx.lineTo(x1, y1); fx.stroke(); }
+    else { const [bx, by] = toS(d.x - d.cx * 4, d.y - d.cy * 4); fx.strokeStyle = 'rgba(255,90,60,.35)'; fx.lineWidth = w * 0.6; fx.beginPath(); fx.moveTo(bx, by); fx.lineTo(x0, y0); fx.stroke(); }
+    fx.restore(); } }

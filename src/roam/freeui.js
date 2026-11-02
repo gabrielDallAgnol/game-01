@@ -17,6 +17,8 @@ export function createFreeUi({ sim, toast, input }) {
       else if (e.type === 'linkMiss') toast('Out of time: the link slips.');
       else if (e.type === 'linkBreak') toast('The link broke. Your chip is safe: try again.');
       else if (e.type === 'freed') toast('It\'s free. It stops, and starts to clear the ash.', true);
+      else if (e.type === 'chargeAim') once('charge', 'A brute is lining up a charge: get off the red line!', true);
+      else if (e.type === 'chargeWall') once('wall', 'It hit the wall: it\'s dazed for a moment.');
       else if (e.type === 'chipBurnt') once('burnt', 'Its chip burnt with it: machines killed burning keep no chip.');
       else if (e.type === 'guardPost') once('post', 'It climbed out of the bridge. Now Wend Bridge can be mended.', true); }
     const show = !!S.link || sim.canLink(); if (btn.hidden === show) btn.hidden = !show;

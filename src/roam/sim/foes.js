@@ -22,8 +22,8 @@ export function createFoes(G) {
   // they appear out of sight: past the edge of what the player sees (G.view, the screen's half-diagonal in metres, set by
   // the UI from the zoom), never closer than 24 m; the ring and the forgetting distance grow with the view
   function populate() {
-    // [point] with a chapter, the machines thin out toward home: a quarter as many by the Point, the full count from about 650 m out (a curve, not a crowd at the start)
-    const k = S.kai, cap0 = R.dead.cap[S.night ? 1 : 0], cap = town.W.chapter === 'point' ? Math.round(cap0 * Math.max(0.2, Math.min(1, 0.2 + (Math.hypot(k.x - town.start.x, k.y - town.start.y) - 120) / 530))) : cap0, r0 = Math.max(24, G.view + 8), r1 = Math.max(R.dead.near, r0 + 40), far = Math.max(R.dead.far, r1 + 40);
+    // [point] with a chapter, the machines thin out toward home: a fifth as many by the Point, 85% from about 600 m out (they hunt a vehicle now: fewer, smarter) (a curve, not a crowd at the start)
+    const k = S.kai, cap0 = R.dead.cap[S.night ? 1 : 0], cap = town.W.chapter === 'point' ? Math.round(cap0 * Math.max(0.2, Math.min(0.85, 0.2 + (Math.hypot(k.x - town.start.x, k.y - town.start.y) - 120) / 530))) : cap0, r0 = Math.max(24, G.view + 8), r1 = Math.max(R.dead.near, r0 + 40), far = Math.max(R.dead.far, r1 + 40);
     let near = 0; for (const d of S.dead) if (dist(d, k) < r1) near++;
     for (let tries = 0; near < cap && tries < 6; tries++) { const p = streetNear(k.x, k.y, r0, r1); if (!p) break; if ((G.isClean && G.isClean(p.x, p.y)) || (G.isSafe && G.isSafe(p.x, p.y))) continue;   // [m4] clean stays clean; [m6d] nothing is born on the garage's lot
       const kind = kindRoll(), K = R.dead[kind], pack = K.pack ? K.pack[0] + rng.int(K.pack[1] - K.pack[0] + 1) : 0;   // skitters come in packs
@@ -47,7 +47,7 @@ export function createFoes(G) {
       if (d.state === 'sleep') { if (!k.dead && !kaiSafe && r < (k.riding ? 9 : 5)) d.state = 'chase'; else { d.vx *= 0.8; d.vy *= 0.8; continue; } }
       if (seesKai) d.state = 'chase'; else if (d.state === 'chase' && (r > forget || k.dead || kaiSafe)) { d.state = 'wander'; d.wx = d.x; d.wy = d.y; }
       let gx, gy, sp = K.speed * (d.spd || 1) * (S.night ? R.dead.nightSpeed : 1) * (1 - Math.max((d.pips || []).filter(p => p.el === 'water').length * PIPS.water.slow, st.soaked ? STATUSES.soaked.slow : 0, G.onWet && G.onWet(d) ? PIPS.water.slow * 2 : 0));   // [m2] water pips and soaked slow it
-      if (d.state === 'chase' && !k.dead) { gx = k.x; gy = k.y; }
+      if (d.state === 'chase' && !k.dead) { gx = k.x; gy = k.y; if (K.lead && k.riding && r > 6) { const lt = Math.min(K.lead * 2, r / Math.max(1, K.speed) * K.lead); gx += k.vx * lt; gy += k.vy * lt; } }   // [vehicle] a hound runs to where you'll be
       else { if (Math.hypot(d.wx - d.x, d.wy - d.y) < 1 || rng.chance(dt * 0.1)) {   // they drift: toward where they last heard Kai, more at night
           const toKai = !k.dead && r < 55 && rng.chance(S.night ? 0.75 : 0.45), a = toKai ? Math.atan2(k.y - d.y, k.x - d.x) + rng.range(-0.6, 0.6) : rng.range(0, 6.28), rr = rng.range(4, 12); d.wx = d.x + Math.cos(a) * rr; d.wy = d.y + Math.sin(a) * rr; }
         gx = d.wx; gy = d.wy; sp *= S.night ? 0.6 : 0.4; }
@@ -67,14 +67,26 @@ export function createFoes(G) {
           d.lungeCd -= dt;
           if (d.lunge > 0) { d.lunge -= dt; sp = K.lunge.speed; }
           else if (d.lungeCd <= 0 && r < K.lunge.range && r > reach) { d.lunge = K.lunge.time; d.lungeCd = K.lunge.cd; ev('lunge', { id: d.id }); } }
-        if (chasing && r < reach && !fast) { vx = 0; vy = 0;   // in reach: wind up, then bite (a dash gets out of it)
+        // [vehicle] the brute's charge: it stops and marks a line (cw: the wind-up, the line flashes), then rams along it (ct);
+        // a turn takes you off the line; it hits you once; a wall stops it dazed (stun)
+        let busy = false;
+        if (ai === 'brute' && chasing) { const C = K.charge; d.chargeCd = (d.chargeCd ?? C.cd * 0.5) - dt;
+          if (d.cw > 0) { busy = true; d.cw -= dt; vx = 0; vy = 0; d.fa = Math.atan2(d.cy, d.cx); if (d.cw <= 0) { d.ct = C.time; ev('charge', { id: d.id, x: d.x, y: d.y }); } }
+          else if (d.ct > 0) { busy = true; d.ct -= dt; sp = C.speed; vx = d.cx; vy = d.cy;
+            if (!d.chit && dist(d, k) < C.width + 0.6) { d.chit = true; G.hurtKai(K.dmg * C.dmgMult * (d.dmgMult || 1)); if (k.riding) S.bike.speed *= 0.3; k.vx += d.cx * 6; k.vy += d.cy * 6; ev('chargeHit', { id: d.id, x: k.x, y: k.y }); }
+            if (blocked(d.x + d.cx * 1.6, d.y + d.cy * 1.6)) { d.ct = 0; d.stun = C.stun; ev('chargeWall', { id: d.id, x: d.x, y: d.y }); } }
+          else if (d.stun > 0) { busy = true; d.stun -= dt; vx = 0; vy = 0; }
+          else if (d.chargeCd <= 0 && r > C.range[0] && r < C.range[1]) { const lt = Math.min(C.lead, r / C.speed), tx = k.x + k.vx * lt, ty = k.y + k.vy * lt, L = Math.hypot(tx - d.x, ty - d.y) || 1;
+            d.cx = (tx - d.x) / L; d.cy = (ty - d.y) / L; d.cw = C.wind; d.chargeCd = C.cd; d.chit = false; busy = true; vx = 0; vy = 0; ev('chargeAim', { id: d.id }); } }
+        if (busy) {}
+        else if (chasing && r < reach && !fast) { vx = 0; vy = 0;   // in reach: wind up, then bite (a dash gets out of it)
           if (d.wind <= 0 && d.bite <= 0) d.wind = K.windup || R.dead.windup;
           if (d.wind > 0) { d.wind -= dt; if (d.wind <= 0) { d.bite = R.dead.bite; if (dist(d, k) < reach + 0.4) G.hurtKai(K.dmg * (d.dmgMult || 1)); } } }
         else [vx, vy] = steer(d, dx, dy);
       }
       d.bite = Math.max(0, d.bite - dt);
       for (const o of S.dead) { if (o === d) continue; const ex = d.x - o.x, ey = d.y - o.y, e = ex * ex + ey * ey; if (e < 0.8 && e > 1e-6) { vx += ex / e * 0.25; vy += ey / e * 0.25; } }
-      const grip = d.lunge > 0 ? 10 : 4; d.vx += (vx * sp - d.vx) * Math.min(1, dt * grip); d.vy += (vy * sp - d.vy) * Math.min(1, dt * grip);
+      const grip = d.lunge > 0 || d.ct > 0 ? 10 : 4; d.vx += (vx * sp - d.vx) * Math.min(1, dt * grip); d.vy += (vy * sp - d.vy) * Math.min(1, dt * grip);
       const mx = d.x + d.vx * dt, my = d.y + d.vy * dt; if (!blocked(mx, d.y)) d.x = mx; if (!blocked(d.x, my)) d.y = my;
       d.ph += dt * sp * 5; if (d.aim > 0) {} else if (Math.hypot(d.vx, d.vy) > 0.15) d.fa = Math.atan2(d.vy, d.vx); else if (d.state === 'chase') d.fa = Math.atan2(k.y - d.y, k.x - d.x);
     }
