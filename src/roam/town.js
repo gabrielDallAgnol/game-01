@@ -75,6 +75,10 @@ export function buildTown(seed = 7, o = {}) {
   const mark = (p, pad) => { const r = Math.hypot(p.w, p.h) / 2 + pad + 0.5, gx0 = Math.max(0, Math.floor((p.x - r) * GR)), gx1 = Math.min(GW - 1, Math.ceil((p.x + r) * GR)), gy0 = Math.max(0, Math.floor((p.y - r) * GR)), gy1 = Math.min(GH - 1, Math.ceil((p.y + r) * GR));
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) if (pointInObb(p, (gx + 0.5) / GR, (gy + 0.5) / GR, pad)) solid.set(gx, gy, 1); };
   for (const p of buildings) if (p.def.collide !== 'none') mark(p, 0.15);
+  // [point] the wrecks along the lanes are solid (Gabriel, Nov 2: "some cars have no hit box"): a 4.2 x 2 m box at a
+  // fixed angle (the sim keeps it where it lies: w.solid); one already on a wall is left for the sim to move
+  for (const w of (W.world && W.world.wrecks) || []) { const gx = Math.floor(w.x * GR), gy = Math.floor(w.y * GR); if (solid.get(gx, gy) === 1) continue;
+    w.ang = ((w.x * 12.9898 + w.y * 78.233) % 6.283 + 6.283) % 6.283; w.solid = true; mark({ x: w.x, y: w.y, rot: w.ang, w: 4.0, h: 1.8 }, 0); }
   // the lake and the ponds are walls too, a metre in from the shore (the reeds and the mud stay walkable); the brook is crossed by the roads' bridges
   // [point] begin: a river given as lines (its centre and half-width) is walled along them, a metre in from each bank; a
   // bridge's deck over it is cleared again, all but a broken deck's gap

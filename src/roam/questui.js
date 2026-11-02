@@ -6,7 +6,7 @@
 import { QUEST } from '../play/missions.js';
 const nm = g => g[0] + g.slice(1).toLowerCase();
 const worth = r => [r.scrap && `+${r.scrap} ⚙`, r.chips && `+${r.chips} ◆`, r.repair && 'a repair spot at her door', r.turretDmg && 'your turrets bite harder', r.clean && 'colour back'].filter(Boolean).join(' · ');
-export function createQuestUi({ sim, fx, story }) {
+export function createQuestUi({ sim, fx, story, talk: kaiTalk, ui }) {
   const S = sim.state, css = document.createElement('style');
   css.textContent = `#qTalk{position:fixed;left:50%;transform:translate(-50%,20px);opacity:0;bottom:calc(160px + env(safe-area-inset-bottom,0px));z-index:57;padding:11px 18px;border-radius:24px;border:1px solid #f0b44c;background:rgba(10,9,6,.92);color:#ffd36a;font:700 13px ui-monospace,monospace;letter-spacing:.1em;transition:opacity .25s,transform .25s;pointer-events:none}
 #qTalk.on{opacity:1;transform:translate(-50%,0);pointer-events:auto;animation:qT 1.6s ease-in-out infinite}@keyframes qT{50%{box-shadow:0 0 18px #f0b44c66}}
@@ -29,14 +29,19 @@ body.scene #qTalk,body.hub #qTalk{display:none}`;
     if (heard.has(id)) { ask(id); return; } heard.add(id);
     const said = [[g, st.start.replace(/^[A-Z]{3,}:\s*/, '')]]; if (st.ask) said.push([g, st.ask]);
     story.say(said, () => { if ((S.quests.offers || []).includes(id)) ask(id); }); }
-  talk.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (near) converse(near); });
+  // [kai] Kai by her doors: talk to her from outside too (Gabriel, Nov 2: "hard to talk to her unless you go in")
+  let kai = false;
+  talk.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (near) converse(near);
+    else if (kai && kaiTalk) { talk.classList.remove('on'); ui.paused = true; kaiTalk.open(() => { ui.paused = false; }); } });
   function update(dt = 1 / 60) { const offers = (S.quests && S.quests.offers) || []; let pick = null, pd = 1e9;
     for (const id of offers) { const at = sim.giverAt(QUEST[id].giver); if (!at) continue; const d = Math.hypot(at.x - S.bike.x, at.y - S.bike.y);
       if (d > 16) later.delete(id); if (d < 11 && !later.has(id) && d < pd) { pick = id; pd = d; } }
     if (story.busy || document.body.classList.contains('hub')) pick = null;
     if (asking && (!offers.includes(asking) || (pick !== asking && !story.busy))) hideCard();
     if (pick !== near) { near = pick; still = 0; if (pick) talk.textContent = `💬 TALK · ${QUEST[pick].giver}`; }
-    talk.classList.toggle('on', !!near && !asking);
+    const k0 = kai; kai = !near && !story.busy && !document.body.classList.contains('hub') && !(kaiTalk && kaiTalk.isOpen) && story.kaiNear(9) && Math.abs(S.bike.speed) < 6;
+    if (kai && !k0) talk.textContent = '💬 TALK · KAI';
+    talk.classList.toggle('on', (!!near || kai) && !asking);
     // stopping beside them is talking too
     if (near && !asking) { still = Math.abs(S.bike.speed) < 1.2 && pd < 7 ? still + dt : 0; if (still > 0.7 && !heard.has(near)) converse(near); } }
   // the "!" and "?" over people, and "?" at the edge while they're off screen

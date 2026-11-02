@@ -25,7 +25,7 @@ export function createMissions(G) {
   const ring = (x, y, r0, r1) => { for (let t = 0; t < 12; t++) { const a = rng.range(0, 6.283), r = rng.range(r0, r1), px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (!town.blocked(px, py)) return [px, py]; } return [x + r0, y]; };
   const spawnAt = (kind, x, y, tag, state = 'wander', siege) => G.spawn(kind, x, y, siege ? { state, mission: tag, nest: -1, siege } : { state, mission: tag, nest: -1 });   // nest: kept when far (populate thins the rest)
   // the wrecks to salvage, and the little packs asleep out in the fields (the open ground isn't empty)
-  for (const w of P.wrecks || []) { const [x, y] = town.blocked(w.x, w.y) ? ring(w.x, w.y, 2, 8) : [w.x, w.y]; S.wrecks.push({ x, y, done: false, prog: 0, a: rng.range(0, 6.28) }); }
+  for (const w of P.wrecks || []) { const [x, y] = !w.solid && town.blocked(w.x, w.y) ? ring(w.x, w.y, 2, 8) : [w.x, w.y], a = rng.range(0, 6.28); S.wrecks.push({ x, y, done: false, prog: 0, a: w.solid ? w.ang : a }); }
   for (const p of P.packs || []) for (let i = 0; i < 3; i++) { const [x, y] = ring(p.x, p.y, 1, 6); spawnAt(i === 2 && rng.chance(0.4) ? 'hound' : 'crawler', x, y, 'pack', 'sleep'); }
   const has = id => S.quests.done.includes(id), on = id => S.quests.active.find(q => q.id === id);
   const ready = st => st.after.every(has) && !has(st.id) && !on(st.id);
