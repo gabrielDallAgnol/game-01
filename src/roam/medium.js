@@ -374,7 +374,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     else for (const s of [-1, 1]) { const [x0, y0] = P(-0.02, s * 0.09), [x1, y1] = P(-0.02 + stride * s, s * 0.1); capsule(x0, y0, 0.75 * S, x1, y1, 0.12 * S, 0.075 * S, M.pants); }
     { const [x, y] = P(-0.01, 0); box(x, y, 1.02 * S, 0.13 * S, 0.22 * S, 0.29 * S, 0.11 * S, a, M.suit); }
     { const [x, y] = P(0.02, 0); box(x, y, 1.04 * S, 0.032 * S, 0.215 * S, 0.29 * S, 0.02 * S, a, M.hivis); }
-    for (const s of [-1, 1]) { const [x0, y0] = P(0.03, s * 0.21), [x1, y1] = P(0.17, s * 0.25); capsule(x0, y0, 1.24 * S, x1, y1, 1.0 * S, 0.068 * S, M.suit); }
+    for (const s of [-1, 1]) { const up = k.wave && s > 0, [x0, y0] = P(0.03, s * 0.21), [x1, y1] = P(up ? 0.08 : 0.17, s * (up ? 0.33 : 0.25)); capsule(x0, y0, 1.24 * S, x1, y1, (up ? 1.75 + 0.1 * Math.sin(t * 9) : 1.0) * S, 0.068 * S, M.suit); }   // [story] the right arm up and waving
     const sw = k.swing > 0 ? k.swing / 0.2 : 0, wa = a - 0.7 + (1 - (1 - sw) * (1 - sw)) * 2.2, [hx, hy] = P(0.17, 0.25), ex = hx + Math.cos(wa) * 0.82 * S, ey = hy + Math.sin(wa) * 0.82 * S;
     capsule(hx, hy, 1.04 * S, ex, ey, 1.12 * S, 0.05 * S, M.steel); for (const j of [-1, 1]) { const ja = wa + j * 0.55; sphere(ex + Math.cos(ja) * 0.09 * S, ey + Math.sin(ja) * 0.09 * S, 1.12 * S, 0.065 * S, M.steel); }   // the jaw: two prongs
     { const [x, y] = P(0.03, 0); sphere(x, y, 1.42 * S, 0.155 * S, M.hair); }
@@ -496,7 +496,7 @@ ${MATCOL}    vec3 emCol(float m){ if (m > 7.5 && m < 8.5) return vec3(1.0, 0.42,
     if (on(bike.x, bike.y)) { if (v.bikeStyle) { if (v.bikeStyle === 'B') bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM); bikeLookLab(v.bikeStyle, snap(bike), K, t, night, kai.riding, v.gear, FIGM); } else if (v.gear) bikeLook(snap(bike), K, t, night, kai.riding, v.gear, FIGM, v.garageSel); else bikeVolumes(snap(bike), t, night, kai.riding); if (v.guns) gunVolumes(snap(bike), v.gunBase ? { ...v.guns.main, base: v.gunBase } : v.guns.main, t, v.garageSel === 'weapon' ? 0.85 + 0.15 * Math.sin(t * 4) : 0); }   // [m6] the bike from its parts' modules
     // [point] Kai at home: the robot rides alone; she works at the garage, by its doors, and turns to watch it come in
     if (v.kaiHome && v.risk) { const q = (v.risk.sites || []).find(o => o.bay); if (q && q.exitAng !== undefined) { const oa = q.exitAng, px = -Math.sin(oa), py = Math.cos(oa), hx = q.bay.x + px * 4.2 - Math.cos(oa) * 2, hy = q.bay.y + py * 4.2 - Math.sin(oa) * 2;
-      if (on(hx, hy)) { const db = Math.hypot(bike.x - hx, bike.y - hy); kaiVolumes({ ...kai, x: sn(hx), y: sn(hy), vx: 0, vy: 0, swing: 0, riding: false, dash: 0, face: db < 28 ? Math.atan2(bike.y - hy, bike.x - hx) : oa }, t); } } }
+      if (on(hx, hy)) { const db = Math.hypot(bike.x - hx, bike.y - hy); kaiVolumes({ ...kai, x: sn(hx), y: sn(hy), vx: 0, vy: 0, swing: 0, riding: false, dash: 0, wave: v.talk === 'KAI' || (db < 16 && db > 3), face: db < 28 ? Math.atan2(bike.y - hy, bike.x - hx) : oa }, t); } } }
     if (!kai.dead && !v.hideKai) { const k2 = kai.riding ? { ...snap(kai), vx: 0, vy: 0, swing: 0 } : snap(kai); kaiVolumes(k2, t); }
     const awake = night > 0.5 || v.forceAwake;
     // a fall: the body topples forward and sinks into the grass as a shrinking lump, a few stones roll off (no block)

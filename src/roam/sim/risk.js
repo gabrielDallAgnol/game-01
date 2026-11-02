@@ -14,7 +14,8 @@ export function createRisk(G) {
   b.hp = K.bikeHp; b.maxHp = K.bikeHp; b.fixing = false; b.fixDebt = 0;
   S.bank = { scrap: 0, chips: 0 }; S.cache = null;
   // the service sites (play/sites.js): the camp now; the garage (garage.js) and beacons join
-  S.sites = [{ x: town.start.x, y: town.start.y, kind: 'camp', name: SITES.camp.name, services: SITES.camp.services.slice() }];
+  // [point] where there's a chapter (the Point), Kai's garage is the only bank: no camp on the road (Gabriel, Nov 2)
+  S.sites = town.W.chapter === 'point' ? [] : [{ x: town.start.x, y: town.start.y, kind: 'camp', name: SITES.camp.name, services: SITES.camp.services.slice() }];
   const site = (kind, x, y, name) => { const q = { x, y, kind, name: name || SITES[kind].name, services: SITES[kind].services.slice() }; S.sites.push(q); return q; };
   function hurtBike(n, why) { if (n <= 0 || b.hp <= 0) return; const f0 = b.hp / b.maxHp; b.hp = Math.max(0, b.hp - n);
     ev('bikeHurt', { n, why: why || 'hit', x: b.x, y: b.y });

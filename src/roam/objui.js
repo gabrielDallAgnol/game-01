@@ -25,9 +25,7 @@ export function createObjUi({ sim, toast }) {
     return `Gather chips from machines: ◆ ${chips}/${need}. Their chips burn if they die burning.`; }
   function update(evs) {
     for (const e of evs || []) {
-      if (e.type === 'missionStart' && e.say) toast(`${e.giver}: ${e.say}`, true);
-      else if (e.type === 'missionDone' && e.say) toast(e.say, true);
-      else if (e.type === 'missionStep' && e.what === 'failed') toast('They broke in. Tomas held the door, barely. Go back for him.', true);
+      if (e.type === 'missionStep' && e.what === 'failed') toast('They broke in. Tomas held the door, barely. Go back for him.', true);
       else if (e.type === 'missionStep' && e.what === 'taken') toast('The shield coil. Heavy: bring it home.', true);
       else if (e.type === 'missionStep' && e.what === 'dropped') toast('The coil fell where you went down. Go back for it.'); }
     const l = line(); if (l !== last) { last = l; el.textContent = l; el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 400 }); } }

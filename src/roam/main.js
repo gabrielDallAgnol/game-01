@@ -14,6 +14,8 @@ import { createFreeUi } from './freeui.js';
 import { createBridgeUi } from './bridgeui.js';
 import { createObjUi } from './objui.js';
 import { createHudTidy } from './hudtidy.js';
+import { createStoryUi } from './storyui.js';
+import { createTalkUi } from './talkui.js';
 import { folkOf } from './peopleview.js';
 import { createIntroUi, playScene, FREED, MENDED } from './introui.js';
 import { createGarageUi } from './garageui.js';
@@ -44,7 +46,7 @@ function start() {
   const lab = { freeze: false };
   const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
-  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); const freeUi = createFreeUi({ sim, toast: ui.toast, input }); const bridgeUi = createBridgeUi({ sim, toast: ui.toast }); const objUi = createObjUi({ sim, toast: ui.toast }); const tidy = createHudTidy({ sim, fx }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input }); const garageUi = createGarageUi({ sim, ui, cam, lab });   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
+  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); const freeUi = createFreeUi({ sim, toast: ui.toast, input }); const bridgeUi = createBridgeUi({ sim, toast: ui.toast }); const objUi = createObjUi({ sim, toast: ui.toast }); const tidy = createHudTidy({ sim, fx }); const story = createStoryUi({ sim, ui, lab, cam, town }); const talk = createTalkUi({ sim, story, ui }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input }); const garageUi = createGarageUi({ sim, ui, cam, lab });   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
   const feel = createFeel({ S, input, town }), scars = createScars({ tiles: town.tiles, town });   // [m2] burnt and soaked ground   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
@@ -152,7 +154,7 @@ function start() {
     // no pull-back with the bike's speed for the same reason
     { const want = cam.base; cam.ppm += (want - cam.ppm) * Math.min(1, dt * 6); if (Math.abs(want - cam.ppm) < want * 0.004) cam.ppm = want; }
     const shook = feel.shake(cam, dt);   // [m1] the camera shakes for this frame only
-    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun, garageSel: garageUi.sel, hideKai: garageUi.isOpen || !!lab.hideKai, kaiHome: !!lab.hideKai && !garageUi.isOpen, folk, gearView: garageUi.gearView(), gunBase: garageUi.gunBase, bikeStyle: lab.bikeStyle });
+    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun, garageSel: garageUi.sel, hideKai: garageUi.isOpen || !!lab.hideKai, kaiHome: !!lab.hideKai && !garageUi.isOpen, talk: story.talk, folk, gearView: garageUi.gearView(), gunBase: garageUi.gunBase, bikeStyle: lab.bikeStyle });
     fx.clearRect(0, 0, cssW, cssH);
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules
@@ -166,7 +168,7 @@ function start() {
     feel.draw(fx, toS, view.ppm, dt, R, lightAt, cssW, cssH);   // [m1] pellets, muzzle flash, sparks, bursts
     shook();
     for (const e of evs) { if (e.type === 'freed') playScene({ ui, lab, cam, lines: FREED, at: { x: e.x, y: e.y }, zoom: 9 }); else if (e.type === 'mended') playScene({ ui, lab, cam, lines: MENDED, at: { x: e.x, y: e.y }, zoom: 11 }); }   // [point] the big moments
-    ui.arrows(toS, cssW, cssH, tidy); tidy.update(dt); if (tidy.edge) tidy.draw(toS, cssW, cssH, t, tidy.edge); ui.update(evs); lootUi.update(evs); areaUi.update(evs); riskUi.update(evs); garageUi.update(evs); freeUi.update(evs); bridgeUi.update(evs); objUi.update(evs);
+    ui.arrows(toS, cssW, cssH, tidy); tidy.update(dt); if (tidy.edge) tidy.draw(toS, cssW, cssH, t, tidy.edge); story.events(evs); story.update(dt); story.draw(fx, toS); talk.update(); ui.update(evs); lootUi.update(evs); areaUi.update(evs); riskUi.update(evs); garageUi.update(evs); freeUi.update(evs); bridgeUi.update(evs); objUi.update(evs);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

@@ -6,7 +6,7 @@ import { drawPerson } from './peopleview.js';
 export function missionVolumes(v, K, on, sn) {
   const S = v.risk; if (!S || !S.turrets) return; const { sphere, capsule, box, M } = K, t = v.t, P = v.chapter;
   if (P && P.tomas && on(P.tomas.x, P.tomas.y)) { const m = S.mission, saved = !m || m.i > 1, active = m && m.id === 'tomas';
-    const b = v.bike, face = Math.atan2(b.y - P.tomas.y, b.x - P.tomas.x); drawPerson(K, t, sn(P.tomas.x), sn(P.tomas.y), face, 'tarp', saved && Math.hypot(b.x - P.tomas.x, b.y - P.tomas.y) < 16 ? 1 : 0, 0, false, 'sack');
+    const b = v.bike, face = Math.atan2(b.y - P.tomas.y, b.x - P.tomas.x); drawPerson(K, t, sn(P.tomas.x), sn(P.tomas.y), face, 'tarp', v.talk === 'TOMAS' || (saved && Math.hypot(b.x - P.tomas.x, b.y - P.tomas.y) < 16) ? 1 : 0, 0, false, 'sack');
     if (active) { const sw = Math.sin(t * 4) * 0.8; sphere(P.tomas.x + Math.cos(face + 1.2) * 1.4, P.tomas.y + Math.sin(face + 1.2) * 1.4, 3.6 + sw * 0.3, 0.22, M.lamp, 1); } }
   const it = S.missionItem; if (it && !it.taken && on(it.x, it.y)) { capsule(it.x - 0.4, it.y, 0.45, it.x + 0.4, it.y, 0.45, 0.42, M.rust); for (const o of [-0.3, 0, 0.3]) capsule(it.x + o, it.y - 0.43, 0.45, it.x + o, it.y + 0.43, 0.45, 0.05, M.paint); sphere(it.x, it.y, 0.95, 0.16, M.lamp, 0.7 + 0.3 * Math.sin(t * 5)); }
   for (const T of S.turrets) { if (!on(T.x, T.y)) continue; const c = Math.cos(T.fa), s = Math.sin(T.fa), fire = T.shot && S.t - T.shot.t < 0.07;

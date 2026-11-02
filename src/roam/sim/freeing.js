@@ -12,7 +12,7 @@ export function createFreeing(G) {
   const { R, S, ev, town } = G, F = R.free;
   S.link = null; S.guardians = [];
   // where a free area exists, Kai knows how to build a freeing chip from the start: it is the first thing she makes
-  if (S.areas.some(a => a.free) && G.learn && !town.W.chapter) G.learn(['link_chip']);   // with a chapter, a mission teaches it (sim/missions.js)
+  if (S.areas.some(a => a.free) && G.learn && town.W.chapter !== 'point') G.learn(['link_chip']);   // with a chapter, a mission teaches it (sim/missions.js)
   const near = (d, k) => Math.hypot(k.x - d.x, k.y - d.y) < F.linkR + F.body;
   const weakBoss = () => S.dead.find(d => d.boss && d.free && d.weak);
   function canLink() { const k = S.kai, d = weakBoss(); return !!(d && !k.dead && (S.keys.link || 0) > 0 && !S.link && near(d, k)); }

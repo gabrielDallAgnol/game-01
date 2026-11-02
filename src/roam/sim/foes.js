@@ -22,7 +22,8 @@ export function createFoes(G) {
   // they appear out of sight: past the edge of what the player sees (G.view, the screen's half-diagonal in metres, set by
   // the UI from the zoom), never closer than 24 m; the ring and the forgetting distance grow with the view
   function populate() {
-    const k = S.kai, cap = R.dead.cap[S.night ? 1 : 0], r0 = Math.max(24, G.view + 8), r1 = Math.max(R.dead.near, r0 + 40), far = Math.max(R.dead.far, r1 + 40);
+    // [point] with a chapter, the machines thin out toward home: a quarter as many by the Point, the full count from about 650 m out (a curve, not a crowd at the start)
+    const k = S.kai, cap0 = R.dead.cap[S.night ? 1 : 0], cap = town.W.chapter === 'point' ? Math.round(cap0 * Math.max(0.2, Math.min(1, 0.2 + (Math.hypot(k.x - town.start.x, k.y - town.start.y) - 120) / 530))) : cap0, r0 = Math.max(24, G.view + 8), r1 = Math.max(R.dead.near, r0 + 40), far = Math.max(R.dead.far, r1 + 40);
     let near = 0; for (const d of S.dead) if (dist(d, k) < r1) near++;
     for (let tries = 0; near < cap && tries < 6; tries++) { const p = streetNear(k.x, k.y, r0, r1); if (!p) break; if ((G.isClean && G.isClean(p.x, p.y)) || (G.isSafe && G.isSafe(p.x, p.y))) continue;   // [m4] clean stays clean; [m6d] nothing is born on the garage's lot
       const kind = kindRoll(), K = R.dead[kind], pack = K.pack ? K.pack[0] + rng.int(K.pack[1] - K.pack[0] + 1) : 0;   // skitters come in packs

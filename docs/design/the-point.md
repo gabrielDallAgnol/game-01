@@ -80,6 +80,18 @@ Gabriel (Nov 2): build it up step by step, each step connected to the one before
 | 6 | The big one | Free the boss in Wend Bridge | The colour comes back; it climbs out of the gap |
 | 7 | Wend Bridge | Carry 60 scrap to its end, guard the workers | The road opens, and **mods open** (elites and mod recipes appear only now) |
 
+**How a mission begins and ends (Nov 2):** near the one who speaks (Kai at her garage, Tomas at his door) a scene: thin
+bars, the camera eases onto both, a speech bubble over their head types out while they wave, the robot answers in light;
+tap to go on. Far away, Kai on the radio (a small card at the top). Between missions a banner: "✓ title, done", then
+"NEW · title" and its objective (`src/roam/storyui.js`).
+
+**Talking to Kai (Nov 2):** TALK by her garage opens what the robot can ask: why it's green here and grey out there, how
+the kids are (Mila and Jonah), what she's working on (follows the mission), that night, who she is, Tomas, the big one;
+her answers change with the story (`src/play/talk.js`, `src/roam/talkui.js`).
+
+**The garage is the only bank on the Point** (no camp on the road), and **the machines thin out toward home**: a quarter
+of the usual count by the Point, the full count from about 650 m out.
+
 Also (Gabriel, Nov 2): **mods come late** (no elites, no mod recipes during chapter 1, so you never hold mods with no
 socket to use them in); **the starting gear is not in BUILD** (you own it already).
 
@@ -98,7 +110,7 @@ with fewer survivors; the centre holds the reason for it all.
 | Water is a wall for wheels and feet, **not for what flies** (shots and bolts cross it); a bridge deck is road; a broken deck's gap is a shut gate over water | `src/roam/town.js` `[point]` |
 | Water meets its neighbours: a soft bank by grass and fields (mud, stones, rank grass, reeds, shallows, lapping), a stone quay by hard ground, a bridge's shadow on the water | `src/roam/world/land.js` `[shore]` |
 | A home district (clean from the start, no walker); a pinned walker (the boss in the bridge); a free area (its walker can only be freed) | `src/roam/sim/areas.js` |
-| **Freeing:** shot down, the boss's core stops at 15% and lies open (the boss bar: OPEN · FREE IT, an amber call on it). The **freeing chip** (garage BUILD, key items: 40 scrap, 6 chips; Kai knows it from the start). LINK beside FIRE; tap as the closing ring meets it (a pulse every 1.3 s, 0.36 s window), 5 in time; a miss costs one and locks the link 0.6 s; riding away breaks it (the chip is kept). Freed: its brood powers down (they drop what they carry), the area is clean, the colour sweeps from it, its eyes turn amber, ash motes rise off it (it filters), and it climbs out of the gap to a post on the bank | `src/roam/sim/freeing.js`, `freeview.js`, `freeui.js` |
+| **Freeing:** shot down, the boss's core stops at 15% and lies open (the boss bar: OPEN · FREE IT, an amber call on it). The **freeing chip** (garage BUILD, key items: 40 scrap, 6 chips; Kai learns it in mission 4). LINK beside FIRE; tap as the closing ring meets it (a pulse every 1.3 s, 0.36 s window), 5 in time; a miss costs one and locks the link 0.6 s; riding away breaks it (the chip is kept). Freed: its brood powers down (they drop what they carry), the area is clean, the colour sweeps from it, its eyes turn amber, ash motes rise off it (it filters), and it climbs out of the gap to a post on the bank | `src/roam/sim/freeing.js`, `freeview.js`, `freeui.js` |
 | **Chips are a machine's own chip:** it comes through a death whole only sometimes (crawler and skitter 2%, hound 4%, spitter 5%, brute 35%: about 4 minutes of fighting for six); a machine that died burning keeps none (x0.3). Fire costs you chips | `src/play/loot.js`, `src/roam/sim/loot.js` |
 | **Mending Wend Bridge:** while the boss is wedged in it nobody can mend it; once it is free, MEND at the bridge's end with 60 scrap carried; the people of Wendbridge work while Kai guards (14 s; the work waits while she's away); mended, the gate opens and the road north runs on. Drawn: snapped ends (concrete chunks, rebar, rubble), then girders and planks, then rails | `src/roam/sim/bridges.js`, `bridgeview.js`, `bridgeui.js` |
 | **The objective line:** the tutorial chain read from the state (Wendbridge → chips → the freeing chip → free the boss → mend the bridge → the road north) | `src/roam/objui.js` |
