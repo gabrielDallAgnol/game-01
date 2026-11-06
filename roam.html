@@ -24,7 +24,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:
 #clock{margin-left:auto}
 #speed{pointer-events:auto;border:0;color:var(--fg);font:700 12px var(--mono);cursor:pointer;min-width:44px;justify-content:center}
 #speed.fast{color:#1a1206;background:var(--amber)}
-#toasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(56px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;width:min(420px,calc(100vw - 24px))}
+#toasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(204px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;width:min(420px,calc(100vw - 24px))}
 .toast{background:var(--panel);border-radius:10px;padding:8px 12px;text-align:center;animation:t 3.2s forwards}
 .toast.big{font:400 18px var(--display);letter-spacing:.06em;color:var(--amber)}
 @keyframes t{0%{opacity:0;transform:translateY(-6px)}10%,80%{opacity:1;transform:none}100%{opacity:0}}
@@ -92,6 +92,29 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 #hp .bar.bike{height:5px}#hp .bar.bike i{background:var(--amber)}#hp .bar.bike.low i{background:var(--ember)}#hp .bar.bike.wreck{animation:wreck 1s steps(2) infinite;background:rgba(255,90,58,.35)}@keyframes wreck{50%{opacity:.35}}
 #fix{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(238px + env(safe-area-inset-bottom,0px));width:72px;height:72px;display:grid;place-content:center;gap:1px;border-color:var(--amber);color:var(--amber)}
 #fix small{font:600 10px var(--mono);color:#d8cfb6}#fix.on{background:var(--amber);color:#1a1206}#fix.on small{color:#3a2a10}#fix.poor{opacity:.55}
+/* [m6] the garage panel and button */
+#garageBtn{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(238px + env(safe-area-inset-bottom,0px));width:84px;height:84px;font-size:13px}
+#garage{position:fixed;left:0;right:0;bottom:0;z-index:45;display:grid;place-items:end center;padding:0 10px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(7,9,12,.5) 30%)}
+#garage .card{background:rgba(14,15,18,.96);border-radius:16px;padding:12px 14px;width:min(440px,100%);height:min(60vh,600px);display:grid;grid-template-rows:auto auto auto 1fr auto;gap:8px}
+#garage h2{margin:0;font:400 22px var(--display);letter-spacing:.06em;color:var(--amber);display:flex;align-items:center;gap:8px}#garFunds{flex:1;font:700 12px var(--mono);color:#e9e2cf;letter-spacing:0}
+#garage h2 .x{width:40px;height:40px;border:0;border-radius:10px;font:700 18px var(--mono);background:rgba(255,255,255,.14);color:var(--fg);cursor:pointer}
+#garage .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#garage .tabs button{border:0;border-radius:9px;padding:9px;font:700 12px var(--mono);background:rgba(255,255,255,.1);color:var(--fg);cursor:pointer}#garage .tabs button.on{background:var(--amber);color:#1a1206}
+#garMsg{min-height:16px;font:600 11px var(--mono);color:#cfe7a8}#garMsg.warn{color:#ff9a7a}
+#garList{overflow:auto;display:grid;gap:8px;align-content:start}#garList h3{margin:6px 0 0;font:700 11px var(--mono);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}
+#garList .it{border:1px solid;border-radius:10px;padding:8px 10px;background:rgba(0,0,0,.25)}#garList .it.row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+#garList .hd{display:flex;gap:8px;align-items:baseline}#garList .sl{font:700 10px var(--mono);color:var(--dim);text-transform:uppercase;min-width:52px}#garList .nm{font:700 13px var(--mono);flex:1}#garList .lv{font:700 11px var(--mono);color:#e9e2cf}
+#garList .md{font:500 11px var(--mono);color:#bfb8a6;margin-top:2px}#garList .md.warn{color:#ff9a7a}#garList .empty{color:var(--dim);margin:4px 0}
+#garList .sk,#garList .pk{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}#garList .mod{font:700 11px var(--mono);border-radius:7px;padding:5px 8px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#e9e2cf}
+#garList .mod.in{background:rgba(255,255,255,.08)}#garList .mod.open{border-style:dashed;color:var(--amber);cursor:pointer}#garList .mod.full{background:rgba(240,180,76,.18);cursor:pointer}#garList .mod.on,#garList .pk button.on{background:var(--amber);color:#1a1206}
+#garList .pk button{border:0;border-radius:8px;padding:7px 10px;font:700 11px var(--mono);background:rgba(255,255,255,.12);color:#ece6d6;cursor:pointer}
+#garList .bt{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}#garList button{cursor:pointer}#garList .bt button,#garList .row button{border:0;border-radius:8px;padding:7px 10px;font:700 11px var(--mono);background:rgba(255,255,255,.12);color:#ece6d6;white-space:nowrap}
+#garList button.eq{background:var(--amber);color:#1a1206}#garList button:disabled{opacity:.4}#garList .lnk{border:0;background:none;color:var(--amber);font:700 11px var(--mono);padding:0}
+#garList .parts{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}#garList .parts button{border:1.5px solid var(--c);border-radius:10px;background:rgba(0,0,0,.3);color:#e9e2cf;padding:7px 2px;display:grid;gap:1px;font:700 10px var(--mono)}#garList .parts button span{font-weight:600;color:var(--dim)}#garList .parts button.on{background:var(--amber);color:#1a1206;border-color:var(--amber)}#garList .parts button.on span{color:#3a2a10}
+body.garage-open #obj,body.garage-open #linkBtn,body.garage-open #mendBtn,body.garage-open #hud,body.garage-open #loot,body.garage-open #area,body.garage-open #pad,body.garage-open #btns,body.garage-open #feed,body.garage-open #boss,body.garage-open #fps,body.garage-open #garageBtn,body.garage-open #fix{display:none!important}#garList .bikehd{display:flex;justify-content:space-between;align-items:baseline;font:700 12px var(--mono);letter-spacing:.08em;color:var(--amber)}
+#garList .it.sel{border-width:2px}#garList .nm.big{font-size:16px}#garList .md.up{font-weight:700;letter-spacing:.08em;color:var(--dim)}#garList .md.st{color:#e9e2cf}#garList .md.note{margin-top:8px;color:#9a988f;font-style:italic}#garList .mod i{font-style:normal;color:var(--dim);font-size:10px}
+.pb.fire{display:grid;place-content:center;gap:2px}.pb.fire.quiet{opacity:.35}.pb.fire small{font:600 8.5px var(--mono);letter-spacing:0;max-width:84px;line-height:1.15;opacity:.85}
+#garDone{justify-self:end;font:700 14px var(--mono);background:var(--amber);color:#1a1206;border:0;border-radius:10px;padding:10px 20px;cursor:pointer}
+#bagList h3{margin:6px 0 0;font:700 11px var(--mono);letter-spacing:.08em;color:var(--dim);text-transform:uppercase}#bagList .md.warn{color:#ff9a7a}
 #fps{position:fixed;left:max(10px,env(safe-area-inset-left,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font:600 10px var(--mono);color:rgba(242,238,226,.55);pointer-events:none}
 #err{position:fixed;inset:auto 12px 50% 12px;background:#3a0d12;color:#ffd9dd;padding:12px;border-radius:10px}
 </style>
@@ -106,7 +129,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <button class="chip" id="kit" aria-label="Loadout: the gun's element, the off-hand enchant, modifiers">KIT</button>
   <button class="chip" id="speed" aria-label="Clock speed: 1x. Tap to make the day pass faster">1×</button>
 </div>
-<div id="loot"><span>⚙ <span id="scrap">0</span></span><span>◆ <span id="chips">0</span></span><span title="Banked: safe even if you go down">⌂ <span id="bank">0</span></span><button id="bagBtn" aria-label="Open the bag">BAG <span id="bagN">0</span></button><button id="mapBtn" aria-label="World map">MAP</button></div>
+<div id="loot"><span>⚙ <span id="scrap">0</span></span><span>◆ <span id="chips">0</span></span><span title="Banked: safe even if you go down">⌂ <span id="bank">0</span></span><button id="bagBtn" aria-label="Open the recipe book">BOOK <span id="bagN">0</span></button><button id="mapBtn" aria-label="World map">MAP</button></div>
 <div id="area" hidden></div>
 <div id="boss" hidden></div>
 <div id="feed" aria-live="polite"></div>
@@ -117,6 +140,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
   <button class="rb go" id="dash" aria-label="Dash" hidden>DASH</button>
 </div>
 <button class="rb fix" id="fix" aria-label="Repair the bike" hidden>REPAIR</button>
+<button class="rb go gar" id="garageBtn" aria-label="Open the garage" hidden>GARAGE</button>
 <!-- [m1] the combat pad: the main weapon (hold), two talent abilities, switch form; greyed until they exist. The off-hand is
      an enchant on the gun, set in the loadout (no button) [m2] -->
 <div id="pad">
@@ -129,8 +153,8 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 <section id="start">
   <div class="card">
     <h1>HOLLOW<span>MERE</span></h1>
-    <p>Every machine with a chip turned in one night. Yours has none. Ride the town, gun the machines down, and break the walker of every area to make it clean.</p>
-    <ul><li>Drag anywhere to steer · pinch to zoom</li><li>Hold FIRE (or Space): the gun aims itself · drag off FIRE to aim by hand</li><li>Keep moving: machines latch on when you slow down</li><li>Gunfire is loud: hold it too long and packs come hunting</li><li>Every hit leaves a pip; three pips set off their mix. Your off-hand enchants every 2nd shot. KIT to change them</li></ul>
+    <p>One night every machine turned on us. One of them stopped. That one is you. Kai, a mechanic, pulled you out and fixed you up at her garage on the Point, where two rivers meet. Past the Point the world is grey with ash, and the big machine that breathes it is wedged in the only bridge out.</p>
+    <ul><li>Drag anywhere to steer · pinch to zoom</li><li>Hold FIRE (or Space): the gun aims itself</li><li>Machines sometimes leave their chip; one that dies burning keeps none</li><li>Big machines can't be destroyed, only freed: Kai builds the chip that does it</li><li>The line under your area always says what's next</li></ul>
     <button id="go">Start</button>
   </div>
 </section>
@@ -139,7 +163,11 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
 <!-- [m4b] the world map: every area, its difficulty, its walker -->
 <section id="map" hidden><div class="row"><h2 id="mapTitle">Map</h2><span class="leg">grey clean · green easy · yellow fair · red hard</span><button class="x" id="mapX" aria-label="Close the map">✕</button></div><canvas id="mapC"></canvas>
   <div class="row"><span>tap an area · drag · pinch</span><span><button id="mapZoom">WORLD</button> <button class="go" id="mapDone">Close</button></span></div></section>
-<section id="bag" hidden><div class="card"><h2>Bag <button class="x" id="bagX" aria-label="Close the bag">✕</button></h2><div id="bagList"></div><button id="bagDone">Ride</button></div></section>
+<section id="bag" hidden><div class="card"><h2>Recipes <button class="x" id="bagX" aria-label="Close the book">✕</button></h2><div id="bagList"></div><button id="bagDone">Ride</button></div></section>
+<!-- [m6] the garage: the bike's five slots, building from recipes, the stash -->
+<section id="garage" hidden><div class="card"><h2>Garage <span id="garFunds"></span><button class="x" id="garX" aria-label="Close the garage">✕</button></h2>
+  <div class="tabs"><button data-t="bike" class="on">BIKE</button><button data-t="build">BUILD</button><button data-t="stash">STASH</button></div>
+  <div id="garMsg"></div><div id="garList"></div><button id="garDone">Ride</button></div></section>
 <section id="loadout" hidden>
   <div class="card">
     <h2>Loadout <button class="x" id="kitX" aria-label="Close the loadout">✕</button></h2>

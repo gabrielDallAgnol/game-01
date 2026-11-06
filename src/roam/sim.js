@@ -14,9 +14,14 @@ import { createWorld } from './sim/world.js';
 import { createLoot } from './sim/loot.js';
 import { createAreas } from './sim/areas.js';
 import { createRisk } from './sim/risk.js';
+import { createGarage } from './sim/garage.js';
+import { createElites } from './sim/elites.js';
+import { createFreeing } from './sim/freeing.js';
+import { createBridges } from './sim/bridges.js';
+import { createMissions } from './sim/missions.js';
 import { MACHINES } from '../play/machines.js';
 
-const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas, createRisk];
+const MODULES = [createFoes, createVehicle, createKai, createGuns, createBolts, createHunts, createWorld, createChem, createLoot, createAreas, createRisk, createGarage, createElites, createFreeing, createBridges, createMissions];
 
 export const ROAM = {
   step: 1 / 30, day: 240, night: 120,
@@ -36,7 +41,7 @@ export const ROAM = {
     // [m4b] its defences: pods (podHp each) fire a volley every volleyEvery s within volleyR after podWindup; the tank (tankHp)
     // blows for tankBite of its core; in a fight it broods every spawnFight s up to broodFight; partSlop: how near a part a hit counts
     podHp: 30, tankHp: 16, volleyEvery: 3.2, volleyR: 34, podWindup: 0.7, boltSpeed: 9, boltDmg: 7, tankBite: 0.3, spawnFight: 3, broodFight: 14, partSlop: 1.2 },
-  body: { walker: 6, crawler: 0.75, skitter: 0.6, hound: 0.8, spitter: 0.75, brute: 1.25 },
+  body: { walker: 6, crawler: 0.92, skitter: 0.73, hound: 0.98, spitter: 0.92, brute: 1.52 },
   // the machines (code id `dead` kept from the Roam prototype; caps 42/75 > 24/46 after Gabriel's playtest: too crowded): the crawler is M1's one machine
   dead: { ...MACHINES,   // [m1] crawler, skitter, hound, spitter, brute (src/play/machines.js)
     bite: 1.1, windup: 0.35, reach: 1.05, rideReach: 1.6, sense: [16, 22], nightSpeed: 1.3, cap: [24, 46], alarm: 14, catchUp: 1.2, near: 70, far: 110 },
@@ -58,6 +63,28 @@ export const ROAM = {
   // mends fixRate hp/s, a bank bankFix, one scrap per fixPer hp, only with no machine within safeR; bankR: how close a bank
   // takes what she carries; cacheR: how close takes the cache back; backHp: the least the bike comes back with after a death
   risk: { bikeHp: 100, soak: 0.7, low: 0.3, worn: 0.8, limp: 0.55, crashMin: 6, crashDmg: 1.2, fixRate: 8, bankFix: 30, fixPer: 4, safeR: 10, bankR: 7, cacheR: 1.9, backHp: 0.25 },
+  // [m6] the garage: a weapon's damage +dmgPerLevel per level; items reach capPerLevel x Kai's level (areas cleaned + 1 until
+  // M7); an upgrade costs weaponCost (partCost for a part) x its level in banked scrap; salvage gives back salvage of what
+  // it cost; a dazzle lamp keeps dazzleSlow of a machine's speed each step it's in the beam; door: how far out from the
+  // garage's roller doors its forecourt (the service spot) is; lotMargin: how far past the lot's edge machines are kept;
+  // [m6e/m6f] the drive-in: the bay bay m out from the doors, the bike always at bayAng there; it rides at drive m/s from
+  // gateOut m outside the gate, through it, gateIn m inside, to the bay (turning to bayAng over the last settle m); out the
+  // same way to exitOut m past the entry, leaving at rollOut m/s. GARAGE shows within gateReach of the entry; the gate opens
+  // by itself for Kai inside the lot within gateAuto of it
+  garage: { lotMargin: 1, door: 6, bay: 6.5, bayAng: 0, exitOut: 5, rollOut: 3, gateOut: 3, gateIn: 3, gateReach: 6, gateAuto: 9, drive: 7, settle: 4, dmgPerLevel: 0.1, capPerLevel: 3, weaponCost: 6, partCost: 4, salvage: 0.4, dazzleSlow: 0.85 },
+  // [m6b] elites: the chance a machine is one (+perLevel per area level above 1, x night at night), how much tougher, and
+  // the trail a burning or soaking one leaves (every trailEvery s, trailR m, trailPower of the element)
+  elites: { chance: 0.03, perLevel: 0.012, night: 1.5, hp: 2.6, trailEvery: 1.2, trailR: 1.2, trailPower: 0.5 },
+  // [point] freeing a big machine (sim/freeing.js): its core stops at floor (of its health); within linkR of its edge Kai
+  // links with a freeing chip; its pulse comes every pulse s, a tap within window s of one lands; need landed taps free
+  // it; a miss costs one and locks the link for lock s. Freed, it walks to its post at guardSpeed m/s
+  // [point] mending a broken bridge (sim/bridges.js): scrap carried to its end, the work's time (s), how near Kai must stay
+  bridges: { scrap: 60, time: 14, reach: 9, near: 22 },
+  // [missions] a defender's turret (sim/missions.js): reach (m), a shot every turretEvery s, its damage
+  missions: { turretR: 18, turretEvery: 0.55, turretDmg: 2.2, talkR: 10, salvageR: 4, salvageSpeed: 2.5, salvageTime: 2.2,
+    // [missions] what they batter (Tomas's door, the scrubber, Kai's garage): hp, each machine at it per second, what a break costs a hold (s), the most sent at once
+    siegeHp: 100, siegeDps: 2.2, siegeR: 2.6, holdLoss: 15, holdCap: 12 },
+  free: { floor: 0.15, linkR: 12, body: 6, pulse: 1.3, window: 0.36, need: 5, lock: 0.6, guardSpeed: 2.4 },
 };
 
 export function createRoam(town, seed = 1) {
@@ -76,13 +103,14 @@ export function createRoam(town, seed = 1) {
   let popT = 0;
   function step(inp) {
     G.view = Math.min(160, inp.view || 0);
+    if (S.garageRun) inp = { view: inp.view, x: 0, y: 0 };   // [m6e] the bike rides itself in and out of the garage: no control meanwhile
     const dt = R.step; S.t += dt; S.clock += dt * S.clockRate;   // the clock alone can run fast (a test control): the dead and Kai keep their pace
     const night = S.clock % (R.day + R.night) >= R.day; if (night !== S.night) { S.night = night; G.ev(night ? 'dusk' : 'dawn', {}); }
-    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp);
+    G.stepKai(dt, inp); G.stepGuns(dt, inp); G.stepFoes(dt); G.stepBolts(dt); G.stepHunts(dt); G.stepWorld(dt); G.stepChem(dt); G.stepLoot(dt); G.stepAreas(dt); G.stepRisk(dt, inp); G.stepGarage(dt); G.stepElites(dt); G.stepFreeing(dt, inp); G.stepBridges(dt); G.stepMissions(dt);
     if ((popT -= dt) <= 0) { popT = 1; G.populate(); }
   }
   for (let k = 0; k < 6; k++) G.populate();
   const setClockRate = r => { S.clockRate = Math.max(1, Math.min(60, r)); };
   const debug = { spawn: (kind, x, y, o) => G.spawn(kind, x, y, o) };   // for tests, labs and screenshots
-  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), equip: id => G.equip(id), salvage: id => G.salvage(id), repair: () => G.startFix(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
+  return { state: S, step, setClockRate, debug, setLoadout: o => G.setLoadout(o), deliver: (el, x, y, r, p) => G.deliver(el, x, y, r, p), repair: () => G.startFix(), build: id => G.build(id), equipItem: uid => G.equipItem(uid), salvageItem: uid => G.salvageItem(uid), upgrade: slot => G.upgrade(slot), enterGarage: () => G.enterGarage(), leaveGarage: () => G.leaveGarage(), socket: (uid, i, mod) => G.socket(uid, i, mod), levelCap: () => G.levelCap(), upCost: slot => G.upCost(S.gear[slot]), atBench: () => !!G.atBench(), atGate: () => !!G.atGate(), canLink: () => G.canLink(), canMend: () => G.canMend(), accept: id => G.accept(id), track: id => G.track(id), skipClock: s => { S.clock += Math.max(0, Math.min(R.night + R.day, s)); const n = S.clock % (R.day + R.night) >= R.day; if (n !== S.night) { S.night = n; G.ev(n ? 'dusk' : 'dawn', {}); } }, giverAt: g => G.giverAt ? G.giverAt(g) : null, mend: () => G.mend(), bikeStats: () => G.bikeStats(), drain: () => S.events.splice(0), dayPhase: () => { const c = S.clock % (R.day + R.night); return S.night ? { night: true, left: R.day + R.night - c } : { night: false, left: R.day - c }; } };
 }

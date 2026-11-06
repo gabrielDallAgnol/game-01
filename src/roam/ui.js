@@ -20,7 +20,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
   holdAim(fireBtn, setFire, 'aim');
   // [m2] the loadout (a test control until the garage): the gun's element, the off-hand's enchant and how often, mods.
   // The game pauses while it is open; changes go through the sim's API (setLoadout)
-  const kitEl = $('loadout'), LO = { base: null, el: '', enchant: 'water', every: 2, mods: [] };
+  const kitEl = $('loadout'), LO = { base: null, el: '', enchant: '', every: 2, mods: [] };   // [m6] no enchant by default: charge mods do it
   const paintKit = () => { for (const g of kitEl.querySelectorAll('.opts')) { const k = g.dataset.k; for (const b of g.children) b.classList.toggle('on', k === 'mods' ? LO.mods.includes(b.dataset.v) : String(LO[k] ?? '') === b.dataset.v); }
     fireBtn.className = 'pb fire el-' + (LO.el || '') + (input.fire ? ' on' : ''); };
   for (const g of kitEl.querySelectorAll('.opts')) for (const b of g.children) b.addEventListener('click', () => { const k = g.dataset.k, v = b.dataset.v;
@@ -28,21 +28,23 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     sim.setLoadout(LO); paintKit(); });
   press($('kit'), () => { kitEl.hidden = false; ui.paused = true; paintKit(); }); for (const id of ['kitDone', 'kitX']) for (const t of ['pointerdown', 'pointerup', 'touchend', 'click']) $(id).addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); kitEl.hidden = true; ui.paused = false; }, { passive: false });
   const ui = { paused: false }; sim.setLoadout(LO); paintKit();
+  $('kit').hidden = !/[?&]dev=1/.test(location.search);   // [m6] the loadout is a test control now: the garage does this in play
   // the clock speed (a test control): 1x, 10x, 30x; only the day passes faster
   const speedEl = $('speed'), RATES = [1, 10, 30];
   press(speedEl, () => { const r = RATES[(RATES.indexOf(S.clockRate) + 1) % RATES.length]; sim.setClockRate(r); speedEl.textContent = r + '×'; speedEl.classList.toggle('fast', r > 1); speedEl.setAttribute('aria-label', `Clock speed: ${r}x. Tap to change`); });
   // ---------- the stick, pinch, wheel ----------
   const pts = new Map(); let mover = null, pinch0 = 0;
-  const zoom = k => { cam.base = Math.max(4, Math.min(40, cam.base * k)); };   // the base zoom: the bike's speed pulls back from it, it never fights a pinch
-  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY });
+  const zoom = k => { cam.base = ui.zoomOnly ? Math.max(26, Math.min(130, cam.base * k)) : Math.max(4, Math.min(40, cam.base * k)); };   // [m6f] in the garage: close-ups only   // the base zoom: the bike's speed pulls back from it, it never fights a pinch
+  canvas.addEventListener('pointerdown', e => { if (ui.paused && !ui.zoomOnly) return;   // [m6d] a panel is open: no stick, no pinch; [m6f] the garage lets you pinch (zoom only, it stays on the bike)
+    canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY });
     if (pts.size === 2) { mover = null; input.x = input.y = 0; stick.hidden = true; const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); return; }
-    mover = e.pointerId; stick.hidden = false; stick.style.left = e.clientX + 'px'; stick.style.top = e.clientY + 'px'; stick.firstElementChild.style.transform = ''; });
+    if (ui.zoomOnly) return; mover = e.pointerId; stick.hidden = false; stick.style.left = e.clientX + 'px'; stick.style.top = e.clientY + 'px'; stick.firstElementChild.style.transform = ''; });
   canvas.addEventListener('pointermove', e => { const p = pts.get(e.pointerId); if (!p) return; p.x = e.clientX; p.y = e.clientY;
     if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 0) zoom(d / pinch0); pinch0 = d; return; }
     if (e.pointerId === mover) { const ox = p.x - p.x0, oy = p.y - p.y0, r = Math.hypot(ox, oy); if (r > 6) { const k = Math.min(1, r / 50); input.x = ox / r * k; input.y = oy / r * k; } else input.x = input.y = 0; stick.firstElementChild.style.transform = `translate(${ox / Math.max(r, 1) * Math.min(r, 36)}px, ${oy / Math.max(r, 1) * Math.min(r, 36)}px)`; } });
   const up = e => { pts.delete(e.pointerId); if (e.pointerId === mover) { mover = null; input.x = input.y = 0; stick.hidden = true; } if (pts.size < 2) pinch0 = 0; };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
-  canvas.addEventListener('wheel', e => { e.preventDefault(); zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); if (ui.paused && !ui.zoomOnly) return; zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
   const keys = {};
   addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (k === 'e') input.ride = true; if (k === ' ' || k === 'j') { if (S.kai.riding) setFire(true); else input.dash = true; e.preventDefault(); } if (k === '+' || k === '=') zoom(1.2); if (k === '-') zoom(0.83); if (k === 't') speedEl.dispatchEvent(new PointerEvent('pointerdown')); });
   addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys[k] = false; if (k === ' ' || k === 'j') setFire(false); });
@@ -71,7 +73,7 @@ export function createUi({ canvas, fx, sim, cam, input }) {
       dashBtn.hidden = k.riding; dashBtn.disabled = k.dashCd > 0; }
   }
   /** arrows at the screen's edge: the walker (red) and the bike when Kai is off it and it is out of view */
-  function arrows(toS, cssW, cssH) {
+  function arrows(toS, cssW, cssH, tidy) {
     const k = S.kai;
     const one = (x, y, col, label) => { const [sx, sy] = toS(x, y), m = 30; if (sx > m && sy > 70 && sx < cssW - m && sy < cssH - 260) return;   // [m1] clear of the combat pad
       const cx = cssW / 2, cy = cssH / 2, a = Math.atan2(sy - cy, sx - cx), t = Math.min(Math.abs((cssW / 2 - m) / (Math.cos(a) || 1e-6)), Math.abs((cssH / 2 - (Math.sin(a) > 0 ? 250 : 90)) / (Math.sin(a) || 1e-6))), ex = cx + Math.cos(a) * t, ey = cy + Math.sin(a) * t;
@@ -80,12 +82,13 @@ export function createUi({ canvas, fx, sim, cam, input }) {
     // [m4] the walker: the one of the area she's in (if it's still dark), else the nearest dark area's
     { const here = S.inArea >= 0 ? S.areas[S.inArea] : null; let w = here && here.walker >= 0 ? S.dead.find(d => d.id === here.walker) : null;
       if (!w) { let wd = 1e9; for (const d of S.dead) if (d.boss) { const q = Math.hypot(d.x - k.x, d.y - k.y); if (q < wd) { wd = q; w = d; } } }
-      if (w) one(w.x, w.y, '#ff2a1a', `WALKER ${Math.round(Math.hypot(w.x - k.x, w.y - k.y))}m`); }
+      if (w && (!tidy || tidy.walkerOk())) one(w.x, w.y, '#ff2a1a', `WALKER ${Math.round(Math.hypot(w.x - k.x, w.y - k.y))}m`); }
+    if (tidy) tidy.edge = one;   // [tidy] the mission's arrow uses the same edge arrow
     if (!k.riding && !k.dead) one(S.bike.x, S.bike.y, '#f0b44c', 'BIKE');
     // [m5] begin: the death cache, and the nearest bank once she carries a lot or the bike is hurting
     if (S.cache && !k.dead) one(S.cache.x, S.cache.y, '#ffd36a', `CACHE ${Math.round(Math.hypot(S.cache.x - k.x, S.cache.y - k.y))}m`);
-    if (!k.dead && S.banks && (S.scrap >= 40 || S.bike.hp < S.bike.maxHp * 0.3)) { let q = null, qd = 1e9; for (const p of S.banks) { const d = Math.hypot(p.x - k.x, p.y - k.y); if (d < qd) { qd = d; q = p; } } if (q) one(q.x, q.y, '#f0b44c', `BANK ${Math.round(qd)}m`); }
+    if (!k.dead && S.sites && (S.scrap >= 40 || (S.carry && S.carry.length) || S.bike.hp < S.bike.maxHp * 0.3)) { let q = null, qd = 1e9; for (const p of S.sites) { const d = Math.hypot(p.x - k.x, p.y - k.y); if (d < qd) { qd = d; q = p; } } if (q) one(q.x, q.y, '#f0b44c', `BANK ${Math.round(qd)}m`); }
     // [m5] end
   }
-  return { update, arrows, toast, get paused() { return ui.paused; }, set paused(v) { ui.paused = v; } };
+  return { update, arrows, toast, get paused() { return ui.paused; }, set paused(v) { ui.paused = v; }, get zoomOnly() { return !!ui.zoomOnly; }, set zoomOnly(v) { ui.zoomOnly = v; } };
 }

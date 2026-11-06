@@ -17,3 +17,9 @@ MODIFIERS.water = { id: 'water', stage: 'element', fits: ['weapon', 'offhand'], 
 // [m3] ricochet: the path stage; a pellet that hits a wall glances off it, one that hits a machine jumps to the next
 MODIFIERS.ricochet = { id: 'ricochet', stage: 'path', fits: ['weapon', 'offhand'], stack: 'add', cap: { bounce: 3 }, edit: s => ({ ...s, bounce: (s.bounce || 0) + 1 }),
   desc: 'Shots bounce: off walls, and from one machine to the next.', why: 'A path change you can feel: narrow streets become a strength.' };
+// [m6] charges: the off-hand's enchant as a mod (play-atoms §3a): every 2nd shot carries the element, so a plain or a
+// fire gun with a water charge mixes its pips. Counts as the weapon's one element
+MODIFIERS.fire_charge = { id: 'fire_charge', stage: 'element', fits: ['weapon'], stack: 'replace', edit: s => ({ ...s, charge: 'fire', every: 2 }),
+  desc: 'Every 2nd shot carries fire.', why: 'The old off-hand enchant, now a mod in a socket: mixes pips without a second weapon.' };
+MODIFIERS.water_charge = { id: 'water_charge', stage: 'element', fits: ['weapon'], stack: 'replace', edit: s => ({ ...s, charge: 'water', every: 2 }),
+  desc: 'Every 2nd shot carries water.', why: 'With a fire gun: steam, scald and fog from one weapon.' };

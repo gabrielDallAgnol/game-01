@@ -22,19 +22,19 @@ export const WORLD = { w: 2600, h: 2200, town: { x: 500, y: 420 }, village: { x:
 const SIZE = { gas: [44, 34], garage: [30, 26], supermarket: [96, 110], diy: [72, 84], warehouse: [64, 48], farm: [110, 90], school: [76, 60] };
 
 // move every position in an engine W by (dx, dy): anything with numeric x and y, once, through arrays and objects
-function shift(W, dx, dy) { const seen = new WeakSet(), skip = new Set(['def', 'nav', 'occ', 'terrain', 'params', 'log', 'grid', 'A', 'P', 'Z']);
+export function shift(W, dx, dy) { const seen = new WeakSet(), skip = new Set(['def', 'nav', 'occ', 'terrain', 'params', 'log', 'grid', 'A', 'P', 'Z']);
   const walk = o => { if (!o || typeof o !== 'object' || seen.has(o)) return; seen.add(o);
     if (Array.isArray(o)) { for (const v of o) walk(v); return; }
     if (typeof o.x === 'number' && typeof o.y === 'number') { o.x += dx; o.y += dy; }
     for (const [k, v] of Object.entries(o)) if (!skip.has(k) && v && typeof v === 'object') walk(v); };
   for (const k of ['streets', 'nodes', 'water', 'bridges', 'lots', 'placed', 'fences', 'areas', 'rails', 'crossings', 'runs', 'camp', 'plaza', 'districts', 'finale', 'town', 'sites', 'land']) walk(W[k]); }
 // an area's road exits: the streets with an end on or past its edge → { dir (radians from the area's middle), x, y, node }
-function exitsOf(W, x0, y0, w, h) { const out = [], ids = new Map(W.nodes.map(n => [n.id, n]));
+export function exitsOf(W, x0, y0, w, h) { const out = [], ids = new Map(W.nodes.map(n => [n.id, n]));
   for (const st of W.streets) for (const [k, p] of [[0, st.pts[0]], [1, st.pts[st.pts.length - 1]]]) {
     const lx = p.x - x0, ly = p.y - y0; if (lx > 4 && ly > 4 && lx < w - 4 && ly < h - 4) continue;
     const n = ids.get(st.ends && st.ends[k]); out.push({ st, x: p.x, y: p.y, node: n && Math.hypot(n.x - p.x, n.y - p.y) < 1.5 ? n : null, dir: Math.atan2(ly - h / 2, lx - w / 2) }); }
   return out; }
-const nearestExit = (ex, a) => ex.reduce((b, e) => { const d = Math.abs(Math.atan2(Math.sin(e.dir - a), Math.cos(e.dir - a))); return !b || d < b.d ? { e, d } : b; }, null).e;
+export const nearestExit = (ex, a) => ex.reduce((b, e) => { const d = Math.abs(Math.atan2(Math.sin(e.dir - a), Math.cos(e.dir - a))); return !b || d < b.d ? { e, d } : b; }, null).e;
 const P = (x, y) => ({ x, y });
 
 // [roads] Roam's towns ask the engine for wide streets (W.params.wideStreets): room to fight from a vehicle
@@ -192,7 +192,7 @@ export function buildRegion(seed = 7) {
 }
 
 // a site with no template yet: its ground (hard standing, or a yard) and one plain building at the back, door to the road
-function standIn(site, ctx) { const [w, h] = site.size, hard = ['gas', 'supermarket', 'diy'].includes(site.id), bw = Math.min(w * 0.62, site.id === 'gas' ? 14 : 60), bh = Math.min(h * 0.42, site.id === 'gas' ? 9 : 40);
+export function standIn(site, ctx) { const [w, h] = site.size, hard = ['gas', 'supermarket', 'diy'].includes(site.id), bw = Math.min(w * 0.62, site.id === 'gas' ? 14 : 60), bh = Math.min(h * 0.42, site.id === 'gas' ? 9 : 40);
   ctx.land([ctx.at(-w / 2, -h / 2), ctx.at(w / 2, -h / 2), ctx.at(w / 2, h / 2), ctx.at(-w / 2, h / 2)], hard ? 'lot' : site.id === 'farm' ? 'yard' : 'gravel');
   const c = ctx.at(0, -h / 2 + bh / 2 + 3), door = ctx.at(0, -h / 2 + bh + 3.3);
   ctx.place({ x: c.x, y: c.y, w: bw, h: bh, rot: site.rot, door, def: { look: site.id === 'farm' ? 'gable' : 'flat', tags: ['placeholder'], light: 0.6, height: 7, size: [bw, bh] } }); }

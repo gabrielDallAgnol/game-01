@@ -10,6 +10,18 @@ import { createSound } from './sound.js';
 import { createAreaUi } from './areaui.js';
 import { createMapUi } from './mapui.js';
 import { createRiskUi } from './riskui.js';
+import { createFreeUi } from './freeui.js';
+import { createBridgeUi } from './bridgeui.js';
+import { createObjUi } from './objui.js';
+import { createHudTidy } from './hudtidy.js';
+import { createStoryUi } from './storyui.js';
+import { createTalkUi } from './talkui.js';
+import { createQuestUi } from './questui.js';
+import { createQuestLog } from './questlog.js';
+import { createGarageHub } from './garagehub.js';
+import { folkOf } from './peopleview.js';
+import { createIntroUi } from './introui.js';
+import { createGarageUi } from './garageui.js';
 import { emit as plumeEmit, drawPlumes, plumeCount } from './atoms/plume.js';
 import { createFeel } from './feel.js';
 import { createScars } from './scars.js';
@@ -31,12 +43,13 @@ function skyAt(clock) {
 function start() {
   if (typeof THREE === 'undefined') throw new Error('three.js did not load (no network?)');
   const qs = new URLSearchParams(location.search), seed = +(qs.get('seed') || 1);
-  const town = buildTown(7), sim = createRoam(town, seed), S = sim.state;
+  const town = buildTown(7, { world: qs.get('world') || window.ROAM_WORLD || 'point' }), sim = createRoam(town, seed), S = sim.state;   // [point] ?world=point: the first map
   const glc = $('gl'), fxc = $('fx'), fx = fxc.getContext('2d'), look = createLook(glc, town);
   const input = { x: 0, y: 0, ride: false, dash: false, fire: false };
-  const cam = { x: S.kai.x, y: S.kai.y, ppm: 22, base: 22 };
+  const lab = { freeze: false };
+  const cam = { x: S.kai.x, y: S.kai.y, ppm: 16, base: 16 };   // [scale] further out by default: the fight needs room to read
   const ui = createUi({ canvas: glc, fx, sim, cam, input });
-  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input });   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
+  const lootUi = createLootUi({ sim, toast: ui.toast, ui }); const areaUi = createAreaUi({ sim, toast: ui.toast }); const freeUi = createFreeUi({ sim, toast: ui.toast, input }); const bridgeUi = createBridgeUi({ sim, toast: ui.toast }); const objUi = createObjUi({ sim, toast: ui.toast }); const tidy = createHudTidy({ sim, fx }); const story = createStoryUi({ sim, ui, lab, cam, town }); const talk = createTalkUi({ sim, story }); const quests = createQuestUi({ sim, fx, story, talk, ui }); const qlog = createQuestLog({ sim, ui, story }); createMapUi({ sim, town, ui }); const riskUi = createRiskUi({ sim, toast: ui.toast, input }); const garageUi = createGarageUi({ sim, ui, cam, lab }); createGarageHub({ sim, ui, lab, cam, garageUi, talk });   // [hub] the garage's open space   // [m5]   // [m4] the area on the HUD   // [m3] counters and the quick swap
   const feel = createFeel({ S, input, town }), scars = createScars({ tiles: town.tiles, town });   // [m2] burnt and soaked ground   // [m1]
   // the render scale drops when frames run slow (and creeps back when there is room): the phone keeps its frame rate
   let cssW = 0, cssH = 0, dpr = 1, scale = 1, ema = 16, slowT = 0, fastT = 0, fastNeed = 5, fpsT = 0, fpsN = 0;
@@ -59,9 +72,25 @@ function start() {
   }
   const sound = createSound();   // [m3b] synthesized sound; starts on the first tap
   addEventListener('pointerdown', () => sound.start(), { passive: true });
-  const lab = { freeze: false };   // [m3d] the lab can hold the rules still while the frame keeps drawing
-  let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; sound.start(); });
+  // [m3d] the lab can hold the rules still while the frame keeps drawing (declared with the input, [m6c]: the garage holds the camera too)
+  let running = false; $('go').addEventListener('click', () => { $('start').hidden = true; running = true; sound.start(); if (town.W.decks && town.W.decks.length) createIntroUi({ sim, ui, lab, cam, qs }); });   // [point] the opening, once
   if (qs.get('auto')) { $('start').hidden = true; running = true; }
+  // [grey] begin: the grey-world prototype (?proto=grey, Nov 1): you are the robot (no rider), the town is drained of colour
+  // until an area is cleaned, and the area you start in is already yours. ?look=pixel|fine|dots picks the cell mark; the
+  // LOOK chip cycles it while you play
+  // the base since Nov 1 is the Point in the grey world: ?world=region for Hollowmere, ?proto=none for the old look
+  const proto = qs.get('proto') || window.ROAM_PROTO || ((qs.get('world') || window.ROAM_WORLD || 'point') === 'point' ? 'grey' : 'none');
+  if (proto === 'grey') {
+    const LOOKS = { glyph: { style: 'glyph', cellW: 0.15 }, pixel: { style: 'pixel', cellW: 0.15 }, fine: { style: 'pixel', cellW: 0.06 }, dots: { style: 'dots', cellW: 0.15 } }, order = Object.keys(LOOKS);
+    let li = Math.max(0, order.indexOf(qs.get('look') || 'glyph'));
+    const apply = () => { look.setLook({ ...LOOKS[order[li]], grey: 1 }); chip.textContent = 'LOOK · ' + order[li].toUpperCase(); };
+    lab.bikeStyle = 'C'; lab.hideKai = true; look.glow.setHome(S.kai.x, S.kai.y);
+    const chip = document.createElement('button'); chip.id = 'lookChip';
+    chip.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top) + 88px);right:10px;z-index:30;font:700 11px ui-monospace,monospace;letter-spacing:.08em;color:#f0b44c;background:rgba(10,10,12,.72);border:1px solid #f0b44c55;border-radius:10px;padding:7px 10px';
+    chip.addEventListener('click', e => { e.stopPropagation(); li = (li + 1) % order.length; apply(); }); document.body.appendChild(chip); apply();
+    setInterval(() => { if (running && !S.kai.riding && !S.kai.dead) input.ride = true; }, 250);   // the robot is the vehicle: no one gets off
+  }
+  // [grey] end
   // the trees on a 16 m grid (a crown never spans more than one cell's neighbours: each tree is filed in every cell its crown touches)
   const treeGrid = new Map(); for (const p of town.trees) { const r = (p.r || p.def.size[0] / 2); for (let j = Math.floor((p.y - r) / 16); j <= Math.floor((p.y + r) / 16); j++) for (let i = Math.floor((p.x - r) / 16); i <= Math.floor((p.x + r) / 16); i++) { const kk = i * 4096 + j; if (!treeGrid.has(kk)) treeGrid.set(kk, []); treeGrid.get(kk).push(p); } }
   // chaff: what the bike (or Kai at a run) throws up from tall plants, by what it is riding through (the char map): straw
@@ -101,7 +130,8 @@ function start() {
     return Math.min(1.2, l); }
   const shade = (hex, l) => { const n = parseInt(hex.slice(1), 16), f = v => Math.round(Math.min(255, v * l)); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; };
   let curNight = 0;
-  const falls = []; let acc = 0, last = performance.now(), t = 0;
+  const folk = folkOf(town.buildings, 'village');   // [point] the people of the town by the bridge (render: peopleview.js)
+  let ashAcc = 0; const falls = []; let acc = 0, last = performance.now(), t = 0;
   function frame(now) {
     const raw = Math.max(0, (now - last) / 1000), dt = Math.min(0.05, raw); last = now; t += dt;
     if (raw < 2) { ema += (raw * 1000 - ema) * 0.08; fpsT += raw; fpsN++; }
@@ -127,18 +157,20 @@ function start() {
     // no pull-back with the bike's speed for the same reason
     { const want = cam.base; cam.ppm += (want - cam.ppm) * Math.min(1, dt * 6); if (Math.abs(want - cam.ppm) < want * 0.004) cam.ppm = want; }
     const shook = feel.shake(cam, dt);   // [m1] the camera shakes for this frame only
-    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun });
+    look.render({ cam: view, cssW, cssH, dpr, S: R, falls, t, night, dt, sun, garageSel: garageUi.sel, hideKai: garageUi.isOpen || !!lab.hideKai, kaiHome: !!lab.hideKai && !garageUi.isOpen, talk: story.talk, folk, gearView: garageUi.gearView(), gunBase: garageUi.gunBase, bikeStyle: lab.bikeStyle });
     fx.clearRect(0, 0, cssW, cssH);
     const kaiUnder = (treeGrid.get(Math.floor(k.x / 16) * 4096 + Math.floor(k.y / 16)) || []).some(p => Math.hypot(p.x - k.x, p.y - k.y) < (p.r || p.def.size[0] / 2) * 0.8);   // under a crown: her cloth hides with her
     // the little lives (birds, blowing paper) near the camera take a step: render-side, they never touch the rules
     for (const i of town.dress.live) { if (Math.abs(i.x - cam.x) > 90 || Math.abs(i.y - cam.y) > 120) continue; if (!i.st) i.atom.live.init(i); i.atom.live.step(i, dt, { kai: R.kai, t, night, WIND: { x: 0.731, y: 0.682 }, town }); }
-    try { look.draw(fx, { risk: S, lightAt, broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 }, drops: S.drops, shots: S.shots, bolts: S.bolts }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
+    try { look.draw(fx, { risk: S, garageSel: garageUi.sel, hideKai: garageUi.isOpen || !!lab.hideKai, lightAt, broken: S.broken, sun, strands: town.dress.strands, live: town.dress.live, kaiUnder, toS, cam: view, cssW, cssH, kai: R.kai, dead: R.dead, flakes: [], deaths: falls, tracers: [], nests: S.nests, bike: R.bike, t, night, WIND: { x: 0.731, y: 0.682 }, drops: S.drops, shots: S.shots, bolts: S.bolts }); } catch (e) { if (!frame.warned) { frame.warned = true; console.error(e); } }
     for (const o of R.dead) if (o.fa !== undefined) faMap.set(o.id, o.fa); if (faMap.size > 4 * S.dead.length + 50) faMap.clear();   // the dead keep facing where they last walked
+    // [point] a big machine to free breathes ash from its back, like a stack: the grey's source, seen
+    for (const d of S.dead) if (d.boss && d.free && Math.abs(d.x - view.x) < 120 && Math.abs(d.y - view.y) < 160) { ashAcc += dt * 3; while (ashAcc >= 1) { ashAcc -= 1; const c = Math.cos(d.fa || 0), s2 = Math.sin(d.fa || 0); plumeEmit('ash', d.x - c * 4.4 * 2.6 * 0.5, d.y - s2 * 4.4 * 2.6 * 0.5, 4, 0, 0, 1); } }
     dustOf(R.kai, dt); drawPlumes(fx, toS, view.ppm, dt, { x: 0.731, y: 0.682 }, night, cssW, cssH, lightAt);
     throwChaff(R.kai, dt); drawChaff(dt);
     feel.draw(fx, toS, view.ppm, dt, R, lightAt, cssW, cssH);   // [m1] pellets, muzzle flash, sparks, bursts
     shook();
-    ui.arrows(toS, cssW, cssH); ui.update(evs); lootUi.update(evs); areaUi.update(evs); riskUi.update(evs);
+    ui.arrows(toS, cssW, cssH, tidy); tidy.update(dt); if (tidy.edge) tidy.draw(toS, cssW, cssH, t, tidy.edge); quests.draw(toS, cssW, cssH, t, tidy.edge); story.events(evs); story.update(dt); story.draw(fx, toS); quests.update(dt); qlog.update(); ui.update(evs); lootUi.update(evs); areaUi.update(evs); riskUi.update(evs); garageUi.update(evs); freeUi.update(evs); bridgeUi.update(evs); objUi.update(evs);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

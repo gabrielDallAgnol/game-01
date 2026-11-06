@@ -23,10 +23,10 @@ import { profileOf } from './streets.js';
 import { TILE } from '../tiles.js';
 const CPX = TILE * 8 * 4;   // the land canvas's texels a side (tiles.js: TILE · RING · TPX; its later names do not survive the bundler)
 
-export const LAND_KINDS = { wheat: 1, barley: 2, rape: 3, plough: 4, stubble: 5, pasture: 6, meadow: 7, woods: 8, lot: 9, gravel: 10, yard: 11, water: 12, hedge: 13 };
+export const LAND_KINDS = { wheat: 1, barley: 2, rape: 3, plough: 4, stubble: 5, pasture: 6, meadow: 7, woods: 8, lot: 9, gravel: 10, yard: 11, water: 12, hedge: 13, bank: 14 };
 export const FARM_KINDS = ['wheat', 'barley', 'rape', 'plough', 'stubble', 'pasture', 'meadow'];
 const CROP = new Set(['wheat', 'barley', 'rape', 'plough', 'stubble']), FARM = new Set(FARM_KINDS);
-const ORDER = { woods: 110, water: 120, lot: 130, gravel: 130, yard: 130 };   // farmland 100 first; a site's ground over it
+const ORDER = { woods: 110, bank: 115, water: 120, lot: 130, gravel: 130, yard: 130 };   // farmland 100 first; a site's ground over it
 const PPM = 32;   // b: levels a metre (6 m = 192)
 const HEDGE_W = 1.4;   // a hedge's half-width (m)
 
@@ -99,6 +99,13 @@ export function landItems(W, add) {
       X.fillStyle = `rgb(${c},${g},${6 * PPM})`; X.fill(); X.lineJoin = 'round';
       for (const Q of P.holes) { Q.poly.forEach((q, k) => k ? X.lineTo(q.x, q.y) : X.moveTo(q.x, q.y)); X.closePath(); }   // their edges join the stroked path
       for (const [d, lv] of BANDS) { X.strokeStyle = `rgb(${c},${g},${Math.round(lv * PPM)})`; X.lineWidth = 2 * d; X.stroke(); } }); }
+  // [shore] the bank round every pond, lake and river: a halo of its own kind ('bank', b: metres from the water) laid over
+  // fields and woods, under hard ground (a lot drawn later wins: there the water meets a quay, see the water's look)
+  const HALO = [6, 5, 4, 3.25, 2.5, 2, 1.6, 1.25, 1, 0.75, 0.5, 0.25];
+  for (const P of plan.polys) { if (P.kind !== 'water' || P.poly.length < 3) continue; const p = P.poly, R = 7;
+    tilesOf(P.box[0] - R, P.box[1] - R, P.box[2] + R, P.box[3] + R, (cx, cy) => edgeDist(p, cx, cy) < TILE * 0.72 + R, ORDER.bank, X => {
+      const c = LAND_KINDS.bank * 16 + careQ(plan.careOf(P)); X.beginPath(); p.forEach((q, k) => k ? X.lineTo(q.x, q.y) : X.moveTo(q.x, q.y)); X.closePath(); X.lineJoin = 'round';
+      for (const d of HALO) { X.strokeStyle = `rgb(${c},0,${Math.round((d - 0.12) * PPM)})`; X.lineWidth = 2 * d; X.stroke(); } }); }
   // the hedges: per tile, every hedge in it band by band (rim first), so hedges that meet at a corner join as one
   const HS = plan.hedgeSegs, hg = new Map();
   for (const h of HS) { const m = HEDGE_W + 1; for (let j = Math.floor((Math.min(h.a.y, h.b.y) - m) / TILE); j <= Math.floor((Math.max(h.a.y, h.b.y) + m) / TILE); j++) for (let i = Math.floor((Math.min(h.a.x, h.b.x) - m) / TILE); i <= Math.floor((Math.max(h.a.x, h.b.x) + m) / TILE); i++) {
@@ -164,6 +171,7 @@ ${MAIN}`);
             else if (lK < 8.5) { lGrass = 1.0 - smoothstep(0.6, 2.4, lIn + (vnoise(w * 0.6) - 0.5) * 1.2); lLen = 1.2; lClump = 0.0; }
             else if (lK < 11.5) { lGrass = smoothstep(0.62, 0.85, vnoise(w * 0.35 + 3.0) * 0.6 + vnoise(w * 1.7) * 0.4 + (0.45 - lCare) * 0.7) + (1.0 - smoothstep(0.1, 0.5, lIn)) * (1.0 - lCare) * 0.8; lLen = 0.6; lClump = 0.0; }
             else if (lK < 12.5) { lGrass = 0.0; lClump = 0.0; }
+            else if (lK > 13.5) { float bk = lIn + (vnoise(w * 0.35) - 0.5) * 2.2 + (vnoise(w * 1.6) - 0.5) * 0.5; lGrass = smoothstep(0.1, 0.9, bk); lLen = mix(1.7, 1.0, smoothstep(1.0, 5.0, lIn)); lTone = mix(vec3(0.8, 0.96, 0.76), vec3(1.0), smoothstep(1.5, 6.0, lIn)); lClump = 0.7; lBloom = 0.25; }   // [shore] rank grass down to the waterline
             else { lGrass = 1.0 - smoothstep(0.05, 0.35, lIn); lLen = 1.2; lClump = 0.0; } } }
         // [land] end
 ${HAIRK}
@@ -275,18 +283,44 @@ ${HAIRK}
           } else if (lK > 11.5 && lK < 12.5) {
             // water: the sky in it, a little moving; darker with depth; wet mud at the shore, reeds round it
             float d = lIn + (vnoise(w * 0.5) - 0.5) * 0.5, sv = smoothstep(4.0, 12.0, uPpm * 0.25);
+            // [shore] what the water meets: hard (a lot, a yard, a road, a house: a quay wall) or soft (grass, a field, a wood: a bank)
+            float hard = 0.0; if (lIn < 3.0) { vec2 ob = toTex(w - lN * (lIn + 1.0)); float ko = floor(floor(landAt(ob).r * 255.0 + 0.5) / 16.0);
+              hard = max(max(step(8.5, ko) * step(ko, 11.5), step(0.5, texture2D(tStreet, ob).a)), step(0.5, texture2D(tRoof, ob).a)); }
             vec3 sky = vec3(0.5, 0.57, 0.64);
-            vec3 wc = mix(sky * 0.8, vec3(0.09, 0.11, 0.12), 0.3 + 0.35 * smoothstep(0.5, 5.0, d)) * (0.65 + 0.35 * vnoise(w * 0.3 + vec2(uTime * 0.05, 0.0)));
-            wc *= mix(0.72, 1.0, smoothstep(0.3, 2.2, d));   // the bank's dark in it
+            vec3 wc = mix(sky * 0.78, vec3(0.06, 0.11, 0.13), 0.35 + 0.4 * smoothstep(0.5, 6.0, d)) * (0.65 + 0.35 * vnoise(w * 0.3 + vec2(uTime * 0.05, 0.0)));
+            // [shore] a soft bank shelves: the shallows show the bed (brown, stones), deepening away from it; the bank's dark in it
+            vec3 bed = vec3(0.3, 0.26, 0.18) * (0.75 + 0.4 * vnoise(w * 1.3));
+            wc = mix(wc, mix(bed, wc, 0.3 + 0.4 * smoothstep(0.2, 1.5, d)), (1.0 - smoothstep(0.2, 4.0, d + (vnoise(w * 0.35) - 0.5) * 1.6)) * (1.0 - hard) * 0.9);
+            wc *= mix(mix(0.75, 1.0, smoothstep(0.3, 2.2, d)), 1.0, hard);
             wc += vec3(0.12) * smoothstep(0.75, 1.0, sin(dot(w, WD) * 5.0 - uTime * 1.6 + vnoise(w * 0.7) * 6.0)) * vnoise(w * 0.25 - WD * uTime * 0.1) * sv;   // ripples down the wind
             wc += vec3(0.3, 0.28, 0.24) * smoothstep(0.6, 0.8, vnoise(mat2(0.8, 0.6, -0.6, 0.8) * w * 6.3 + uTime * 0.4) * vnoise(w * 4.1 - uTime * 0.27) * 1.5) * 0.7 * (1.0 - uNight) * sv;   // the sun's glints (two noises crossed: no lattice in them)
-            wc = mix(vec3(0.12, 0.1, 0.075) * (0.8 + 0.3 * vnoise(w * 3.0)), wc, smoothstep(0.15, 0.45, d));   // wet mud
-            float reedK = (1.0 - smoothstep(0.9, 1.9, d)) * smoothstep(0.1, 0.3, d) * smoothstep(0.4, 0.6, vnoise(w * 0.3 + 8.0) + (0.5 - lCare) * 0.3);
+            wc = mix(vec3(0.22, 0.19, 0.14) * (0.8 + 0.3 * vnoise(w * 3.0)), wc, mix(smoothstep(0.0, 0.3, d), 1.0, hard));   // the wet edge (a soft bank only)
+            { float lap = smoothstep(0.5, 0.3, d) * smoothstep(0.12, 0.28, d) * smoothstep(0.35, 0.7, vnoise(w * 0.9 + vec2(uTime * 0.2, 0.0))) * (0.4 + 0.6 * sin(uTime * 1.3 + vnoise(w * 0.8) * 9.0));   // the water laps at a soft bank
+              wc += vec3(0.16, 0.18, 0.18) * lap * (1.0 - hard) * (1.0 - 0.6 * uNight); }
+            if (hard > 0.5) { float cop = 1.0 - smoothstep(0.36, 0.46, lIn);   // a quay: the wall's coping in dressed stone (a joint every 1.1 m), its shadow on the water
+              vec2 tg = vec2(-lN.y, lN.x); float jt = lines(dot(w, tg), 1.1, max(0.02, 0.6 / uPpm));
+              vec3 stone = vec3(0.5, 0.49, 0.46) * (0.85 + 0.25 * vnoise(w * 3.0)); stone = mix(stone, stone * 0.55, jt);
+              wc *= mix(0.48, 1.0, smoothstep(0.46, 1.7, lIn)); wc = mix(wc, stone * mix(1.0, 0.45, uNight), cop); }
+            wc *= 1.0 - 0.45 * smoothstep(0.3, 0.7, texture2D(tStreet, toTex(w + SUNV * 1.5)).a);   // a bridge's shadow on the water
+            float reedK = (1.0 - smoothstep(0.9, 1.9, d)) * smoothstep(0.1, 0.3, d) * smoothstep(0.36, 0.52, vnoise(w * 0.3 + 8.0) + (0.5 - lCare) * 0.3) * (1.0 - hard);
             if (reedK > 0.01) { vec2 rdir = normalize(WD * (0.6 + g0) + (vec2(vnoise(w * 0.5), vnoise(w * 0.5 + 3.0)) - 0.5) * 1.6); if (lPl > 0.02) rdir = normalize(mix(rdir, lPush / lPl, clamp(lPl * 1.6, 0.0, 1.0)));
               float vis = smoothstep(0.35, 1.0, 2.0 * 0.03 * uPpm); vec2 st = vis > 0.01 ? strands(w, rdir, 4.0, 0.6, 0.03, 0.8, 51.0) : vec2(0.0, 0.5);
               vec3 rc = mix(vec3(0.24, 0.24, 0.15), vec3(0.62, 0.56, 0.36), mix(0.5, st.y, vis)) * (0.85 + 0.3 * g0); rc = mix(rc, vec3(0.24, 0.15, 0.09), step(0.88, st.y) * vis);   // a bulrush's head
               wc = mix(wc, rc, reedK * mix(0.6, st.x, vis)); }
             lc = wc * mix(1.0, 0.75, shadow); lA = 1.0;
+          } else if (lK > 13.5) {
+            // [shore] a soft bank: wet mud and pebbles at the waterline under rank grass; reeds stand in it here and there
+            float bk = lIn + (vnoise(w * 0.35) - 0.5) * 2.2 + (vnoise(w * 1.6) - 0.5) * 0.5;
+            vec3 mud = mix(vec3(0.3, 0.27, 0.2), vec3(0.2, 0.17, 0.12), vnoise(w * 0.9)) * (0.85 + 0.3 * vnoise(w * 3.1));
+            { vec2 pc = floor(w / 0.22); vec2 pp = (pc + 0.25 + 0.5 * h22(pc + 3.3)) * 0.22; float pv = smoothstep(2.0, 4.0, 0.05 * uPpm);
+              mud = mix(mud, vec3(0.44, 0.42, 0.38) * (0.7 + 0.5 * h21(pc + 1.7)), step(h21(pc + 8.1), 0.2) * (1.0 - smoothstep(0.035, 0.07, length(w - pp))) * pv); }
+            mud = mix(mud * 0.62, mud, smoothstep(0.0, 0.6, lIn));   // darker where the water wets it
+            lc = mud * lsh; lA = 1.0 - lGrass;
+            float reedK = (1.0 - smoothstep(1.4, 2.6, lIn)) * smoothstep(0.05, 0.3, lIn) * smoothstep(0.36, 0.52, vnoise(w * 0.3 + 8.0) + (0.5 - lCare) * 0.3);
+            if (reedK > 0.01) { vec2 rdir = normalize(WD * (0.6 + g0) + (vec2(vnoise(w * 0.5), vnoise(w * 0.5 + 3.0)) - 0.5) * 1.6); if (lPl > 0.02) rdir = normalize(mix(rdir, lPush / lPl, clamp(lPl * 1.6, 0.0, 1.0)));
+              float vis = smoothstep(0.35, 1.0, 2.0 * 0.03 * uPpm); vec2 st = vis > 0.01 ? strands(w, rdir, 4.0, 0.6, 0.03, 0.8, 51.0) : vec2(0.0, 0.5);
+              vec3 rc = mix(vec3(0.26, 0.27, 0.15), vec3(0.64, 0.58, 0.37), mix(0.5, st.y, vis)) * (0.85 + 0.3 * g0); rc = mix(rc, vec3(0.24, 0.15, 0.09), step(0.88, st.y) * vis);
+              float rk = reedK * mix(0.7, st.x, vis); lc = mix(lc, rc * lsh, clamp(rk / max(lA + rk, 1e-3), 0.0, 1.0)); lA = max(lA, rk); }
           } else if (lK > 12.5) {
             // a hedgerow: a row of bushes (hawthorn going russet, a few red berries), each a dome lit on its sun side and combed
             // round its middle like the town's crowns; gaps and ragged bushes where it was let go

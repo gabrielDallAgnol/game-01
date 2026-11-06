@@ -11,6 +11,7 @@ export const PRESETS = {
   hearth:   { c: [214, 208, 198], a: 0.34, s0: 0.4, s1: 2.6, rise: 0.9,  life: 4.5, rate: 2.2, drift: 1.2, warm: 0 },
   smoulder: { c: [96, 90, 86],    a: 0.62, s0: 0.7, s1: 4.6, rise: 1.2,  life: 6.0, rate: 5.0, drift: 1.4, warm: 1 },
   steam:    { c: [226, 228, 230], a: 0.34,  s0: 0.3, s1: 1.6, rise: 0.7,  life: 2.2, rate: 3.0, drift: 0.8, warm: 0 },
+  ash:      { c: [150, 146, 140], a: 0.6, s0: 1.2, s1: 9.0, rise: 1.4,  life: 10.0, rate: 3.0, drift: 1.8, warm: 0 },   // [point] a big machine to free breathes ash
   works:    { c: [120, 116, 110], a: 0.5,  s0: 1.0, s1: 7.0, rise: 1.6,  life: 8.0, rate: 3.0, drift: 1.6, warm: 0.4 },
 };
 const N = 360, P = Array.from({ length: N }, () => ({ life: 0 }));

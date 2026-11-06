@@ -157,7 +157,64 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 - A recipe is **learned forever** for now (Gabriel worries about how many there'll be late in the game; revisit then). A recipe you already know turns into chips. On the ground it keeps its rarity's coloured name, so a rare recipe is still a jackpot.
 - Recipes Kai carries are **at risk until banked**: going down drops them into the death cache with her scrap.
 - **Mods and sockets, like WoW gems:** "off-hand" is renamed **mods**. A mod (fire, water, ricochet, double shot...) is its own item, built from its own recipe. A weapon's recipe gives it some mods built in and some empty **sockets** you fill at the garage; some recipes have everything built in, others are mostly sockets.
-- **Where damage comes from (proposed, to confirm):** the recipe decides what a gun *does* (its kind, built-in mods, sockets), never its damage. Damage comes from the weapon's **level**, raised with scrap at the garage (the main scrap sink) and capped by Kai's level (M7). So an early recipe never turns into junk, and the number of recipes stays small: each is a different behaviour, not a bigger number.
+- **A socketed mod stays for good (Gabriel, Nov 1):** like WoW gems it can't be taken back out, so putting one in is a real decision; a new mod over it destroys the old one.
+- **Where damage comes from (agreed Nov 1):** the recipe decides what a gun *does* (its kind, built-in mods, sockets), never its damage. Damage comes from the weapon's **level**, raised with scrap at the garage (the main scrap sink) and capped by Kai's level (M7). So an early recipe never turns into junk, and the number of recipes stays small: each is a different behaviour, not a bigger number.
+
+**As built (Nov 1, `play/m6-garage`):**
+- **Recipes:** machines drop recipes (`src/play/recipes.js`: 12 weapons, 7 mods, 16 parts); brutes often, walkers always (rare or epic). A recipe on the ground is a rolled sheet in a tube with its rarity's paint and a lamp, its name over it in that colour. Kai carries it (BOOK shows carried and known) until a site banks it; then it's known for good. A known one turns into chips on pickup. Going down puts carried recipes in the death cache.
+- **Sites are atoms** (`src/play/sites.js`): the camp (home, bank, repair), the garage (bank, repair, stash, workbench) on the forecourt of the town's own garage site (`world/sites.js` lays one out on every map; on seed 7 it's in the strip, 260 m south of the camp), beacons (bank only now). A map with no garage gives the camp the workbench.
+- **The garage panel** (GARAGE at the forecourt, or G): BIKE shows the five slots with their stats, level and UPGRADE; the weapon's built-in mods and sockets. BUILD lists known recipes with their cost (common 15 scrap, tuned 40, rare 90 + 2 chips, epic 160 + 5; mods cheaper). STASH holds built gear (EQUIP, SALVAGE for 40% back) and your mods.
+- **Mods in sockets are permanent:** tap an empty socket, pick a mod, confirm "for good". Socketing over an old mod destroys it. One element per weapon. The old off-hand enchant is now two mods (fire charge, water charge); the gun has none by default.
+- **Levels:** a weapon's level is its damage (+10% a level); a part's level raises its main stats (engine speed, frame health, lamp reach, tyre grip). Upgrades cost banked scrap (weapon 6 x level, part 4 x level) and stop at 3 x Kai's level (areas cleaned + 1 until M7).
+- **Parts change the bike** (`src/play/parts/bike.js`) and its look (`src/roam/bikelook.js`, a module per part on the bike's sockets, accents in the rarity's paint): torque, racer and charger engines; plated, light and bull-bar frames (the bull-bar rams brutes); twin, scanner and dazzle lamps (the dazzle slows machines in the beam); grip tyres, bouncers (bigger wall bounce, half crash damage), knobblies (props don't slow you).
+- KIT is a test control now (only with `?dev=1`).
+- Headless (a bot riding loops, 10 min): ~400 scrap, ~14 recipe drops (8 common, 4 tuned, 2 rare), a few chips: tuned builds cost scrap only so the early garage is reachable.
+
+**After Gabriel's M6 playtest (Nov 1):**
+- **The bike and what's fitted to it read apart now:** BIKE in the garage is a picture of the bike with its five fitted parts labelled where they sit (gun, engine, frame, lamp, tyres); tap one to see it. Its button says UPGRADE THIS GUN / ENGINE..., with a line that it improves that part, not the bike, and the level goes with the part. The FIRE button names the gun you carry and its level.
+- **Fewer drops:** recipes from crawlers 1.2%, hounds 2.5%, spitters 3%, brutes 20%; no epic except 5% from a walker. (Testing still needs some; the real start is incremental, see M8.)
+- **No bank where a walker falls** (Gabriel: a bank right at the boss doesn't make sense). Banks: the camp and the garage.
+- **Elite machines drop their mod** (`src/play/elites.js`, `src/roam/sim/elites.js`): 3% of machines (+1.2% per area level, x1.5 at night) carry a mod and act it: Quick (runs 45% faster), Twin (hits twice; a twin spitter spits two bolts), Glancing (shots glance off: 55% damage), Burning (the ground catches where it walks), Soaking (leaves water). 2.6x health, bigger eyes, a name plate in ember (BURNING HOUND). Beating one drops that mod (a steel chip with a lit core): carried, at risk, until a bank sends it to the garage. Mod recipes stay buildable too.
+- **Later, recorded:** the garage UI should look like a game, not a file manager (a pass in M10's polish); the incremental start goes into M8.
+
+**The garage, looked at again (Nov 1, `play/m6c-garage-look`):**
+- **The real bike, close up:** opening the garage brings the camera in on the bike itself (the game's own render), set in the top of the screen; the panel is a sheet below it. The BIKE tab is a row of its five fitted parts (GUN, ENGINE, FRAME, LAMP, TYRES with their levels); the one you pick is ringed in amber light on the bike (both wheels for tyres, both sides for the frame), and shown below. The drawn diagram is gone. The HUD steps aside while it's open.
+- **It looks like a garage:** the garage site carries its own dressing (`dress` in `src/play/sites.js`, drawn by `src/roam/sitedress.js`), set in front of its doors so it lands right on any map: the open doors' warm light spilling out, a sign board with GARAGE lit on it, work lamps either side pooling warm light, stacks of tyres, oil drums, a car up on a lift, an air line, cones, old oil stains on the ground. No floating label at close range any more.
+
+**The garage lot is safe ground (Nov 1, `play/m6d-garage-safe`):**
+- A tall amber lamp at each corner of the garage's lot (the site's own box), a wide halo at every zoom and a pool of light on the ground, so the lot shows from far away.
+- Machines keep out of the lot: nothing is born on it, one that wanders in is turned back at its edge, they lose interest in Kai while she's on it, and their bolts die at its edge. Her gun stays quiet on the lot too (FIRE dims), so it's a place to bank, repair and build, not a turret.
+- While the garage (or any panel) is open, the screen ignores pinch and drag: the close-up of the bike stays put.
+
+**The drive-in and the glowing part (Nov 1):**
+- **Need for Speed: Most Wanted's garage:** at the front of the garage, GARAGE has the bike ride itself into the bay in front of the doors (no control meanwhile), where it always stands at the same angle; the close-up and the panel open once it's parked. Closing rides it back out to the forecourt, facing away from the doors and rolling, and you have the bike again.
+- **The picked part glows:** instead of a ring, the part's own cells light up in their own colours (the medium's glow) under a soft round glow of the selection yellow, strongest in the middle.
+
+**A fenced lot, a gate, and the bike on its own (Nov 1):**
+- **The lot is fenced with one gate** (`town.js` `garageLot`): the town's garage site is cleared of its parked cars and clutter, fenced all round (steel posts and panels, kept 1.5 m off the roads), with one gate on the side nearest the road. The gate is two posts with lamps, an arch with GARAGE lit on it, two leaves that slide apart, amber bars painted on the ground in front. Shut, it's a wall.
+- **Ride to the gate, tap GARAGE:** the gate opens, the bike rides itself in through it to the bay, the gate shuts behind it, the close-up opens. Leaving rides back out through the gate. From inside the lot the gate opens for Kai by herself.
+- **The close-up is just the bike** (Kai isn't drawn while the garage is open). The picked part glows and the rest of the view dims, with a soft clear window over the part. **Try another:** the stash's other parts for that slot are listed under it; tap one and the bike shows it on, glowing, then FIT to keep it. **Pinch or wheel to zoom** in and out of the close-up (it stays on the bike).
+
+**Later, recorded (Gabriel, Nov 1):**
+- **A workbench that grows:** at first the garage can only upgrade; building from recipes needs a station you build first, and a better station lets rarer recipes start to show up.
+- **Garage cosmetics:** things to make the garage's surroundings feel alive, built or bought over time. The map is not very interactive; the garage is, and it should look it.
+
+## P. The Point: the first map and the grey world (Nov 1) · next, before M7
+The direction changed on Nov 1 (docs/design/the-point.md): the robot is the hero, Kai its mechanic; areas are grey with
+ash until their big machine is **freed** (not destroyed), then it filters the ash and the colour comes back for good.
+
+| Step | Build | Status |
+|---|---|---|
+| P1 | The grey world (`?proto=grey`): colour drains where machines hold an area, light keeps its colour; the robot rides alone; the LOOK chip | **Built** (prototype) |
+| P2 | The Point (`?world=point`): the peninsula, the rivers and the cut as walls, Wendbridge, broken Wend Bridge, the garage at the tip, the boss wedged in the bridge (a pinned walker), the Point clean from the start | **Built** (map) |
+| P3 | Freeing a big machine: the freeing chip (a recipe built from chips + scrap at the garage), the link mini-game, the boss turns guardian/filter, the colour sweeps | **Built** (Nov 2 night) |
+| P4 | Chips rarer; chips spent on the freeing chip and on vehicle upgrades | **Built**: a machine's own chip, rolled per death, burnt by fire |
+| P5 | Mending Wend Bridge once the boss is free (a mission; the gap closes, the road opens) | **Built**, plus the objective line and the ash seen |
+| P6 | Wendbridge's people: a few small trust missions; the first recipe from a mission (the incremental start) | **Started**: the people are on screen and react (hide, shy, work, wave); no missions yet |
+| P7 | Colour on every asset (the small details on the separate layer too); the robot's rest pose; cutscenes in the game camera | **Started**: the overlay greys too; the opening scene; Kai at home; the ash seen. Rest pose and more scenes later |
+
+**Play it:** Does the Point read as a closed, safe place with one way out? Does the grey make you want to bring the
+colour back? Does the boss in the bridge explain itself without words?
 
 ## M7. Levels and talents · about 1 week
 | Build | Notes |
@@ -176,6 +233,7 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 | House sockets | Plate, lamp, vent and sign modules raise a house's care |
 | Rebuild missions | Haul, courier, power line, guard; the main source of XP |
 | Survivors move in | The hub fills up as you clean and rebuild |
+| An incremental start (Gabriel, Nov 1) | At first machines drop only scrap; a mission gives the first recipe and teaches building it; then recipes start dropping, tuned first; no epic early on |
 | The mechanic | A survivor in town who repairs the bike: for scrap at first, free after his mission (Gabriel, Nov 1). Replaces the banks' free repair |
 
 **Play it:** Do you want to go back to town to see what changed? Do missions feel like helping people, or like chores?
@@ -191,10 +249,10 @@ How we turn the design ([new-direction.md](new-direction.md), [play-atoms.md](pl
 **Play it:** Can each form carry the whole game alone? Does switching feel optional, not required?
 
 ## M10. Chapter 1 complete
-The control-node boss, the story hooks (the chip, the 3:00 radio voice), side quests, 3–5 areas, polish, a full playtest.
+The control-node boss, the story hooks (the chip, the 3:00 radio voice), side quests, 3–5 areas, polish (including the garage and panels looking like a game, not a file manager: Gabriel, Nov 1), a full playtest.
 
 ## Later list (not before chapter 1 is fun)
-A portable garage on the truck form (the garage's services on a vehicle), buying a garage to make it home, turrets built for houses as missions; Shock and wind (and their reactions), epic modifier slots, schematics, the Deep Signal endgame, chapter 2, Kai on foot for narrow places and shops.
+A portable garage on the truck form (the garage's services on a vehicle), buying a garage to make it home, a workbench that grows (upgrade only at first; a built station to build recipes; a better one shows rarer recipes), garage cosmetics, turrets built for houses as missions; Shock and wind (and their reactions), epic modifier slots, schematics, the Deep Signal endgame, chapter 2, Kai on foot for narrow places and shops.
 
 ## Open decisions
 1. **Build on Roam and freeze V2?** (Proposed: yes.)
